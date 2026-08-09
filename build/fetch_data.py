@@ -1,32 +1,96 @@
-"""下載健保署 2023年中文版 ICD-10-CM/PCS 官方 Excel 到 data/。已存在且大小合理則跳過。
+"""下載健保署 2023年中文版 ICD-10-CM/PCS 官方 Excel 到 data/。
 
-來源頁：https://www.nhi.gov.tw/ch/cp-6071-469da-3051-1.html
-（「2023年中文版ICD-10-CM/PCS(正式版)(113.11.18更新)」；直接連結失效時回來源頁找新的 xlsx）
+來源頁：https://www.nhi.gov.tw/ch/lp-3847-1.html
+（目前使用 115.05.06 更新檔；直接連結失效時回來源頁找新的 xlsx）
 注意：舊的 data.gov.tw CSV API（rId=A21030000I-D20025-005）經 Big5 相容管線輸出，
 非 Big5 字元全部變成字面「?」（6,955 筆中文名受害），禁止使用。
 """
-import shutil, subprocess, sys
+import hashlib
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+import zipfile
 from pathlib import Path
 
-URL = "https://www.nhi.gov.tw/ch/dl-66644-25490863641c4e1889522442f8262b47-1.xlsx"
+from source_manifest import MIN_SIZE, SOURCE_SHA256, SOURCE_URL
+
 DEST = Path(__file__).resolve().parent.parent / "data" / "icd10_2023_official.xlsx"
-MIN_SIZE = 5 * 1024 * 1024  # 5MB：檔案實際約 7.3MB
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+
+
+def sha256_file(path, chunk_size=1024 * 1024):
+    digest = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(chunk_size), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def is_valid_xlsx(path):
+    if not path.exists() or path.stat().st_size < MIN_SIZE:
+        return False
+    if not zipfile.is_zipfile(path):
+        return False
+    try:
+        with zipfile.ZipFile(path) as archive:
+            names = set(archive.namelist())
+            return "xl/workbook.xml" in names and "[Content_Types].xml" in names
+    except (OSError, zipfile.BadZipFile):
+        return False
+
+
+def is_current_source(path):
+    return is_valid_xlsx(path) and sha256_file(path).lower() == SOURCE_SHA256.lower()
+
 
 def main():
     sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
     DEST.parent.mkdir(exist_ok=True)
-    if DEST.exists() and DEST.stat().st_size > MIN_SIZE:
+    if is_current_source(DEST):
         print(f"已存在，跳過下載：{DEST} ({DEST.stat().st_size:,} bytes)")
         return
     curl = shutil.which("curl")
     if not curl:
         raise SystemExit("找不到 curl，請確認 Windows 內建 curl 可用")
-    result = subprocess.run([curl, "-sfL", "-A", UA, URL, "-o", str(DEST)], capture_output=True, text=True)
-    if result.returncode != 0:
-        raise SystemExit(f"curl 失敗（exit {result.returncode}）：{result.stderr}")
-    if not DEST.exists() or DEST.stat().st_size < MIN_SIZE:
-        raise SystemExit("下載檔案過小，來源可能異常（若直接連結失效，回來源頁找新連結）")
+
+    temp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            prefix=DEST.name + ".", suffix=".tmp", dir=DEST.parent, delete=False
+        ) as temp:
+            temp_path = Path(temp.name)
+        result = subprocess.run(
+            [
+                curl,
+                "-sfL",
+                "--max-time",
+                "120",
+                "--retry",
+                "2",
+                "-A",
+                UA,
+                SOURCE_URL,
+                "-o",
+                str(temp_path),
+            ],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            raise SystemExit(f"curl 失敗（exit {result.returncode}）：{result.stderr}")
+        if not is_valid_xlsx(temp_path):
+            raise SystemExit("下載檔案不是有效 XLSX，來源可能異常")
+        actual_hash = sha256_file(temp_path)
+        if actual_hash.lower() != SOURCE_SHA256.lower():
+            raise SystemExit(f"下載檔案 SHA-256 不符：{actual_hash}")
+        os.replace(temp_path, DEST)
+    finally:
+        if temp_path and temp_path.exists():
+            temp_path.unlink()
+
     print(f"下載完成：{DEST} ({DEST.stat().st_size:,} bytes)")
 
 if __name__ == "__main__":

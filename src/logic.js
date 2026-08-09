@@ -17,27 +17,47 @@
     return { db, nodot, lowerEn, byCode, curatedCodes: curatedCodes || new Set() };
   }
 
+  // 回傳的陣列另帶 total（截斷前的命中總數），供 UI 顯示「共 N 筆，顯示前 M 筆」。
+  function withTotal(rows, total) {
+    rows.total = total;
+    return rows;
+  }
+
   function search(index, query, limit) {
     limit = limit || 50;
     const q = (query || '').trim();
-    if (q.length < 2) return [];
+    if (q.length < 2) return withTotal([], 0);
     const out = [];
     const seen = new Set();
-    const push = (row) => { if (!seen.has(row[0])) { seen.add(row[0]); out.push(row); } };
+    const ranks = new Map();
     const { db, nodot, lowerEn, curatedCodes } = index;
-    if (/^[a-z][0-9a-z.]*$/i.test(q)) {           // 像代碼：先做代碼前綴
-      const qc = q.toUpperCase().replace(/\./g, '');
-      for (let i = 0; i < db.length; i++)
-        if (nodot[i].startsWith(qc)) push(db[i]);
-    }
     const ql = q.toLowerCase();
+    const isCode = /^[a-z][0-9a-z.]*$/i.test(q);   // 像代碼：先做代碼前綴
+    const qc = isCode ? q.toUpperCase().replace(/\./g, '') : '';
+    // 命中層級：0 完全相符、1 開頭相符、2 其他（僅作為「精選碼優先」之後的次要排序）
+    const rankOf = (i) => {
+      if ((isCode && nodot[i] === qc) || db[i][3] === q || lowerEn[i] === ql) return 0;
+      if ((isCode && nodot[i].startsWith(qc)) || db[i][3].startsWith(q) || lowerEn[i].startsWith(ql)) return 1;
+      return 2;
+    };
+    const push = (i) => {
+      const row = db[i];
+      if (seen.has(row[0])) return;
+      seen.add(row[0]);
+      ranks.set(row[0], rankOf(i));
+      out.push(row);
+    };
+    if (isCode) {
+      for (let i = 0; i < db.length; i++)
+        if (nodot[i].startsWith(qc)) push(i);
+    }
     for (let i = 0; i < db.length; i++)
-      if (lowerEn[i].includes(ql) || db[i][3].includes(q)) push(db[i]);
-    // 人工精選（門診常用）碼優先顯示，其餘維持原順序（穩定排序）
-    // 注意：精選/非精選為二元分組排序，未保持「代碼前綴命中優先於名稱命中」的跨組順序；
-    // 現有資料（代碼字串與病名幾乎無子字串重疊）不會觸發，擴充命中規則時需重新檢視。
-    if (curatedCodes.size) out.sort((a, b) => (curatedCodes.has(b[0]) ? 1 : 0) - (curatedCodes.has(a[0]) ? 1 : 0));
-    return out.slice(0, limit);
+      if (lowerEn[i].includes(ql) || db[i][3].includes(q)) push(i);
+    // 人工精選（門診常用）碼優先顯示，其次依命中層級，同層級維持原順序（穩定排序）
+    out.sort((a, b) =>
+      ((curatedCodes.has(b[0]) ? 1 : 0) - (curatedCodes.has(a[0]) ? 1 : 0))
+      || (ranks.get(a[0]) - ranks.get(b[0])));
+    return withTotal(out.slice(0, limit), out.length);
   }
 
   function family(index, code, limit) {
@@ -59,5 +79,17 @@
     return items.map(x => x.code).join('\n');
   }
 
-  return { buildIndex, search, family, formatCart };
+  function mergeRelated(base, extra) {
+    const out = [];
+    const seen = new Set();
+    for (const code of [...(base || []), ...(extra || [])]) {
+      if (!seen.has(code)) {
+        seen.add(code);
+        out.push(code);
+      }
+    }
+    return out;
+  }
+
+  return { buildIndex, search, family, formatCart, mergeRelated };
 });

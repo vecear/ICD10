@@ -5,19 +5,35 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ICD-10 門診導引</title>
 <style>
-  :root { --accent:#0b6e4f; --bg:#f7f8f9; --card:#fff; --line:#dcdfe3; --text:#1c1e21; --dim:#65707c; }
+  :root { --accent:#0b6e4f; --bg:#f7f8f9; --card:#fff; --line:#dcdfe3; --text:#1c1e21; --dim:#65707c; --warn:#9a6500; }
   * { box-sizing:border-box; }
   body { margin:0; font-family:"Microsoft JhengHei",system-ui,sans-serif; background:var(--bg); color:var(--text); }
   header { display:flex; gap:10px; align-items:center; padding:10px 14px; background:var(--card); border-bottom:1px solid var(--line); position:sticky; top:0; z-index:5; flex-wrap:wrap; }
   header h1 { font-size:16px; margin:0 8px 0 0; color:var(--accent); white-space:nowrap; }
   #search { flex:1; min-width:220px; font-size:16px; padding:8px 12px; border:1px solid var(--line); border-radius:8px; }
-  .mode-btn { font-size:15px; padding:8px 16px; border:1px solid var(--line); background:var(--card); border-radius:8px; cursor:pointer; }
+  .mode-btn { font-size:14px; padding:8px 13px; border:1px solid var(--line); background:var(--card); border-radius:8px; cursor:pointer; }
   .mode-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .mode-btn:focus-visible, .region-btn:focus-visible, .chip:focus-visible, .panel > button:focus-visible { outline:3px solid #8fd8bc; outline-offset:2px; }
   #status { font-size:12px; color:var(--dim); white-space:nowrap; }
-  main { display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:12px; padding:12px 14px; max-width:1280px; margin:0 auto; }
-  @media (max-width:900px){ main { grid-template-columns:1fr; } #cart-pane { order:-1; position:static; } }
+  main { display:grid; grid-template-columns:minmax(0,1fr) 360px; gap:12px; padding:12px 14px; max-width:1380px; margin:0 auto; }
+  main > * { min-width:0; }   /* grid item 預設 min-width:auto 會被內容撐開，導致整頁水平溢出 */
   .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:12px; }
   .card h2 { font-size:14px; margin:2px 0 8px; color:var(--dim); }
+  .section-head { display:flex; gap:10px; align-items:baseline; justify-content:space-between; }
+  .section-head h2 { margin-bottom:6px; }
+  .section-head span { color:var(--dim); font-size:12px; }
+  #region-nav { display:flex; gap:6px; overflow-x:auto; padding:2px 0 8px; scrollbar-width:thin; }
+  #region-nav[hidden] { display:none; }
+  .region-btn { flex:0 0 auto; border:1px solid var(--line); background:#f8fafb; color:var(--text); border-radius:16px; padding:6px 11px; cursor:pointer; font-size:13px; white-space:nowrap; }
+  .region-btn.active { background:#e4f3ed; border-color:var(--accent); color:var(--accent); font-weight:600; }
+  .symptom-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+  .symptom-card { min-width:0; border:1px solid var(--line); border-radius:9px; padding:9px; background:#fcfdfd; }
+  .symptom-card h3 { font-size:15px; margin:0 0 6px; color:var(--text); }
+  .symptom-card .code-group { border-top:1px solid #edf0f2; padding-top:5px; margin-top:5px; }
+  .symptom-card .group-label { font-size:11px; color:var(--dim); margin:0 0 2px 2px; }
+  .symptom-card .disease-group .group-label { color:var(--accent); font-weight:600; }
+  .symptom-card .redflag-group { border:1px solid #e7c77c; border-radius:7px; background:#fff9e9; padding:5px; }
+  .symptom-card .redflag-group .group-label { color:var(--warn); font-weight:600; }
   .chip { display:inline-flex; align-items:baseline; gap:6px; margin:3px; padding:6px 10px; border:1px solid var(--line); border-radius:16px; background:var(--card); cursor:pointer; font-size:14px; max-width:100%; }
   .chip:hover { border-color:var(--accent); background:#eef7f3; }
   .chip b { color:var(--accent); font-family:Consolas,monospace; white-space:nowrap; }
@@ -30,36 +46,66 @@
   .panel > div { display:none; padding-bottom:8px; }
   .panel.open > div { display:block; }
   #cart-pane { position:sticky; top:64px; align-self:start; }
+  /* 必須寫在無條件的 #cart-pane 之後，否則同特異度會被覆蓋、窄螢幕仍是 sticky 而被 header 蓋住 */
+  @media (max-width:900px){ main { grid-template-columns:1fr; } #cart-pane { order:-1; position:static; top:auto; } }
   #cart { list-style:none; margin:0 0 10px; padding:0; min-height:40px; }
   #cart li { display:flex; align-items:center; gap:8px; padding:6px 4px; border-bottom:1px dashed var(--line); font-size:14px; }
   #cart li b { font-family:Consolas,monospace; color:var(--accent); white-space:nowrap; cursor:pointer; }
   #cart li span { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   #cart li button { border:0; background:none; color:#c0392b; cursor:pointer; font-size:14px; }
   #copy-bar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; }
-  #copy-bar button, #clear-cart { font-size:13px; padding:7px 10px; border:1px solid var(--line); border-radius:8px; background:var(--card); cursor:pointer; }
+  #copy-bar button, #clear-cart, #fallback-close { font-size:13px; padding:7px 10px; border:1px solid var(--line); border-radius:8px; background:var(--card); cursor:pointer; }
   #copy-bar button:hover { border-color:var(--accent); }
-  #copy-lines { background:var(--accent); color:#fff; border-color:var(--accent); }
+  #copy-bar #copy-lines { background:var(--accent); color:#fff; border-color:var(--accent); }
   #related-wrap h2 { margin-top:4px; }
+  #related-wrap.flash { animation:related-flash .6s ease-out; }
+  @keyframes related-flash { 0% { box-shadow:0 0 0 3px #9fdac2; } 100% { box-shadow:none; } }
   #related .group-label { font-size:12px; color:var(--dim); margin:6px 2px 2px; }
   #toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#222; color:#fff; padding:9px 18px; border-radius:20px; font-size:14px; opacity:0; transition:opacity .25s; pointer-events:none; z-index:9; }
   #toast.show { opacity:.94; }
   #fallback-copy { position:fixed; inset:0; background:rgba(0,0,0,.4); display:none; align-items:center; justify-content:center; z-index:8; }
   #fallback-copy textarea { width:min(480px,90vw); height:160px; font-size:14px; }
+  #fallback-actions { display:flex; justify-content:flex-end; margin-top:8px; }
+  .result-note { color:var(--warn); font-size:13px; margin:0 2px 6px; }
+  .card.fatal { border-color:#c0392b; background:#fdf1ef; }
+  .card.fatal h2 { color:#c0392b; font-size:16px; }
+  .card.fatal p { font-size:14px; margin:6px 0; line-height:1.6; }
   .hidden { display:none !important; }
+  @media (max-width:700px){ .symptom-grid { grid-template-columns:1fr; } .section-head { align-items:flex-start; flex-direction:column; gap:0; } }
+  /* 深色模式：覆寫變數＋少數未走變數的硬編碼規則（背景色塊、警示色）。順序須在最後，靠來源順序覆蓋同特異度規則。 */
+  @media (prefers-color-scheme:dark) {
+    :root { color-scheme:dark; --accent:#3ddc97; --bg:#14171a; --card:#1c2024; --line:#626b73; --text:#e8eaed; --dim:#98a2ad; --warn:#f0b840; }
+    #search { background:var(--card); color:var(--text); }
+    .mode-btn.active, #copy-bar #copy-lines { color:var(--bg); }
+    .region-btn { background:var(--card); }
+    .region-btn.active { background:#16352a; }
+    .symptom-card { background:var(--card); }
+    .symptom-card .code-group { border-top-color:var(--line); }
+    .symptom-card .redflag-group { border-color:#caa049; background:#2b2210; }
+    .chip:hover { background:#1c2b25; }
+    .card.fatal { border-color:#ff6b57; background:#2a1512; }
+    .card.fatal h2 { color:#ff6b57; }
+    #cart li button { color:#ff6b57; }
+  }
 </style>
 </head>
 <body>
 <header>
   <h1>ICD-10 門診導引</h1>
   <input id="search" type="search" placeholder="搜尋全庫：中文／英文／代碼（如 蜂窩、cellulitis、L03）" autocomplete="off">
-  <button id="mode-im" class="mode-btn active">內科</button>
+  <button id="mode-er" class="mode-btn">內科急診</button>
+  <button id="mode-op" class="mode-btn active">內科門診</button>
   <button id="mode-surg" class="mode-btn">外科</button>
   <span id="status">載入資料中…</span>
 </header>
 <main>
   <section id="left">
     <div class="card hidden" id="results-card"><h2>搜尋結果（僅可申報碼可加入）</h2><div id="search-results"></div></div>
-    <div class="card" id="panels-card"><h2 id="panels-title">症狀導向</h2><div id="panels"></div></div>
+    <div class="card" id="panels-card">
+      <div class="section-head"><h2 id="panels-title">內科門診｜依身體部位</h2><span id="mode-hint">先選部位，再選主訴或常見疾病</span></div>
+      <div id="region-nav" role="tablist" aria-label="身體部位"></div>
+      <div id="panels"></div>
+    </div>
     <div class="card" id="quick-card"><div id="quick"></div></div>
   </section>
   <aside id="cart-pane">
@@ -73,13 +119,13 @@
       </div>
     </div>
     <div class="card" id="related-wrap">
-      <h2>相關代碼</h2>
-      <div id="related"><span style="color:var(--dim);font-size:13px">加入代碼後，這裡會列出建議一併評估的診斷碼。</span></div>
+      <h2>相關疾病／評估碼</h2>
+      <div id="related"><span style="color:var(--dim);font-size:13px">加入代碼後，這裡會列出建議一併評估的疾病與診斷碼。</span></div>
     </div>
   </aside>
 </main>
 <div id="toast"></div>
-<div id="fallback-copy"><div class="card"><p>自動複製失敗，請手動全選複製：</p><textarea readonly></textarea></div></div>
+<div id="fallback-copy" role="dialog" aria-modal="true" aria-label="手動複製"><div class="card"><p>自動複製失敗，請手動全選複製（按 Esc 關閉）：</p><textarea readonly></textarea><div id="fallback-actions"><button id="fallback-close" type="button">關閉</button></div></div></div>
 <script id="icd-data" type="application/gzip-base64">%DATA%</script>
 <!--%SCRIPTS%-->
 </body>

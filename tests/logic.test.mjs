@@ -24,7 +24,33 @@ test('search: 中文子字串', () => {
   assert.equal(L.search(idx, '蜂窩')[0][0], 'L03.90');
 });
 test('search: 過短 query 回空', () => {
-  assert.deepEqual(L.search(idx, 'e'), []);
+  const r = L.search(idx, 'e');
+  assert.equal(r.length, 0);
+  assert.equal(r.total, 0);
+});
+test('search: total 回報截斷前的命中總數', () => {
+  const all = L.search(idx, '第2型糖尿病');
+  assert.equal(all.total, 3);
+  const capped = L.search(idx, '第2型糖尿病', 1);
+  assert.equal(capped.length, 1);
+  assert.equal(capped.total, 3, '截斷後仍要回報總數，UI 才能提示「共 N 筆」');
+});
+test('search: 完全相符 > 名稱開頭相符 > 其他', () => {
+  const db3 = [
+    ['A00.1', 1, 'Other pain of throat', '其他咽喉痛'],
+    ['A00.2', 1, 'Sore throat with fever', '咽喉痛併發燒'],
+    ['A00.3', 1, 'Sore throat', '咽喉痛'],
+  ];
+  const codes = L.search(L.buildIndex(db3), '咽喉痛').map(r => r[0]);
+  assert.deepEqual(codes, ['A00.3', 'A00.2', 'A00.1']);
+});
+test('search: 精選碼優先仍高於命中層級', () => {
+  const db4 = [
+    ['A00.3', 1, 'Sore throat', '咽喉痛'],
+    ['A00.1', 1, 'Other pain of throat', '其他咽喉痛'],
+  ];
+  const idx4 = L.buildIndex(db4, new Set(['A00.1']));
+  assert.deepEqual(L.search(idx4, '咽喉痛').map(r => r[0]), ['A00.1', 'A00.3']);
 });
 test('search: 代碼與名稱混合命中不重複', () => {
   const codes = L.search(idx, 'E11').map(r => r[0]);
@@ -48,4 +74,12 @@ test('formatCart 三種格式', () => {
   assert.equal(L.formatCart(items, 'lines'), 'I10\nE11.9');
   assert.equal(L.formatCart(items, 'comma'), 'I10,E11.9');
   assert.equal(L.formatCart(items, 'names'), 'I10\t本態性高血壓\nE11.9\t第2型糖尿病伴無併發症');
+});
+
+test('mergeRelated 合併人工與症狀推薦並去重', () => {
+  assert.deepEqual(
+    L.mergeRelated(['I20.9', 'K21.9'], ['K21.9', 'R00.0']),
+    ['I20.9', 'K21.9', 'R00.0']
+  );
+  assert.deepEqual(L.mergeRelated(undefined, ['A41.9']), ['A41.9']);
 });
