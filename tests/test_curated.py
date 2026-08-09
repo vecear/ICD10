@@ -49,9 +49,24 @@ def test_all_curated_codes_are_billable_leaves(leafset):
     assert not bad, "非葉碼或不存在（用 build/lookup.py 查正確碼替換）:\n" + "\n".join(bad)
 
 def test_no_duplicate_within_each_quick_list():
-    for name in ["chronic.json", "infectious.json", "pathogens.json"]:
+    """驗證兩種 curated 格式皆無不當重複碼：
+    - 快選格式（單一 [[code,label], ...] 陣列）：整份清單不可有重複碼。
+    - 面板格式（[{"name":.., "codes":[[code,label],...]}, ...]）：檢查『每個面板內部』不可重複碼；
+      跨面板重複允許（同一碼可能同時服務不同臨床情境，如 Z47.89 同時出現在「傷口處置／術後」與
+      「扭傷／拉傷」面板）。
+    """
+    for name in ["chronic.json", "infectious.json", "pathogens.json", "surgical_quick.json"]:
         f = CURATED_DIR / name
         if not f.exists():
             continue
         codes = [c for c, _ in json.loads(f.read_text(encoding="utf-8"))]
         assert len(codes) == len(set(codes)), f"{name} 有重複碼"
+
+    for name in ["symptoms.json", "surgical_panels.json"]:
+        f = CURATED_DIR / name
+        if not f.exists():
+            continue
+        panels = json.loads(f.read_text(encoding="utf-8"))
+        for panel in panels:
+            codes = [c for c, _ in panel["codes"]]
+            assert len(codes) == len(set(codes)), f"{name} 面板「{panel['name']}」內有重複碼"
