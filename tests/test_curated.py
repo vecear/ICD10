@@ -5,11 +5,12 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 CURATED_DIR = ROOT / "src" / "curated"
 
-# ICD-10-CM 代碼外形：1 個大寫字母 + 2 位數字，後面可接「.」+ 1-4 位英數字。
+# ICD-10-CM 代碼外形：1 個大寫字母 + 1 位數字 + 1 位英數字（涵蓋 C4A/M1A/O9A/Z3A
+# 這類第3碼是字母的類目），後面可接「.」+ 1-4 位英數字。
 # 用真實代碼外形取代「長度/開頭字母/含數字」的粗略啟發式——後者在 Python 下會誤判：
 # str.isalpha() 對中文字元也回傳 True，導致「第2型糖尿病」「CKD 3a」「COVID-19」
 # 這類含數字的中文/英文標籤被誤認成代碼（≤8 字元＋開頭是「字母」＋含數字，全部成立）。
-CODE_SHAPE_RE = re.compile(r"^[A-Z]\d{2}(\.[A-Z0-9]{1,4})?$")
+CODE_SHAPE_RE = re.compile(r"^[A-Z]\d[A-Z0-9](\.[A-Z0-9]{1,4})?$")
 
 @pytest.fixture(scope="module")
 def leafset():
