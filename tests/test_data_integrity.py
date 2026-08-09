@@ -4,7 +4,7 @@ import pytest
 
 DATA = Path(__file__).resolve().parent.parent / "data" / "codes.min.json"
 # 簡體專用字集（繁簡共用字不可入列，見全域 environment-gotchas）
-SIMPLIFIED = set("们这时东买卖说话开关进过还没体医药区实现么头几")
+SIMPLIFIED = set("们这时东买卖说话开关进过还没体医药区实现么头几内")
 
 @pytest.fixture(scope="module")
 def rows():
@@ -18,6 +18,11 @@ def test_counts(rows):
 
 def test_no_replacement_char(rows):
     assert not [r for r in rows if "�" in r[2] or "�" in r[3]]
+
+def test_no_question_mark_in_zh(rows):
+    # CSV 舊來源的 Big5 缺字災情以字面「?」呈現；xlsx＋TYPO_FIXES 後應為 0
+    bad = [r[0] for r in rows if "?" in r[3] or "？" in r[3]]
+    assert not bad, f"中文名含問號（缺字未修）: {bad[:10]}"
 
 def test_code_format(rows):
     pat = re.compile(r"^[A-Z][0-9][0-9A-Z](\.[0-9A-Z]{1,4})?$")
