@@ -31,6 +31,14 @@ test('search: 代碼與名稱混合命中不重複', () => {
   assert.deepEqual(codes, [...new Set(codes)]);
   assert.ok(codes.includes('E11.9') && codes.includes('E11.65'));
 });
+test('search: 人工精選碼於同字串命中時優先排序', () => {
+  const db2 = [
+    ['H05.01', 0, 'Cellulitis of orbit', '眼窩蜂窩組織炎'],
+    ['L03.90', 1, 'Cellulitis, unspecified', '蜂窩性組織炎'],
+  ];
+  const idx2 = L.buildIndex(db2, new Set(['L03.90']));
+  assert.equal(L.search(idx2, 'cellulitis')[0][0], 'L03.90');
+});
 test('family: 同類目葉碼、排除自身與類目碼', () => {
   const codes = L.family(idx, 'E11.9').map(r => r[0]);
   assert.deepEqual(codes, ['E11.65']);

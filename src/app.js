@@ -14,6 +14,23 @@
     return JSON.parse(await new Response(stream).text());
   }
 
+  // 蒐集所有人工精選（CURATED）出現過的代碼，供搜尋排序優先顯示
+  function collectCuratedCodes(C) {
+    const set = new Set();
+    const addPairs = (list) => { for (const [code] of list) set.add(code); };
+    addPairs(C.chronic);
+    addPairs(C.infectious);
+    addPairs(C.pathogens);
+    addPairs(C.surgicalQuick);
+    for (const p of C.symptoms) addPairs(p.codes);
+    for (const p of C.surgicalPanels) addPairs(p.codes);
+    for (const [code, list] of Object.entries(C.related)) {
+      set.add(code);
+      for (const c of list) set.add(c);
+    }
+    return set;
+  }
+
   // ---- 渲染 ----
   function chip(code, label, cls) {
     const row = index.byCode.get(code);
@@ -201,7 +218,7 @@
     }
     try {
       const db = await loadCodes();
-      index = window.ICDLogic.buildIndex(db);
+      index = window.ICDLogic.buildIndex(db, collectCuratedCodes(window.CURATED));
       renderPanels();
       renderQuick();
       wire();
