@@ -70,3 +70,17 @@ def test_no_duplicate_within_each_quick_list():
         for panel in panels:
             codes = [c for c, _ in panel["codes"]]
             assert len(codes) == len(set(codes)), f"{name} 面板「{panel['name']}」內有重複碼"
+
+
+def test_related_json_value_arrays_are_clean():
+    """related.json（{code: [code, ...]} 關聯表）每個 key 的建議碼陣列：
+    - 陣列內部不可有重複碼。
+    - 不可包含 key 自身（自我建議無意義）。
+    """
+    f = CURATED_DIR / "related.json"
+    if not f.exists():
+        return
+    related = json.loads(f.read_text(encoding="utf-8"))
+    for key, values in related.items():
+        assert len(values) == len(set(values)), f"related.json 的 \"{key}\" 陣列內有重複碼: {values}"
+        assert key not in values, f"related.json 的 \"{key}\" 陣列內含自我參照"
