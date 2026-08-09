@@ -74,6 +74,7 @@
       li.querySelector('button').addEventListener('click', () => {
         cart.splice(cart.findIndex((x) => x.code === item.code), 1);
         renderCart();
+        if (!cart.length) resetRelated();
       });
       ul.appendChild(li);
     }
@@ -99,6 +100,10 @@
       for (const r of fam) host.appendChild(chip(r[0], ''));
     }
     if (!curated.length && !fam.length) host.innerHTML = '<span style="color:var(--dim);font-size:13px">無相關碼建議。</span>';
+  }
+
+  function resetRelated() {
+    $('#related').innerHTML = '<span style="color:var(--dim);font-size:13px">加入代碼後，這裡會列出建議一併評估的診斷碼。</span>';
   }
 
   function renderResults(rows) {
@@ -147,7 +152,6 @@
       const box = $('#fallback-copy');
       box.style.display = 'flex';
       box.querySelector('textarea').value = text;
-      box.addEventListener('click', () => (box.style.display = 'none'), { once: true });
       return false;
     }
   }
@@ -184,7 +188,9 @@
     $('#copy-lines').addEventListener('click', () => copyCart('lines'));
     $('#copy-comma').addEventListener('click', () => copyCart('comma'));
     $('#copy-names').addEventListener('click', () => copyCart('names'));
-    $('#clear-cart').addEventListener('click', () => { cart.length = 0; renderCart(); });
+    $('#clear-cart').addEventListener('click', () => { cart.length = 0; renderCart(); resetRelated(); });
+    const fb = $('#fallback-copy');
+    fb.addEventListener('click', (ev) => { if (ev.target === fb) fb.style.display = 'none'; });
   }
 
   // ---- 啟動 ----
