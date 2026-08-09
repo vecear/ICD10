@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ICD-10 門診導引</title>
+<style>
+  :root { --accent:#0b6e4f; --bg:#f7f8f9; --card:#fff; --line:#dcdfe3; --text:#1c1e21; --dim:#65707c; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:"Microsoft JhengHei",system-ui,sans-serif; background:var(--bg); color:var(--text); }
+  header { display:flex; gap:10px; align-items:center; padding:10px 14px; background:var(--card); border-bottom:1px solid var(--line); position:sticky; top:0; z-index:5; flex-wrap:wrap; }
+  header h1 { font-size:16px; margin:0 8px 0 0; color:var(--accent); white-space:nowrap; }
+  #search { flex:1; min-width:220px; font-size:16px; padding:8px 12px; border:1px solid var(--line); border-radius:8px; }
+  .mode-btn { font-size:15px; padding:8px 16px; border:1px solid var(--line); background:var(--card); border-radius:8px; cursor:pointer; }
+  .mode-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+  #status { font-size:12px; color:var(--dim); white-space:nowrap; }
+  main { display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:12px; padding:12px 14px; max-width:1280px; margin:0 auto; }
+  @media (max-width:900px){ main { grid-template-columns:1fr; } #cart-pane { order:-1; } }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:12px; }
+  .card h2 { font-size:14px; margin:2px 0 8px; color:var(--dim); }
+  .chip { display:inline-flex; align-items:baseline; gap:6px; margin:3px; padding:6px 10px; border:1px solid var(--line); border-radius:16px; background:var(--card); cursor:pointer; font-size:14px; max-width:100%; }
+  .chip:hover { border-color:var(--accent); background:#eef7f3; }
+  .chip b { color:var(--accent); font-family:Consolas,monospace; white-space:nowrap; }
+  .chip span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:30em; }
+  .chip.cat { opacity:.45; cursor:not-allowed; }
+  .panel { border-top:1px solid var(--line); }
+  .panel > button { width:100%; text-align:left; font-size:15px; padding:9px 4px; border:0; background:none; cursor:pointer; font-weight:600; }
+  .panel > button::before { content:"▸ "; color:var(--accent); }
+  .panel.open > button::before { content:"▾ "; }
+  .panel > div { display:none; padding-bottom:8px; }
+  .panel.open > div { display:block; }
+  #cart-pane { position:sticky; top:64px; align-self:start; }
+  #cart { list-style:none; margin:0 0 10px; padding:0; min-height:40px; }
+  #cart li { display:flex; align-items:center; gap:8px; padding:6px 4px; border-bottom:1px dashed var(--line); font-size:14px; }
+  #cart li b { font-family:Consolas,monospace; color:var(--accent); white-space:nowrap; }
+  #cart li span { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #cart li button { border:0; background:none; color:#c0392b; cursor:pointer; font-size:14px; }
+  #copy-bar { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px; }
+  #copy-bar button, #clear-cart { font-size:13px; padding:7px 10px; border:1px solid var(--line); border-radius:8px; background:var(--card); cursor:pointer; }
+  #copy-bar button:hover { border-color:var(--accent); }
+  #copy-lines { background:var(--accent); color:#fff; border-color:var(--accent); }
+  #related-wrap h2 { margin-top:4px; }
+  #related .group-label { font-size:12px; color:var(--dim); margin:6px 2px 2px; }
+  #toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:#222; color:#fff; padding:9px 18px; border-radius:20px; font-size:14px; opacity:0; transition:opacity .25s; pointer-events:none; z-index:9; }
+  #toast.show { opacity:.94; }
+  #fallback-copy { position:fixed; inset:0; background:rgba(0,0,0,.4); display:none; align-items:center; justify-content:center; z-index:8; }
+  #fallback-copy textarea { width:min(480px,90vw); height:160px; font-size:14px; }
+  .hidden { display:none !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1>ICD-10 門診導引</h1>
+  <input id="search" type="search" placeholder="搜尋全庫：中文／英文／代碼（如 蜂窩、cellulitis、L03）" autocomplete="off">
+  <button id="mode-im" class="mode-btn active">內科</button>
+  <button id="mode-surg" class="mode-btn">外科</button>
+  <span id="status">載入資料中…</span>
+</header>
+<main>
+  <section id="left">
+    <div class="card hidden" id="results-card"><h2>搜尋結果（僅可申報碼可加入）</h2><div id="search-results"></div></div>
+    <div class="card" id="panels-card"><h2 id="panels-title">症狀導向</h2><div id="panels"></div></div>
+    <div class="card" id="quick-card"><div id="quick"></div></div>
+  </section>
+  <aside id="cart-pane">
+    <div class="card">
+      <h2>本次就診清單 <button id="clear-cart" style="float:right">清空</button></h2>
+      <ul id="cart"></ul>
+      <div id="copy-bar">
+        <button id="copy-lines">複製（每行一碼）</button>
+        <button id="copy-comma">逗號分隔</button>
+        <button id="copy-names">碼＋名稱</button>
+      </div>
+    </div>
+    <div class="card" id="related-wrap">
+      <h2>相關代碼</h2>
+      <div id="related"><span style="color:var(--dim);font-size:13px">加入代碼後，這裡會列出建議一併評估的診斷碼。</span></div>
+    </div>
+  </aside>
+</main>
+<div id="toast"></div>
+<div id="fallback-copy"><div class="card"><p>自動複製失敗，請手動全選複製：</p><textarea readonly></textarea></div></div>
+<script id="icd-data" type="application/gzip-base64">%DATA%</script>
+<!--%SCRIPTS%-->
+</body>
+</html>
