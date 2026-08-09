@@ -85,8 +85,11 @@
     for (const item of cart) {
       const li = document.createElement('li');
       li.dataset.code = item.code;
-      li.innerHTML = '<b></b><span></span><button title="移除">✕</button>';
+      li.innerHTML = '<b title="點擊複製此碼"></b><span></span><button title="移除">✕</button>';
       li.querySelector('b').textContent = item.code;
+      li.querySelector('b').addEventListener('click', async () => {
+        if (await copyText(item.code)) toast('已複製 ' + item.code);
+      });
       li.querySelector('span').textContent = item.zh;
       li.querySelector('button').addEventListener('click', () => {
         cart.splice(cart.findIndex((x) => x.code === item.code), 1);

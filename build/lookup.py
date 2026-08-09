@@ -1,5 +1,5 @@
 """關鍵字/代碼前綴查全庫。用法：python build/lookup.py <關鍵字> [上限]"""
-import io, json, sys
+import json, sys
 from pathlib import Path
 
 def main():

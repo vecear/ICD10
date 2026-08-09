@@ -111,3 +111,22 @@ def test_reload_clears_cart(page, page_url):
     page.reload()
     page.wait_for_selector('body[data-ready="1"]')
     expect(page.locator("#cart li")).to_have_count(0)
+
+def test_panel_expand_and_add(page):
+    reset(page)
+    panel = page.locator("#panels .panel").first
+    panel.locator("button").first.click()
+    chip = panel.locator(".chip").first
+    expect(chip).to_be_visible()
+    code = chip.get_attribute("data-code")
+    chip.click()
+    expect(page.locator(f'#cart li[data-code="{code}"]')).to_have_count(1)
+    panel.locator("button").first.click()
+    expect(panel.locator(".chip").first).not_to_be_visible()
+
+def test_cart_single_code_copy(page):
+    reset(page)
+    page.locator('.chip[data-code="I10"]').first.click()
+    page.locator('#cart li[data-code="I10"] b').click()
+    text = page.evaluate("navigator.clipboard.readText()").replace("\r\n", "\n")
+    assert text == "I10"

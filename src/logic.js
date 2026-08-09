@@ -34,6 +34,8 @@
     for (let i = 0; i < db.length; i++)
       if (lowerEn[i].includes(ql) || db[i][3].includes(q)) push(db[i]);
     // 人工精選（門診常用）碼優先顯示，其餘維持原順序（穩定排序）
+    // 注意：精選/非精選為二元分組排序，未保持「代碼前綴命中優先於名稱命中」的跨組順序；
+    // 現有資料（代碼字串與病名幾乎無子字串重疊）不會觸發，擴充命中規則時需重新檢視。
     if (curatedCodes.size) out.sort((a, b) => (curatedCodes.has(b[0]) ? 1 : 0) - (curatedCodes.has(a[0]) ? 1 : 0));
     return out.slice(0, limit);
   }

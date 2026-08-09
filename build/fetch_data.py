@@ -22,7 +22,7 @@ def main():
     curl = shutil.which("curl")
     if not curl:
         raise SystemExit("找不到 curl，請確認 Windows 內建 curl 可用")
-    result = subprocess.run([curl, "-sL", "-A", UA, URL, "-o", str(DEST)], capture_output=True, text=True)
+    result = subprocess.run([curl, "-sfL", "-A", UA, URL, "-o", str(DEST)], capture_output=True, text=True)
     if result.returncode != 0:
         raise SystemExit(f"curl 失敗（exit {result.returncode}）：{result.stderr}")
     if not DEST.exists() or DEST.stat().st_size < MIN_SIZE:
