@@ -1,0 +1,252 @@
+/* 產品層樣式（P1 階段：只放 token 與字型堆疊，不含版面 class）。
+   載入順序：embed_fonts() 產生的 @font-face → industry.css（vendored 設計系統）→ 本檔。
+   因為都在 :root、同特異度，本檔的覆寫靠來源順序生效。
+
+   P1 過渡措施：本檔與 industry.css 一起被包進 `@layer design { }`，而 template.html
+   既有的舊版 <style> 是「無層級（unlayered）」的——CSS 階層規則規定 unlayered 一律
+   勝過任何 layer，因此新設計系統雖然完整內嵌、可被檢查與測試，卻不會改動現行 UI 的
+   任何一個像素。P3 刪掉舊版 <style> 後，本層自然接手（屆時可一併拿掉 @layer 包裝）。 */
+
+:root {
+  /* 字型堆疊（impl-plan R-1）：Latin 走內嵌的 Barlow，中文自動 fallback 到系統字。
+     Barlow 沒有 CJK 字圖，所以同一段中英混排時代碼／數字吃 Barlow、中文吃系統字，
+     這是刻意的：不內嵌 CJK 字型（會讓單檔膨脹 38–57%）。 */
+  --font-heading: "Barlow Condensed", "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", system-ui, sans-serif;
+  --font-body: "Barlow", "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", system-ui, sans-serif;
+
+  /* 紅旗警示配色（new-design.dc.html L21）。
+     impl-plan R-7：設計稿把這組寫在 `[data-theme]` 選擇器上，只要哪天忘了在 html 標
+     data-theme，`border:1px solid var(--warn-line)` 會變成無效宣告，整個警示盒的框線
+     與底色靜默消失且不報錯。這裡改掛 :root，深色值走 :root[data-theme="dark"]。 */
+  --warn-bg: #fbf4e4;
+  --warn-surface: #fdf8ec;
+  --warn-line: #c9a24a;
+  --warn-ink: #8a5a12;
+
+  /* 貼入 HIS 預覽區專用 token（impl-plan R-2）：**刻意不隨主題翻轉**。
+     設計稿的 #his-preview 是 `background:var(--color-accent-800); color:#f2f2f3`，
+     而深色主題把 --color-accent-800 從 #2c455d（深）翻成 #d6ebff（淺），
+     結果是白字疊淺藍底、對比 1.09:1 —— 等同全白，貼給 HIS 的內容完全看不見。
+     這三個 token 兩個主題同值，永遠維持「深底淺字」。實測對比（WCAG 2.1, sRGB）：
+       --his-ink  on --his-surface        8.87:1（正文門檻 4.5:1，通過）
+       --his-line vs 淺色頁面底 #f2f2f3   3.80:1（非文字門檻 3:1，通過）
+       --his-line vs 深色頁面底 #14181c   4.19:1（同上，通過）
+     註：impl-plan R-2 原建議 --his-line:#416180，實測對深色頁面底只有 2.76:1、
+     框線在深色模式會糊掉，故改用設計系統 accent-600 的色值 #597ea3（寫死不吃主題）。 */
+  --his-surface: #2c455d;
+  --his-line: #597ea3;
+  --his-ink: #f2f2f3;
+  /* P3 追加，同樣不隨主題翻轉：HIS 卡片底（設計稿的 accent-900）、卡內小字、
+     以及複製鈕。複製鈕不用 .btn-primary 的 accent 底＋bg 字——那組在淺色主題只有
+     3.60:1（未達正文 4.5:1）；改成 accent-300 底＋近黑字，兩個主題都是 11.3:1。 */
+  --his-card: #1d2d3d;
+  --his-dim: #b5d9fd;
+  --his-btn: #b5d9fd;
+  --his-btn-ink: #14181c;
+
+  /* 「選中」的實心底色（segmented 選項、清單主診斷徽章）。設計稿用 --color-accent
+     配 --color-bg，淺色主題只有 3.60:1；這裡淺色改用 accent-800（8.87:1），
+     深色沿用 accent（8.85:1）。 */
+  --sel-bg: #2c455d;
+  --sel-ink: #f2f2f3;
+}
+
+/* 深色主題（new-design.dc.html L22-29）。P1 尚無切換 UI，掛上去不影響現行 UI。 */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --warn-bg: #2e2410;
+  --warn-surface: #241c0c;
+  --warn-line: #7a6128;
+  --warn-ink: #e8c26a;
+
+  --color-bg: #14181c;
+  --color-surface: #1b2026;
+  --color-text: #e6e9ec;
+  --color-divider: rgba(230, 233, 236, .22);
+  --color-divider: color-mix(in srgb, #e6e9ec 22%, transparent);
+  --color-accent: #94bce3;
+  --color-accent-100: #22303d;
+  --color-accent-700: #b5d9fd;
+  --color-accent-800: #d6ebff;
+  --color-neutral-100: #1f242a;
+  --color-neutral-400: #5d5d60;
+  --color-neutral-500: #7a7a7d;
+  --color-neutral-600: #98989b;
+  /* 設計稿的深色覆寫沒有列 neutral-700（淺色值 #5d5d60 在深色底只有 2.72:1）。
+     P3 用它當次要文字的統一色，所以這裡補上深色值（8.11:1）。 */
+  --color-neutral-700: #b0b0b3;
+
+  --sel-bg: #94bce3;
+  --sel-ink: #14181c;
+}
+
+/* .blueprint / .corner 已由 vendored 的 industry.css 提供，不重複定義。 */
+
+/* ══════════════════════════════════════════════════════════════════════════
+   共用元件層（三套版面共用）。各版面自己的骨架另放 styles/wide.css、
+   dock.css、mobile.css —— 分檔是為了讓 1c／1b 能並行實作而不互相覆蓋。
+   ══════════════════════════════════════════════════════════════════════ */
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; font-family: var(--font-body); font-size: 15px; line-height: 1.55;
+  background: var(--color-bg); color: var(--color-text);
+}
+/* 版面骨架大量使用 display:flex/grid 搭配 [hidden] 切換，沒有 !important 會被 display 覆蓋 */
+[hidden] { display: none !important; }
+#app { min-height: 100%; }
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0;
+}
+
+/* 小標籤（設計稿 L58 等的 kicker 樣式） */
+.kicker {
+  font-family: var(--font-heading); font-size: 11px; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--color-neutral-700);
+}
+.muted { color: var(--color-neutral-700); }
+
+/* ── chip：唯一的加碼入口（設計稿 L433-435、L505、L615-617） ── */
+.chip {
+  display: inline-flex; align-items: baseline; gap: 7px; padding: 7px 11px;
+  border: 1px solid var(--color-divider); background: transparent; cursor: pointer;
+  font: inherit; font-size: 14px; color: var(--color-text); border-radius: 0;
+  max-width: 100%; text-align: left;
+}
+.chip b { font-family: var(--font-heading); letter-spacing: .03em; color: var(--color-accent-700); white-space: nowrap; }
+.chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip:hover { border-color: var(--color-accent); background: var(--color-accent-100); }
+.chip:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+
+.chip--warn { border-color: var(--warn-line); background: var(--warn-bg); }
+.chip--warn b { color: var(--warn-ink); }
+.chip--warn:hover { border-color: var(--warn-ink); background: var(--warn-surface); }
+
+/* 類目碼：虛線框＋not-allowed（設計稿 L615-617）。文字色由設計稿的 neutral-600
+   改為 neutral-700：600 在淺色底只有 3.72:1，未達正文 4.5:1。 */
+.chip.cat, .chip.cat:hover {
+  border: 1px dashed var(--color-neutral-400); background: transparent;
+  color: var(--color-neutral-700); cursor: not-allowed;
+}
+.chip.cat b { color: var(--color-neutral-700); }
+
+.chip--row {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px;
+  padding: 6px 10px; border: 1px solid var(--color-divider); border-radius: 0;
+}
+.chip--row span { flex: 1; }
+.chip--dock {
+  display: flex; align-items: baseline; gap: 5px; width: 100%; min-width: 0;
+  min-height: 21px; padding: 1px 3px; border: 0;
+  border-bottom: 1px solid var(--color-divider); text-align: left;
+}
+.chip-row { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* ── segmented 控制（設計稿 L533-538）。C1-2：不依賴 :has()，選中狀態由
+   interactions.js 同時寫 aria-pressed 與 .is-on，兩個選擇器都能命中。 ── */
+.seg-row { display: flex; border: 1px solid var(--color-divider); }
+.seg-btn {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  padding: 9px 15px; font-size: 14px; min-height: 40px; border: 0; cursor: pointer;
+  font-family: var(--font-heading); letter-spacing: .05em;
+  background: transparent; color: var(--color-text);
+}
+.seg-btn:hover { background: var(--color-accent-100); }
+.seg-btn.is-on, .seg-btn[aria-pressed="true"] { background: var(--sel-bg); color: var(--sel-ink); }
+.seg-btn--sm { padding: 3px 4px; font-size: 10px; min-height: 22px; }
+
+/* ── 搜尋結果（沿用 #results-card / #search-results / .result-note） ── */
+#results-card { border: 1px solid var(--color-accent); padding: 12px 14px; }
+.results-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 8px; }
+.results-title { font-family: var(--font-heading); font-size: 15px; letter-spacing: .04em; }
+.result-note { font-size: 12px; color: var(--color-neutral-700); }
+
+/* ── 相關碼 ── */
+.group-label { font-size: 12px; color: var(--color-neutral-700); margin: 6px 0 4px; }
+.related-group { margin-bottom: 8px; }
+
+/* ── 紅旗警示盒（設計稿 L575；只有急診模式渲染得出來，見 data.js panelsFor） ── */
+.redflag-group {
+  margin-top: 10px; border: 1px solid var(--warn-line);
+  background: var(--warn-surface); padding: 8px 9px;
+}
+.redflag-label {
+  font-family: var(--font-heading); font-size: 12px; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--warn-ink); margin-bottom: 6px;
+}
+
+/* ── 就診清單（沿用 ul#cart > li[data-code]） ── */
+#cart { list-style: none; margin: 0; padding: 0; }
+#cart li {
+  display: flex; align-items: center; gap: 8px; padding: 9px 4px;
+  border-bottom: 1px solid var(--color-divider); cursor: grab;
+}
+#cart li.is-dragging { opacity: .45; }
+#cart li.is-over { box-shadow: inset 0 2px 0 var(--color-accent); }
+.cart-grip { display: flex; color: var(--color-neutral-700); cursor: grab; }
+.cart-badge {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  min-width: 22px; height: 22px; font-family: var(--font-heading); font-size: 12px; letter-spacing: .04em;
+  border: 1px solid var(--color-divider); color: var(--color-neutral-700);
+}
+.cart-badge[data-primary="true"] { background: var(--sel-bg); color: var(--sel-ink); border-color: var(--sel-bg); }
+b.cart-code {
+  font-family: var(--font-heading); font-size: 16px; letter-spacing: .04em;
+  color: var(--color-accent-700); min-width: 74px; cursor: pointer;
+}
+.cart-zh { flex: 1; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#cart li button {
+  display: flex; align-items: center; border: 0; background: none; cursor: pointer;
+  font: inherit; font-size: 12px; color: var(--color-neutral-700); padding: 2px 4px;
+}
+#cart li button:hover { color: var(--color-text); }
+.cart-fav { color: var(--color-accent-700); }
+.cart-fav[aria-pressed="true"] { color: var(--color-accent-700); }
+.cart-fav[aria-pressed="true"] svg { fill: currentColor; }
+
+/* ── 貼入 HIS（impl-plan R-2：三個 --his-* token 不隨主題翻轉） ── */
+.his-card { padding: 12px; background: var(--his-card); border-color: var(--his-line); }
+.his-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
+.his-head .kicker, #his-format-label { color: var(--his-dim); }
+#his-format-label { font-size: 11px; }
+#his-preview {
+  margin: 0 0 10px; padding: 10px; background: var(--his-surface); border: 1px solid var(--his-line);
+  font-family: var(--font-heading); font-size: 14px; line-height: 1.55; letter-spacing: .03em;
+  white-space: pre-wrap; word-break: break-all; min-height: 64px; color: var(--his-ink);
+}
+#copy-all {
+  width: 100%; min-height: 44px; font-size: 15px; letter-spacing: .04em;
+  background: var(--his-btn); color: var(--his-btn-ink); border: 1px solid var(--his-btn);
+}
+#copy-all:hover { background: #d6ebff; }
+#copy-all:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ── 設定 popover（共同部分；三套版面各自定位） ── */
+.settings-popover {
+  position: absolute; z-index: 20; border: 1px solid var(--color-accent);
+  background: var(--color-bg); box-shadow: var(--shadow-md);
+  display: flex; flex-direction: column; gap: 12px;
+}
+.settings-section > .kicker { display: block; margin-bottom: 5px; }
+.settings-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.settings-note { font-size: 12px; color: var(--color-neutral-700); border-top: 1px solid var(--color-divider); padding-top: 8px; }
+/* 生效版面 ≠ 偏好版面時的說明（#layout-note）。用 accent 而非 warn 色：這是狀態說明
+   不是錯誤，且 accent-100／--color-text 在日夜兩套主題都有定義，對比一併成立。 */
+.settings-alert {
+  font-size: 12px; line-height: 1.55; padding: 7px 9px;
+  border-left: 2px solid var(--color-accent);
+  background: var(--color-accent-100); color: var(--color-text);
+}
+
+/* ── 複製後備視窗（沿用 #fallback-copy / #fallback-close） ── */
+#fallback-copy { position: fixed; inset: 0; z-index: 40; }
+#fallback-copy textarea { width: min(480px, 90vw); height: 160px; font: inherit; font-size: 14px; }
+
+/* ── 致命錯誤 ── */
+#fatal-error { margin: 24px; padding: 16px 18px; border: 1px solid #c0392b; background: var(--color-bg); }
+#fatal-error h2 { color: #c0392b; font-size: 20px; }
+#fatal-error p { font-size: 14px; line-height: 1.6; }

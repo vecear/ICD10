@@ -51,8 +51,76 @@ def test_build_embeds_three_clinical_modes():
     assert curated["internalEmergency"][0]["panels"][0]["diseases"]
     assert curated["internalEmergency"][0]["panels"][0]["redFlags"]
     assert "redFlags" not in curated["internalOutpatient"][0]["panels"][0]
-    for marker in ["內科急診", "內科門診", "外科", "region-nav", "symptom-card", "常見相關疾病"]:
+    # DOM 契約標記（impl-plan §4）。P3 改版：`region-nav` → `region-rail`，
+    # 「常見相關疾病」群組標題 → `.disease-group`（收合式「常見疾病 N」）。
+    for marker in ["內科急診", "內科門診", "外科", "region-rail", "symptom-card", "disease-group"]:
         assert marker in html
+
+
+def test_build_embeds_fonts_and_design_system():
+    """字型與設計系統必須整份內嵌在單檔裡（零外部請求的前提）。"""
+    html = DIST.read_text(encoding="utf-8")
+    faces = re.findall(r"@font-face\{[^}]*\}", html)
+    assert len(faces) == 5, f"@font-face 規則應為 5 條（Barlow 400/500/700＋Condensed 400/600），實得 {len(faces)}"
+    for face in faces:
+        assert "src:url(data:font/woff2;base64," in face, f"字型未內嵌為 data: URI：{face[:80]}"
+        assert "font-display:swap" in face
+        assert "format('woff2')" in face
+    families = {re.search(r"font-family:'([^']+)'", f).group(1) for f in faces}
+    assert families == {"Barlow", "Barlow Condensed"}
+    weights = sorted(int(re.search(r"font-weight:(\d+)", f).group(1)) for f in faces)
+    assert weights == [400, 400, 500, 600, 700]
+    # vendored 設計系統與產品層 token
+    for marker in ["--color-accent:", ".blueprint", "--his-surface:", "--his-ink:", "--warn-line:", "Barlow Condensed"]:
+        assert marker in html, f"設計系統缺少 {marker}"
+    assert not re.search(r"@import\s*(?:url\(|['\"])", html), "不得殘留 @import（Google Fonts 連結）"
+
+
+def test_curated_labels_cover_every_curated_code():
+    """全庫延遲載入時 chip 的中文標籤來源；漏一個碼＝那顆 chip 只剩代碼沒有中文。"""
+    html = DIST.read_text(encoding="utf-8")
+    match = re.search(r"window\.CURATED_LABELS = (\{.*?\});", html)
+    assert match, "找不到 window.CURATED_LABELS"
+    labels = json.loads(match.group(1))
+
+    curated = {
+        key: json.loads((ROOT / "src" / "curated" / fname).read_text(encoding="utf-8"))
+        for fname, key in build_module.CURATED_KEYS.items()
+    }
+    expected = {code for _, code in build_module._iter_curated_codes(curated)}
+    assert expected, "精選碼集合為空，_iter_curated_codes 可能壞了"
+    assert set(labels) == expected, f"漏碼 {sorted(expected - set(labels))[:10]}／多碼 {sorted(set(labels) - expected)[:10]}"
+
+    by_code = {row[0]: row for row in json.loads((ROOT / "data" / "codes.min.json").read_text(encoding="utf-8"))}
+    for code, zh in labels.items():
+        assert zh.strip(), f"{code} 的中文標籤為空"
+        assert by_code[code][1] == 1, f"{code} 不是 USE=1 葉碼，不該進白名單"
+        assert by_code[code][3] == zh, f"{code} 中文與 codes.min.json 不一致"
+
+
+@pytest.mark.parametrize(
+    "snippet",
+    [
+        '<link rel="stylesheet" href="https://cdn.example.com/x.css">',
+        "@import url('https://fonts.googleapis.com/css2?family=Barlow');",
+        '@import "http://example.com/a.css";',
+        "body{background:url(/assets/bg.png)}",
+        '<img src="http://example.com/logo.png">',
+    ],
+)
+def test_assert_offline_rejects_external_references(snippet):
+    with pytest.raises(ValueError) as exc_info:
+        build_module.assert_offline("<html><head>" + snippet + "</head></html>")
+    assert "外部參照" in str(exc_info.value)
+
+
+def test_assert_offline_allows_inline_data_and_svg_namespace():
+    """data: URI 與 SVG 命名空間不會發出請求，不可誤殺。"""
+    build_module.assert_offline(
+        '<html><style>@font-face{src:url(data:font/woff2;base64,AAAA) format("woff2")}</style>'
+        '<svg xmlns="http://www.w3.org/2000/svg"></svg>'
+        '<script id="icd-data" type="application/gzip-base64">H4sIAAAA</script></html>'
+    )
 
 
 def test_build_rejects_non_leaf_curated_code(tmp_path, monkeypatch):

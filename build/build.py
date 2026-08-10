@@ -1,11 +1,30 @@
-"""組裝單一離線 HTML：資料 gzip+base64 內嵌、全部 JS inline。"""
-import base64, gzip, hashlib, io, json, sys
+"""組裝單一離線 HTML：資料 gzip+base64 內嵌、字型 base64 內嵌、全部 CSS/JS inline。"""
+import base64, gzip, hashlib, io, json, re, sys
 from pathlib import Path
 
 from source_manifest import SOURCE_SHA256, SOURCE_VERSION
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC, DATA, DIST = ROOT / "src", ROOT / "data", ROOT / "dist"
+ASSETS = ROOT / "assets"
+# (檔名, font-family, font-weight)：Latin 子集，中文不內嵌（見 src/styles/app.css 的字型堆疊註解）
+FONTS = [
+    ("Barlow-400.woff2", "Barlow", 400),
+    ("Barlow-500.woff2", "Barlow", 500),
+    ("Barlow-700.woff2", "Barlow", 700),
+    ("BarlowCondensed-400.woff2", "Barlow Condensed", 400),
+    ("BarlowCondensed-600.woff2", "Barlow Condensed", 600),
+]
+# 設計系統 → 產品共用元件 → 各版面骨架。都在 :root 定義 token，靠來源順序讓後者覆寫。
+# 版面各一檔（wide／後續 dock、mobile）是為了讓不同階段能並行實作而不互相覆蓋。
+STYLESHEETS = ["styles/industry.css", "styles/app.css", "styles/wide.css", "styles/dock.css", "styles/mobile.css"]
+# 有序：每個模組都是 IIFE／UMD，靠這個順序保證依賴先於使用者掛上 window（無 bundler）。
+# logic → state → data 都是零 DOM 的純模組（node --test 直接測），其後才碰 DOM。
+SOURCES = [
+    "logic.js", "state.js", "data.js",
+    "render-shared.js", "render-wide.js", "render-dock.js", "render-mobile.js",
+    "interactions.js", "app.js",
+]
 CURATED_KEYS = {
     "chronic.json": "chronic", "infectious.json": "infectious", "pathogens.json": "pathogens",
     "surgical_panels.json": "surgicalPanels",
@@ -85,6 +104,88 @@ def validate_data_metadata(raw, db):
     return expected
 
 
+def build_curated_labels(curated, by_code):
+    """產生 {碼: 中文名}，涵蓋所有精選碼（含 related.json 的 key 與 value）。
+
+    延遲載入全庫時（impl-plan R-3.3），chip 的中文標籤沒有 index 可查，related.json
+    本身又完全不帶 label——沒有這份對照表，DB 就緒前的相關碼會變成「只有代碼、沒有中文」。
+    同時這份 key 集合就是 R-4 的加碼白名單，所以這裡再擋一次「必須是 USE=1 葉碼且中文非空」，
+    不倚賴 validate_curated() 已經跑過（兩層防線，順序改動也不會漏）。
+    """
+    labels, bad = {}, []
+    for source, code in _iter_curated_codes(curated):
+        row = by_code.get(code)
+        if row is None or len(row) < 4 or row[1] != 1 or not str(row[3]).strip():
+            bad.append(f"{source}: {code}")
+            continue
+        labels[code] = row[3]
+    if bad:
+        sample = "; ".join(bad[:20])
+        suffix = "" if len(bad) <= 20 else f"（另有 {len(bad) - 20} 筆）"
+        raise ValueError(f"CURATED_LABELS 含非葉碼／不存在／中文為空的代碼：{sample}{suffix}")
+    return dict(sorted(labels.items()))
+
+
+def embed_fonts():
+    """讀 assets/fonts/*.woff2 → base64 → @font-face（font-display:swap）。"""
+    rules = [
+        "/* Barlow / Barlow Condensed（Copyright 2017 The Barlow Project Authors）"
+        "，SIL Open Font License 1.1；\n"
+        "   授權全文見原始碼庫 assets/fonts/OFL.txt（此處不附網址：單檔不得含外部參照）。\n"
+        "   Latin 子集內嵌為 data: URI，中文靠字型堆疊 fallback 到系統字。 */"
+    ]
+    total = 0
+    for fname, family, weight in FONTS:
+        raw = (ASSETS / "fonts" / fname).read_bytes()
+        total += len(raw)
+        b64 = base64.b64encode(raw).decode("ascii")
+        rules.append(
+            "@font-face{font-family:'%s';font-style:normal;font-weight:%d;font-display:swap;"
+            "src:url(data:font/woff2;base64,%s) format('woff2')}" % (family, weight, b64)
+        )
+    return "\n".join(rules), total
+
+
+def build_styles():
+    """@font-face ＋ STYLESHEETS 依序串接成單一 <style>。
+
+    P1 曾用 `@layer design{}` 包起來，讓設計系統不覆蓋 template.html 裡的舊版 <style>；
+    P3 已把舊版樣式整段刪除，包裝隨之拿掉——現在來源順序就是唯一的階層規則。
+    """
+    fonts_css, font_bytes = embed_fonts()
+    parts = []
+    for rel in STYLESHEETS:
+        parts.append(f"/* ===== {rel} ===== */\n" + (SRC / rel).read_text(encoding="utf-8"))
+    return "<style>\n" + fonts_css + "\n" + "\n\n".join(parts) + "\n</style>", font_bytes
+
+
+# 唯一允許的 http(s) 字串：SVG 命名空間（不會發出請求）
+_OFFLINE_ALLOW = re.compile(r"https?://(?!www\.w3\.org/2000/svg)")
+_DATA_SCRIPT = re.compile(r'(?s)<script id="icd-data".*?</script>')
+
+
+def assert_offline(html):
+    """建置期守門：輸出不得含任何外部參照，否則直接讓建置失敗。
+
+    E2E 也有 test_no_external_requests 這層，但那要等測試跑才會發現；這裡在建置當下就擋，
+    避免 vendored 進帶 CDN 連結的資源後一路矇混到 dist。
+    """
+    body = _DATA_SCRIPT.sub("", html)   # 資料是 base64，不可能含 "://"，剔除只為加速與避免誤判
+    violations = []
+    for match in _OFFLINE_ALLOW.finditer(body):
+        start = max(0, match.start() - 60)
+        violations.append(body[start:match.start() + 80].replace("\n", " "))
+    # 只抓真正的 at-rule 形式（`@import url(` / `@import "`），不誤判註解裡提到 @import 的說明文字
+    for match in re.finditer(r"@import\s*(?:url\(|['\"])", body):
+        violations.append("@import → " + body[match.start():match.start() + 120].replace("\n", " "))
+    for match in re.finditer(r"url\(\s*['\"]?(?!data:)([^)'\"]{0,80})", body):
+        violations.append("非 data: 的 url() → " + match.group(0).replace("\n", " "))
+    if violations:
+        detail = "\n".join(f"  - …{v}…" for v in violations[:10])
+        more = "" if len(violations) <= 10 else f"\n  （另有 {len(violations) - 10} 處）"
+        raise ValueError(f"輸出含 {len(violations)} 處外部參照，單檔必須零外部請求：\n{detail}{more}")
+
+
 def main():
     sys.stdout.reconfigure(encoding="utf-8")
     sys.stderr.reconfigure(encoding="utf-8")
@@ -97,21 +198,38 @@ def main():
     for fname, key in CURATED_KEYS.items():
         curated[key] = json.loads((SRC / "curated" / fname).read_text(encoding="utf-8"))
     validate_curated(curated, db)
+    labels = build_curated_labels(curated, {row[0]: row for row in db})
+    styles, font_bytes = build_styles()
     scripts = (
         "<script>\nwindow.ICD_META = " + json.dumps(metadata, ensure_ascii=False, separators=(",", ":")) + ";\n</script>\n"
         "<script>\n/* 資料來源：健保署 ICD-10-CM（" + SOURCE_VERSION + "） */\n"
-        + "window.CURATED = " + json.dumps(curated, ensure_ascii=False, separators=(",", ":")) + ";\n</script>\n"
-        + "<script>\n" + (SRC / "logic.js").read_text(encoding="utf-8") + "\n</script>\n"
-        + "<script>\n" + (SRC / "app.js").read_text(encoding="utf-8") + "\n</script>"
+        + "window.CURATED = " + json.dumps(curated, ensure_ascii=False, separators=(",", ":")) + ";\n"
+        + "/* 精選碼的中文對照：全庫延遲載入時 chip 的標籤來源，同時是加碼白名單（impl-plan R-3.3／R-4） */\n"
+        + "window.CURATED_LABELS = " + json.dumps(labels, ensure_ascii=False, separators=(",", ":")) + ";\n</script>\n"
+        + "\n".join(
+            "<script>\n" + (SRC / rel).read_text(encoding="utf-8") + "\n</script>"
+            for rel in SOURCES
+        )
     )
 
     html = (SRC / "template.html").read_text(encoding="utf-8")
-    html = html.replace("%DATA%", b64).replace("<!--%SCRIPTS%-->", scripts)
+    for placeholder in ("%DATA%", "<!--%STYLES%-->", "<!--%SCRIPTS%-->"):
+        if placeholder not in html:
+            raise ValueError(f"template.html 找不到佔位符 {placeholder}")
+    html = html.replace("%DATA%", b64).replace("<!--%STYLES%-->", styles).replace("<!--%SCRIPTS%-->", scripts)
+    assert_offline(html)
     DIST.mkdir(exist_ok=True)
     out = DIST / "icd10.html"
     with io.open(out, "w", encoding="utf-8", newline="\n") as f:
         f.write(html)
-    print(f"輸出 {out}（{out.stat().st_size:,} bytes）")
+    print(
+        f"輸出 {out}（{out.stat().st_size:,} bytes）\n"
+        f"  字型：{len(FONTS)} 個 woff2，{font_bytes:,} bytes → base64 {(font_bytes + 2) // 3 * 4:,} bytes\n"
+        f"  樣式：{' + '.join(STYLESHEETS)}，{len(styles):,} bytes（含字型）\n"
+        f"  指令碼：{' → '.join(SOURCES)}\n"
+        f"  CURATED_LABELS：{len(labels):,} 個精選碼\n"
+        f"  assert_offline：通過（零外部參照）"
+    )
 
 if __name__ == "__main__":
     main()

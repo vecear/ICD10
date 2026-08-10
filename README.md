@@ -1,35 +1,103 @@
 # ICD-10 門診導引
 
-單一離線 HTML 的 ICD-10-CM 選碼工具，為看診情境設計：內科急診／內科門診／外科模式、
-依身體部位的症狀導向面板、
-慢性病與感染科常用快選、相關碼連鎖推薦、就診清單一鍵複製、全庫即時搜尋。
+單一離線 HTML 的 ICD-10-CM 選碼工具，為看診當下設計：內科門診／內科急診／外科三種模式、
+依身體部位的症狀導向面板、慢性病與感染科常用快選、相關碼連鎖推薦、就診清單一鍵貼入 HIS、
+全庫即時搜尋。整個工具就是 [`dist/icd10.html`](dist/icd10.html) 一個檔案（約 1.9 MB），
+免安裝、免網路、零外部請求，可直接放進診間電腦或隨身碟。
+
+## 三種版面
+
+| 版面 | 用途 |
+| --- | --- |
+| **桌機工作台**（預設） | 全螢幕三欄：左部位、中面板、右就診清單＋HIS 預覽。看診主力版面。 |
+| **側掛窄欄** | 壓成一條窄欄貼在螢幕邊，讓 HIS 佔滿其餘空間；按「置頂」可用 Document Picture-in-Picture 把整條窄欄丟進永遠置頂的小視窗，浮在 HIS 上面。 |
+| **手機** | 整列式觸控介面（每列 48px）、底部固定清單列與可展開抽屜。 |
+
+桌機兩種版面在**設定 → 桌機版面**切換，選擇會記住。視窗寬度未達 900px 時會自動改用手機
+版面（此時設定面板會說明目前生效的是哪一種、以及放寬視窗就會回去），因此在筆電上把視窗
+縮成半螢幕也不會變成擠爆的桌機版。
 
 ## 使用
 
-直接用 Edge / Chrome（80+）開啟 [`dist/icd10.html`](dist/icd10.html)，免安裝、免網路。
+用 Edge / Chrome 開啟 [`dist/icd10.html`](dist/icd10.html)。
 
-- **搜尋**：中文（蜂窩）、英文（cellulitis）、代碼前綴（L03 或 E119）皆可。
-- **內科導引**：先選內科急診或內科門診，再依身體部位挑選主訴、常見相關疾病與評估碼。
-- **急診提醒**： 「優先排除／提醒評估」僅供醫師複核，不是自動診斷或急診分流；推薦碼需逐一點選才會加入清單。
-- **相關疾病**：點擊主訴後會列出較完整的常見疾病清單；疾病推薦不會自動加入，需由醫師逐一確認。
-- **外科導引**：保留外傷、傷口、膿瘍、疝氣與術後追蹤等常見情境。
-- **點任何代碼**加入右側「本次就診清單」，同時跳出相關代碼（臨床關聯＋同類目）供連鎖加選。
-- **複製**：每行一碼／逗號分隔／碼＋名稱 三種格式。
-- 灰色代碼為類目碼（不可申報），不能加入清單。
+- **搜尋**：中文（蜂窩）、英文（cellulitis）、代碼前綴（L03 或 E119）皆可；按 Enter 直接加入第一筆。
+- **內科導引**：先選內科門診或內科急診，再依身體部位挑主訴、常見相關疾病與評估碼。
+- **急診提醒**：「優先排除／提醒評估」僅供醫師複核，不是自動診斷或急診分流；推薦碼需逐一點選才會加入清單。
+- **外科導引**：外傷、傷口、膿瘍、疝氣與術後追蹤等常見情境。
+- **點任何代碼**加入就診清單，同時跳出相關代碼（臨床關聯＋同類目）供連鎖加選。
+- 灰色虛線代碼為類目碼（不可申報），點了不會加入清單。
+
+### 就診清單
+
+- **排序**：桌機可拖曳換序，也可用 `Alt+↑`／`Alt+↓`；任一版面都能按「主」把該碼設為主診斷（移到第一位）。
+- **貼入 HIS**：預覽框顯示的字串就是複製出去的字串，可選每行一碼／逗號分隔／碼＋名稱三種格式；
+  剪貼簿被瀏覽器擋下時會跳出可手動全選複製的後備視窗。
+- 點清單裡的代碼可單獨複製該碼。
+- 清單**不跨診次保留**，重新整理即清空。
+
+### 常用列（工作台版面）
+
+工作台版面頂端有一條常用列，可一鍵重加常用代碼；側掛窄欄與手機版面空間有限，不顯示這一條。
+
+- **我的最愛**：在就診清單按 ★ 收藏（三種版面都能按），永遠排在常用列最前面。
+- **最近使用**：自動記錄最近 8 個用過的代碼。
+
+最愛、最近使用、日夜主題、桌機版面偏好與複製格式會存在瀏覽器本機（localStorage）；
+localStorage 被停用時工具照常運作，只是不跨診次記住。**不會儲存任何病人資料。**
+
+### 全庫延遲載入
+
+開機只載入精選面板（544 個代碼），全庫 96,802 筆（其中可申報葉碼 73,681 筆）在開機後閒置
+時或第一次搜尋時才解壓建索引。載入狀態顯示在設定面板底部；全庫還沒好之前搜尋只會回精選
+面板的結果，並在結果區明講。
+
+## 瀏覽器需求
+
+- **Edge / Chrome 80 以上**：全庫解壓需要 `DecompressionStream`。版本過舊時精選面板仍可用，
+  設定面板會說明全庫無法載入。
+- **側掛窄欄的「置頂」需 Edge / Chrome 116 以上**（Document Picture-in-Picture）。不支援或被
+  瀏覽器擋下時只會顯示提示，不會進入假的置頂狀態。
 
 ## 開發
 
 ```bash
-python build/fetch_data.py   # 下載健保署官方 xlsx（2023 版，115.05.06 更新）
-python build/convert.py      # 轉 data/codes.min.json 與來源 metadata
-python build/build.py        # 組裝 dist/icd10.html
-python build/inventory.py    # 產生 docs/clinical-content-inventory.md（臨床內容驗收清單）
-python -m pytest tests/ -v   # Python 測試（資料完整性/精選碼驗證/建置/E2E）
-node --test tests/logic.test.mjs
+python build/fetch_data.py    # 下載健保署官方 xlsx（2023 版，115.05.06 更新）
+python build/convert.py       # 轉 data/codes.min.json 與來源 metadata
+python build/build.py         # 組裝 dist/icd10.html（內嵌字型與資料，assert_offline 守門）
+python build/inventory.py     # 產生 docs/clinical-content-inventory.md（臨床內容驗收清單）
+
+python -m pytest -q           # Python 測試：資料完整性／精選碼／建置／三套版面 E2E
+node --test tests/logic.test.mjs tests/state.test.mjs tests/data.test.mjs   # 純邏輯單元測試
 ```
+
+`tests/conftest.py` 會在測試開始前自動跑一次 `build/build.py`，所以改完 `src/` 直接跑
+pytest 即可，測到的一定是最新的 dist。
+
+原始碼在 `src/`，由 `build/build.py` 依序串成單一 HTML：
+
+| 檔案 | 職責 |
+| --- | --- |
+| `logic.js` | 純函式核心（搜尋、格式化、葉碼判斷），無 DOM |
+| `state.js` | 單一 store：狀態、action、localStorage 持久化 |
+| `data.js` | 精選內容與全庫索引的存取層、延遲載入 |
+| `render-shared.js` | 三套版面共用的 DOM 建構與區塊更新（chip、清單、設定面板…） |
+| `render-wide.js` / `render-dock.js` / `render-mobile.js` | 三種版面各自的骨架與更新對照表 |
+| `interactions.js` | document 層事件委派（版面重建也不會漏解事件） |
+| `app.js` | 啟動、依視窗寬度決定生效版面、把狀態變動轉成區塊重繪 |
+| `styles/` | `industry`（設計系統）→ `app`（共用元件）→ `wide` / `dock` / `mobile` |
+| `curated/` | 人工整理的面板、快選與相關碼 JSON |
 
 **開發依賴**：Python 3.8+、Node.js 18+、`pip install openpyxl pytest playwright`，另需執行
 `python -m playwright install chromium` 安裝 E2E 使用的瀏覽器。
+
+## 字型與授權
+
+介面標題與代碼使用 **Barlow** 與 **Barlow Condensed**，以 Latin 子集（5 個 woff2，約 108 KB）
+內嵌成 data: URI，因此完全離線也能正確顯示。兩個字族皆為
+Copyright 2017 The Barlow Project Authors，依 **SIL Open Font License 1.1** 使用，授權全文見
+[`assets/fonts/OFL.txt`](assets/fonts/OFL.txt)。中文不內嵌字型，走系統字型堆疊（微軟正黑體、
+蘋方等），以免單檔膨脹到數十 MB。
 
 ## 資料來源與授權
 

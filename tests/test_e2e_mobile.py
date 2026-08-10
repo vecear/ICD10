@@ -1,0 +1,491 @@
+"""E2E（1b 手機看診）：390×844、觸控模式下對 dist/icd10.html 實跑主要使用流程。
+
+conftest.py 的 session fixture 已先跑過 build/build.py，這裡測到的一定是當前 src。
+DOM 契約見 .review/design-ref/impl-plan.md §4.2／§4.4；1a 桌機的測試在 tests/e2e_test.py。
+
+手機版的三個關鍵不變量（壞掉就是回歸）：
+  1. 視窗 <900px 自動採用手機版面，且**任何狀態下都不得水平捲動**。
+  2. 底部固定列永遠可見，且**不會蓋住捲動區的最後一列**（fixed 底部列的典型缺陷）。
+  3. 急診紅旗不得洩漏到門診——面板與相關碼兩處都要驗（臨床安全，最高優先）。
+"""
+import http.server
+import json
+import threading
+from functools import partial
+from pathlib import Path
+
+import pytest
+from playwright.sync_api import expect, sync_playwright
+
+ROOT = Path(__file__).resolve().parent.parent
+CURATED_DIR = ROOT / "src" / "curated"
+PORT = 18596
+MOBILE = {"width": 390, "height": 844}
+
+
+def region_for_panel(filename, panel_name):
+    """從 curated JSON 動態找出含有該面板的部位群組名稱（分群屬內容，會隨改版調整）。"""
+    groups = json.loads((CURATED_DIR / filename).read_text(encoding="utf-8"))
+    for region in groups:
+        if any(p["name"] == panel_name for p in region["panels"]):
+            return region["name"]
+    raise AssertionError(f"{filename} 找不到面板「{panel_name}」")
+
+
+@pytest.fixture(scope="module")
+def page_url():
+    handler = partial(http.server.SimpleHTTPRequestHandler, directory=str(ROOT / "dist"))
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", PORT), handler)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    yield f"http://127.0.0.1:{PORT}/icd10.html"
+    srv.shutdown()
+
+
+@pytest.fixture(scope="module")
+def browser_ctx(page_url):
+    """真手機條件：390×844＋is_mobile＋has_touch（hover 不存在，觸控目標才是重點）。"""
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        ctx = browser.new_context(
+            viewport=dict(MOBILE),
+            is_mobile=True,
+            has_touch=True,
+            device_scale_factor=2,
+            permissions=["clipboard-read", "clipboard-write"],
+        )
+        yield ctx
+        browser.close()
+
+
+@pytest.fixture(scope="module")
+def page(browser_ctx, page_url):
+    """主測試頁：全庫索引先拉起來，類目碼防呆才測得到葉碼規則而不是建置期白名單。"""
+    pg = browser_ctx.new_page()
+    pg.goto(page_url)
+    pg.wait_for_selector('body[data-ready="1"]', timeout=8000)
+    pg.evaluate("() => window.ICDApp.data.ensureDb()")
+    pg.wait_for_selector('body[data-db="ready"]', timeout=30000)
+    yield pg
+    pg.close()
+
+
+# ---- 共用操作 ----
+def reset(pg):
+    """回到乾淨起點：空清單、門診模式、無搜尋、抽屜與設定收合。"""
+    pg.evaluate("""() => {
+        const s = window.ICDApp.store;
+        s.clearCart();
+        s.setMode('outpatient');
+        s.setQuery('');
+        s.setFormat('lines');
+        s.setSettingsOpen(false);
+        s.setState({ favs: [], recent: [], expanded: {}, copied: false });
+    }""")
+    pg.fill("#search", "")
+    if pg.locator("#cart-sheet").is_visible():
+        pg.click("#cart-toggle")
+
+
+def go_region(pg, filename, panel_name):
+    pg.click(f'.region-pill[data-region="{region_for_panel(filename, panel_name)}"]')
+
+
+def search(pg, text):
+    pg.fill("#search", text)
+    pg.wait_for_timeout(300)      # 150ms debounce ＋ 重繪
+
+
+def box(locator):
+    b = locator.bounding_box()
+    assert b is not None, "元素沒有可量測的位置"
+    return b
+
+
+def doc_metrics(pg):
+    return pg.evaluate(
+        """() => ({
+            scrollW: document.documentElement.scrollWidth,
+            clientW: document.documentElement.clientWidth,
+            bodyScrollW: document.body.scrollWidth,
+        })"""
+    )
+
+
+def assert_no_h_scroll(pg, tag):
+    m = doc_metrics(pg)
+    assert m["scrollW"] <= m["clientW"], f"{tag}：文件水平溢出 {m['scrollW']} > {m['clientW']}"
+    assert m["bodyScrollW"] <= m["clientW"], f"{tag}：body 水平溢出 {m['bodyScrollW']} > {m['clientW']}"
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 版面採用與框架
+# ══════════════════════════════════════════════════════════════════════════
+def test_mobile_layout_is_used_at_390(page):
+    """390×844 自動採用手機版面（斷點 900，impl-plan §4.6），且只掛這一套。"""
+    reset(page)
+    expect(page.locator("body")).to_have_attribute("data-layout", "mobile")
+    expect(page.locator("#layout-mobile")).to_be_visible()
+    assert page.locator("#layout-wide").count() == 0
+    assert page.locator("#layout-dock").count() == 0
+    # 一次只掛一套版面 → 全域 id 不得重複（impl-plan R-10）
+    dupes = page.evaluate(
+        """() => {
+            const ids = [...document.querySelectorAll('[id]')].map((e) => e.id);
+            return ids.filter((id, i) => ids.indexOf(id) !== i);
+        }"""
+    )
+    assert dupes == [], f"重複 id：{dupes}"
+
+
+@pytest.mark.parametrize("scenario", ["idle", "emergency", "surg", "search", "cart"])
+def test_no_horizontal_overflow(page, scenario):
+    """任何狀態下都不得水平捲動——手機上一旦溢出，整頁左右晃動就無法選碼。"""
+    reset(page)
+    if scenario == "emergency":
+        page.evaluate("() => window.ICDApp.store.setMode('emergency')")
+    elif scenario == "surg":
+        page.evaluate("() => window.ICDApp.store.setMode('surg')")
+    elif scenario == "search":
+        search(page, "cellulitis")
+    elif scenario == "cart":
+        page.locator("#panels .chip--row").first.click()
+        page.locator("#related .chip--row").first.click()
+        page.click("#cart-toggle")
+        expect(page.locator("#cart-sheet")).to_be_visible()
+    page.wait_for_timeout(120)
+    assert_no_h_scroll(page, scenario)
+
+
+def test_touch_targets_are_at_least_44px(page):
+    """觸控目標一律 ≥44px：手機上沒有 hover，點不準就是選錯碼。"""
+    reset(page)
+    page.locator("#panels .chip--row").first.click()      # 讓底部列與抽屜有內容
+    page.click("#cart-toggle")
+    expect(page.locator("#cart-sheet")).to_be_visible()
+    checks = [
+        ("#search", 44),
+        ("#settings-toggle", 44),
+        ("#copy-all", 48),
+        ("#cart-toggle", 48),
+        (".region-pill", 44),
+        ("#panels .chip--row", 48),
+        ("#cart li .cart-primary", 44),
+        ("#cart li .cart-remove", 44),
+        ("#clear-cart", 44),
+    ]
+    for selector, minimum in checks:
+        b = box(page.locator(selector).first)
+        assert b["height"] >= minimum - 0.5, f"{selector} 高度只有 {b['height']:.1f}px（需 ≥{minimum}）"
+    # 44×44 是雙向要求，橫向也要夠
+    assert box(page.locator("#settings-toggle")).get("width", 0) >= 44
+    assert box(page.locator("#cart li .cart-remove").first)["width"] >= 44
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 部位 pill 列與面板卡片
+# ══════════════════════════════════════════════════════════════════════════
+def test_region_pills_scroll_horizontally(page):
+    """部位是橫向捲動的 pill 列（設計 L370-374）：自己捲，不把文件撐寬。"""
+    reset(page)
+    pills = page.locator(".region-pill")
+    assert pills.count() >= 4
+    metrics = page.eval_on_selector(
+        "#region-pills",
+        "(el) => ({ scrollW: el.scrollWidth, clientW: el.clientWidth, overflowX: getComputedStyle(el).overflowX })",
+    )
+    assert metrics["overflowX"] in ("auto", "scroll")
+    assert metrics["scrollW"] > metrics["clientW"], "pill 列沒有溢出，測不到橫向捲動"
+    assert_no_h_scroll(page, "pill 列")
+    # 所有 pill 都在同一列（沒有換行）
+    tops = page.eval_on_selector_all(
+        ".region-pill", "(els) => [...new Set(els.map((e) => Math.round(e.getBoundingClientRect().top)))]"
+    )
+    assert len(tops) == 1, f"pill 換行了，出現 {len(tops)} 列"
+    # 點第二顆 → 選取狀態與面板都跟著換
+    second = pills.nth(1)
+    name = second.get_attribute("data-region")
+    second.click()
+    expect(page.locator(f'.region-pill[data-region="{name}"]')).to_have_attribute("aria-selected", "true")
+    expect(page.locator(".mobile-panel").first).to_be_visible()
+
+
+def test_panel_cards_and_48px_code_rows(page):
+    """面板是卡片＋滿版色帶標題；代碼是 48px 整列（左代碼、中中文、右＋）。"""
+    reset(page)
+    cards = page.locator(".mobile-panel[data-panel]")
+    assert cards.count() >= 1
+    title = cards.first.locator(".m-panel-title")
+    band = title.evaluate(
+        "(el) => { const cs = getComputedStyle(el); return { bg: cs.backgroundColor, w: el.getBoundingClientRect().width }; }"
+    )
+    card_w = box(cards.first)["width"]
+    assert band["w"] >= card_w - 2, "標題色帶不是滿版"
+    assert band["bg"] not in ("rgba(0, 0, 0, 0)", "transparent"), "標題色帶沒有底色"
+
+    rows = page.locator("#panels .chip--row")
+    assert rows.count() >= 2
+    heights = page.eval_on_selector_all(
+        "#panels .chip--row", "(els) => els.map((e) => e.getBoundingClientRect().height)"
+    )
+    assert min(heights) >= 47.5, f"代碼列最矮只有 {min(heights):.1f}px"
+    first = rows.first
+    expect(first.locator("b")).to_have_text(first.get_attribute("data-code"))
+    # 右側的「＋」是 ::after，抓 computed content 驗證（不佔 DOM 節點）
+    plus = first.evaluate("(el) => getComputedStyle(el, '::after').content")
+    assert "＋" in plus, f"代碼列右側沒有加號提示：{plus}"
+
+
+def test_panel_toggle_expands_diseases(page):
+    """常見疾病預設收合，展開後可加碼（設計 L396）。"""
+    reset(page)
+    card = page.locator('.mobile-panel:has(.panel-toggle)').first
+    toggle = card.locator(".panel-toggle")
+    expect(toggle).to_have_attribute("aria-expanded", "false")
+    before = card.locator(".chip--row").count()
+    toggle.click()
+    expect(toggle).to_have_attribute("aria-expanded", "true")
+    after = card.locator(".chip--row").count()
+    assert after > before, "展開後沒有多出常見疾病列"
+    toggle.click()
+    expect(toggle).to_have_attribute("aria-expanded", "false")
+    assert card.locator(".chip--row").count() == before
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 加碼、底部固定列、複製
+# ══════════════════════════════════════════════════════════════════════════
+def test_tap_code_row_adds_and_bar_shows_summary(page):
+    """觸控點擊代碼列即加入；底部固定列顯示「本次就診清單 N」與代碼串。"""
+    reset(page)
+    expect(page.locator("#cart-inline")).to_have_text("尚未選碼")
+    first = page.locator("#panels .chip--row").first
+    code = first.get_attribute("data-code")
+    first.tap()                                   # 真觸控事件，不是滑鼠
+    expect(page.locator("#cart-count")).to_have_text("1")
+    expect(page.locator("#cart-inline")).to_have_text(code)
+    second = page.locator("#related .chip--row").first
+    code2 = second.get_attribute("data-code")
+    second.tap()
+    expect(page.locator("#cart-count")).to_have_text("2")
+    expect(page.locator("#cart-inline")).to_have_text(f"{code}、{code2}")
+    # 底部列在視野內且緊貼底部
+    bar = box(page.locator("#cart-bar"))
+    assert abs(bar["y"] + bar["height"] - MOBILE["height"]) < 1.5, "底部列沒有貼齊視窗底"
+
+
+def test_cart_bar_does_not_cover_content(page):
+    """取代已刪除的 test_mobile_cart_pane_not_sticky：捲到底時最後一列不得被底部列蓋住。"""
+    reset(page)
+    page.locator("#panels .chip--row").first.click()     # 讓相關碼區也出現，壓縮捲動區
+    page.evaluate("() => { const s = document.querySelector('.m-scroll'); s.scrollTop = s.scrollHeight; }")
+    page.wait_for_timeout(150)
+    geom = page.evaluate(
+        """() => {
+            const rows = document.querySelectorAll('.m-scroll .chip--row');
+            const last = rows[rows.length - 1].getBoundingClientRect();
+            const scroll = document.querySelector('.m-scroll').getBoundingClientRect();
+            const bar = document.getElementById('cart-bar').getBoundingClientRect();
+            const related = document.getElementById('mobile-related').getBoundingClientRect();
+            return { lastBottom: last.bottom, scrollBottom: scroll.bottom, barTop: bar.top, relatedTop: related.top };
+        }"""
+    )
+    assert geom["lastBottom"] <= geom["barTop"] + 0.5, "捲到底時最後一列被底部列蓋住"
+    assert geom["lastBottom"] <= geom["relatedTop"] + 0.5, "最後一列被相關碼區蓋住"
+    assert geom["scrollBottom"] <= geom["relatedTop"] + 0.5, "捲動區與相關碼區重疊"
+
+
+def test_copy_matches_preview_and_format(page):
+    """複製鈕內容 === 抽屜裡的 #his-preview（看到的＝貼出去的），且吃設定的格式。"""
+    reset(page)
+    page.locator('#panels .chip--row').first.click()
+    page.locator("#related .chip--row").first.click()
+    codes = page.evaluate("() => window.ICDApp.store.getState().cart.map((x) => x.code)")
+
+    page.click("#cart-toggle")
+    expect(page.locator("#cart-sheet")).to_be_visible()
+    page.click("#copy-all")
+    clip = page.evaluate("navigator.clipboard.readText()").replace("\r\n", "\n")
+    assert clip == "\n".join(codes)
+    assert clip == page.locator("#his-preview").text_content()
+    expect(page.locator("#copy-all")).to_contain_text("已複製")
+
+    # 換成逗號分隔（設定 popover 內），預覽與剪貼簿同步改變
+    page.click("#settings-toggle")
+    page.click('#seg-format button[data-format="comma"]')
+    page.keyboard.press("Escape")
+    expect(page.locator("#his-format-label")).to_have_text("逗號分隔")
+    page.click("#copy-all")
+    clip = page.evaluate("navigator.clipboard.readText()").replace("\r\n", "\n")
+    assert clip == ",".join(codes)
+    assert clip == page.locator("#his-preview").text_content()
+
+
+def test_cart_sheet_primary_and_remove(page):
+    """C6：手機不做拖曳換序，改用「主」鈕；誤點的碼也要能移除。"""
+    reset(page)
+    page.locator("#panels .chip--row").first.click()
+    page.locator("#related .chip--row").first.click()
+    codes = page.evaluate("() => window.ICDApp.store.getState().cart.map((x) => x.code)")
+    page.click("#cart-toggle")
+    sheet = page.locator("#cart-sheet")
+    expect(sheet).to_be_visible()
+    expect(page.locator("#cart-toggle")).to_have_attribute("aria-expanded", "true")
+
+    # 拖曳把手與 draggable 都不該存在（觸控裝置不觸發 HTML5 DnD，留著是假可供性）
+    assert page.locator("#cart li .cart-grip").count() == 0
+    assert page.eval_on_selector_all("#cart li", "(els) => els.every((e) => e.draggable === false)")
+
+    page.click(f'#cart li[data-code="{codes[1]}"] .cart-primary')
+    expect(page.locator("#cart li").first).to_have_attribute("data-code", codes[1])
+    expect(page.locator("#cart li").first.locator(".cart-badge")).to_have_attribute("data-primary", "true")
+    # to_have_text 會正規化空白，換行的比對改用 text_content()
+    assert page.locator("#his-preview").text_content() == f"{codes[1]}\n{codes[0]}"
+    expect(page.locator("#cart-inline")).to_have_text(f"{codes[1]}、{codes[0]}")
+
+    page.click(f'#cart li[data-code="{codes[0]}"] .cart-remove')
+    expect(page.locator("#cart li")).to_have_count(1)
+    page.click("#clear-cart")
+    expect(page.locator("#cart-inline")).to_have_text("尚未選碼")
+    expect(sheet).to_be_hidden()
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 相關碼、搜尋、設定
+# ══════════════════════════════════════════════════════════════════════════
+def test_related_section_appears_above_cart_bar(page):
+    """相關碼區在底部列上方，空的時候整段收起來，最高 190px 可捲（設計 L401-415）。"""
+    reset(page)
+    expect(page.locator("#mobile-related")).to_be_hidden()
+    go_region(page, "internal_outpatient.json", "頭痛")
+    page.click('#panels .chip--row[data-code="R51.9"]')
+    related = page.locator("#mobile-related")
+    expect(related).to_be_visible()
+    expect(page.locator('#related .chip--row[data-code="G43.909"]')).to_have_count(1)
+    assert page.locator("#related .chip--row").count() >= 1
+    geom = page.evaluate(
+        """() => {
+            const r = document.getElementById('related');
+            const wrap = document.getElementById('mobile-related').getBoundingClientRect();
+            const bar = document.getElementById('cart-bar').getBoundingClientRect();
+            return { maxH: parseFloat(getComputedStyle(r).maxHeight), h: r.getBoundingClientRect().height,
+                     wrapBottom: wrap.bottom, barTop: bar.top };
+        }"""
+    )
+    assert geom["maxH"] <= 190.5, f"相關碼捲動區 max-height 是 {geom['maxH']}"
+    assert geom["h"] <= 190.5
+    assert geom["wrapBottom"] <= geom["barTop"] + 0.5, "相關碼區不在底部列上方"
+    # 加入建議碼後該碼進清單、並從建議中消失（沿用既有行為）
+    page.click('#related .chip--row[data-code="G43.909"]')
+    expect(page.locator("#cart-inline")).to_contain_text("G43.909")
+    expect(page.locator('#related .chip--row[data-code="G43.909"]')).to_have_count(0)
+
+
+def test_search_results_are_rows_and_category_not_addable(page):
+    """搜尋結果同樣是 48px 整列；類目碼虛線、點了也加不進去。"""
+    reset(page)
+    search(page, "cellulitis")
+    expect(page.locator('#search-results .chip--row[data-code^="L03"]').first).to_be_visible(timeout=2000)
+    heights = page.eval_on_selector_all(
+        "#search-results .chip--row", "(els) => els.map((e) => e.getBoundingClientRect().height)"
+    )
+    assert min(heights) >= 47.5
+
+    search(page, "E11")
+    page.wait_for_selector("#search-results .chip.cat")
+    cat = page.locator("#search-results .chip.cat").first
+    expect(cat).to_have_attribute("data-leaf", "0")
+    cat.click(force=True)      # aria-disabled 而非 disabled，真使用者點得下去
+    expect(page.locator("#cart-inline")).to_have_text("尚未選碼")
+    assert_no_h_scroll(page, "搜尋結果")
+
+
+def test_settings_sheet_opens_below_header(page):
+    """設定 sheet 由 header 下方展開（top:60 / left:12 / right:12），Esc 與外點都能關。"""
+    reset(page)
+    pop = page.locator("#settings-popover")
+    expect(pop).to_be_hidden()
+    page.click("#settings-toggle")
+    expect(pop).to_be_visible()
+    expect(page.locator("#settings-toggle")).to_have_attribute("aria-expanded", "true")
+    b = box(pop)
+    assert abs(b["x"] - 12) < 1, f"sheet 左緣 {b['x']}"
+    assert abs(b["width"] - (MOBILE["width"] - 24)) < 1, f"sheet 寬度 {b['width']}"
+    assert 55 <= b["y"] <= 66, f"sheet 上緣 {b['y']}"
+    # 桌機才有意義的兩項（版面切換、常用列）在手機藏起來
+    expect(page.locator("#seg-layout")).to_be_hidden()
+    expect(page.locator("#shelf-toggle")).to_be_hidden()
+    expect(page.locator("#db-note")).to_contain_text("96,802")
+
+    # 模式切換：徽章與面板一起換
+    page.click("#mode-er")
+    expect(pop).to_be_hidden()
+    expect(page.locator("#mode-chip")).to_have_text("內科急診")
+    expect(page.locator("body")).to_have_attribute("data-mode", "emergency")
+
+    page.click("#settings-toggle")
+    expect(pop).to_be_visible()
+    page.keyboard.press("Escape")
+    expect(pop).to_be_hidden()
+
+    page.click("#settings-toggle")
+    expect(pop).to_be_visible()
+    page.locator("#cart-bar").click(position={"x": 5, "y": 5})    # 外點關閉
+    expect(pop).to_be_hidden()
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 臨床安全
+# ══════════════════════════════════════════════════════════════════════════
+def test_red_flags_do_not_leak_into_outpatient(page):
+    """最高優先：急診紅旗只屬於急診，門診的面板與相關碼都不得出現。"""
+    reset(page)
+    go_region(page, "internal_outpatient.json", "頭痛")
+    outpatient_panel = page.locator('.mobile-panel[data-panel="頭痛"]')
+    expect(outpatient_panel).to_be_visible()
+    assert page.locator("#panels .chip--warn").count() == 0, "門診面板渲染出紅旗碼"
+    for code in ("G03.9", "I60.9"):
+        assert page.locator(f'#panels .chip[data-code="{code}"]').count() == 0
+
+    page.click('#panels .chip--row[data-code="R51.9"]')
+    expect(page.locator('#related .chip[data-code="G43.909"]')).to_have_count(1)
+    expect(page.locator('#related .chip[data-code="G03.9"]')).to_have_count(0)
+    expect(page.locator('#related .chip[data-code="I60.9"]')).to_have_count(0)
+
+    # 同一個面板在急診模式才看得到紅旗
+    reset(page)
+    page.evaluate("() => window.ICDApp.store.setMode('emergency')")
+    go_region(page, "internal_emergency.json", "頭痛")
+    er_panel = page.locator('.mobile-panel[data-panel="頭痛"]')
+    expect(er_panel.locator(".m-redflag-label")).to_be_visible()
+    expect(er_panel.locator('.chip--warn[data-code="G03.9"]')).to_have_count(1)
+    page.click('#panels .chip--row[data-code="R51.9"]')
+    expect(page.locator('#related .chip[data-code="G03.9"]')).to_have_count(1)
+
+    # 切回門診：相關碼清空，紅旗不得殘留
+    page.evaluate("() => window.ICDApp.store.setMode('outpatient')")
+    expect(page.locator("#related .chip")).to_have_count(0)
+    expect(page.locator("#mobile-related")).to_be_hidden()
+    assert page.locator("#panels .chip--warn").count() == 0
+
+
+def test_no_page_errors_during_main_flow(browser_ctx, page_url):
+    """整段主要動線不得丟出未處理例外（手機版自己掛的 #cart-toggle 監聽是新風險面）。"""
+    errors = []
+    pg = browser_ctx.new_page()
+    pg.on("pageerror", lambda e: errors.append(str(e)))
+    try:
+        pg.goto(page_url)
+        pg.wait_for_selector('body[data-ready="1"]', timeout=8000)
+        pg.locator("#panels .chip--row").first.click()
+        pg.click("#cart-toggle")
+        pg.click("#cart-toggle")
+        pg.click("#settings-toggle")
+        pg.click("#mode-surg")
+        pg.locator(".region-pill").last.click()
+        pg.fill("#search", "L03")
+        pg.wait_for_timeout(400)
+        pg.click("#copy-all")
+        pg.wait_for_timeout(200)
+        assert errors == [], f"主要動線丟出例外：{errors}"
+    finally:
+        pg.close()

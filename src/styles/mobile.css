@@ -1,0 +1,200 @@
+/* 1b 手機看診（body[data-layout="mobile"]）。數值取自 .review/design-ref/new-design.dc.html
+   的 1b 區塊（L340-424、L677-678、L740-741）；共用元件（chip、seg、cart、HIS 預覽…）
+   在 styles/app.css。
+
+   **本檔每一條規則都掛在 body[data-layout="mobile"] 之下**，確保 1a／1c 不受影響。
+
+   骨架與設計稿的差異（刻意）：
+   1. 設計交付物是固定 390×844 的畫布；產品要能吃各種手機高度，改成
+      `height:100dvh` 的 flex column——header／pill 列／底部列 flex:none，只有中間
+      內容區捲動。底部列因此**不必** position:fixed 就永遠在視野內，也不可能蓋住
+      捲動區的最後一列（那是 fixed 底部列的典型缺陷）。
+   2. 觸控目標一律 ≥44px（硬性要求）：部位 pill 由設計的 40px 提到 44px、
+      面板的「展開常見疾病」與清單列上的三顆小鈕同樣補到 44px。
+   3. 深色底的 HIS 區用 --his-* 系列 token（不隨主題翻轉），不用 --color-accent-800/900：
+      深色主題會把 accent-800 翻成淺藍，白字疊上去只剩約 1.05:1（impl-plan R-2）。
+
+   本檔沒有用到 color-mix() 與 :has()，故不需要 C1 的靜態備援行。 */
+
+/* ── 外框：整頁高度的單欄 shell ───────────────────────────────────────── */
+body[data-layout="mobile"] { overflow: hidden; }
+
+body[data-layout="mobile"] #layout-mobile {
+  display: flex; flex-direction: column;
+  height: 100vh;              /* 備援：不支援 dvh 的舊版瀏覽器 */
+  height: 100dvh;             /* 行動瀏覽器工具列收合時才不會被裁掉 */
+  overflow: hidden;
+  background: var(--color-bg);
+}
+/* .btn／.input 的 4px 圓角在 Industry 設計語彙裡是例外，1b 全部拉平 */
+body[data-layout="mobile"] .btn,
+body[data-layout="mobile"] .input { border-radius: 0; }
+
+/* ── header：模式徽章＋搜尋（44px）＋設定鈕（44×44）（L349-352） ──────── */
+body[data-layout="mobile"] .m-header {
+  flex: none; position: relative;
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px; border-bottom: 1px solid var(--color-divider);
+}
+body[data-layout="mobile"] #mode-chip {
+  flex: none; font-family: var(--font-heading); font-size: 12px; letter-spacing: .06em;
+  padding: 3px 7px; border: 1px solid var(--color-accent);
+  color: var(--color-accent-800); background: var(--color-accent-100); white-space: nowrap;
+}
+body[data-layout="mobile"] #search {
+  flex: 1; min-width: 0; min-height: 44px;
+  font-size: 16px;            /* <16px 會讓行動瀏覽器聚焦時自動放大整頁 */
+  background: transparent;
+}
+body[data-layout="mobile"] #settings-toggle {
+  flex: none; min-height: 44px; min-width: 44px; padding: 0 10px; font-size: 13px;
+}
+
+/* 設定 sheet：由 header 下方展開，左右各留 12px（L740-741） */
+body[data-layout="mobile"] #settings-popover {
+  top: 60px; left: 12px; right: 12px; padding: 12px;
+  max-height: calc(100dvh - 140px); overflow-y: auto;
+}
+/* 「桌機版面」與「常用列」在手機沒有對應 UI，由 render-mobile.js 標上類名後藏起來 */
+body[data-layout="mobile"] .is-desktop-only { display: none; }
+body[data-layout="mobile"] .seg-btn { min-height: 44px; }
+
+/* ── 部位／情境：橫向捲動 pill 列（L370-374、L677-678） ────────────────── */
+body[data-layout="mobile"] #region-pills {
+  flex: none; display: flex; gap: 6px; overflow-x: auto; overflow-y: hidden;
+  padding: 10px 14px; border-bottom: 1px solid var(--color-divider);
+  background: var(--color-neutral-100); min-height: 40px;
+  -webkit-overflow-scrolling: touch;
+}
+body[data-layout="mobile"] .region-pill {
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 12px; min-height: 44px;   /* 設計為 40px，補到 44px 觸控門檻 */
+  border: 1px solid var(--color-divider); background: transparent;
+  cursor: pointer; font: inherit; font-size: 14px; color: var(--color-text);
+  white-space: nowrap; border-radius: 0;
+}
+body[data-layout="mobile"] .region-pill[aria-selected="true"] {
+  border-color: var(--color-accent); background: var(--color-accent-100);
+  color: var(--color-accent-800); font-weight: 600;
+}
+body[data-layout="mobile"] .region-pill .region-count { font-size: 12px; color: var(--color-neutral-700); }
+body[data-layout="mobile"] .region-pill[aria-selected="true"] .region-count { color: var(--color-accent-800); }
+
+/* ── 捲動內容區（L376） ──────────────────────────────────────────────── */
+body[data-layout="mobile"] .m-scroll {
+  flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  padding: 12px 14px 16px; display: flex; flex-direction: column; gap: 12px;
+}
+body[data-layout="mobile"] .m-rows { display: flex; flex-direction: column; gap: 6px; }
+
+/* 代碼列：48px 整列按鈕，左代碼、中中文、右「＋」（L382、L393、L435） */
+body[data-layout="mobile"] .chip--row { min-height: 48px; padding: 6px 10px; }
+body[data-layout="mobile"] .chip--row b {
+  flex: none; min-width: 72px; font-size: 15px; letter-spacing: .04em; text-align: left;
+}
+body[data-layout="mobile"] .chip--row span {
+  flex: 1; min-width: 0; font-size: 14px; text-align: left;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* 「＋」用虛擬元素而不是實體節點：共用的 chipEl 三套版面共用，不為手機加參數 */
+body[data-layout="mobile"] .chip--row::after {
+  content: "＋"; flex: none; font-size: 16px; line-height: 1; color: var(--color-accent-700);
+}
+body[data-layout="mobile"] .chip--row.chip--warn::after { color: var(--warn-ink); }
+/* 類目碼不可申報，不給「＋」暗示（設計稿的類目列仍留著＋，這裡刻意拿掉） */
+body[data-layout="mobile"] .chip--row.cat::after { content: none; }
+
+/* 搜尋結果卡（L378-385） */
+body[data-layout="mobile"] #results-card { padding: 10px; }
+body[data-layout="mobile"] .results-head {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; margin-bottom: 6px;
+}
+body[data-layout="mobile"] .results-title { font-size: 13px; letter-spacing: .06em; }
+
+/* 面板卡片：標題是滿版 accent-100 色帶（L389-397） */
+body[data-layout="mobile"] .mobile-panel {
+  border: 1px solid var(--color-divider); padding: 0 10px 10px; background: transparent;
+}
+body[data-layout="mobile"] .m-panel-title {
+  margin: 0 -10px 8px; padding: 6px 10px;
+  font-family: var(--font-heading); font-weight: 600; font-size: 16px; letter-spacing: .02em;
+  background: var(--color-accent-100); color: var(--color-accent-800);
+  border-bottom: 1px solid var(--color-divider);
+}
+/* 紅旗標題（設計稿混在同串列中只靠配色區分，這裡補一行說明） */
+body[data-layout="mobile"] .m-redflag-label {
+  margin: 4px 0 0; font-size: 11px; letter-spacing: .1em; color: var(--warn-ink);
+}
+body[data-layout="mobile"] .panel-toggle {
+  display: flex; align-items: center; margin-top: 4px; min-height: 44px; padding: 8px 0;
+  border: 0; background: none; cursor: pointer; font: inherit; font-size: 14px;
+  color: var(--color-accent-700); white-space: nowrap; width: fit-content;
+}
+
+/* ── 相關疾病／評估碼：底部列上方，最高 190px 可捲（L401-415、L799） ──── */
+body[data-layout="mobile"] #mobile-related {
+  flex: none; border-top: 1px solid var(--color-accent);
+  background: var(--color-accent-100); padding: 10px 14px;
+}
+body[data-layout="mobile"] .m-related-title {
+  font-family: var(--font-heading); font-size: 12px; letter-spacing: .08em;
+  text-transform: none; color: var(--color-accent-800); margin-bottom: 5px;
+}
+body[data-layout="mobile"] #related {
+  max-height: 190px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;
+}
+body[data-layout="mobile"] #related .chip--row { background: var(--color-bg); }
+body[data-layout="mobile"] #related .group-label { margin: 0 0 3px; font-size: 11px; }
+
+/* ── 清單抽屜：底部列點開才出現 ──────────────────────────────────────── */
+/* 抽屜整體不超過視高的 46%，內部只讓 ul#cart 捲——標題列與 HIS 預覽要一直看得到。
+   同時把上方的相關碼區壓成 84px，否則 390×844 上抽屜一開，主訴面板只剩兩列。 */
+body[data-layout="mobile"] .m-cart-sheet {
+  flex: none; display: flex; flex-direction: column; gap: 8px;
+  max-height: 46vh; max-height: 46dvh;
+  padding: 10px 14px; background: var(--color-bg);
+  border-top: 1px solid var(--color-accent); box-shadow: var(--shadow-md);
+}
+body[data-layout="mobile"] #layout-mobile.sheet-open #related { max-height: 84px; }
+body[data-layout="mobile"] .m-sheet-head { display: flex; align-items: center; gap: 8px; }
+body[data-layout="mobile"] .m-sheet-head .kicker { flex: 1; min-width: 0; }
+body[data-layout="mobile"] #his-format-label { font-size: 11px; color: var(--color-neutral-700); }
+body[data-layout="mobile"] #clear-cart { min-height: 44px; padding: 0 8px; font-size: 13px; }
+body[data-layout="mobile"] #cart { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+body[data-layout="mobile"] #cart li { gap: 6px; padding: 8px 2px; cursor: default; }
+body[data-layout="mobile"] b.cart-code { min-width: 66px; font-size: 15px; }
+body[data-layout="mobile"] #cart li button {
+  justify-content: center; min-width: 44px; min-height: 44px; padding: 0; font-size: 13px;
+}
+body[data-layout="mobile"] .cart-empty { font-size: 13px; color: var(--color-neutral-700); }
+body[data-layout="mobile"] #his-preview {
+  margin: 0; padding: 8px; min-height: 0; max-height: 84px; overflow-y: auto; font-size: 13px;
+}
+
+/* ── 底部固定列（L417-423）：--his-* 場，不隨主題翻轉 ───────────────── */
+body[data-layout="mobile"] .m-cart-bar {
+  flex: none; display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+  background: var(--his-card); border-top: 1px solid var(--his-line);
+}
+body[data-layout="mobile"] .m-cart-summary {
+  flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; align-items: stretch;
+  gap: 2px; min-height: 48px; padding: 4px 0; border: 0; background: transparent;
+  cursor: pointer; font: inherit; text-align: left;
+  /* 底部列是深底：按鈕自身的顏色不能留 UA 預設的 buttontext（淺色主題會變成深色） */
+  color: var(--his-ink);
+}
+body[data-layout="mobile"] .m-cart-summary:disabled { cursor: default; }
+body[data-layout="mobile"] .m-cart-label {
+  font-family: var(--font-heading); font-size: 13px; letter-spacing: .06em; color: var(--his-dim);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+body[data-layout="mobile"] #cart-inline {
+  font-family: var(--font-heading); font-size: 15px; letter-spacing: .04em; color: var(--his-ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+body[data-layout="mobile"] #copy-all {
+  flex: none; width: auto; min-height: 48px; padding: 0 16px;
+  font-size: 15px; letter-spacing: .04em; white-space: nowrap;
+}
+/* 登記標記預設用 --color-text 畫，在深色底的複製鈕旁會糊掉 */
+body[data-layout="mobile"] #copy-all > .corner { color: var(--his-dim); }

@@ -1,5 +1,9 @@
-"""E2E：對 dist/icd10.html 實跑主要使用流程。先跑 build/build.py。"""
-import http.server, json, re, threading
+"""E2E（1a 桌機工作台）：對 dist/icd10.html 實跑主要使用流程。先跑 build/build.py。
+
+DOM 契約見 .review/design-ref/impl-plan.md §4。1c 側掛窄欄與 1b 手機的測試由後續階段
+放在各自的檔案（tests/e2e_dock_test.py／e2e_mobile_test.py），本檔只涵蓋 wide 版面。
+"""
+import http.server, json, threading
 from functools import partial
 from pathlib import Path
 import pytest
@@ -8,19 +12,21 @@ from playwright.sync_api import sync_playwright, expect
 ROOT = Path(__file__).resolve().parent.parent
 CURATED_DIR = ROOT / "src" / "curated"
 PORT = 18493
+WIDE = {"width": 1440, "height": 900}
 
 
 def region_for_panel(filename, panel_name):
     """從 curated JSON 動態找出含有該面板的部位群組名稱。
 
-    部位分群屬於內容、會隨改版調整（如本輪「神經／頭頸」在門診拆成「神經／精神」），
-    測試若寫死群組名稱會在下次重整時又變成假紅燈；改成即時查表，面板搬到哪一群都不必動測試。
+    部位分群屬於內容、會隨改版調整，測試若寫死群組名稱會在下次重整時又變成假紅燈；
+    改成即時查表，面板搬到哪一群都不必動測試。
     """
     groups = json.loads((CURATED_DIR / filename).read_text(encoding="utf-8"))
     for region in groups:
         if any(p["name"] == panel_name for p in region["panels"]):
             return region["name"]
     raise AssertionError(f"{filename} 找不到面板「{panel_name}」")
+
 
 @pytest.fixture(scope="module")
 def page_url():
@@ -31,78 +37,216 @@ def page_url():
     yield f"http://127.0.0.1:{PORT}/icd10.html"
     srv.shutdown()
 
+
 @pytest.fixture(scope="module")
-def page(page_url):
+def browser_ctx(page_url):
     with sync_playwright() as p:
         browser = p.chromium.launch()
-        ctx = browser.new_context(permissions=["clipboard-read", "clipboard-write"])
-        pg = ctx.new_page()
-        pg.goto(page_url)
-        pg.wait_for_selector('body[data-ready="1"]', timeout=5000)
-        yield pg
+        ctx = browser.new_context(viewport=dict(WIDE), permissions=["clipboard-read", "clipboard-write"])
+        yield ctx
         browser.close()
 
 
 @pytest.fixture(scope="module")
-def file_page(page):
-    pg = page.context.new_page()
-    pg.goto((ROOT / "dist" / "icd10.html").resolve().as_uri())
-    pg.wait_for_selector('body[data-ready="1"]', timeout=5000)
+def page(browser_ctx, page_url):
+    """主測試頁：1440 寬、全庫索引已就緒。
+
+    全庫改成延遲載入後，「類目碼不可加入」等測試若在 index 未就緒時跑，測到的是建置期
+    白名單而不是葉碼防呆（impl-plan R-4），所以這裡先把全庫拉起來再交給測試。
+    """
+    pg = browser_ctx.new_page()
+    pg.goto(page_url)
+    pg.wait_for_selector('body[data-ready="1"]', timeout=8000)
+    pg.evaluate("() => window.ICDApp.data.ensureDb()")
+    pg.wait_for_selector('body[data-db="ready"]', timeout=30000)
     yield pg
     pg.close()
 
 
+@pytest.fixture
+def fresh_page(browser_ctx, page_url):
+    """每個測試自己一份、剛開機（全庫尚未載入）的頁面，且 localStorage 是乾淨的。
+
+    清儲存不能用 add_init_script：那是「每次導覽都會跑」，測持久化的測試一 reload
+    就把剛寫進去的 favs／layout 洗掉。改成先開一頁把同源的儲存清乾淨再關掉。
+    （另注意 add_init_script 收的是指令碼本體，不是函式運算式——傳 `() => {…}`
+    只會建出一個沒人呼叫的箭頭函式而靜默失效。）
+    """
+    scrub = browser_ctx.new_page()
+    scrub.goto(page_url)
+    scrub.evaluate("() => { try { localStorage.clear(); } catch (e) {} }")
+    scrub.close()
+    pg = browser_ctx.new_page()
+    yield pg
+    pg.close()
+
+
+# ---- 共用操作 ----
 def reset(pg):
-    pg.click("#clear-cart")
-    pg.click("#mode-op")
+    """回到乾淨起點：空清單、門診模式、無搜尋、無最愛／最近、全部收合。
+
+    favs／recent 會寫進 localStorage 而跨測試殘留（常用列上的 chip 會變成 DOM 中
+    第一個 .chip[data-code=X]），所以一併清掉，讓每條測試的定位子都是確定的。
+    """
+    pg.evaluate("""() => {
+        const s = window.ICDApp.store;
+        s.clearCart();
+        s.setMode('outpatient');
+        s.setQuery('');
+        s.setSettingsOpen(false);
+        s.setState({ favs: [], recent: [], expanded: {}, quickOpen: {}, copied: false });
+    }""")
     pg.fill("#search", "")
 
 
-def ready_ms(pg):
-    return pg.evaluate("""() => {
-        const [ready] = performance.getEntriesByName('icd-ready');
-        return ready ? ready.startTime : null;
-    }""")
-
-def test_load_and_status(page):
-    expect(page.locator("#status")).to_contain_text("96,802")
-
-def test_load_performance(page):
-    ms = ready_ms(page)
-    assert ms is not None, "找不到 icd-ready 效能標記"
-    assert ms < 2000, f"載入至可互動花了 {ms:.0f}ms"
+def open_settings(pg):
+    if pg.locator("#settings-popover").is_hidden():
+        pg.click("#settings-toggle")
+    pg.wait_for_selector("#settings-popover:not([hidden])")
 
 
-def test_file_url_loads(file_page):
-    expect(file_page.locator("#status")).to_contain_text("96,802")
-    ms = ready_ms(file_page)
-    assert ms is not None, "file:// 找不到 icd-ready 效能標記"
-    assert ms < 2000, f"file:// 載入至可互動花了 {ms:.0f}ms"
+def set_mode(pg, button_id):
+    """模式鈕已移進設定 popover（設計 L65-72），改走「開 popover → 點鈕」。"""
+    open_settings(pg)
+    pg.click("#" + button_id)
+    expect(pg.locator("#settings-popover")).to_be_hidden()
+
+
+def ensure_expanded(toggle):
+    if toggle.get_attribute("aria-expanded") != "true":
+        toggle.click()
+    expect(toggle).to_have_attribute("aria-expanded", "true")
+
+
+def quick_chip(pg, group, code):
+    """快選分組預設收合（設計 L158-167），要先展開才點得到。"""
+    ensure_expanded(pg.locator(f'.quick-group[data-quick="{group}"] .quick-toggle'))
+    return pg.locator(f'.quick-group[data-quick="{group}"] .chip[data-code="{code}"]')
+
+
+def panel_card(pg, panel_name):
+    return pg.locator(f'.symptom-card[data-panel="{panel_name}"]')
+
+
+def search(pg, text):
+    pg.fill("#search", text)
+    pg.wait_for_timeout(300)      # 150ms debounce ＋ 重繪
+
+
+def mark_ms(pg, name):
+    return pg.evaluate(
+        "(name) => { const [m] = performance.getEntriesByName(name); return m ? m.startTime : null; }",
+        name,
+    )
+
+
+def _luminance(rgb):
+    def channel(v):
+        v /= 255.0
+        return v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4
+    r, g, b = (channel(c) for c in rgb)
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def _parse_rgb(value):
+    nums = [float(x) for x in value.replace("rgba(", "").replace("rgb(", "").rstrip(")").replace("/", ",").split(",")[:3]]
+    return tuple(nums)
+
+
+def contrast(pg, selector):
+    """回傳該元素前景／背景的 WCAG 對比度。背景透明時往上找第一個不透明祖先。"""
+    pair = pg.eval_on_selector(
+        selector,
+        """(el) => {
+            const fg = getComputedStyle(el).color;
+            let node = el, bg = 'rgba(0, 0, 0, 0)';
+            while (node) {
+                const c = getComputedStyle(node).backgroundColor;
+                if (c && !/rgba\\(0, 0, 0, 0\\)|transparent/.test(c)) { bg = c; break; }
+                node = node.parentElement;
+            }
+            return [fg, bg];
+        }""",
+    )
+    l1, l2 = _luminance(_parse_rgb(pair[0])), _luminance(_parse_rgb(pair[1]))
+    hi, lo = max(l1, l2), min(l1, l2)
+    return (hi + 0.05) / (lo + 0.05)
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# A. 沿用（選擇器不變或只需前置操作）
+# ══════════════════════════════════════════════════════════════════════════
+def test_load_and_db_note(page):
+    """原 test_load_and_status：#status 改成 sr-only live region、筆數移到設定裡的 #db-note。
+
+    數字讀 window.ICD_META.rowCount 而非寫死字串（impl-plan R-11）。
+    """
+    reset(page)
+    open_settings(page)
+    expect(page.locator("#db-note")).to_contain_text("96,802")
+    page.keyboard.press("Escape")
+    expect(page.locator("#settings-popover")).to_be_hidden()
+
+
+def test_load_performance(fresh_page, page_url):
+    """原本單一 icd-ready 指標拆成兩個：開機殼層與全庫索引分開量。"""
+    fresh_page.goto(page_url)
+    fresh_page.wait_for_selector('body[data-ready="1"]', timeout=8000)
+    shell = mark_ms(fresh_page, "icd-shell-ready")
+    assert shell is not None, "找不到 icd-shell-ready 效能標記"
+    assert shell < 1000, f"開機至可互動花了 {shell:.0f}ms"
+    fresh_page.evaluate("() => window.ICDApp.data.ensureDb()")
+    fresh_page.wait_for_selector('body[data-db="ready"]', timeout=30000)
+    db = mark_ms(fresh_page, "icd-db-ready")
+    assert db is not None, "找不到 icd-db-ready 效能標記"
+    assert db - shell < 2500, f"全庫索引就緒比殼層晚了 {db - shell:.0f}ms"
+
+
+def test_file_url_loads(browser_ctx):
+    """file:// 直接開檔（真實使用方式）也要能啟動並載入全庫。"""
+    pg = browser_ctx.new_page()
+    try:
+        pg.goto((ROOT / "dist" / "icd10.html").resolve().as_uri())
+        pg.wait_for_selector('body[data-ready="1"]', timeout=8000)
+        assert mark_ms(pg, "icd-shell-ready") is not None
+        pg.evaluate("() => window.ICDApp.data.ensureDb()")
+        pg.wait_for_selector('body[data-db="ready"]', timeout=30000)
+        open_settings(pg)
+        expect(pg.locator("#db-note")).to_contain_text("96,802")
+    finally:
+        pg.close()
+
 
 def test_search_english_chinese_code(page):
     reset(page)
-    page.fill("#search", "cellulitis")
-    # 不斷言「第一筆」：人工精選碼會被優先排到最前面，新增哪個精選碼排第一屬於內容決策、
-    # 不是這裡要測的東西——只要蜂窩性組織炎的正確碼族（L03.x）確實出現在結果裡就夠了。
+    search(page, "cellulitis")
+    # 不斷言「第一筆」：人工精選碼會被優先排到最前面，新增哪個精選碼排第一屬於內容決策。
     expect(page.locator('#search-results .chip[data-code^="L03"]').first).to_be_visible(timeout=2000)
-    page.fill("#search", "蜂窩")
+    search(page, "蜂窩")
     expect(page.locator("#search-results .chip").first).to_contain_text("蜂窩", timeout=2000)
-    page.fill("#search", "E119")
+    search(page, "E119")
     expect(page.locator("#search-results .chip").first).to_contain_text("E11.9", timeout=2000)
+
 
 def test_category_code_not_addable(page):
     reset(page)
-    page.fill("#search", "E11")
+    search(page, "E11")
     page.wait_for_selector("#search-results .chip.cat")
-    page.locator("#search-results .chip.cat").first.click()
-    assert page.locator("#cart li").count() == 0
+    cat = page.locator("#search-results .chip.cat").first
+    expect(cat).to_have_attribute("aria-disabled", "true")
+    expect(cat).to_have_attribute("data-leaf", "0")
+    # 類目碼用 aria-disabled 而非 disabled（真實使用者點得下去，只是不該有作用），
+    # Playwright 的可操作性檢查會把 aria-disabled 當成 disabled，所以要 force 才點得到。
+    cat.click(force=True)
+    page.wait_for_timeout(100)
+    assert page.locator("#cart li").count() == 0, "類目碼被加進清單"
+
 
 def inject_probe_chips(pg, codes):
     """注入「沒有 .cat class」的可點 chip，繞過 UI 層防線直接走事件委派進 addCode()。
 
-    UI 正常渲染時會替非葉碼加上 .cat（body 的委派處理器據此擋掉），所以 addCode()
-    自己的 `if (!row || row[1] !== 1) return;` 在正常操作下永遠走不到——那條防線
-    因此沒有測試保護。這裡刻意製造「防線被繞過」的情境來測它。
+    UI 正常渲染時會替非葉碼加上 .cat（委派處理器據此擋掉），所以 store 的 canAdd →
+    data.isAddable() 那條防線在正常操作下永遠走不到。這裡刻意製造「防線被繞過」的情境。
     """
     pg.evaluate(
         """(codes) => {
@@ -124,18 +268,10 @@ def inject_probe_chips(pg, codes):
 
 
 def test_addcode_rejects_non_leaf_and_unknown_codes(page):
-    """E2：addCode() 的葉碼防呆（`row[1] !== 1`）必須真的擋住，不能是死碼。
-
-    先用葉碼當陽性對照確認注入的 chip 真的會走到 addCode（否則本測試會變成
-    「什麼都沒發生所以通過」的假綠），再用類目碼／不存在代碼驗證防線生效。
-    """
+    """葉碼防呆必須真的擋住，不能是死碼。全庫就緒後才跑（否則測到的是白名單，見 R-4）。"""
     reset(page)
     errors = []
-
-    def on_error(exc):
-        errors.append(str(exc))
-
-    page.on("pageerror", on_error)
+    page.on("pageerror", lambda exc: errors.append(str(exc)))
     try:
         # 陽性對照：注入的葉碼 chip 必須真的進得了清單 → 證明事件委派確實抵達 addCode
         inject_probe_chips(page, ["E11.9"])
@@ -144,7 +280,6 @@ def test_addcode_rejects_non_leaf_and_unknown_codes(page):
         page.click("#clear-cart")
         expect(page.locator("#cart li")).to_have_count(0)
 
-        # 真正的受測項：類目碼（use=0）與不存在的代碼都不得進入就診清單
         probes = ["E11", "A00", "K11", "ZZZ99"]
         inject_probe_chips(page, probes)
         for code in probes:
@@ -153,55 +288,33 @@ def test_addcode_rejects_non_leaf_and_unknown_codes(page):
         assert page.locator("#cart li").count() == 0, "類目碼／不存在代碼被加進就診清單（葉碼防呆失效）"
         assert not errors, f"addCode() 對非葉碼/不存在代碼拋出未捕捉例外: {errors}"
     finally:
-        page.remove_listener("pageerror", on_error)
         page.evaluate("() => document.getElementById('probe-chips')?.remove()")
         reset(page)
 
 
 def test_quick_add_and_related(page):
     reset(page)
-    # N39.0 同時出現在症狀面板（預設收合）與快速清單（#quick，恆常可見），
-    # 明確限定 #quick 範圍以點擊可見的那顆（symptoms 面板另有覆蓋於 test_mode_switch 一類情境）。
-    page.locator('#quick .chip[data-code="N39.0"]').first.click()
+    quick_chip(page, "感染科常用", "N39.0").click()
     expect(page.locator('#cart li[data-code="N39.0"]')).to_have_count(1)
     # 人工關聯：病原碼；家族碼：N39 類目
     expect(page.locator('#related .chip[data-code="B96.20"]')).to_have_count(1)
-    # 連鎖：點相關碼也進清單並更新推薦
     page.locator('#related .chip[data-code="B96.20"]').click()
     expect(page.locator('#cart li[data-code="B96.20"]')).to_have_count(1)
 
+
 def test_duplicate_not_added(page):
     reset(page)
-    page.locator('.chip[data-code="I10"]').first.click()
-    page.locator('.chip[data-code="I10"]').first.click()
+    chip = quick_chip(page, "常用慢性病", "I10")
+    chip.click()
+    chip.click()
     expect(page.locator("#cart li")).to_have_count(1)
-
-def test_mode_switch(page):
-    reset(page)
-    expect(page.locator("#mode-op")).to_have_class(re.compile(r"active"))
-    expect(page.locator("#panels-title")).to_contain_text("內科門診")
-    # 部位群組數量取自 curated 資料而非寫死數字，內容改版調整分群時測試會自動跟著資料走。
-    outpatient_regions = json.loads((CURATED_DIR / "internal_outpatient.json").read_text(encoding="utf-8"))
-    expect(page.locator("#region-nav button")).to_have_count(len(outpatient_regions))
-    page.click("#mode-er")
-    expect(page.locator("#panels-title")).to_contain_text("內科急診")
-    emergency_regions = json.loads((CURATED_DIR / "internal_emergency.json").read_text(encoding="utf-8"))
-    expect(page.locator("#region-nav button")).to_have_count(len(emergency_regions))
-    # 用 .first：紅旗區塊擴充後同一部位內可能不只一張面板有紅旗提示，這裡只驗證「有顯示出來」。
-    expect(page.locator(".redflag-group").first).to_be_visible()
-    page.click("#mode-surg")
-    expect(page.locator("#panels-title")).to_contain_text("外科")
-    expect(page.locator("#region-nav")).to_be_hidden()
-    expect(page.locator('#quick .chip[data-code="Z48.02"]')).to_have_count(1)
-    page.click("#mode-op")
-    expect(page.locator("#panels-title")).to_contain_text("內科門診")
 
 
 def test_symptom_shows_related_diagnoses_without_auto_adding(page):
     reset(page)
-    page.click("#mode-er")
-    page.click('[data-region="胸肺／心臟"]')
-    card = page.locator('.symptom-card[data-panel="胸痛／心悸"]')
+    set_mode(page, "mode-er")
+    page.click('.region-btn[data-region="胸肺／心臟"]')
+    card = panel_card(page, "胸痛／心悸")
     expect(card.locator(".chief-group .chip[data-code='R07.9']")).to_have_count(1)
     card.locator(".chief-group .chip[data-code='R07.9']").click()
     expect(page.locator("#cart li[data-code='R07.9']")).to_have_count(1)
@@ -211,11 +324,14 @@ def test_symptom_shows_related_diagnoses_without_auto_adding(page):
 
 
 def test_symptom_shows_multiple_related_diseases_without_auto_adding(page):
+    """常見疾病改為預設收合（設計 L149），先展開再驗 8 筆。"""
     reset(page)
-    page.click("#mode-op")
-    page.click('[data-region="胸肺／心臟"]')
-    card = page.locator('.symptom-card[data-panel="咳嗽／感冒"]')
-    expect(card.locator(".disease-group")).to_contain_text("常見相關疾病")
+    page.click('.region-btn[data-region="胸肺／心臟"]')
+    card = panel_card(page, "咳嗽／感冒")
+    toggle = card.locator(".panel-toggle")
+    expect(toggle).to_contain_text("常見疾病 8")
+    expect(card.locator(".disease-group")).to_be_hidden()
+    ensure_expanded(toggle)
     expect(card.locator(".disease-group .chip")).to_have_count(8)
     card.locator(".chief-group .chip[data-code='R05.9']").click()
     for code in ("J00", "J06.9", "J20.9", "J18.9"):
@@ -224,9 +340,9 @@ def test_symptom_shows_multiple_related_diseases_without_auto_adding(page):
 
 
 def test_related_recallable_for_code_already_in_cart(page):
-    """B1：已在清單的碼再次點擊，相關碼面板要回到該碼的建議（否則多診斷動線斷掉）。"""
+    """已在清單的碼再次點擊，相關碼面板要回到該碼的建議（否則多診斷動線斷掉）。"""
     reset(page)
-    page.click(f'[data-region="{region_for_panel("internal_outpatient.json", "頭痛")}"]')
+    page.click(f'.region-btn[data-region="{region_for_panel("internal_outpatient.json", "頭痛")}"]')
     page.click('#panels .chip[data-code="R51.9"]')
     expect(page.locator('#related .chip[data-code="G43.909"]')).to_have_count(1)
     page.click('#related .chip[data-code="I10"]')
@@ -238,160 +354,537 @@ def test_related_recallable_for_code_already_in_cart(page):
 
 
 def test_red_flags_do_not_leak_into_outpatient_related(page):
-    """B2：紅旗碼只屬於急診，門診相關碼不得出現。"""
+    """臨床安全：紅旗碼只屬於急診，門診相關碼不得出現。"""
     reset(page)
-    page.click(f'[data-region="{region_for_panel("internal_outpatient.json", "頭痛")}"]')
+    page.click(f'.region-btn[data-region="{region_for_panel("internal_outpatient.json", "頭痛")}"]')
     page.click('#panels .chip[data-code="R51.9"]')
     expect(page.locator('#related .chip[data-code="G43.909"]')).to_have_count(1)
     expect(page.locator('#related .chip[data-code="G03.9"]')).to_have_count(0)
     expect(page.locator('#related .chip[data-code="I60.9"]')).to_have_count(0)
+    # 門診模式的面板本身也不得渲染出紅旗盒
+    expect(page.locator("#panels .redflag-group")).to_have_count(0)
     reset(page)
-    page.click("#mode-er")
-    page.click(f'[data-region="{region_for_panel("internal_emergency.json", "頭痛")}"]')
+    set_mode(page, "mode-er")
+    page.click(f'.region-btn[data-region="{region_for_panel("internal_emergency.json", "頭痛")}"]')
     page.click('#panels .chip[data-code="R51.9"]')
     expect(page.locator('#related .chip[data-code="G03.9"]')).to_have_count(1)
     expect(page.locator('#related .chip[data-code="I60.9"]')).to_have_count(1)
 
 
 def test_mode_switch_resets_related(page):
-    """B3：切模式後相關碼區回到初始提示，但清單跨模式保留。"""
+    """切模式後相關碼區回到初始提示，但清單跨模式保留。"""
     reset(page)
-    page.locator('.chip[data-code="I10"]').first.click()
+    quick_chip(page, "常用慢性病", "I10").click()
     expect(page.locator("#related .chip").first).to_be_visible()
-    page.click("#mode-surg")
+    set_mode(page, "mode-surg")
     expect(page.locator("#related .chip")).to_have_count(0)
-    expect(page.locator("#related")).to_contain_text("加入代碼後")
+    expect(page.locator(".related-empty")).to_contain_text("加入代碼後")
     expect(page.locator('#cart li[data-code="I10"]')).to_have_count(1)
 
 
 def test_remove_from_cart_recomputes_related(page):
-    """B3：從清單移除後相關碼重算，被移除的碼回到建議。"""
+    """從清單移除後相關碼重算，被移除的碼回到建議。"""
     reset(page)
-    page.click(f'[data-region="{region_for_panel("internal_outpatient.json", "頭痛")}"]')
+    page.click(f'.region-btn[data-region="{region_for_panel("internal_outpatient.json", "頭痛")}"]')
     page.click('#panels .chip[data-code="R51.9"]')
     page.click('#related .chip[data-code="I10"]')
     page.click('#panels .chip[data-code="R51.9"]')
     expect(page.locator('#related .chip[data-code="I10"]')).to_have_count(0)
-    page.locator('#cart li[data-code="I10"] button').click()
+    page.locator('#cart li[data-code="I10"] .cart-remove').click()
     expect(page.locator('#related .chip[data-code="I10"]')).to_have_count(1)
 
 
-@pytest.mark.parametrize("width", [390, 768])
-def test_no_horizontal_overflow(page, width):
-    """B4：窄螢幕整頁不得水平溢出（三個模式都要）。"""
-    reset(page)
-    page.set_viewport_size({"width": width, "height": 844})
-    try:
-        for mode in ("#mode-er", "#mode-op", "#mode-surg"):
-            page.click(mode)
-            sw, cw = page.evaluate(
-                "() => [document.documentElement.scrollWidth, document.documentElement.clientWidth]"
-            )
-            assert sw <= cw, f"{width}px {mode} 水平溢出：scrollWidth={sw} > clientWidth={cw}"
-    finally:
-        page.set_viewport_size({"width": 1280, "height": 800})
-
-
-def test_mobile_cart_pane_not_sticky(page):
-    """B5：390px 清單卡必須是 static，捲動時不得被 sticky header 蓋住。"""
-    reset(page)
-    page.set_viewport_size({"width": 390, "height": 844})
-    try:
-        page.click("#mode-er")
-        assert page.locator("#cart-pane").evaluate("(e) => getComputedStyle(e).position") == "static"
-        page.evaluate("window.scrollTo(0, 600)")
-        overlap = page.evaluate("""() => {
-            const h = document.querySelector('header').getBoundingClientRect();
-            const c = document.querySelector('#cart-pane').getBoundingClientRect();
-            return !(c.bottom <= h.top || c.top >= h.bottom);
-        }""")
-        assert not overlap, "捲動時清單卡與 header 重疊"
-    finally:
-        page.evaluate("window.scrollTo(0, 0)")
-        page.set_viewport_size({"width": 1280, "height": 800})
-
-
-def test_high_hit_search_shows_total_hint(page):
-    """B7：命中數超過顯示上限時要提示總筆數。"""
-    reset(page)
-    page.fill("#search", "骨折")
-    page.wait_for_timeout(300)   # 等 150ms debounce 重繪，避免讀到上一次搜尋的殘留
-    expect(page.locator(".result-note")).to_contain_text("共 ")
-    expect(page.locator(".result-note")).to_contain_text("顯示前 50 筆")
-
-
-def test_mobile_symptom_layout(page):
-    reset(page)
-    page.set_viewport_size({"width": 390, "height": 844})
-    try:
-        page.click("#mode-er")
-        expect(page.locator("#region-nav")).to_be_visible()
-        page.click('[data-region="胸肺／心臟"]')
-        grid_columns = page.locator(".symptom-grid").evaluate(
-            "(el) => getComputedStyle(el).gridTemplateColumns.trim().split(/\\s+/).length"
-        )
-        assert grid_columns == 1
-        card = page.locator('.symptom-card[data-panel="胸痛／心悸"]')
-        card.locator(".chief-group .chip[data-code='R07.9']").click()
-        expect(page.locator("#related-wrap")).to_be_visible()
-        expect(page.locator("#related .chip[data-code='I20.9']")).to_have_count(1)
-    finally:
-        page.set_viewport_size({"width": 1280, "height": 800})
-
-
-def test_primary_copy_button_has_visible_contrast(page):
-    reset(page)
-    styles = page.locator("#copy-lines").evaluate(
-        "(el) => ({background: getComputedStyle(el).backgroundColor, color: getComputedStyle(el).color})"
-    )
-    assert styles["background"] != "rgb(255, 255, 255)"
-    assert styles["color"] != styles["background"]
-
-
-def test_copy_formats(page):
-    reset(page)
-    page.locator('.chip[data-code="I10"]').first.click()
-    page.locator('.chip[data-code="E11.9"]').first.click()
-    # Windows 剪貼簿會把 \n 正規化成 \r\n（OS/瀏覽器行為，非 app 邏輯問題），比對前先還原成 \n。
-    page.click("#copy-lines")
-    assert page.evaluate("navigator.clipboard.readText()").replace("\r\n", "\n") == "I10\nE11.9"
-    page.click("#copy-comma")
-    assert page.evaluate("navigator.clipboard.readText()").replace("\r\n", "\n") == "I10,E11.9"
-    page.click("#copy-names")
-    text = page.evaluate("navigator.clipboard.readText()").replace("\r\n", "\n")
-    assert text.startswith("I10\t") and "E11.9\t" in text
-
 def test_remove_and_clear(page):
     reset(page)
-    page.locator('.chip[data-code="I10"]').first.click()
-    page.locator('.chip[data-code="E11.9"]').first.click()
-    page.locator('#cart li[data-code="I10"] button').click()
+    quick_chip(page, "常用慢性病", "I10").click()
+    quick_chip(page, "常用慢性病", "E11.9").click()
+    page.locator('#cart li[data-code="I10"] .cart-remove').click()
     expect(page.locator("#cart li")).to_have_count(1)
     page.click("#clear-cart")
     expect(page.locator("#cart li")).to_have_count(0)
 
+
 def test_reload_clears_cart(page, page_url):
-    page.locator('.chip[data-code="I10"]').first.click()
+    quick_chip(page, "常用慢性病", "I10").click()
     page.reload()
     page.wait_for_selector('body[data-ready="1"]')
     expect(page.locator("#cart li")).to_have_count(0)
+    page.evaluate("() => window.ICDApp.data.ensureDb()")
+    page.wait_for_selector('body[data-db="ready"]', timeout=30000)
+
+
+def test_cart_single_code_copy(page):
+    """單碼複製（控制者裁示 C6：保留）。"""
+    reset(page)
+    quick_chip(page, "常用慢性病", "I10").click()
+    page.locator('#cart li[data-code="I10"] b.cart-code').click()
+    text = page.evaluate("navigator.clipboard.readText()").replace("\r\n", "\n")
+    assert text == "I10"
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# B. 重寫（行為在新設計已改變）
+# ══════════════════════════════════════════════════════════════════════════
+def test_mode_switch(page):
+    """三顆模式鈕移進設定 popover；外科不再隱藏部位導覽，改用 rail 顯示「情境」。"""
+    reset(page)
+    open_settings(page)
+    expect(page.locator("#mode-op")).to_have_attribute("aria-pressed", "true")
+    page.keyboard.press("Escape")
+    expect(page.locator("#panels-title")).to_contain_text("內科門診")
+    expect(page.locator("#mode-chip")).to_have_text("內科門診")
+    expect(page.locator("#region-rail-title")).to_have_text("身體部位")
+    outpatient_regions = json.loads((CURATED_DIR / "internal_outpatient.json").read_text(encoding="utf-8"))
+    expect(page.locator(".region-btn")).to_have_count(len(outpatient_regions))
+
+    set_mode(page, "mode-er")
+    assert page.get_attribute("body", "data-mode") == "emergency"
+    expect(page.locator("#panels-title")).to_contain_text("內科急診")
+    emergency_regions = json.loads((CURATED_DIR / "internal_emergency.json").read_text(encoding="utf-8"))
+    expect(page.locator(".region-btn")).to_have_count(len(emergency_regions))
+    expect(page.locator(".redflag-group").first).to_be_visible()
+
+    set_mode(page, "mode-surg")
+    assert page.get_attribute("body", "data-mode") == "surg"
+    expect(page.locator("#panels-title")).to_contain_text("外科")
+    expect(page.locator("#region-rail-title")).to_have_text("情境")
+    surgical = json.loads((CURATED_DIR / "surgical_panels.json").read_text(encoding="utf-8"))
+    expect(page.locator(".region-btn")).to_have_count(len(surgical))
+    expect(quick_chip(page, "外科常用", "Z48.02")).to_have_count(1)
+
+    set_mode(page, "mode-op")
+    expect(page.locator("#panels-title")).to_contain_text("內科門診")
+
 
 def test_panel_expand_and_add(page):
+    """外科 accordion 已不存在，改測症狀卡的「常見疾病」摺疊。"""
     reset(page)
-    page.click("#mode-surg")
-    panel = page.locator("#panels .panel").first
-    panel.locator("button").first.click()
-    chip = panel.locator(".chip").first
+    page.click('.region-btn[data-region="胸肺／心臟"]')
+    card = panel_card(page, "咳嗽／感冒")
+    toggle = card.locator(".panel-toggle")
+    expect(toggle).to_have_attribute("aria-expanded", "false")
+    expect(card.locator(".disease-group")).to_be_hidden()
+    toggle.click()
+    expect(toggle).to_have_attribute("aria-expanded", "true")
+    chip = card.locator(".disease-group .chip").first
     expect(chip).to_be_visible()
     code = chip.get_attribute("data-code")
     chip.click()
     expect(page.locator(f'#cart li[data-code="{code}"]')).to_have_count(1)
-    panel.locator("button").first.click()
-    expect(panel.locator(".chip").first).not_to_be_visible()
+    toggle.click()
+    expect(card.locator(".disease-group")).to_be_hidden()
 
-def test_cart_single_code_copy(page):
+
+def test_surgical_scenarios_use_rail(page):
+    """外科情境改走 rail：切情境會換掉中間欄的卡片內容。"""
     reset(page)
-    page.locator('.chip[data-code="I10"]').first.click()
-    page.locator('#cart li[data-code="I10"] b').click()
-    text = page.evaluate("navigator.clipboard.readText()").replace("\r\n", "\n")
-    assert text == "I10"
+    set_mode(page, "mode-surg")
+    surgical = json.loads((CURATED_DIR / "surgical_panels.json").read_text(encoding="utf-8"))
+    first, second = surgical[0]["name"], surgical[1]["name"]
+    expect(panel_card(page, first)).to_have_count(1)
+    expect(panel_card(page, first).locator(".chief-group .chip")).to_have_count(len(surgical[0]["codes"]))
+    page.click(f'.region-btn[data-region="{second}"]')
+    expect(panel_card(page, first)).to_have_count(0)
+    expect(panel_card(page, second).locator(".chief-group .chip")).to_have_count(len(surgical[1]["codes"]))
+
+
+def test_copy_formats(page):
+    """三顆複製鈕改成「設定裡選格式 ＋ 單一 #copy-all」；字串仍由 logic.formatCart 決定。"""
+    reset(page)
+    quick_chip(page, "常用慢性病", "I10").click()
+    quick_chip(page, "常用慢性病", "E11.9").click()
+
+    def copy_with(fmt):
+        open_settings(page)
+        page.click(f'#seg-format button[data-format="{fmt}"]')
+        page.keyboard.press("Escape")
+        page.click("#copy-all")
+        # Windows 剪貼簿會把 \n 正規化成 \r\n（OS/瀏覽器行為），比對前先還原
+        return page.evaluate("navigator.clipboard.readText()").replace("\r\n", "\n")
+
+    assert copy_with("lines") == "I10\nE11.9"
+    assert copy_with("comma") == "I10,E11.9"
+    names = copy_with("names")
+    assert names.startswith("I10\t") and "E11.9\t" in names
+    open_settings(page)
+    page.click('#seg-format button[data-format="lines"]')
+    page.keyboard.press("Escape")
+
+
+def test_high_hit_search_shows_total_hint(page):
+    """命中數超過顯示上限要提示總筆數；上限由 50 統一為 24（impl-plan R-11）。"""
+    reset(page)
+    search(page, "骨折")
+    expect(page.locator(".result-note")).to_contain_text("全庫命中")
+    expect(page.locator(".result-note")).to_contain_text("顯示前 24 筆")
+    expect(page.locator("#search-results .chip")).to_have_count(24)
+
+
+@pytest.mark.parametrize("width", [900, 1024, 1280, 1440])
+def test_no_horizontal_overflow(page, width):
+    """wide 版面涵蓋的寬度都不得水平溢出（三個模式都要）。
+
+    原本的 390／768 兩案落在 mobile 斷點（<900），移到 1b 的測試檔；這裡改成 wide
+    的四個代表寬度，含 1239px 以下「rail 降成頂部 pill 列」那一段。
+    """
+    reset(page)
+    page.set_viewport_size({"width": width, "height": 900})
+    try:
+        for button in ("mode-er", "mode-op", "mode-surg"):
+            set_mode(page, button)
+            sw, cw = page.evaluate(
+                "() => [document.documentElement.scrollWidth, document.documentElement.clientWidth]"
+            )
+            assert sw <= cw, f"{width}px {button} 水平溢出：scrollWidth={sw} > clientWidth={cw}"
+            assert page.get_attribute("body", "data-layout") == "wide"
+    finally:
+        page.set_viewport_size(dict(WIDE))
+        set_mode(page, "mode-op")
+
+
+def test_narrow_desktop_keeps_two_columns(page):
+    """原 test_mobile_symptom_layout 的桌機等價版：1024px 下 rail 收成 pill 列、
+    主體剩兩欄，主訴仍可點且相關碼照常出現。"""
+    reset(page)
+    page.set_viewport_size({"width": 1024, "height": 900})
+    try:
+        set_mode(page, "mode-er")
+        columns = page.locator(".workbench").evaluate(
+            "(el) => getComputedStyle(el).gridTemplateColumns.trim().split(/\\s+/).length"
+        )
+        assert columns == 2, f"1024px 應為兩欄，實得 {columns} 欄"
+        expect(page.locator("#region-rail")).to_be_visible()
+        page.click('.region-btn[data-region="胸肺／心臟"]')
+        panel_card(page, "胸痛／心悸").locator(".chief-group .chip[data-code='R07.9']").click()
+        expect(page.locator("#related .chip[data-code='I20.9']")).to_have_count(1)
+    finally:
+        page.set_viewport_size(dict(WIDE))
+
+
+def test_cart_pane_stays_in_view_while_scrolling(page):
+    """原 test_mobile_cart_pane_not_sticky 的桌機等價版：中欄捲動時清單／HIS 區不得
+    離開視野，也不得被 header 蓋住（工作台的核心前提是「清單即貼上區」）。"""
+    reset(page)
+    set_mode(page, "mode-er")
+    quick_chip(page, "感染科常用", "N39.0").click()
+    page.evaluate("() => { document.querySelector('.worksheet').scrollTop = 2000; }")
+    page.wait_for_timeout(100)
+    overlap = page.evaluate("""() => {
+        const h = document.querySelector('.app-header').getBoundingClientRect();
+        const c = document.querySelector('#cart-pane').getBoundingClientRect();
+        return {
+            hidden: c.bottom <= 0 || c.top >= innerHeight,
+            overlap: !(c.bottom <= h.top || c.top >= h.bottom),
+            copyVisible: document.querySelector('#copy-all').getBoundingClientRect().top < innerHeight,
+        };
+    }""")
+    assert not overlap["hidden"], "捲動後清單欄離開視野"
+    assert not overlap["overlap"], "清單欄與 header 重疊"
+    assert overlap["copyVisible"], "複製鈕被推出視野"
+
+
+def test_primary_copy_button_has_visible_contrast(page):
+    """原本只驗「不是白底、前景不等於背景」；改成兩個主題都量實際對比度。"""
+    reset(page)
+    quick_chip(page, "常用慢性病", "I10").click()
+    for theme in ("light", "dark"):
+        page.evaluate("(t) => window.ICDApp.store.setTheme(t)", theme)
+        styles = page.locator("#copy-all").evaluate(
+            "(el) => ({background: getComputedStyle(el).backgroundColor, color: getComputedStyle(el).color})"
+        )
+        assert styles["background"] != "rgb(255, 255, 255)"
+        assert styles["color"] != styles["background"]
+        ratio = contrast(page, "#copy-all")
+        assert ratio >= 4.5, f"{theme} 主題下 #copy-all 對比只有 {ratio:.2f}:1"
+    page.evaluate("() => window.ICDApp.store.setTheme('light')")
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# C. 新增（新設計帶進來的行為）
+# ══════════════════════════════════════════════════════════════════════════
+def test_no_external_requests(browser_ctx, page_url):
+    """零外部請求是本產品的硬規格：字型與設計系統都必須內嵌。"""
+    pg = browser_ctx.new_page()
+    urls = []
+    pg.on("request", lambda r: urls.append(r.url))
+    try:
+        pg.goto(page_url)
+        pg.wait_for_selector('body[data-ready="1"]', timeout=8000)
+        pg.evaluate("() => window.ICDApp.data.ensureDb()")
+        pg.wait_for_selector('body[data-db="ready"]', timeout=30000)
+        pg.fill("#search", "蜂窩")
+        pg.wait_for_timeout(300)
+        assert urls == [page_url], f"出現額外的外部請求：{urls}"
+        assert pg.evaluate("() => performance.getEntriesByType('resource').length") == 0
+    finally:
+        pg.close()
+
+
+def test_no_duplicate_ids(page):
+    """契約：同一時刻只掛一套版面，所以 #search／#cart 等 id 必須全域唯一。"""
+    reset(page)
+    for width in (1024, 1440):
+        page.set_viewport_size({"width": width, "height": 900})
+        page.wait_for_timeout(250)
+        result = page.evaluate("""() => {
+            const ids = [...document.querySelectorAll('[id]')].map((e) => e.id);
+            return { total: ids.length, uniq: new Set(ids).size, dups: ids.filter((v, i) => ids.indexOf(v) !== i) };
+        }""")
+        assert result["total"] == result["uniq"], f"{width}px 有重複 id：{result['dups']}"
+    page.set_viewport_size(dict(WIDE))
+
+
+def test_db_not_loaded_at_boot(fresh_page, page_url):
+    """全庫改成延遲載入：開機時不得已經就緒（否則等於沒有延遲）。"""
+    fresh_page.goto(page_url)
+    fresh_page.wait_for_selector('body[data-ready="1"]', timeout=8000)
+    state = fresh_page.evaluate("""() => ({
+        db: document.body.dataset.db,
+        marked: performance.getEntriesByName('icd-db-ready').length,
+    })""")
+    assert state["db"] in ("idle", "loading"), f"開機就已 data-db={state['db']}"
+    assert state["marked"] == 0
+    fresh_page.fill("#search", "發燒")
+    fresh_page.wait_for_selector('body[data-db="ready"]', timeout=30000)
+    expect(fresh_page.locator("#search-results .chip").first).to_be_visible()
+
+
+def test_search_falls_back_to_curated_pool(fresh_page, page_url):
+    """全庫不可用時仍要能用精選池搜尋、且 chip 有中文（CURATED_LABELS，R-3.3）。"""
+    fresh_page.add_init_script("try { delete window.DecompressionStream; } catch (e) {}")
+    fresh_page.goto(page_url)
+    fresh_page.wait_for_selector('body[data-ready="1"]', timeout=8000)
+    fresh_page.fill("#search", "發燒")
+    fresh_page.wait_for_selector('body[data-db="error"]', timeout=10000)
+    fresh_page.wait_for_timeout(300)
+    first = fresh_page.locator("#search-results .chip").first
+    expect(first).to_be_visible()
+    expect(first.locator("span")).not_to_have_text("")
+    expect(fresh_page.locator(".result-note")).to_contain_text("全庫載入失敗")
+    first.click()
+    expect(fresh_page.locator("#cart li")).to_have_count(1)
+
+
+def test_favourite_toggle_and_persist(fresh_page, page_url):
+    """★ 切換後要進常用列，且重整後仍在（favs 持久化）。"""
+    fresh_page.goto(page_url)
+    fresh_page.wait_for_selector('body[data-ready="1"]', timeout=8000)
+    quick_chip(fresh_page, "常用慢性病", "I10").click()
+    fav = fresh_page.locator('#cart li[data-code="I10"] .cart-fav')
+    expect(fav).to_have_attribute("aria-pressed", "false")
+    fav.click()
+    expect(fav).to_have_attribute("aria-pressed", "true")
+    expect(fresh_page.locator('#shelf .shelf-chip.is-fav[data-code="I10"]')).to_have_count(1)
+    fresh_page.reload()
+    fresh_page.wait_for_selector('body[data-ready="1"]', timeout=8000)
+    expect(fresh_page.locator("#cart li")).to_have_count(0)          # 清單不跨診次
+    expect(fresh_page.locator('#shelf .shelf-chip.is-fav[data-code="I10"]')).to_have_count(1)
+
+
+def test_recent_list_caps_at_eight(fresh_page, page_url):
+    """最近使用上限 8、最新在前、不與最愛重複。"""
+    fresh_page.goto(page_url)
+    fresh_page.wait_for_selector('body[data-ready="1"]', timeout=8000)
+    ensure_expanded(fresh_page.locator('.quick-group[data-quick="常用慢性病"] .quick-toggle'))
+    codes = fresh_page.eval_on_selector_all(
+        '.quick-group[data-quick="常用慢性病"] .chip', "els => els.slice(0, 10).map(e => e.dataset.code)"
+    )
+    assert len(codes) == 10
+    for code in codes:
+        fresh_page.click(f'.quick-group[data-quick="常用慢性病"] .chip[data-code="{code}"]')
+    shelf = fresh_page.eval_on_selector_all(
+        "#shelf .shelf-chip:not(.is-fav)", "els => els.map(e => e.dataset.code)"
+    )
+    assert len(shelf) == 8, f"最近使用應恰為上限 8 筆，實得 {len(shelf)}：{shelf}"
+    assert shelf[0] == codes[-1], f"最新使用的碼不在最前面：{shelf}"
+    assert shelf == list(reversed(codes))[:8], f"最近使用順序不對：{shelf}"
+
+
+def test_make_primary(page):
+    """點「主」把該碼移到 index 0，徽章與 HIS 預覽首行同步。"""
+    reset(page)
+    for code in ("I10", "E11.9", "E78.5"):
+        quick_chip(page, "常用慢性病", code).click()
+    expect(page.locator("#cart li")).to_have_count(3)
+    page.locator('#cart li[data-code="E78.5"] .cart-primary').click()
+    order = page.eval_on_selector_all("#cart li", "els => els.map(e => e.dataset.code)")
+    assert order == ["E78.5", "I10", "E11.9"], order
+    expect(page.locator('#cart li[data-code="E78.5"] .cart-badge')).to_have_attribute("data-primary", "true")
+    assert page.text_content("#his-preview").splitlines()[0] == "E78.5"
+
+
+def test_cart_reorder_by_drag(page):
+    """拖曳換序後主診斷徽章要落在新的第一列。"""
+    reset(page)
+    for code in ("I10", "E11.9", "E78.5"):
+        quick_chip(page, "常用慢性病", code).click()
+    page.locator('#cart li[data-code="E78.5"]').drag_to(page.locator('#cart li[data-code="I10"]'))
+    order = page.eval_on_selector_all("#cart li", "els => els.map(e => e.dataset.code)")
+    assert order == ["E78.5", "I10", "E11.9"], order
+    expect(page.locator("#cart li").first.locator(".cart-badge")).to_have_attribute("data-primary", "true")
+    expect(page.locator('#cart li[data-code="I10"] .cart-badge')).to_have_text("2")
+
+
+def test_his_preview_matches_clipboard(page):
+    """看到的＝貼出去的：三種格式下 #his-preview 都必須等於剪貼簿內容。"""
+    reset(page)
+    quick_chip(page, "常用慢性病", "I10").click()
+    quick_chip(page, "常用慢性病", "E11.9").click()
+    for fmt in ("lines", "comma", "names"):
+        open_settings(page)
+        page.click(f'#seg-format button[data-format="{fmt}"]')
+        page.keyboard.press("Escape")
+        page.click("#copy-all")
+        clip = page.evaluate("navigator.clipboard.readText()").replace("\r\n", "\n")
+        assert page.text_content("#his-preview") == clip, f"{fmt}：預覽與剪貼簿不一致"
+    open_settings(page)
+    page.click('#seg-format button[data-format="lines"]')
+    page.keyboard.press("Escape")
+
+
+def test_search_enter_adds_first_result(page):
+    """Enter 直接加入第一筆並清空輸入（設計 L662）。"""
+    reset(page)
+    search(page, "E119")
+    first_code = page.locator("#search-results .chip").first.get_attribute("data-code")
+    page.focus("#search")
+    page.keyboard.press("Enter")
+    expect(page.locator(f'#cart li[data-code="{first_code}"]')).to_have_count(1)
+    assert page.input_value("#search") == ""
+    expect(page.locator("#results-card")).to_be_hidden()
+
+
+def test_settings_popover_closes_on_escape_and_outside_click(page):
+    reset(page)
+    open_settings(page)
+    page.keyboard.press("Escape")
+    expect(page.locator("#settings-popover")).to_be_hidden()
+    open_settings(page)
+    page.click("#panels-title")
+    expect(page.locator("#settings-popover")).to_be_hidden()
+
+
+def test_theme_toggle_contrast(page):
+    """深色模式下四個關鍵區塊仍要看得見（R-2 的 HIS 預覽、R-7 的紅旗盒框線）。"""
+    reset(page)
+    set_mode(page, "mode-er")
+    search(page, "E11")
+    page.wait_for_selector("#search-results .chip.cat")
+    quick_chip(page, "感染科常用", "N39.0").click()
+    open_settings(page)
+    page.click("#theme-toggle")
+    try:
+        assert page.get_attribute("html", "data-theme") == "dark"
+        page.keyboard.press("Escape")
+        assert contrast(page, "#his-preview") >= 4.5
+        assert contrast(page, "#copy-all") >= 4.5
+        assert contrast(page, "#search-results .chip.cat") >= 4.5
+        assert contrast(page, ".redflag-group .chip--warn b") >= 4.5
+        # R-7：warn token 若掉回 :root 之外的選擇器，框線會靜默消失
+        width = page.locator(".redflag-group").first.evaluate("(el) => getComputedStyle(el).borderTopWidth")
+        assert width == "1px", f"紅旗盒框線消失：border-top-width={width}"
+    finally:
+        page.evaluate("() => window.ICDApp.store.setTheme('light')")
+        reset(page)
+
+
+def test_storage_unavailable_degrades(fresh_page, page_url):
+    """localStorage 被封鎖時 App 仍可正常加碼與複製（只是不跨診次保留）。"""
+    fresh_page.add_init_script(
+        """
+        const boom = () => { throw new Error('storage blocked'); };
+        Object.defineProperty(window, 'localStorage', {
+            configurable: true,
+            get: () => ({ getItem: boom, setItem: boom, removeItem: boom }),
+        });
+        """
+    )
+    errors = []
+    fresh_page.on("pageerror", lambda exc: errors.append(str(exc)))
+    fresh_page.goto(page_url)
+    fresh_page.wait_for_selector('body[data-ready="1"]', timeout=8000)
+    quick_chip(fresh_page, "常用慢性病", "I10").click()
+    expect(fresh_page.locator('#cart li[data-code="I10"]')).to_have_count(1)
+    fresh_page.locator('#cart li[data-code="I10"] .cart-fav').click()
+    fresh_page.click("#copy-all")
+    clip = fresh_page.evaluate("navigator.clipboard.readText()").replace("\r\n", "\n")
+    assert clip == "I10"
+    assert fresh_page.evaluate("() => window.ICDApp.store.storage.available") is False
+    assert not errors, f"儲存不可用時拋出未捕捉例外：{errors}"
+
+
+def test_clipboard_fallback_dialog(fresh_page, page_url):
+    """剪貼簿與 execCommand 都失敗時要跳出可手動複製的後備視窗（C5，改版前無測試守）。"""
+    fresh_page.add_init_script(
+        """
+        Object.defineProperty(navigator, 'clipboard', {
+            configurable: true,
+            get: () => ({ writeText: () => Promise.reject(new Error('blocked')) }),
+        });
+        document.execCommand = () => false;
+        """
+    )
+    fresh_page.goto(page_url)
+    fresh_page.wait_for_selector('body[data-ready="1"]', timeout=8000)
+    quick_chip(fresh_page, "常用慢性病", "I10").click()
+    expect(fresh_page.locator("#fallback-copy")).to_be_hidden()
+    fresh_page.click("#copy-all")
+    expect(fresh_page.locator("#fallback-copy")).to_be_visible()
+    assert fresh_page.input_value("#fallback-copy textarea") == "I10"
+    fresh_page.keyboard.press("Escape")
+    expect(fresh_page.locator("#fallback-copy")).to_be_hidden()
+    fresh_page.click("#copy-all")
+    expect(fresh_page.locator("#fallback-copy")).to_be_visible()
+    fresh_page.click("#fallback-close")
+    expect(fresh_page.locator("#fallback-copy")).to_be_hidden()
+
+
+def test_layout_preference_persists(fresh_page, page_url):
+    """設定裡的桌機版面偏好要持久化，而且要真的生效。
+
+    P4a 掛上 window.ICDDock 之後，resolveLayout() 不再退回 wide：選了側掛窄欄就要
+    真的換成 #layout-dock，重新整理後也維持。持久化程式碼從 P3 起未動過。
+    """
+    fresh_page.goto(page_url)
+    fresh_page.wait_for_selector('body[data-ready="1"]', timeout=8000)
+    open_settings(fresh_page)
+    fresh_page.click('#seg-layout button[data-layout-opt="dock"]')
+    assert fresh_page.evaluate("() => window.ICDApp.store.getState().layout") == "dock"
+    # 偏好一改就要立刻換版面，不是等重新整理
+    assert fresh_page.get_attribute("body", "data-layout") == "dock"
+    assert fresh_page.locator("#layout-dock").count() == 1
+    fresh_page.reload()
+    fresh_page.wait_for_selector('body[data-ready="1"]', timeout=8000)
+    assert fresh_page.evaluate("() => window.ICDApp.store.getState().layout") == "dock"
+    open_settings(fresh_page)
+    expect(fresh_page.locator('#seg-layout button[data-layout-opt="dock"]')).to_have_attribute("aria-pressed", "true")
+    # body[data-layout] 永遠等於實際掛載的版面
+    assert fresh_page.get_attribute("body", "data-layout") == "dock"
+    assert fresh_page.locator("#layout-dock").count() == 1
+    assert fresh_page.locator("#layout-wide").count() == 0
+
+
+def test_layout_note_explains_downgrade_to_mobile(fresh_page, page_url):
+    """偏好工作台但視窗過窄時，設定面板要說明「現在其實是手機版面、為什麼、怎麼回去」。
+
+    沒有這行說明，seg-layout 上「工作台」是選中的、畫面卻是手機版，使用者只會當成壞掉
+    （已實際回報過）。一致時則必須不出現，免得變成常駐雜訊。
+    """
+    fresh_page.set_viewport_size({"width": 800, "height": 900})
+    fresh_page.goto(page_url)
+    fresh_page.wait_for_selector('body[data-ready="1"]', timeout=8000)
+    assert fresh_page.evaluate("() => window.ICDApp.store.getState().layout") == "wide"
+    assert fresh_page.get_attribute("body", "data-layout") == "mobile"
+
+    open_settings(fresh_page)
+    note = fresh_page.locator("#layout-note")
+    expect(note).to_be_visible()
+    text = note.inner_text()
+    for word in ("手機版面", "900", "放寬", "工作台"):
+        assert word in text, f"版面說明缺少「{word}」：{text}"
+
+    # 放寬視窗會自動回到工作台，說明也要跟著收掉（偏好與生效一致就不解釋）
+    fresh_page.set_viewport_size(dict(WIDE))
+    fresh_page.wait_for_selector('body[data-layout="wide"]', timeout=5000)
+    open_settings(fresh_page)
+    expect(fresh_page.locator("#layout-note")).to_be_hidden()

@@ -1,0 +1,209 @@
+/* 1c 側掛窄欄（176 寬 × 全高，body[data-layout="dock"]）。
+   數值取自 .review/design-ref/new-design.dc.html 的 1c 區塊（L223-338 與 L505／L679-681／
+   L712-719／L736）；共用元件（chip、seg、cart、設定 popover…）在 styles/app.css。
+
+   三條硬性規則：
+   1. **每一條規則都限定在 body[data-layout="dock"] 之下**——1a/1b 的骨架檔會同時被載入，
+      而 app.css/wide.css 有幾條沒有版面前綴的規則（`#mode-chip`、`.region-btn`、
+      `.panel-toggle`、`#cart li`…），這裡靠「屬性選擇器＋來源順序」壓過去。
+   2. **不使用 color-mix()**（控制者裁示 C1：舊瀏覽器備援），也不使用 `:has()`。
+   3. HIS 區只吃 --his-* token（不隨主題翻轉），不得用 --color-accent-800／-900：
+      深色主題會把 accent 系翻成淺色，貼給 HIS 的區塊會整塊反白（impl-plan R-2）。
+
+   與設計交付物的差異見 .review/design-ref/p4a-report.md。 */
+
+/* ── 骨架：整窗高度，只有內容區捲動；文件本身永不水平捲動 ── */
+body[data-layout="dock"] #layout-dock {
+  display: flex; flex-direction: column; height: 100vh; min-height: 0;
+  overflow: hidden; background: var(--color-bg);
+}
+
+/* ── header（L232-262） ── */
+body[data-layout="dock"] .dock-head {
+  position: relative; flex: none;
+  display: flex; flex-direction: column; gap: 5px;
+  padding: 6px; border-bottom: 1px solid var(--color-divider);
+}
+body[data-layout="dock"] #search {
+  min-height: 28px; padding: 3px 7px; font-size: 12px; background: transparent;
+}
+body[data-layout="dock"] .dock-tools { display: flex; align-items: center; gap: 5px; min-width: 0; }
+body[data-layout="dock"] .dock-spacer { flex: 1; min-width: 0; }
+body[data-layout="dock"] #mode-chip {
+  font-family: var(--font-heading); font-size: 10px; letter-spacing: .06em;
+  padding: 1px 5px; border: 1px solid var(--color-accent);
+  color: var(--color-accent-800); background: var(--color-accent-100); white-space: nowrap;
+}
+body[data-layout="dock"] #pin-toggle {
+  display: inline-flex; align-items: center; gap: 3px; flex: none;
+  min-height: 22px; padding: 0 6px; font: inherit; font-size: 11px;
+  border: 1px solid var(--color-divider); border-radius: 0;
+  background: transparent; color: var(--color-text); cursor: pointer; white-space: nowrap;
+}
+body[data-layout="dock"] #pin-toggle:hover { border-color: var(--color-accent); }
+body[data-layout="dock"] #pin-toggle.is-on,
+body[data-layout="dock"] #pin-toggle[aria-pressed="true"] {
+  border-color: var(--sel-bg); background: var(--sel-bg); color: var(--sel-ink);
+}
+body[data-layout="dock"] #pin-toggle .icn { display: flex; }
+body[data-layout="dock"] #settings-toggle {
+  flex: none; min-height: 22px; padding: 0 6px; font-size: 11px; letter-spacing: .04em;
+}
+/* PiP 不支援／被擋下時的提示：絕不靜默失敗（設計 L240 的 10px 灰字） */
+body[data-layout="dock"] #pin-note {
+  font-size: 10px; line-height: 1.35; color: var(--color-neutral-700);
+}
+body[data-layout="dock"] .dock-pinned-away {
+  margin: 12px; padding: 10px; font-size: 12px; line-height: 1.5;
+  border: 1px solid var(--color-divider); color: var(--color-neutral-700);
+}
+
+/* ── 設定 popover（L712-713：top:46px;left:6px;right:6px;padding:7px） ──
+   **top 從 46px 改成 64px**（唯一偏離的數值，理由是交付物原型的算術錯誤）：
+   header 內距 6 ＋ 搜尋框 28 ＋ gap 5 ＝ 39 才是那排鈕的頂端，鈕高 22 → 底端 61。
+   46px 會讓 popover 蓋住「設定」鈕本身的下 15px，使用者再點一次關不掉（Playwright 實測
+   pointer events 被 popover 攔截）。64px 剛好貼在那排鈕下方 3px，左右與內距完全照設計。 */
+body[data-layout="dock"] #settings-popover { top: 64px; left: 6px; right: 6px; padding: 7px; gap: 6px; }
+body[data-layout="dock"] #settings-popover .kicker { font-size: 10px; letter-spacing: .1em; }
+body[data-layout="dock"] .settings-section > .kicker { margin-bottom: 3px; }
+/* 小號 segmented：22px 高、10px 字，min-width:0＋ellipsis 讓三格擠得進 164px */
+body[data-layout="dock"] #settings-popover .seg-btn { padding: 3px 4px; font-size: 10px; min-height: 22px; }
+body[data-layout="dock"] #theme-toggle { width: 100%; min-height: 26px; font-size: 11px; }
+body[data-layout="dock"] #shelf-toggle { display: none; }     /* 1c 沒有常用列 */
+body[data-layout="dock"] #db-note { font-size: 10px; padding-top: 6px; }
+
+/* ── 部位／情境：兩欄 grid（L264、L679-681）。
+   minmax(0,1fr) 不可省——預設的 1fr 最小值是 max-content，長名稱會把整欄撐出視窗。 ── */
+body[data-layout="dock"] #region-pills {
+  flex: none; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 3px;
+  padding: 6px; border-bottom: 1px solid var(--color-divider); background: var(--color-neutral-100);
+}
+body[data-layout="dock"] .region-pill--dock {
+  display: block; width: 100%; min-width: 0; padding: 2px 4px; min-height: 20px;
+  border: 1px solid var(--color-divider); border-left-width: 1px; border-radius: 0;
+  background: transparent; color: var(--color-text); cursor: pointer;
+  font: inherit; font-size: 11px; letter-spacing: .02em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center;
+}
+body[data-layout="dock"] .region-pill--dock:hover { border-color: var(--color-accent); }
+body[data-layout="dock"] .region-pill--dock[aria-selected="true"] {
+  border-color: var(--color-accent); background: var(--color-accent-100);
+  color: var(--color-accent-800); font-weight: 600;
+}
+
+/* ── 捲動內容區（L270） ── */
+body[data-layout="dock"] .dock-scroll {
+  flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
+  padding: 6px; display: flex; flex-direction: column; gap: 7px;
+}
+
+/* ── 代碼列：扁平列表，不是卡片（L505 的 dockRowStyle；.chip--dock 幾何在 app.css） ── */
+body[data-layout="dock"] .chip-row { flex-direction: column; flex-wrap: nowrap; gap: 0; }
+body[data-layout="dock"] .chip--dock { font-size: 11px; }
+body[data-layout="dock"] .chip--dock b { font-size: 12px; letter-spacing: .02em; }
+body[data-layout="dock"] .chip--dock span { flex: 1; min-width: 0; font-size: 11px; line-height: 1.25; }
+body[data-layout="dock"] .chip--dock:hover {
+  background: var(--color-accent-100); border-bottom-color: var(--color-accent);
+}
+/* 類目碼：app.css 的 .chip.cat 會補回四邊實框，1c 只留虛線下緣 */
+body[data-layout="dock"] .chip--dock.cat,
+body[data-layout="dock"] .chip--dock.cat:hover {
+  border: 0; border-bottom: 1px dashed var(--color-neutral-400); background: transparent;
+}
+/* 紅旗碼（只有急診模式產得出來，見 data.js panelsFor） */
+body[data-layout="dock"] .chip--dock.chip--warn { border-bottom-color: var(--warn-line); }
+
+/* ── 搜尋結果（L272-279） ── */
+body[data-layout="dock"] #results-card { flex: none; border: 1px solid var(--color-accent); padding: 7px; }
+body[data-layout="dock"] #results-card .result-note {
+  font-family: var(--font-heading); font-size: 11px; letter-spacing: .08em; margin-bottom: 5px;
+}
+body[data-layout="dock"] #search-results { gap: 3px; }
+body[data-layout="dock"] .result-empty { font-size: 11px; color: var(--color-neutral-700); }
+
+/* ── 面板：一條標題帶 ＋ 其下代碼列（L282-294） ── */
+body[data-layout="dock"] #dock-panels { display: flex; flex-direction: column; gap: 7px; }
+body[data-layout="dock"] .dock-panel-head {
+  display: flex; align-items: baseline; gap: 5px;
+  padding: 3px 5px; margin-bottom: 3px;
+  background: var(--color-accent-100); border-bottom: 1px solid var(--color-accent);
+}
+body[data-layout="dock"] .dock-panel-name {
+  flex: 1; min-width: 0; font-family: var(--font-heading); font-size: 12px; letter-spacing: .04em;
+  color: var(--color-accent-800); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+body[data-layout="dock"] .dock-panel .panel-toggle {
+  flex: none; margin: 0; padding: 0; border: 0; background: none; cursor: pointer;
+  font: inherit; font-size: 10px; color: var(--color-accent-800); white-space: nowrap;
+}
+body[data-layout="dock"] .dock-panel .panel-toggle:hover { text-decoration: underline; }
+body[data-layout="dock"] .dock-panel-rows { display: flex; flex-direction: column; }
+
+/* ── 相關疾病／評估：有建議時才出現（L297-311） ── */
+body[data-layout="dock"] #dock-related {
+  flex: none; border-top: 1px solid var(--color-accent); background: var(--color-accent-100);
+}
+body[data-layout="dock"] .dock-related-title {
+  font-family: var(--font-heading); font-size: 11px; letter-spacing: .06em;
+  color: var(--color-accent-800); padding: 4px 6px 2px;
+}
+body[data-layout="dock"] #related { max-height: 170px; overflow-y: auto; padding: 0 6px 6px; }
+body[data-layout="dock"] #related .related-group { margin-bottom: 0; }
+body[data-layout="dock"] #related .group-label {
+  margin: 0; padding: 3px 0 1px; font-size: 10px; color: var(--color-neutral-700);
+}
+
+/* ── 清單摘要 ＋ 清單 ＋ 貼入 HIS（L313-336） ── */
+body[data-layout="dock"] .dock-cart {
+  flex: none; border-top: 1px solid var(--color-divider); background: var(--color-neutral-100);
+}
+body[data-layout="dock"] #cart-toggle {
+  display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px;
+  border: 0; background: none; cursor: pointer; font: inherit; text-align: left; color: var(--color-text);
+}
+body[data-layout="dock"] .dock-cart-kicker {
+  flex: none; font-family: var(--font-heading); font-size: 12px; letter-spacing: .06em;
+  color: var(--color-neutral-700); white-space: nowrap;
+}
+body[data-layout="dock"] #cart-count { color: var(--color-accent-700); }
+body[data-layout="dock"] .dock-cart-codes {
+  flex: 1; min-width: 0; font-family: var(--font-heading); font-size: 13px; letter-spacing: .03em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+body[data-layout="dock"] #cart-toggle .marker {
+  flex: none; display: flex; color: var(--color-accent-700); transition: transform .12s ease;
+}
+body[data-layout="dock"] #cart-toggle[aria-expanded="true"] .marker { transform: rotate(90deg); }
+body[data-layout="dock"] #cart-inline { max-height: 210px; overflow-y: auto; }
+
+/* 每筆兩行：第一行「徽章 + 代碼 + 主 + ✕」，第二行中文（一定要看得到，故 order 排到最後）。
+   .cart-grip／.cart-fav 在 176px 下擠不進第一行，且 1c 沒有常用列可放最愛，一併隱藏。 */
+body[data-layout="dock"] #cart li {
+  flex-wrap: wrap; gap: 5px; padding: 4px 6px;
+  border-bottom: 0; border-top: 1px solid var(--color-divider);
+}
+body[data-layout="dock"] #cart li .cart-grip,
+body[data-layout="dock"] #cart li .cart-fav { display: none; }
+body[data-layout="dock"] #cart b.cart-code {
+  flex: 1; min-width: 0; font-size: 12px; letter-spacing: .02em;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+body[data-layout="dock"] #cart .cart-zh {
+  order: 5; flex: 0 0 100%; padding-left: 23px; font-size: 11px; line-height: 1.3;
+}
+body[data-layout="dock"] #cart li button { font-size: 10px; padding: 1px 3px; }
+
+/* 貼入 HIS 的行動列：深底不隨主題翻轉（--his-*），與 1a 的 HIS 卡片同一組 token */
+body[data-layout="dock"] .dock-his {
+  display: flex; gap: 4px; padding: 6px;
+  background: var(--his-surface); border-top: 1px solid var(--his-line);
+}
+/* .btn 的 12px 內距會讓「複製並貼入 HIS」在 176px 下換行，縮到 4px 才排得成一行 */
+body[data-layout="dock"] #copy-all {
+  flex: 1; width: auto; min-height: 30px; padding: 2px 4px; font-size: 12px; letter-spacing: .04em;
+}
+body[data-layout="dock"] #clear-cart {
+  flex: none; min-height: 30px; padding: 0 6px; font-size: 11px;
+  border: 1px solid var(--his-btn); color: var(--his-btn); background: transparent;
+}
+body[data-layout="dock"] #clear-cart:hover { background: var(--his-card); }

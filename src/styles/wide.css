@@ -1,0 +1,125 @@
+/* 1a 桌機工作台（body[data-layout="wide"]）。數值取自 .review/design-ref/new-design.dc.html
+   的 1a 區塊（L50-219）；共用元件（chip、seg、cart、HIS 預覽…）在 styles/app.css。
+
+   與設計稿的骨架差異：設計交付物是一張固定 1440×約 900 的畫布（`min-height:760px`），
+   產品要的是視窗版工作台，所以改成「整頁高度的 app shell ＋ 三欄各自捲動」：
+   清單與貼入 HIS 區永遠留在視野內（本工具的核心動線），且文件本身不會水平捲動。 */
+
+#layout-wide { display: flex; flex-direction: column; height: 100vh; min-height: 520px; }
+
+/* ── header（L50-91） ── */
+.app-header {
+  display: flex; align-items: center; gap: 14px; padding: 10px 16px;
+  border-bottom: 1px solid var(--color-divider); position: relative; flex: none;
+}
+.app-brand { font-family: var(--font-heading); font-weight: 600; font-size: 18px; letter-spacing: .02em; white-space: nowrap; }
+#mode-chip {
+  font-family: var(--font-heading); font-size: 13px; letter-spacing: .08em; padding: 3px 9px;
+  border: 1px solid var(--color-accent); color: var(--color-accent-800);
+  background: var(--color-accent-100); white-space: nowrap;
+}
+#layout-wide #search { flex: 1; min-width: 0; min-height: 40px; font-size: 16px; background: transparent; }
+#layout-wide #settings-toggle { min-height: 40px; font-size: 13px; letter-spacing: .05em; white-space: nowrap; }
+#layout-wide #settings-popover { top: 56px; right: 16px; width: 300px; padding: 14px; }
+
+/* ── 常用列（L93-101） ── */
+#shelf {
+  display: flex; align-items: center; gap: 10px; padding: 7px 16px;
+  border-bottom: 1px solid var(--color-divider); min-height: 40px; flex: none;
+}
+#shelf .shelf-kicker { white-space: nowrap; }
+.shelf-chips { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; min-width: 0; }
+.shelf-chip.is-fav { border-color: var(--color-accent); }
+.shelf-chip .shelf-star { color: var(--color-accent-700); }
+.shelf-empty { font-size: 13px; color: var(--color-neutral-700); }
+
+/* ── 三欄主體（L103） ── */
+.workbench {
+  flex: 1; min-height: 0;
+  display: grid; grid-template-columns: 184px minmax(0, 1fr) 400px; align-items: stretch;
+}
+.workbench > * { min-width: 0; overflow-y: auto; }
+
+/* 左：部位／情境 rail（L105-110） */
+#region-rail { border-right: 1px solid var(--color-divider); padding: 12px 0; background: var(--color-neutral-100); }
+#region-rail-title { font-size: 12px; padding: 0 16px 8px; }
+.region-btn {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%;
+  padding: 9px 16px; border: 0; border-left: 3px solid transparent; cursor: pointer;
+  font: inherit; font-size: 14px; text-align: left; background: transparent; color: var(--color-text);
+}
+.region-btn:hover { background: var(--color-accent-100); }
+.region-btn[aria-selected="true"] {
+  border-left-color: var(--color-accent); background: var(--color-accent-100);
+  color: var(--color-accent-800); font-weight: 600;
+}
+.region-count { font-size: 12px; color: var(--color-neutral-700); }
+
+/* 中：主訴工作區（L112-168） */
+.worksheet { padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; }
+.worksheet-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+#panels-title { margin: 0; font-family: var(--font-heading); font-size: 20px; letter-spacing: .02em; }
+#mode-hint { font-size: 12px; color: var(--color-neutral-700); }
+#panels { display: flex; flex-direction: column; gap: 14px; }
+#panels:empty { display: none; }
+
+.symptom-card { padding: 12px 14px; background: transparent; }
+.symptom-card-title {
+  margin: -12px -14px 10px; padding: 6px 14px;
+  font-family: var(--font-heading); font-size: 17px; letter-spacing: .02em;
+  background: var(--color-accent-100); color: var(--color-accent-800);
+  border-bottom: 1px solid var(--color-divider);
+}
+.panel-toggle {
+  display: flex; align-items: center; gap: 4px; margin-top: 10px; border: 0; background: none;
+  padding: 4px 0; cursor: pointer; font: inherit; font-size: 13px;
+  color: var(--color-accent-700); text-align: left; white-space: nowrap; width: fit-content;
+}
+.panel-toggle .marker { transition: transform .12s ease; }
+.panel-toggle[aria-expanded="true"] .marker { transform: rotate(90deg); }
+.disease-group { padding-top: 4px; }
+
+/* 底部快選分組（L158-167，預設全收合） */
+#quick { display: flex; flex-direction: column; }
+.quick-group { border-top: 1px solid var(--color-divider); padding-top: 10px; }
+.quick-toggle {
+  display: flex; align-items: center; gap: 5px; border: 0; background: none; padding: 2px 0 8px;
+  cursor: pointer; font: inherit; font-family: var(--font-heading); font-size: 15px;
+  letter-spacing: .04em; color: var(--color-text);
+}
+.quick-toggle .marker { transition: transform .12s ease; }
+.quick-toggle[aria-expanded="true"] .marker { transform: rotate(90deg); }
+.quick-count { color: var(--color-neutral-700); font-size: 13px; }
+.quick-body { padding-bottom: 8px; }
+
+/* 右：清單、貼入 HIS、相關碼（L170-218） */
+#cart-pane {
+  border-left: 2px solid var(--color-accent); padding: 16px;
+  display: flex; flex-direction: column; gap: 14px; background: var(--color-neutral-100);
+}
+.cart-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.cart-head h3 { margin: 0; font-family: var(--font-heading); font-size: 18px; letter-spacing: .02em; }
+#cart-count { color: var(--color-accent-700); }
+.cart-empty { font-size: 13px; color: var(--color-neutral-700); padding: 10px 2px; }
+.related-empty { font-size: 13px; color: var(--color-neutral-700); }
+
+/* ── 900–1239px：rail 降成頂部 pill 列，右欄縮到 360px（impl-plan §4.6） ── */
+@media (max-width: 1239px) {
+  .workbench {
+    grid-template-columns: minmax(0, 1fr) 360px;
+    grid-template-areas: "rail rail" "sheet cart";
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  #region-rail {
+    grid-area: rail; display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+    padding: 8px 16px; border-right: 0; border-bottom: 1px solid var(--color-divider);
+  }
+  #region-rail-title { padding: 0 6px 0 0; }
+  .worksheet { grid-area: sheet; }
+  #cart-pane { grid-area: cart; }
+  .region-btn {
+    width: auto; flex: 0 0 auto; padding: 6px 11px;
+    border: 1px solid var(--color-divider); border-left-width: 1px;
+  }
+  .region-btn[aria-selected="true"] { border-color: var(--color-accent); border-left-color: var(--color-accent); }
+}
