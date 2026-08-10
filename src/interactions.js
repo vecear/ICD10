@@ -6,7 +6,12 @@
      .quick-toggle[data-quick-toggle] 展開快選分組
      #cart li 內：b.cart-code 複製單碼、.cart-primary 設為主診斷、.cart-fav ★、.cart-remove ✕
      #copy-all / #clear-cart / #settings-toggle / #theme-toggle / #shelf-toggle
-     #seg-mode|#seg-format|#seg-layout 內的 .seg-btn                                  */
+     #seg-mode|#seg-format|#seg-layout 內的 .seg-btn
+     #cart-toggle              點擊時呼叫 ctx.onCartToggle()——「切換清單面板」這個動作本身
+                                共用，但「切換的是什麼」由各版面自己決定（1c 是 store 的
+                                cartOpen；1b 是版面本地、預設收合的 sheetOpen，見 render-mobile.js
+                                檔頭註解），各版面的 mount() 要把對應的 handler 指派給 ctx.onCartToggle。
+                                1a 沒有這顆鈕，不設定也無妨。                             */
 (function (root) {
   'use strict';
 
@@ -161,6 +166,7 @@
       if (btn.id === 'settings-toggle') { store.toggleSettings(); return; }
       if (btn.id === 'theme-toggle') { store.toggleTheme(); return; }
       if (btn.id === 'shelf-toggle') { store.toggleShelf(); return; }
+      if (btn.id === 'cart-toggle') { if (typeof ctx.onCartToggle === 'function') ctx.onCartToggle(); return; }
       if (btn.id === 'clear-cart') { store.clearCart(); announce('已清空就診清單'); return; }
       if (btn.id === 'copy-all') { copyAll(); return; }
       if (btn.id === 'fallback-close') { closeFallbackCopy(); return; }

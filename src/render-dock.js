@@ -9,8 +9,13 @@
    3. 多了「置頂」鈕：用 Document Picture-in-Picture 把整個側欄搬進永遠置頂的小視窗。
 
    互動一律靠 interactions.js 的 document 事件委派，這裡不掛 closure handler——
-   **唯二例外**是 `#pin-toggle` 與 `#cart-toggle`（1c 專屬控制項，interactions.js 不認識），
-   以及「側欄被搬進 PiP 視窗後」的委派備援（見 pipDelegate 的註解）。 */
+   **唯一真正的例外**是 `#pin-toggle`（1c 專屬控制項，interactions.js 不認識）。
+   `#cart-toggle`（切換清單面板）的事件委派已收斂進 interactions.js：那裡只認得「有人點了
+   #cart-toggle」，實際要切換什麼由這裡把 `ctx.onCartToggle` 指到 `store.toggleCart()`
+   （1c 用 store 的 cartOpen；1b 用版面本地的 sheetOpen，兩邊語意不同，見 render-mobile.js
+   檔頭註解）。這裡仍留了一小段本地判斷式，純粹是因為「側欄被搬進 PiP 視窗後」main document
+   的委派搆不到那棵 DOM——那段期間 `#pin-toggle`／`#cart-toggle`／其餘一切互動都要靠這裡的
+   本地監聽代打（見 pipDelegate 的註解），與是否併入 interactions.js 無關。 */
 (function (root) {
   'use strict';
 
@@ -282,6 +287,9 @@
 
     const togglePin = () => { if (pipWin) closePip(); else openPip(); };
 
+    // #cart-toggle 的委派已收斂進 interactions.js；1c 這邊的語意就是單純切換 store.cartOpen
+    ctx.onCartToggle = () => { ctx.store.toggleCart(); };
+
     // ── 事件：1c 專屬控制項 ＋ PiP 期間的委派備援 ───────────────────────
     /* interactions.js 的委派掛在**主文件的 document** 上。側欄被搬進 PiP 視窗後就
        不在那棵樹裡了，所有點擊都不會被處理——所以掛在側欄根節點上的這組 handler
@@ -378,8 +386,12 @@
       const target = ev.target;
       if (!target || !target.closest) return;
       if (target.closest('#pin-toggle')) { togglePin(); return; }
-      if (target.closest('#cart-toggle')) { ctx.store.toggleCart(); return; }
+      // 主文件：#cart-toggle 交給 interactions.js 的委派（會呼叫上面設好的 ctx.onCartToggle），
+      // 這裡讓路，不重複處理；其餘一切也一併讓路。
       if (dock.ownerDocument === document) return;
+      // PiP 視窗：main document 的委派搆不到這棵 DOM，#cart-toggle 也要在這裡代打，
+      // 呼叫同一個 ctx.onCartToggle 維持行為一致。
+      if (target.closest('#cart-toggle')) { ctx.onCartToggle(); return; }
       pipDelegate(target);
     });
 

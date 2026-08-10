@@ -10,7 +10,8 @@
    3. HIS 區只吃 --his-* token（不隨主題翻轉），不得用 --color-accent-800／-900：
       深色主題會把 accent 系翻成淺色，貼給 HIS 的區塊會整塊反白（impl-plan R-2）。
 
-   與設計交付物的差異見 .review/design-ref/p4a-report.md。 */
+   與設計交付物的差異見 docs/dock-design-deviations.md（該檔案進版控；.review/ 不進版控，
+   不能放需要長期查閱的說明）。 */
 
 /* ── 骨架：整窗高度，只有內容區捲動；文件本身永不水平捲動 ── */
 body[data-layout="dock"] #layout-dock {
@@ -74,8 +75,11 @@ body[data-layout="dock"] #db-note { font-size: 10px; padding-top: 6px; }
 
 /* ── 部位／情境：兩欄 grid（L264、L679-681）。
    minmax(0,1fr) 不可省——預設的 1fr 最小值是 max-content，長名稱會把整欄撐出視窗。 ── */
+/* auto-fill 而不是寫死兩欄：176px 下算出來剛好是 2 欄（內容 164、gap 3 → floor(167/79)=2），
+   但 Chrome 一般視窗最小寬約 500px，使用者把側掛開在分頁裡時會被迫更寬——
+   那時自動變成 4～6 欄填滿，而不是把兩欄拉成一片空白。PiP 視窗（真正的 176）不受影響。 */
 body[data-layout="dock"] #region-pills {
-  flex: none; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 3px;
+  flex: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 3px;
   padding: 6px; border-bottom: 1px solid var(--color-divider); background: var(--color-neutral-100);
 }
 body[data-layout="dock"] .region-pill--dock {
@@ -137,7 +141,11 @@ body[data-layout="dock"] .dock-panel .panel-toggle {
   font: inherit; font-size: 10px; color: var(--color-accent-800); white-space: nowrap;
 }
 body[data-layout="dock"] .dock-panel .panel-toggle:hover { text-decoration: underline; }
-body[data-layout="dock"] .dock-panel-rows { display: flex; flex-direction: column; }
+/* 同上：176px 下 minmax(160px,1fr) 只排得下一欄（維持設計的單欄扁平列表），
+   視窗被迫變寬時自動多欄，代碼列不會被拉成一行只有左邊有字。 */
+body[data-layout="dock"] .dock-panel-rows {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); column-gap: 7px;
+}
 
 /* ── 相關疾病／評估：有建議時才出現（L297-311） ── */
 body[data-layout="dock"] #dock-related {

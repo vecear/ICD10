@@ -167,19 +167,6 @@
 
     host.appendChild(wrap);
 
-    /* 唯一的本地事件：#cart-toggle 不在 interactions.js 的委派清單裡（該檔是共用層，
-       本階段唯讀）。監聽掛在自己的根節點上，版面被換掉時隨 DOM 一起釋放，不會累積。
-       ——建議後續階段把 #cart-toggle 併進 interactions.js，1c 也需要同一顆鈕。 */
-    wrap.addEventListener('click', (ev) => {
-      const target = ev.target;
-      if (!target || !target.closest) return;
-      if (!target.closest('#cart-toggle')) return;
-      if (!ctx.store.getState().cart.length) return;
-      sheetOpen = !sheetOpen;
-      U.cartSheet();
-      U.cartBar();
-    });
-
     // ── 更新器 ──────────────────────────────────────────────────────────
     const U = {};
 
@@ -309,6 +296,17 @@
 
     U.his = () => R.renderHis(refs.hisPreview, refs.hisFormat, refs.copyAll, ctx);
     U.settings = () => R.syncSettings(wrap, ctx);
+
+    /* #cart-toggle 的事件委派本身在 interactions.js（共用），但「切換的是什麼」是 1b 專屬語意：
+       版面本地、預設收合的 sheetOpen（見檔頭註解——刻意不用 store 的 cartOpen，否則它預設
+       true，390×844 上第一次加碼就會被彈開的抽屜蓋掉主訴面板）。sheetOpen 不進 store，
+       所以切換後要自己補呼叫 U.cartSheet()／U.cartBar()，不能靠 store 的 notify 觸發重繪。 */
+    ctx.onCartToggle = () => {
+      if (!ctx.store.getState().cart.length) return;
+      sheetOpen = !sheetOpen;
+      U.cartSheet();
+      U.cartBar();
+    };
 
     const ALL = Object.keys(U);
 
