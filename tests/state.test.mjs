@@ -44,7 +44,8 @@ const newStore = (extra) => S.createStore(Object.assign({ storage: fakeStorage()
 test('預設狀態涵蓋計畫 §State 列出的每個欄位', () => {
   const s = newStore().getState();
   const fields = ['mode', 'region', 'query', 'expanded', 'quickOpen', 'format', 'cart', 'recent', 'favs',
-    'relatedCode', 'copied', 'theme', 'layout', 'settingsOpen', 'shelfOpen', 'cartOpen', 'pinned', 'dbState'];
+    'relatedCode', 'copied', 'theme', 'layout', 'settingsOpen', 'modeMenuOpen', 'shelfOpen',
+    'cartOpen', 'pinned', 'dbState'];
   for (const f of fields) assert.ok(Object.prototype.hasOwnProperty.call(s, f), `缺少狀態欄位 ${f}`);
   assert.deepEqual(s.cart, []);
   assert.equal(s.mode, 'outpatient');
@@ -129,6 +130,75 @@ test('切模式必須清空 relatedCode（急診紅旗不得洩漏到門診）�
   store.addCode('A41.9', '敗血症');
   store.setMode('outpatient');
   assert.equal(store.getState().relatedCode, null);
+});
+
+test('部位再點一次取消選取（region 變 null ＝ 顯示全部部位）', () => {
+  const store = newStore();
+  assert.equal(store.getState().region, 0, '預設選第一個部位');
+  store.setRegion(2);
+  assert.equal(store.getState().region, 2);
+
+  assert.equal(store.toggleRegion(2), true);
+  assert.equal(store.getState().region, null, '點已選的那個＝取消選取');
+  assert.equal(store.toggleRegion(2), true);
+  assert.equal(store.getState().region, 2, '再點一次選回來');
+  store.toggleRegion(1);
+  assert.equal(store.getState().region, 1, '點別的部位是換過去，不是取消');
+
+  assert.equal(store.toggleRegion(-1), false, '不合法索引一律不動狀態');
+  assert.equal(store.toggleRegion('x'), false);
+  assert.equal(store.getState().region, 1);
+
+  // 取消選取要能被訂閱者看見（三套版面靠這個重畫 rail／pill 與面板）
+  const changes = [];
+  store.subscribe((s, changed) => changes.push(changed.slice()));
+  store.toggleRegion(1);
+  assert.deepEqual(changes, [['region']]);
+});
+
+test('取消選取的狀態跨模式保留；選了部位才歸零', () => {
+  const store = newStore();
+  store.setRegion(3);
+  store.setMode('emergency');
+  assert.equal(store.getState().region, 0, '選了部位就歸零：索引在別的模式意義不同');
+
+  assert.equal(store.setRegion(null), true);
+  assert.equal(store.getState().region, null);
+  store.setMode('surg');
+  assert.equal(store.getState().region, null, '「顯示全部」不是某個部位的索引，換模式後仍成立');
+  // region 不進持久化清單，這條行為不得跨診次殘留
+  assert.equal(S.PERSISTED_KEYS.indexOf('region'), -1);
+});
+
+test('模式選單：與設定 popover 互斥，選完模式一併關掉', () => {
+  const store = newStore();
+  assert.equal(store.getState().modeMenuOpen, false);
+  assert.equal(store.toggleModeMenu(), true);
+  assert.equal(store.getState().modeMenuOpen, true);
+  assert.equal(store.toggleModeMenu(), false);
+
+  // 兩個浮層不得同時開著（1c 的 176px 下會直接疊在一起）
+  store.setSettingsOpen(true);
+  store.setModeMenuOpen(true);
+  assert.deepEqual(
+    [store.getState().settingsOpen, store.getState().modeMenuOpen], [false, true],
+    '開模式選單要關掉設定 popover'
+  );
+  store.toggleSettings();
+  assert.deepEqual(
+    [store.getState().settingsOpen, store.getState().modeMenuOpen], [true, false],
+    '開設定 popover 要關掉模式選單'
+  );
+
+  // 從選單切模式：模式換掉，選單自己收起來
+  store.setModeMenuOpen(true);
+  assert.equal(store.setMode('surg'), true);
+  assert.deepEqual(
+    [store.getState().mode, store.getState().modeMenuOpen, store.getState().settingsOpen],
+    ['surg', false, false]
+  );
+  // 不進持久化：浮層開合是暫態，不得跨診次殘留
+  assert.equal(S.PERSISTED_KEYS.indexOf('modeMenuOpen'), -1);
 });
 
 test('加入重複碼不會重複進清單，但要重新指向相關碼', () => {

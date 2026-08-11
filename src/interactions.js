@@ -1,7 +1,7 @@
 /* 互動層：一次性掛在 document 上的事件委派（版面重掛不必重綁），加上剪貼簿與拖曳。
    掛 window.ICDInteractions。三套版面共用同一份契約：
      .chip[data-code]（非 .cat）      加入代碼
-     .region-btn[data-region-index]   切換部位／情境
+     .region-btn[data-region-index]   切換部位／情境（點已選的那顆＝取消選取，改顯示全部部位）
      .panel-toggle[data-panel-toggle] 展開常見疾病
      .quick-toggle[data-quick-toggle] 展開快選分組
      #cart li 內：b.cart-code 複製單碼、.cart-primary 設為主診斷、.cart-fav ★、.cart-remove ✕
@@ -137,6 +137,74 @@
 
   /* chip 點擊的唯一實作。1c 的側欄搬進 PiP 小視窗後主文件的委派搆不到那棵 DOM，
      render-dock.js 得自己代打——共用這個函式，兩邊的規則不會各自漂移。 */
+  // ---- 模式徽章的三選一選單（三套版面共用同一份行為） ----
+  /* 徽章與選單是宣告式渲染的（render-shared.js 的 modeSwitchEl／syncModeSwitch），
+     這裡只負責「開關 ＋ 焦點」。焦點必須在這一層做：store 通知是同步的，動作回來時
+     DOM 已經是新的，直接找元素即可；渲染層不得掛 closure handler。
+     `doc` 一律由觸發元素的 ownerDocument 推得——1c 置頂時整個側欄在 Document PiP
+     的另一個文件裡，寫死 document 會找不到節點（同 R2 I5 的教訓）。 */
+  const docOf = (node) => (node && node.ownerDocument) || document;
+
+  function focusModeMenu(doc) {
+    const menu = doc.getElementById('mode-menu');
+    if (!menu || menu.hidden) return;
+    const first = menu.querySelector('[aria-checked="true"]') || menu.querySelector('[data-mode]');
+    if (first && typeof first.focus === 'function') first.focus();
+  }
+
+  function closeModeMenu(ctx, doc) {
+    if (!ctx.store.getState().modeMenuOpen) return false;
+    ctx.store.setModeMenuOpen(false);
+    const chip = (doc || document).getElementById('mode-chip');
+    if (chip && typeof chip.focus === 'function') chip.focus();   // 關掉浮層要把焦點還回觸發者
+    return true;
+  }
+
+  function toggleModeMenu(ctx, chip) {
+    ctx.store.toggleModeMenu();
+    if (ctx.store.getState().modeMenuOpen) focusModeMenu(docOf(chip));
+    else if (chip && typeof chip.focus === 'function') chip.focus();
+  }
+
+  /* 點選單裡的一項。已經是目前模式時只關選單——走 setMode() 會連帶清掉 relatedCode，
+     等於「按了目前的模式」把右側相關碼建議清空，那是沒道理的副作用。 */
+  function chooseMode(ctx, mode, node) {
+    const store = ctx.store;
+    const doc = docOf(node);
+    if (store.getState().mode === mode) { closeModeMenu(ctx, doc); return; }
+    store.setMode(mode);                       // 一併關掉選單（見 state.js setMode）
+    const chip = doc.getElementById('mode-chip');
+    if (chip && typeof chip.focus === 'function') chip.focus();
+    announce('已切換為' + ((root.ICDRender && root.ICDRender.MODE_LABEL[mode]) || mode));
+  }
+
+  /* 部位列的「全部」鈕：等於取消部位篩選。與「點已選部位再點一次」同一個結果，
+     差別只在它是看得見、按得到的入口（三套版面一致）。 */
+  function chooseAllRegions(ctx) {
+    const was = ctx.store.getState().region;
+    ctx.store.setRegion(null);
+    announce(was === null ? '目前已顯示全部部位' : '已取消部位篩選，顯示全部部位');
+  }
+
+  /* 選單內的 ↑↓／Home／End 循環移動焦點（role="menu" 的鍵盤契約）。
+     回傳是否吃掉這次按鍵。 */
+  function modeMenuKey(ev) {
+    const menu = ev.target && ev.target.closest ? ev.target.closest('#mode-menu') : null;
+    if (!menu) return false;
+    const keys = ['ArrowDown', 'ArrowUp', 'Home', 'End'];
+    if (keys.indexOf(ev.key) < 0) return false;
+    const items = Array.prototype.slice.call(menu.querySelectorAll('[data-mode]'));
+    if (!items.length) return false;
+    const here = items.indexOf(ev.target.closest('[data-mode]'));
+    let next = 0;
+    if (ev.key === 'End') next = items.length - 1;
+    else if (ev.key === 'ArrowDown') next = (here + 1) % items.length;
+    else if (ev.key === 'ArrowUp') next = (here - 1 + items.length) % items.length;
+    ev.preventDefault();
+    items[next].focus();
+    return true;
+  }
+
   function activateChip(ctx, chip) {
     const code = chip.dataset.code;
     if (chip.classList.contains('cat') || chip.getAttribute('aria-disabled') === 'true') {
@@ -179,12 +247,31 @@
         && !target.closest('#settings-popover') && !target.closest('#settings-toggle')) {
         store.setSettingsOpen(false);
       }
+      // 模式選單同理（外點關閉；焦點不搶回徽章，使用者的注意力已經在別處）
+      if (store.getState().modeMenuOpen
+        && !target.closest('#mode-menu') && !target.closest('#mode-chip')) {
+        store.setModeMenuOpen(false);
+      }
 
       const chip = target.closest('.chip[data-code]');
       if (chip) { activateChip(ctx, chip); return; }
 
+      // 模式徽章與其選單：要排在 `.region-btn`／泛用 button 之前
+      const modeOpt = target.closest('#mode-menu [data-mode]');
+      if (modeOpt) { chooseMode(ctx, modeOpt.getAttribute('data-mode'), modeOpt); return; }
+      const modeChip = target.closest('#mode-chip');
+      if (modeChip) { toggleModeMenu(ctx, modeChip); return; }
+
+      const regionAll = target.closest('.region-all-btn');
+      if (regionAll) { chooseAllRegions(ctx); return; }
+
       const region = target.closest('.region-btn');
-      if (region) { store.setRegion(Number(region.dataset.regionIndex)); return; }
+      if (region) {
+        store.toggleRegion(Number(region.dataset.regionIndex));
+        // 只播報取消：那是新的、看不出來的狀態（tab 全部變成未選取），選取本身有 aria-selected
+        if (store.getState().region === null) announce('已取消部位篩選，顯示全部部位');
+        return;
+      }
 
       const panelToggle = target.closest('.panel-toggle');
       if (panelToggle) { store.toggleExpanded(panelToggle.dataset.panelToggle); return; }
@@ -264,6 +351,7 @@
           // Esc 在其他情境都會關掉開著的浮層，搜尋框裡也要一致（R2 M3）
           if (isFallbackOpen()) closeFallbackCopy();
           else if (store.getState().settingsOpen) store.setSettingsOpen(false);
+          else if (store.getState().modeMenuOpen) store.setModeMenuOpen(false);
           return;
         }
         if (ev.key === 'Enter') {
@@ -281,9 +369,11 @@
       }
       if (ev.key === 'Escape') {
         if (isFallbackOpen()) { closeFallbackCopy(); return; }
+        if (closeModeMenu(ctx, docOf(ev.target))) return;
         if (store.getState().settingsOpen) store.setSettingsOpen(false);
         return;
       }
+      if (modeMenuKey(ev)) return;
       // 鍵盤換序（觸控裝置不觸發 HTML5 拖放，鍵盤使用者也需要換序手段；impl-plan R-5）
       const li = ev.target && ev.target.closest ? ev.target.closest('#cart li[data-code]') : null;
       if (li && ev.altKey && (ev.key === 'ArrowUp' || ev.key === 'ArrowDown')) {
@@ -341,5 +431,7 @@
   root.ICDInteractions = {
     wire, copyText, openFallbackCopy, closeFallbackCopy, isFallbackOpen, announce,
     activateChip, setFeedbackDocument,
+    // 1c 置頂時 main document 的委派搆不到側欄，render-dock.js 要用同一份實作代打
+    toggleModeMenu, chooseMode, closeModeMenu, chooseAllRegions, modeMenuKey,
   };
 })(typeof self !== 'undefined' ? self : this);

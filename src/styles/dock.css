@@ -32,9 +32,19 @@ body[data-layout="dock"] .dock-tools { display: flex; align-items: center; gap: 
 body[data-layout="dock"] .dock-spacer { flex: 1; min-width: 0; }
 body[data-layout="dock"] #mode-chip {
   font-family: var(--font-heading); font-size: 10px; letter-spacing: .06em;
-  padding: 1px 5px; border: 1px solid var(--color-accent);
+  padding: 1px 5px; min-height: 22px; border: 1px solid var(--color-accent);
   color: var(--color-accent-800); background: var(--color-accent-100); white-space: nowrap;
 }
+/* 模式選單：176px 下不得溢出，所以只給最小寬度、不撐滿；字級與 seg 的小號一致。
+   1c 刻意**不以徽章為定位基準**（.mode-switch 改回 static），改掛在 .dock-head 上、
+   用與設定 popover 同一組座標（top:64px／left:6px）：徽章只有約 34px 寬，選單掛在它
+   身上會讓 .mode-switch 的 scrollWidth 大於 clientWidth——那正是 1c 破版檢查
+   （overflowing_elements 的判準 b）要抓的形狀，會變成一條永遠亮著的假警報。 */
+body[data-layout="dock"] .mode-switch { position: static; }
+body[data-layout="dock"] .mode-menu {
+  top: 64px; left: 6px; right: auto; min-width: 68px; max-width: 164px;
+}
+body[data-layout="dock"] .mode-opt { padding: 5px 9px; font-size: 11px; }
 body[data-layout="dock"] #pin-toggle {
   display: inline-flex; align-items: center; gap: 3px; flex: none;
   min-height: 22px; padding: 0 6px; font: inherit; font-size: 11px;
@@ -82,17 +92,32 @@ body[data-layout="dock"] #region-pills {
   flex: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 3px;
   padding: 6px; border-bottom: 1px solid var(--color-divider); background: var(--color-neutral-100);
 }
-body[data-layout="dock"] .region-pill--dock {
+body[data-layout="dock"] .region-pill--dock,
+body[data-layout="dock"] .region-all-btn {
   display: block; width: 100%; min-width: 0; padding: 2px 4px; min-height: 20px;
   border: 1px solid var(--color-divider); border-left-width: 1px; border-radius: 0;
   background: transparent; color: var(--color-text); cursor: pointer;
   font: inherit; font-size: 11px; letter-spacing: .02em;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center;
 }
-body[data-layout="dock"] .region-pill--dock:hover { border-color: var(--color-accent); }
-body[data-layout="dock"] .region-pill--dock[aria-selected="true"] {
+body[data-layout="dock"] .region-pill--dock:hover,
+body[data-layout="dock"] .region-all-btn:hover { border-color: var(--color-accent); }
+body[data-layout="dock"] .region-pill--dock[aria-selected="true"],
+body[data-layout="dock"] .region-all-btn[aria-selected="true"] {
   border-color: var(--color-accent); background: var(--color-accent-100);
   color: var(--color-accent-800); font-weight: 600;
+}
+/* 「全部」橫跨整列：它不是「第 0 個部位」，跟部位並排會被當成其中一區；
+   而且部位數為奇數時它會替兩欄 grid 製造一格空白。 */
+body[data-layout="dock"] .region-all-btn { grid-column: 1 / -1; }
+
+/* 取消部位選取（顯示全部部位）時，每組面板前的部位標題。176px 下只給一行小標＋下緣線，
+   長名稱 ellipsis；沒有它，全部部位的面板連在一起會分不出來自哪一區。 */
+body[data-layout="dock"] .region-heading {
+  margin: 3px 0 0; padding: 0 0 2px;
+  font-family: var(--font-heading); font-size: 11px; letter-spacing: .08em;
+  color: var(--color-accent-800); border-bottom: 1px solid var(--color-accent);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
 /* ── 捲動內容區（L270） ── */

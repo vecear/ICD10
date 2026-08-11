@@ -132,18 +132,21 @@
       return regionSets(mode).map((r) => ({ name: r.name, count: (r.panels || []).length }));
     }
 
-    // 超界回 0（沿用現行 renderInternalPanels 的行為：切模式後部位數變少也不會空畫面）
+    /* 超界回 0（沿用現行 renderInternalPanels 的行為：切模式後部位數變少也不會空畫面）。
+       region === null 是「沒有選取任何部位」＝顯示全部，不是壞值，原樣傳下去。
+       **只認 null**：undefined／NaN 一律當漏傳參數回 0，免得少寫一個引數就靜默變成顯示全部。 */
     function clampRegion(mode, region) {
+      if (region === null) return null;
       const total = regionsFor(mode).length;
       const i = Number(region);
       if (!total || !Number.isInteger(i) || i < 0 || i >= total) return 0;
       return i;
     }
 
-    /* 目前模式＋部位要顯示的面板。redFlags **只有急診模式**拿得到——門診資料本來就不含
-       redFlags（build.py 強制），這裡再擋一層，讓三套版面不可能各自寫錯而洩漏紅旗。 */
-    function panelsFor(mode, region) {
-      const i = clampRegion(mode, region);
+    /* 單一部位（外科為單一情境）的面板；索引已由 clampRegion 保證合法。
+       redFlags **只有急診模式**拿得到——門診資料本來就不含 redFlags（build.py 強制），
+       這裡再擋一層，讓三套版面不可能各自寫錯而洩漏紅旗。 */
+    function panelsAt(mode, i) {
       if (mode === 'surg') {
         const panel = (curated.surgicalPanels || [])[i];
         return panel ? [{ name: panel.name, chief: panel.codes || [], diseases: [], redFlags: [] }] : [];
@@ -155,6 +158,28 @@
         chief: panel.chief || [],
         diseases: panel.diseases || [],
         redFlags: mode === 'emergency' ? panel.redFlags || [] : [],
+      }));
+    }
+
+    /* 目前模式＋部位要顯示的面板。region 為 null（取消選取）時串接全部部位的面板。 */
+    function panelsFor(mode, region) {
+      const i = clampRegion(mode, region);
+      if (i !== null) return panelsAt(mode, i);
+      const out = [];
+      regionsFor(mode).forEach((r, idx) => { for (const panel of panelsAt(mode, idx)) out.push(panel); });
+      return out;
+    }
+
+    /* 渲染用的分組：[{region, panels}]。`region` 是要印在該組面板前面的部位標題，
+       null 代表這組不需要標題——(1) 有選部位時只有一組，rail／pill 上已經標亮了；
+       (2) 外科的「情境」本身就是面板，標題會與面板名一字不差地重複。
+       顯示全部時沒有這層標題，三十幾張卡連在一起會迷失（取消選取的裁定行為）。 */
+    function panelGroupsFor(mode, region) {
+      const i = clampRegion(mode, region);
+      if (i !== null) return [{ region: null, panels: panelsAt(mode, i) }];
+      return regionsFor(mode).map((r, idx) => ({
+        region: mode === 'surg' ? null : r.name,
+        panels: panelsAt(mode, idx),
       }));
     }
 
@@ -274,7 +299,7 @@
 
     return {
       labelOf, rowFor, isAddable, addability, isAdjunct,
-      regionsFor, panelsFor, quickGroupsFor, clampRegion,
+      regionsFor, panelsFor, panelGroupsFor, quickGroupsFor, clampRegion,
       ensureDb, retryDb, nextToken, isCurrentToken,
       search, searchCurated, relatedFor, familyFor,
       getIndex: () => index,

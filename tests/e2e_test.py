@@ -28,6 +28,19 @@ def region_for_panel(filename, panel_name):
     raise AssertionError(f"{filename} 找不到面板「{panel_name}」")
 
 
+def panel_disease_count(filename, panel_name):
+    """該面板 diseases 的應有筆數，即時從 curated JSON 取。
+
+    診斷涵蓋度會隨臨床內容擴充而變，測試寫死數字只會在下次擴充時變成假紅燈。
+    """
+    groups = json.loads((CURATED_DIR / filename).read_text(encoding="utf-8"))
+    for region in groups:
+        for panel in region["panels"]:
+            if panel["name"] == panel_name:
+                return len(panel.get("diseases") or [])
+    raise AssertionError(f"{filename} 找不到面板「{panel_name}」")
+
+
 @pytest.fixture(scope="module")
 def page_url():
     handler = partial(http.server.SimpleHTTPRequestHandler, directory=str(ROOT / "dist"))
@@ -92,6 +105,7 @@ def reset(pg):
         const s = window.ICDApp.store;
         s.clearCart();
         s.setMode('outpatient');
+        s.setRegion(0);          // 取消選取（region=null）會跨模式保留，這裡明確歸位
         s.setQuery('');
         s.setSettingsOpen(false);
         s.setState({ favs: [], recent: [], expanded: {}, quickOpen: {}, copied: false });
@@ -324,15 +338,21 @@ def test_symptom_shows_related_diagnoses_without_auto_adding(page):
 
 
 def test_symptom_shows_multiple_related_diseases_without_auto_adding(page):
-    """常見疾病改為預設收合（設計 L149），先展開再驗 8 筆。"""
+    """常見疾病改為預設收合（設計 L149），先展開再驗筆數。
+
+    筆數不寫死：診斷涵蓋度會隨臨床內容擴充而變（這正是面板存在的目的），
+    寫死數字只會在下次擴充時又變成假紅燈。改成即時從 curated JSON 取應有筆數。
+    """
     reset(page)
-    page.click('.region-btn[data-region="胸肺／心臟"]')
-    card = panel_card(page, "咳嗽／感冒")
+    panel_name = "咳嗽／感冒"
+    expected = panel_disease_count("internal_outpatient.json", panel_name)
+    page.click(f'.region-btn[data-region="{region_for_panel("internal_outpatient.json", panel_name)}"]')
+    card = panel_card(page, panel_name)
     toggle = card.locator(".panel-toggle")
-    expect(toggle).to_contain_text("常見疾病 8")
+    expect(toggle).to_contain_text(f"常見疾病 {expected}")
     expect(card.locator(".disease-group")).to_be_hidden()
     ensure_expanded(toggle)
-    expect(card.locator(".disease-group .chip")).to_have_count(8)
+    expect(card.locator(".disease-group .chip")).to_have_count(expected)
     card.locator(".chief-group .chip[data-code='R05.9']").click()
     for code in ("J00", "J06.9", "J20.9", "J18.9"):
         expect(page.locator(f"#related .chip[data-code='{code}']")).to_have_count(1)
@@ -456,6 +476,56 @@ def test_mode_switch(page):
     expect(page.locator("#panels-title")).to_contain_text("內科門診")
 
 
+def test_mode_chip_menu_switches_mode(page):
+    """header 的模式徽章本身可切換：點它就地展開三選一（使用者原話：「我希望可以在圈起來
+    的地方直接切換門急診外科」）。設定 popover 裡原有的 segmented 保留，兩處狀態同源。
+
+    三套版面同一份行為（1c 在 test_e2e_dock.py、1b 在 test_e2e_mobile.py）。
+    """
+    reset(page)
+    chip = page.locator("#mode-chip")
+    menu = page.locator("#mode-menu")
+    expect(chip).to_have_attribute("aria-haspopup", "menu")
+    expect(chip).to_have_attribute("aria-expanded", "false")
+    expect(menu).to_be_hidden()
+
+    chip.click()
+    expect(chip).to_have_attribute("aria-expanded", "true")
+    expect(menu).to_be_visible()
+    opts = menu.locator("[data-mode]")
+    expect(opts).to_have_count(3)
+    expect(menu.locator('[data-mode="outpatient"]')).to_have_attribute("aria-checked", "true")
+
+    # 點一個就切換並關閉
+    menu.locator('[data-mode="emergency"]').click()
+    expect(menu).to_be_hidden()
+    expect(chip).to_have_attribute("aria-expanded", "false")
+    assert page.get_attribute("body", "data-mode") == "emergency"
+    expect(chip).to_have_text("內科急診")
+    expect(page.locator("#panels-title")).to_contain_text("內科急診")
+
+    # 兩條動線的選中狀態要同步：徽章切了，設定 popover 裡也要跟著變
+    open_settings(page)
+    expect(page.locator("#mode-er")).to_have_attribute("aria-pressed", "true")
+    expect(page.locator("#mode-op")).to_have_attribute("aria-pressed", "false")
+    page.keyboard.press("Escape")
+
+    # 鍵盤：Esc 關閉並把焦點還給徽章；↓ 在選項間移動
+    chip.click()
+    expect(menu).to_be_visible()
+    page.keyboard.press("ArrowDown")
+    page.keyboard.press("Escape")
+    expect(menu).to_be_hidden()
+    assert page.evaluate("() => document.activeElement.id") == "mode-chip"
+
+    # 點選單外面關閉（不吃掉那次點擊）
+    chip.click()
+    expect(menu).to_be_visible()
+    page.click("#panels-title")
+    expect(menu).to_be_hidden()
+    set_mode(page, "mode-op")
+
+
 def test_panel_expand_and_add(page):
     """外科 accordion 已不存在，改測症狀卡的「常見疾病」摺疊。"""
     reset(page)
@@ -486,6 +556,96 @@ def test_surgical_scenarios_use_rail(page):
     page.click(f'.region-btn[data-region="{second}"]')
     expect(panel_card(page, first)).to_have_count(0)
     expect(panel_card(page, second).locator(".chief-group .chip")).to_have_count(len(surgical[1]["codes"]))
+
+
+def test_region_toggle_clears_selection_and_shows_all(page):
+    """已選的部位再點一次＝取消選取，改顯示全部部位的面板（不是空白）。
+
+    使用者原話：「我希望已經點選的部位再點一次會回到沒有點選」。取消後要顯示全部，
+    是為了讓醫師整片掃過去時不必逐一點選；面板必須看得出屬於哪個部位，否則三十幾張
+    卡連在一起會迷失。
+    """
+    reset(page)
+    rail = page.locator(".region-btn")
+    region_count = rail.count()
+    second = rail.nth(1)
+    second.click()
+    expect(second).to_have_attribute("aria-selected", "true")
+    one_region_cards = page.locator("#panels .symptom-card").count()
+    assert page.locator("#panels .region-heading").count() == 0, "選了部位時不該出現部位標題"
+    # 選了部位時「全部」鈕不得標為選中（原 #region-all-note 的說明文字已由這顆鈕取代）
+    expect(page.locator(".region-all-btn")).to_have_attribute("aria-selected", "false")
+
+    # 再點同一顆 → 取消選取，沒有任何一個部位是 selected
+    second.click()
+    expect(second).to_have_attribute("aria-selected", "false")
+    assert page.locator('.region-btn[aria-selected="true"]').count() == 0, "取消後仍有部位被標為選取"
+    assert page.evaluate("() => window.ICDApp.store.getState().region") is None
+
+    total = page.evaluate(
+        """() => {
+            const d = window.ICDApp.data, mode = window.ICDApp.store.getState().mode;
+            return d.regionsFor(mode).reduce((n, r, i) => n + d.panelsFor(mode, i).length, 0);
+        }"""
+    )
+    expect(page.locator("#panels .symptom-card")).to_have_count(total)
+    assert total > one_region_cards, f"顯示全部（{total}）沒有比單一部位（{one_region_cards}）多"
+    # 每個部位一條標題，順序與 rail 一致；rail 上的「全部」也要跟著標為選中
+    expect(page.locator("#panels .region-heading")).to_have_count(region_count)
+    assert page.locator("#panels .region-heading").first.inner_text() == rail.first.get_attribute("data-region")
+    expect(page.locator(".region-all-btn")).to_have_attribute("aria-selected", "true")
+    sw, cw = page.evaluate("() => [document.documentElement.scrollWidth, document.documentElement.clientWidth]")
+    assert sw <= cw, f"顯示全部時水平溢出：{sw} > {cw}"
+
+    # 點別的部位是換過去、不是取消；標題收起，「全部」也退選
+    rail.nth(0).click()
+    expect(rail.nth(0)).to_have_attribute("aria-selected", "true")
+    assert page.locator("#panels .region-heading").count() == 0
+    expect(page.locator(".region-all-btn")).to_have_attribute("aria-selected", "false")
+
+
+def test_region_all_button(page):
+    """部位列最前面的「全部」鈕：未選任何部位時＝選中，點它＝取消部位篩選。
+
+    「點已選部位再點一次取消」三套版面本來就都能用，但沒有視覺提示，使用者以為只有窄欄
+    有（原話：「已選取再按一下清除也要在其他介面出現而不是只在窄欄」）。這顆鈕把那個狀態
+    變成看得見、按得到的入口；再點一次取消保留為快捷。
+    """
+    reset(page)
+    all_btn = page.locator(".region-all-btn")
+    rail = page.locator(".region-btn")
+    expect(all_btn).to_have_count(1)
+    # 「全部」不算一個部位：部位鈕數量與部位標題數量不得被它影響
+    outpatient_regions = json.loads((CURATED_DIR / "internal_outpatient.json").read_text(encoding="utf-8"))
+    expect(rail).to_have_count(len(outpatient_regions))
+    # 「全部」排在所有部位之前
+    assert page.evaluate(
+        """() => {
+            const nodes = [...document.querySelectorAll('#region-rail .region-all-btn, #region-rail .region-btn')];
+            return nodes.length > 1 && nodes[0].classList.contains('region-all-btn');
+        }"""
+    ), "「全部」鈕不在部位列最前面"
+
+    expect(all_btn).to_have_attribute("aria-selected", "false")
+    all_btn.click()
+    expect(all_btn).to_have_attribute("aria-selected", "true")
+    assert page.evaluate("() => window.ICDApp.store.getState().region") is None
+    assert page.locator('.region-btn[aria-selected="true"]').count() == 0
+    expect(page.locator("#panels .region-heading")).to_have_count(len(outpatient_regions))
+
+    # 已是「全部」時再點一次仍是全部（它是狀態，不是切換鈕）
+    all_btn.click()
+    expect(all_btn).to_have_attribute("aria-selected", "true")
+    assert page.evaluate("() => window.ICDApp.store.getState().region") is None
+
+    # 選一個部位 → 「全部」退選；再點該部位一次（既有快捷）→ 「全部」自己亮回來
+    rail.nth(1).click()
+    expect(all_btn).to_have_attribute("aria-selected", "false")
+    assert page.locator("#panels .region-heading").count() == 0
+    rail.nth(1).click()
+    expect(all_btn).to_have_attribute("aria-selected", "true")
+    sw, cw = page.evaluate("() => [document.documentElement.scrollWidth, document.documentElement.clientWidth]")
+    assert sw <= cw, f"「全部」選中時水平溢出：{sw} > {cw}"
 
 
 def test_copy_formats(page):

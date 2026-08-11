@@ -198,6 +198,44 @@ test('regionsFor／panelsFor：三種模式各自的部位與面板', () => {
   assert.equal(data.clampRegion('emergency', 5), 0);
 });
 
+test('region 為 null ＝ 取消選取：clampRegion 原樣傳遞，面板改成「全部部位」', () => {
+  const data = makeData();
+  assert.equal(data.clampRegion('outpatient', null), null);
+  assert.equal(data.clampRegion('outpatient', undefined), 0, '漏傳參數不得靜默變成顯示全部');
+  assert.equal(data.clampRegion('outpatient', 1), 1);
+
+  // 顯示全部＝所有部位的面板串起來，不是空白
+  assert.deepEqual(data.panelsFor('outpatient', null).map((p) => p.name), ['發燒／寒顫', '胸痛']);
+  assert.deepEqual(data.panelsFor('surg', null).map((p) => p.name), ['撕裂傷', '燙傷']);
+  // 紅旗隔離在「顯示全部」這條路徑上一樣成立
+  assert.deepEqual(
+    data.panelsFor('outpatient', null).map((p) => p.redFlags.length), [0, 0]
+  );
+  assert.deepEqual(data.panelsFor('emergency', null)[0].redFlags.map((p) => p[0]), ['A41.9']);
+});
+
+test('panelGroupsFor：選了部位不給標題，顯示全部才逐區加標題（外科除外）', () => {
+  const data = makeData();
+  const one = data.panelGroupsFor('outpatient', 1);
+  assert.equal(one.length, 1);
+  assert.equal(one[0].region, null, '選了部位時 rail 已標亮，內容區不需要標題');
+  assert.deepEqual(one[0].panels.map((p) => p.name), ['胸痛']);
+
+  const all = data.panelGroupsFor('outpatient', null);
+  assert.deepEqual(all.map((g) => g.region), ['全身／感染', '心臟血管']);
+  assert.deepEqual(all.map((g) => g.panels.map((p) => p.name)), [['發燒／寒顫'], ['胸痛']]);
+  // 分組與扁平列表必須是同一批面板，兩條渲染路徑不得漂移
+  assert.deepEqual(
+    all.reduce((acc, g) => acc.concat(g.panels.map((p) => p.name)), []),
+    data.panelsFor('outpatient', null).map((p) => p.name)
+  );
+
+  // 外科的「情境」本身就是面板，標題會與面板名一字不差地重複 → 一律不給
+  const surg = data.panelGroupsFor('surg', null);
+  assert.deepEqual(surg.map((g) => g.region), [null, null]);
+  assert.deepEqual(surg.map((g) => g.panels.map((p) => p.name)), [['撕裂傷'], ['燙傷']]);
+});
+
 test('紅旗只在急診模式出現，門診拿不到（臨床安全）', () => {
   const data = makeData();
   assert.deepEqual(data.panelsFor('emergency', 0)[0].redFlags.map((p) => p[0]), ['A41.9']);

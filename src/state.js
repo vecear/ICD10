@@ -93,7 +93,7 @@
   function defaultState(theme) {
     return {
       mode: 'outpatient',        // outpatient | emergency | surg
-      region: 0,                 // 部位／情境 rail 的索引
+      region: 0,                 // 部位／情境 rail 的索引；null ＝ 沒有選取，顯示全部部位的面板
       query: '',
       expanded: {},              // { 面板名: true } 常見疾病展開
       quickOpen: {},             // { 快選分組標題: true }
@@ -106,6 +106,7 @@
       theme: THEMES.indexOf(theme) >= 0 ? theme : detectTheme(),
       layout: 'wide',            // wide | dock（持久化）；實際生效版面另由 resolveLayout 依寬度決定
       settingsOpen: false,
+      modeMenuOpen: false,       // header 模式徽章展開的三選一選單（三套版面共用）
       shelfOpen: true,           // 常用列
       cartOpen: true,            // 1c/1b 的清單摺疊
       pinned: false,             // Document PiP 置頂
@@ -274,18 +275,40 @@
     }
 
     // ---- 模式與版面 ----
-    /* 切模式：相關碼是依模式產生的，**必須清空**，否則急診紅旗會洩漏到門診（C5，臨床安全）。 */
+    /* 切模式：相關碼是依模式產生的，**必須清空**，否則急診紅旗會洩漏到門診（C5，臨床安全）。
+       部位歸零，但「沒有選取任何部位」（region === null）不是某個部位的索引，換模式後
+       依然成立——強行歸零等於把醫師剛取消掉的篩選又自己裝回去。
+       兩條切模式的動線（設定 popover 的 segmented 與 header 徽章的選單）都收在這裡，
+       所以兩處的浮層一律關掉，選完不會留一個開著的選單擋住剛換好的畫面。 */
     function setMode(mode) {
       if (MODES.indexOf(mode) < 0) return false;
-      setState({ mode, region: 0, relatedCode: null, settingsOpen: false });
+      setState({
+        mode,
+        region: state.region === null ? null : 0,
+        relatedCode: null,
+        settingsOpen: false,
+        modeMenuOpen: false,
+      });
       return true;
     }
 
+    /* region 為 null ＝ 沒有選取任何部位，顯示全部部位的面板（不是顯示空白）。 */
     function setRegion(region) {
+      if (region === null) { setState({ region: null }); return true; }
       const i = Number(region);
       if (!Number.isInteger(i) || i < 0) return false;
       setState({ region: i });
       return true;
+    }
+
+    /* 已選的部位再點一次就取消選取（使用者原話：「已經點選的部位再點一次會回到沒有點選」）。
+       比對狀態裡的原始索引而不是渲染層 clamp 過的值：兩者只在「資料換模式縮水」的瞬間
+       不同，那時畫面標亮的是第 0 個，點它會先變成真的選取第 0 個（狀態與畫面對齊），
+       再點一次才取消——比直接取消更符合看到的東西。 */
+    function toggleRegion(region) {
+      const i = Number(region);
+      if (!Number.isInteger(i) || i < 0) return false;
+      return setRegion(state.region === i ? null : i);
     }
 
     function setLayout(layout) {
@@ -342,8 +365,18 @@
     const setQuery = (query) => { setState({ query: typeof query === 'string' ? query : '' }); };
     const setRelatedCode = (code) => { setState({ relatedCode: code || null }); };
     const setCopied = (copied) => { setState({ copied: !!copied }); };
-    const setSettingsOpen = (open) => { setState({ settingsOpen: !!open }); };
-    const toggleSettings = () => { setState({ settingsOpen: !state.settingsOpen }); return state.settingsOpen; };
+    /* 設定 popover 與模式選單互斥：兩者在 1c 的 176px 下會直接疊在一起，
+       在 1a/1b 也沒有「同時開兩個浮層」的道理，所以開一個就關掉另一個。 */
+    const setSettingsOpen = (open) => { setState({ settingsOpen: !!open, modeMenuOpen: open ? false : state.modeMenuOpen }); };
+    const toggleSettings = () => {
+      setState({ settingsOpen: !state.settingsOpen, modeMenuOpen: false });
+      return state.settingsOpen;
+    };
+    const setModeMenuOpen = (open) => { setState({ modeMenuOpen: !!open, settingsOpen: open ? false : state.settingsOpen }); };
+    const toggleModeMenu = () => {
+      setState({ modeMenuOpen: !state.modeMenuOpen, settingsOpen: false });
+      return state.modeMenuOpen;
+    };
     const setShelfOpen = (open) => { setState({ shelfOpen: !!open }); };
     const toggleShelf = () => { setState({ shelfOpen: !state.shelfOpen }); return state.shelfOpen; };
     const setCartOpen = (open) => { setState({ cartOpen: !!open }); };
@@ -360,11 +393,11 @@
       getState, setState, subscribe,
       storage,                    // 讓渲染層／測試能問 storage.available
       addCode, removeCode, clearCart, setPrimary, reorder,
-      setMode, setRegion, setLayout, setTheme, toggleTheme, setFormat,
+      setMode, setRegion, toggleRegion, setLayout, setTheme, toggleTheme, setFormat,
       toggleFav, isFav,
       toggleExpanded, toggleQuick, isExpanded, isQuickOpen,
       setQuery, setRelatedCode, setCopied, setDbState,
-      setSettingsOpen, toggleSettings, setShelfOpen, toggleShelf,
+      setSettingsOpen, toggleSettings, setModeMenuOpen, toggleModeMenu, setShelfOpen, toggleShelf,
       setCartOpen, toggleCart, setPinned,
     };
   }

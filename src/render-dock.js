@@ -21,7 +21,6 @@
 
   const R = root.ICDRender;
 
-  const MODE_SHORT = { outpatient: '門診', emergency: '急診', surg: '外科' };
   const SEARCH_DEBOUNCE = 150;          // 與 interactions.js 同值
 
   /* Lucide `pin`，stroke-width 1.5；**不寫 xmlns**（控制者裁示 C4：輸出不得含 h-t-t-p 字串）。
@@ -53,7 +52,7 @@
      換成設計交付物 1c 專用的短標籤（L698-709），選擇器與行為完全不變。 */
   const SHORT_LABEL = [
     ['#seg-layout', 'data-layout-opt', { wide: '工作台', dock: '窄欄' }],
-    ['#seg-mode', 'data-mode', { outpatient: '門診', emergency: '急診', surg: '外科' }],
+    ['#seg-mode', 'data-mode', R.MODE_SHORT],
     ['#seg-format', 'data-format', { lines: '每行', comma: '逗號', names: '碼＋名' }],
   ];
 
@@ -97,6 +96,7 @@
     layout: ['settings'],
     shelfOpen: [],
     settingsOpen: ['settings'],
+    modeMenuOpen: ['header'],
     cartOpen: ['cart'],
     pinned: ['pin'],
   };
@@ -120,8 +120,8 @@
     head.appendChild(search);
 
     const tools = R.el('div', 'dock-tools');
-    refs.modeChip = R.el('span', null, MODE_SHORT.outpatient);
-    refs.modeChip.id = 'mode-chip';
+    // 模式徽章＝可操作的三選一（三套版面同一份行為，只有標籤用短版塞進 176px）
+    refs.modeSwitch = R.modeSwitchEl(true);
     const pin = R.el('button', 'dock-pin');
     pin.type = 'button';
     pin.id = 'pin-toggle';
@@ -135,7 +135,7 @@
     settingsToggle.id = 'settings-toggle';
     settingsToggle.setAttribute('aria-expanded', 'false');
     settingsToggle.setAttribute('aria-haspopup', 'true');
-    tools.append(refs.modeChip, R.el('span', 'dock-spacer'), pin, settingsToggle);
+    tools.append(refs.modeSwitch, R.el('span', 'dock-spacer'), pin, settingsToggle);
     head.appendChild(tools);
 
     refs.pinNote = R.el('div', 'dock-pin-note');
@@ -270,8 +270,11 @@
     }
 
     function onPipDocKeyDown(ev) {
+      if (root.ICDInteractions.modeMenuKey(ev)) return;      // 選單內 ↑↓／Home／End 移動焦點
       if (ev.key !== 'Escape') return;
       if (root.ICDInteractions.isFallbackOpen()) { root.ICDInteractions.closeFallbackCopy(); return; }
+      // 小視窗裡的 #mode-chip 不在主文件，關閉後的焦點回歸要指名這個文件
+      if (root.ICDInteractions.closeModeMenu(ctx, ev.target && ev.target.ownerDocument)) return;
       if (ctx.store.getState().settingsOpen) ctx.store.setSettingsOpen(false);
     }
 
@@ -373,11 +376,27 @@
         && !target.closest('#settings-popover') && !target.closest('#settings-toggle')) {
         store.setSettingsOpen(false);
       }
+      if (store.getState().modeMenuOpen
+        && !target.closest('#mode-menu') && !target.closest('#mode-chip')) {
+        store.setModeMenuOpen(false);
+      }
 
       const chip = target.closest('.chip[data-code]');
       if (chip) { addFromChip(chip); return; }
+      /* 模式徽章／「全部」鈕：規則共用 interactions.js 的同一份實作（那裡的 docOf()
+         會自己認出這是 PiP 文件），這裡只負責在主文件委派搆不到時把事件轉過去。 */
+      const modeOpt = target.closest('#mode-menu [data-mode]');
+      if (modeOpt) { root.ICDInteractions.chooseMode(ctx, modeOpt.getAttribute('data-mode'), modeOpt); return; }
+      const modeChip = target.closest('#mode-chip');
+      if (modeChip) { root.ICDInteractions.toggleModeMenu(ctx, modeChip); return; }
+      const regionAll = target.closest('.region-all-btn');
+      if (regionAll) { root.ICDInteractions.chooseAllRegions(ctx); return; }
       const region = target.closest('.region-btn');
-      if (region) { store.setRegion(Number(region.dataset.regionIndex)); return; }
+      if (region) {
+        store.toggleRegion(Number(region.dataset.regionIndex));
+        if (store.getState().region === null) announce('已取消部位篩選，顯示全部部位');
+        return;
+      }
       const panelToggle = target.closest('.panel-toggle');
       if (panelToggle) { store.toggleExpanded(panelToggle.dataset.panelToggle); return; }
 
@@ -471,11 +490,7 @@
     // ── 更新器 ──────────────────────────────────────────────────────────
     const U = {};
 
-    U.header = () => {
-      const s = ctx.store.getState();
-      refs.modeChip.textContent = MODE_SHORT[s.mode];
-      refs.modeChip.title = R.MODE_LABEL[s.mode];
-    };
+    U.header = () => R.syncModeSwitch(dock, ctx, true);
 
     U.searchValue = () => {
       const s = ctx.store.getState();
@@ -488,16 +503,20 @@
       refs.pills.setAttribute('aria-label', surg ? '手術情境' : '身體部位');
       R.clear(refs.pills);
       const regions = ctx.data.regionsFor(s.mode);
-      const active = ctx.data.clampRegion(s.mode, s.region);
+      const active = ctx.data.clampRegion(s.mode, s.region);     // null ＝ 沒有選取任何部位
+      refs.pills.appendChild(R.regionAllBtn(active === null));   // 「全部」橫跨兩欄，排在最前面
       regions.forEach((region, i) => {
         const b = R.el('button', 'region-btn region-pill--dock', region.name);
         b.type = 'button';
         b.dataset.region = region.name;
         b.dataset.regionIndex = String(i);
         b.setAttribute('role', 'tab');
-        b.setAttribute('aria-selected', i === active ? 'true' : 'false');
-        // 176px 兩欄下較長的名稱會 ellipsis（設計如此），title 保住完整名稱與面板數
-        b.title = region.name + '（' + region.count + '）';
+        const on = i === active;
+        b.setAttribute('aria-selected', on ? 'true' : 'false');
+        // 176px 兩欄下較長的名稱會 ellipsis（設計如此），title 保住完整名稱與面板數；
+        // 選取中的那顆順便說明「再點一次取消」，否則滑鼠使用者看不出來
+        b.title = region.name + '（' + region.count + '）'
+          + (on ? '，再點一次取消選取，顯示全部部位' : '');
         refs.pills.appendChild(b);
       });
     };
@@ -505,32 +524,36 @@
     U.panels = () => {
       const s = ctx.store.getState();
       R.clear(refs.panels);
-      // 紅旗隔離只有 panelsFor() 這一個出口，渲染層不得自行讀 window.CURATED.redFlags（C5）
-      for (const panel of ctx.data.panelsFor(s.mode, s.region)) {
-        const open = ctx.store.isExpanded(panel.name);
-        const box = R.el('div', 'dock-panel');
-        box.dataset.panel = panel.name;
+      // 紅旗隔離只有 panelGroupsFor() 這一個出口，渲染層不得自行讀 window.CURATED.redFlags（C5）
+      for (const group of ctx.data.panelGroupsFor(s.mode, s.region)) {
+        // group.region 只有「顯示全部部位」時才有值（見 data.js panelGroupsFor 的註解）
+        if (group.region) refs.panels.appendChild(R.regionHeading(group.region));
+        for (const panel of group.panels) {
+          const open = ctx.store.isExpanded(panel.name);
+          const box = R.el('div', 'dock-panel');
+          box.dataset.panel = panel.name;
 
-        const bar = R.el('div', 'dock-panel-head');
-        bar.appendChild(R.el('span', 'dock-panel-name', panel.name));
-        if (panel.diseases.length) {
-          const toggle = R.el('button', 'panel-toggle', open ? '- 疾病' : '+ 疾病 ' + panel.diseases.length);
-          toggle.type = 'button';
-          toggle.dataset.panelToggle = panel.name;
-          toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-          bar.appendChild(toggle);
+          const bar = R.el('div', 'dock-panel-head');
+          bar.appendChild(R.el('span', 'dock-panel-name', panel.name));
+          if (panel.diseases.length) {
+            const toggle = R.el('button', 'panel-toggle', open ? '- 疾病' : '+ 疾病 ' + panel.diseases.length);
+            toggle.type = 'button';
+            toggle.dataset.panelToggle = panel.name;
+            toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+            bar.appendChild(toggle);
+          }
+          box.appendChild(bar);
+
+          const rows = R.el('div', 'dock-panel-rows');
+          const add = (pairs, opts) => {
+            for (const chip of R.chipsFromPairs(pairs, ctx, opts)) rows.appendChild(chip);
+          };
+          add(panel.chief, { className: 'chip--dock' });
+          add(panel.redFlags, { warn: true, className: 'chip--dock' });
+          if (open) add(panel.diseases, { className: 'chip--dock' });
+          box.appendChild(rows);
+          refs.panels.appendChild(box);
         }
-        box.appendChild(bar);
-
-        const rows = R.el('div', 'dock-panel-rows');
-        const add = (pairs, opts) => {
-          for (const chip of R.chipsFromPairs(pairs, ctx, opts)) rows.appendChild(chip);
-        };
-        add(panel.chief, { className: 'chip--dock' });
-        add(panel.redFlags, { warn: true, className: 'chip--dock' });
-        if (open) add(panel.diseases, { className: 'chip--dock' });
-        box.appendChild(rows);
-        refs.panels.appendChild(box);
       }
     };
 

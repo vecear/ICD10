@@ -28,6 +28,7 @@
     layout: ['settings'],
     shelfOpen: ['shelf', 'settings'],
     settingsOpen: ['settings'],
+    modeMenuOpen: ['header'],
   };
 
   function mount(host, ctx) {
@@ -38,9 +39,9 @@
     // ── header ──────────────────────────────────────────────────────────
     const header = R.el('header', 'app-header');
     header.append(R.el('div', 'app-brand', 'ICD-10'));
-    refs.modeChip = R.el('span', null, '內科門診');
-    refs.modeChip.id = 'mode-chip';
-    header.appendChild(refs.modeChip);
+    // 模式徽章＝可操作的三選一（使用者要求「在圈起來的地方直接切換門急診外科」）
+    refs.modeSwitch = R.modeSwitchEl(false);
+    header.appendChild(refs.modeSwitch);
 
     const search = document.createElement('input');
     search.id = 'search';
@@ -82,7 +83,11 @@
     rail.setAttribute('aria-label', '身體部位');
     refs.railTitle = R.el('div', 'kicker', '身體部位');
     refs.railTitle.id = 'region-rail-title';
-    rail.appendChild(refs.railTitle);
+    /* 原本這裡有一行 #region-all-note（「目前顯示全部部位，點任一部位可篩選」），用來
+       補償「沒有任何一顆標亮」看起來像壞掉。現在 rail 最前面就有一顆「全部」鈕，未選部位
+       時它自己是標亮的——狀態已經看得見，那行字變成同一件事講兩次，而且它只在 1a 且
+       ≥1240px 時出現，正是使用者抱怨的「功能只有某個介面才有」。故移除（見 .review/r4-ui.md）。 */
+    rail.append(refs.railTitle);
     refs.rail = rail;
     bench.appendChild(rail);
 
@@ -170,7 +175,7 @@
 
     U.header = () => {
       const s = ctx.store.getState();
-      refs.modeChip.textContent = R.MODE_LABEL[s.mode];
+      R.syncModeSwitch(wide, ctx, false);
       refs.panelsTitle.textContent = R.PANELS_TITLE[s.mode];
       refs.modeHint.textContent = R.MODE_HINT[s.mode];
     };
@@ -186,16 +191,20 @@
       const surg = s.mode === 'surg';
       refs.railTitle.textContent = surg ? '情境' : '身體部位';
       refs.rail.setAttribute('aria-label', surg ? '手術情境' : '身體部位');
-      for (const old of Array.from(refs.rail.querySelectorAll('.region-btn'))) old.remove();
+      for (const old of Array.from(refs.rail.querySelectorAll('.region-btn, .region-all-btn'))) old.remove();
       const regions = ctx.data.regionsFor(s.mode);
-      const active = ctx.data.clampRegion(s.mode, s.region);
+      const active = ctx.data.clampRegion(s.mode, s.region);     // null ＝ 沒有選取任何部位
+      refs.rail.appendChild(R.regionAllBtn(active === null));    // 「全部」永遠排在最前面
       regions.forEach((region, i) => {
         const b = R.el('button', 'region-btn');
         b.type = 'button';
         b.dataset.region = region.name;
         b.dataset.regionIndex = String(i);
         b.setAttribute('role', 'tab');
-        b.setAttribute('aria-selected', i === active ? 'true' : 'false');
+        const on = i === active;
+        b.setAttribute('aria-selected', on ? 'true' : 'false');
+        // 「再點一次取消」不是通用慣例，滑鼠使用者看不出來；鍵盤／讀屏走 aria-selected 與播報
+        if (on) b.title = region.name + '（再點一次取消選取，顯示全部部位）';
         b.append(R.el('span', null, region.name), R.el('span', 'region-count', String(region.count)));
         refs.rail.appendChild(b);
       });
@@ -204,42 +213,46 @@
     U.panels = () => {
       const s = ctx.store.getState();
       R.clear(refs.panels);
-      // panelsFor() 在非急診模式一律回傳空的 redFlags——紅旗隔離只有這一個出口，
+      // panelGroupsFor() 在非急診模式一律回傳空的 redFlags——紅旗隔離只有這一個出口，
       // 渲染層不得自行從 window.CURATED 取 redFlags 繞過它（C5，臨床安全）。
-      for (const panel of ctx.data.panelsFor(s.mode, s.region)) {
-        const card = R.el('article', 'symptom-card blueprint');
-        card.dataset.panel = panel.name;
-        R.blueprint(card);
-        card.appendChild(R.el('h4', 'symptom-card-title', panel.name));
+      for (const group of ctx.data.panelGroupsFor(s.mode, s.region)) {
+        // group.region 只有「顯示全部部位」時才有值（見 data.js panelGroupsFor 的註解）
+        if (group.region) refs.panels.appendChild(R.regionHeading(group.region));
+        for (const panel of group.panels) {
+          const card = R.el('article', 'symptom-card blueprint');
+          card.dataset.panel = panel.name;
+          R.blueprint(card);
+          card.appendChild(R.el('h4', 'symptom-card-title', panel.name));
 
-        const chief = R.el('div', 'chief-group chip-row');
-        for (const chip of R.chipsFromPairs(panel.chief, ctx)) chief.appendChild(chip);
-        card.appendChild(chief);
+          const chief = R.el('div', 'chief-group chip-row');
+          for (const chip of R.chipsFromPairs(panel.chief, ctx)) chief.appendChild(chip);
+          card.appendChild(chief);
 
-        if (panel.redFlags.length) {
-          const box = R.el('div', 'redflag-group');
-          box.appendChild(R.el('div', 'redflag-label', '優先排除／提醒評估'));
-          const row = R.el('div', 'chip-row');
-          for (const chip of R.chipsFromPairs(panel.redFlags, ctx, { warn: true })) row.appendChild(chip);
-          box.appendChild(row);
-          card.appendChild(box);
+          if (panel.redFlags.length) {
+            const box = R.el('div', 'redflag-group');
+            box.appendChild(R.el('div', 'redflag-label', '優先排除／提醒評估'));
+            const row = R.el('div', 'chip-row');
+            for (const chip of R.chipsFromPairs(panel.redFlags, ctx, { warn: true })) row.appendChild(chip);
+            box.appendChild(row);
+            card.appendChild(box);
+          }
+
+          if (panel.diseases.length) {
+            const open = ctx.store.isExpanded(panel.name);
+            const toggle = R.el('button', 'panel-toggle');
+            toggle.type = 'button';
+            toggle.dataset.panelToggle = panel.name;
+            toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+            const marker = R.icon('chevronRight', 14);
+            marker.classList.add('marker');
+            toggle.append(marker, R.el('span', null, open ? '收合常見疾病' : '常見疾病 ' + panel.diseases.length));
+            const body = R.el('div', 'disease-group chip-row');
+            body.hidden = !open;
+            for (const chip of R.chipsFromPairs(panel.diseases, ctx)) body.appendChild(chip);
+            card.append(toggle, body);
+          }
+          refs.panels.appendChild(card);
         }
-
-        if (panel.diseases.length) {
-          const open = ctx.store.isExpanded(panel.name);
-          const toggle = R.el('button', 'panel-toggle');
-          toggle.type = 'button';
-          toggle.dataset.panelToggle = panel.name;
-          toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-          const marker = R.icon('chevronRight', 14);
-          marker.classList.add('marker');
-          toggle.append(marker, R.el('span', null, open ? '收合常見疾病' : '常見疾病 ' + panel.diseases.length));
-          const body = R.el('div', 'disease-group chip-row');
-          body.hidden = !open;
-          for (const chip of R.chipsFromPairs(panel.diseases, ctx)) body.appendChild(chip);
-          card.append(toggle, body);
-        }
-        refs.panels.appendChild(card);
       }
     };
 

@@ -43,17 +43,23 @@
 /* 左：部位／情境 rail（L105-110） */
 #region-rail { border-right: 1px solid var(--color-divider); padding: 12px 0; background: var(--color-neutral-100); }
 #region-rail-title { font-size: 12px; padding: 0 16px 8px; }
-.region-btn {
+/* 「全部」鈕與部位鈕外觀一致（它就是「不篩選」那一個選項），只差沒有右側計數。
+   規則寫在同一組選擇器裡，日後改樣式不會只改到一半。 */
+.region-btn, .region-all-btn {
   display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%;
   padding: 9px 16px; border: 0; border-left: 3px solid transparent; cursor: pointer;
   font: inherit; font-size: 14px; text-align: left; background: transparent; color: var(--color-text);
 }
-.region-btn:hover { background: var(--color-accent-100); }
-.region-btn[aria-selected="true"] {
+.region-btn:hover, .region-all-btn:hover { background: var(--color-accent-100); }
+.region-btn[aria-selected="true"], .region-all-btn[aria-selected="true"] {
   border-left-color: var(--color-accent); background: var(--color-accent-100);
   color: var(--color-accent-800); font-weight: 600;
 }
 .region-count { font-size: 12px; color: var(--color-neutral-700); }
+/* rail 的「全部」與其下的部位之間留一條分隔，讀起來是「全部 ／ 或選一個部位」 */
+body[data-layout="wide"] .region-all-btn {
+  margin-bottom: 4px; padding-bottom: 11px; border-bottom: 1px solid var(--color-divider);
+}
 
 /* 中：主訴工作區（L112-168） */
 .worksheet { padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; }
@@ -62,6 +68,12 @@
 #mode-hint { font-size: 12px; color: var(--color-neutral-700); }
 #panels { display: flex; flex-direction: column; gap: 14px; }
 #panels:empty { display: none; }
+/* 顯示全部部位時每組面板前的部位標題（render-shared 的 regionHeading） */
+body[data-layout="wide"] .region-heading {
+  margin: 4px 0 -4px; padding-bottom: 3px;
+  font-family: var(--font-heading); font-size: 15px; letter-spacing: .08em;
+  color: var(--color-accent-800); border-bottom: 1px solid var(--color-accent);
+}
 
 .symptom-card { padding: 12px 14px; background: transparent; }
 .symptom-card-title {
@@ -117,9 +129,13 @@
   #region-rail-title { padding: 0 6px 0 0; }
   .worksheet { grid-area: sheet; }
   #cart-pane { grid-area: cart; }
-  .region-btn {
+  .region-btn, .region-all-btn {
     width: auto; flex: 0 0 auto; padding: 6px 11px;
     border: 1px solid var(--color-divider); border-left-width: 1px;
   }
-  .region-btn[aria-selected="true"] { border-color: var(--color-accent); border-left-color: var(--color-accent); }
+  .region-btn[aria-selected="true"], .region-all-btn[aria-selected="true"] {
+    border-color: var(--color-accent); border-left-color: var(--color-accent);
+  }
+  /* 橫排 pill 列裡不需要那條分隔線（它是為了直向 rail 才存在的） */
+  body[data-layout="wide"] .region-all-btn { margin-bottom: 0; padding-bottom: 6px; border-bottom-width: 1px; }
 }

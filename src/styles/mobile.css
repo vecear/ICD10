@@ -36,11 +36,13 @@ body[data-layout="mobile"] .m-header {
   display: flex; align-items: center; gap: 8px;
   padding: 10px 14px; border-bottom: 1px solid var(--color-divider);
 }
+/* 徽章現在是可點的控制項，所以要守住 44px 觸控門檻（與 #search／#settings-toggle 同高） */
 body[data-layout="mobile"] #mode-chip {
   flex: none; font-family: var(--font-heading); font-size: 12px; letter-spacing: .06em;
-  padding: 3px 7px; border: 1px solid var(--color-accent);
+  padding: 3px 7px; min-height: 44px; border: 1px solid var(--color-accent);
   color: var(--color-accent-800); background: var(--color-accent-100); white-space: nowrap;
 }
+body[data-layout="mobile"] .mode-opt { min-height: 44px; font-size: 15px; padding: 10px 16px; }
 body[data-layout="mobile"] #search {
   flex: 1; min-width: 0; min-height: 44px;
   font-size: 16px;            /* <16px 會讓行動瀏覽器聚焦時自動放大整頁 */
@@ -66,19 +68,34 @@ body[data-layout="mobile"] #region-pills {
   background: var(--color-neutral-100); min-height: 40px;
   -webkit-overflow-scrolling: touch;
 }
-body[data-layout="mobile"] .region-pill {
+body[data-layout="mobile"] .region-pill,
+body[data-layout="mobile"] .region-all-btn {
   flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px;
   padding: 8px 12px; min-height: 44px;   /* 設計為 40px，補到 44px 觸控門檻 */
   border: 1px solid var(--color-divider); background: transparent;
   cursor: pointer; font: inherit; font-size: 14px; color: var(--color-text);
   white-space: nowrap; border-radius: 0;
 }
-body[data-layout="mobile"] .region-pill[aria-selected="true"] {
+body[data-layout="mobile"] .region-pill[aria-selected="true"],
+body[data-layout="mobile"] .region-all-btn[aria-selected="true"] {
   border-color: var(--color-accent); background: var(--color-accent-100);
   color: var(--color-accent-800); font-weight: 600;
 }
+/* 橫捲列會把「全部」捲出視野；黏在最左邊，任何捲動位置都按得到 */
+body[data-layout="mobile"] .region-all-btn {
+  position: sticky; left: 0; z-index: 2; background: var(--color-neutral-100);
+}
+body[data-layout="mobile"] .region-all-btn[aria-selected="true"] { background: var(--color-accent-100); }
 body[data-layout="mobile"] .region-pill .region-count { font-size: 12px; color: var(--color-neutral-700); }
 body[data-layout="mobile"] .region-pill[aria-selected="true"] .region-count { color: var(--color-accent-800); }
+
+/* 取消部位選取（顯示全部部位）時，每組面板前的部位標題。橫捲 pill 列擠不下說明文字，
+   全部部位的面板要靠這行才分得出來自哪一區。 */
+body[data-layout="mobile"] .region-heading {
+  margin: 4px 0 0; padding: 0 0 4px;
+  font-family: var(--font-heading); font-size: 14px; letter-spacing: .06em;
+  color: var(--color-accent-800); border-bottom: 1px solid var(--color-accent);
+}
 
 /* ── 捲動內容區（L376） ──────────────────────────────────────────────── */
 body[data-layout="mobile"] .m-scroll {

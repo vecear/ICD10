@@ -50,6 +50,31 @@
     while (node.firstChild) node.removeChild(node.firstChild);
   }
 
+  /* 取消部位選取（顯示全部部位）時，插在每組面板前面的部位標題。三套版面共用同一個
+     結構與類名，各自的樣式限定在 styles/{wide,dock,mobile}.css 的 body[data-layout] 之下。
+     用 <h3>：面板標題是 <h4>，這樣讀屏的標題階層才對得起來（1c 沒有面板標題元素，
+     h3 就是那一層唯一的地標）。要不要出現由 data.panelGroupsFor() 決定，渲染層不自己判斷。 */
+  function regionHeading(name) {
+    return el('h3', 'region-heading', name);
+  }
+
+  /* 部位列最前面的「全部」鈕（三套版面共用）。
+     「點已選的部位再點一次取消」三套版面本來就都能用，但沒有任何視覺提示——使用者因此
+     以為只有窄欄有這個功能（原話：「已選取再按一下清除也要在其他介面出現」）。這顆鈕把
+     「目前沒有篩選」變成一個看得見、按得到的狀態；再點一次取消保留為快捷，不移除。
+     刻意**不掛 .region-btn／.region-pill**：那些類名是「一個部位」的意思，事件委派與
+     既有測試都靠它們數部位數量，混進來會讓部位數與部位標題數對不起來。 */
+  function regionAllBtn(active) {
+    const b = el('button', 'region-all-btn', '全部');
+    b.type = 'button';
+    b.dataset.regionAll = '1';
+    b.setAttribute('role', 'tab');
+    b.setAttribute('aria-selected', active ? 'true' : 'false');
+    b.classList.toggle('is-on', active);      // C1-2：不倚賴屬性選擇器單一途徑
+    b.title = active ? '目前顯示全部部位' : '顯示全部部位（取消部位篩選）';
+    return b;
+  }
+
   // ---- chip ----
   /* 附加碼判定一律問資料層（data.js 的 isAdjunct），渲染層不得自己寫一份正則。 */
   const isAdjunctCode = (ctx, code) => !!(ctx && ctx.data
@@ -434,6 +459,9 @@
   }
 
   const MODE_LABEL = { outpatient: '內科門診', emergency: '內科急診', surg: '外科' };
+  /* 1c 的 176px 塞不下全名（「內科門…」）。短標籤集中在這裡一份，render-dock.js 的
+     徽章、設定 popover 的短標籤與模式選單共用，不得各自再抄一份而慢慢分歧。 */
+  const MODE_SHORT = { outpatient: '門診', emergency: '急診', surg: '外科' };
   const PANELS_TITLE = { outpatient: '內科門診主訴', emergency: '內科急診主訴', surg: '常見情境（外科）' };
   const MODE_HINT = {
     outpatient: '主訴優先，常見疾病收合在下',
@@ -441,11 +469,66 @@
     surg: '選擇傷口、外傷或術後情境',
   };
 
+  // ---- header 模式徽章＋三選一選單 ----
+  /* 使用者原話：「我希望可以在圈起來的地方直接切換門急診外科」，圈的就是 header 的
+     #mode-chip。徽章本身變成可操作的控制項：點它就地展開三選一，點一個就切換並關閉。
+     不做循環切換（點一下換下一個）——那會 overshoot，而且看不到還有哪些選項。
+     三套版面共用同一份結構與行為（使用者要求「功能請統一」），只有可見標籤在 1c 用短版。
+
+     設定 popover 裡原有的模式 segmented 保留：兩條動線並存，狀態同源於 store.mode，
+     syncModeSwitch()／syncSettings() 各自從同一份狀態算選中樣式，不會對不起來。 */
+  function modeSwitchEl(short) {
+    const wrap = el('div', 'mode-switch');
+    const chip = el('button', 'mode-chip');
+    chip.type = 'button';
+    chip.id = 'mode-chip';
+    chip.setAttribute('aria-haspopup', 'menu');
+    chip.setAttribute('aria-expanded', 'false');
+    chip.setAttribute('aria-controls', 'mode-menu');
+
+    const menu = el('div', 'mode-menu');
+    menu.id = 'mode-menu';
+    menu.hidden = true;
+    menu.setAttribute('role', 'menu');
+    menu.setAttribute('aria-label', '看診模式');
+    for (const def of MODE_DEFS) {
+      const b = el('button', 'mode-opt', short ? MODE_SHORT[def[0]] : def[1]);
+      b.type = 'button';
+      b.dataset.mode = def[0];
+      b.setAttribute('role', 'menuitemradio');
+      b.setAttribute('aria-checked', 'false');
+      b.title = def[1];               // 短標籤時完整名稱留在 title
+      menu.appendChild(b);
+    }
+    wrap.append(chip, menu);
+    return wrap;
+  }
+
+  function syncModeSwitch(root2, ctx, short) {
+    const s = ctx.store.getState();
+    const chip = root2.querySelector('#mode-chip');
+    const menu = root2.querySelector('#mode-menu');
+    if (chip) {
+      chip.textContent = short ? MODE_SHORT[s.mode] : MODE_LABEL[s.mode];
+      chip.title = '看診模式：' + MODE_LABEL[s.mode] + '（點擊切換門診／急診／外科）';
+      chip.setAttribute('aria-expanded', s.modeMenuOpen ? 'true' : 'false');
+      chip.classList.toggle('is-open', s.modeMenuOpen);
+    }
+    if (!menu) return;
+    menu.hidden = !s.modeMenuOpen;
+    for (const b of menu.querySelectorAll('[data-mode]')) {
+      const on = b.getAttribute('data-mode') === s.mode;
+      b.setAttribute('aria-checked', on ? 'true' : 'false');
+      b.classList.toggle('is-on', on);        // C1-2：不倚賴屬性選擇器單一途徑
+    }
+  }
+
   root.ICDRender = {
-    icon, el, blueprint, clear, chipEl, chipWith, chipsFromPairs, emptyText,
+    icon, el, blueprint, clear, regionHeading, regionAllBtn, chipEl, chipWith, chipsFromPairs, emptyText,
     renderResults, relatedGroups, renderRelated,
     cartItemEl, renderCart, hisText, renderHis, renderShelf,
     settingsPopoverEl, syncSettings, dbNoteText, layoutNoteText, setPressed,
-    FORMAT_LABEL, MODE_LABEL, PANELS_TITLE, MODE_HINT, LAYOUT_LABEL, LAYOUT_MIN_WIDTH,
+    modeSwitchEl, syncModeSwitch,
+    FORMAT_LABEL, MODE_LABEL, MODE_SHORT, PANELS_TITLE, MODE_HINT, LAYOUT_LABEL, LAYOUT_MIN_WIDTH,
   };
 })(typeof self !== 'undefined' ? self : this);

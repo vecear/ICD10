@@ -36,6 +36,7 @@
     layout: ['settings'],
     shelfOpen: ['settings'],
     settingsOpen: ['settings'],
+    modeMenuOpen: ['header'],
     cartOpen: ['cartSheet', 'cartBar'],
     pinned: [],
   };
@@ -52,8 +53,8 @@
 
     // ── header：模式徽章＋搜尋（44px）＋設定鈕（44×44）（L349-368） ──────────
     const header = R.el('header', 'm-header');
-    refs.modeChip = R.el('span', null, R.MODE_LABEL.outpatient);
-    refs.modeChip.id = 'mode-chip';
+    // 模式徽章＝可操作的三選一（與 1a／1c 同一份行為，使用者要求「功能請統一」）
+    refs.modeSwitch = R.modeSwitchEl(false);
 
     const search = document.createElement('input');
     search.id = 'search';
@@ -80,7 +81,7 @@
     const shelfBtn = pop.querySelector('#shelf-toggle');
     if (shelfBtn) shelfBtn.classList.add('is-desktop-only');
 
-    header.append(refs.modeChip, search, settingsToggle, pop);
+    header.append(refs.modeSwitch, search, settingsToggle, pop);
     wrap.appendChild(header);
 
     // ── 部位／情境：橫向捲動 pill 列（L370-374） ──────────────────────────
@@ -170,9 +171,7 @@
     // ── 更新器 ──────────────────────────────────────────────────────────
     const U = {};
 
-    U.header = () => {
-      refs.modeChip.textContent = R.MODE_LABEL[ctx.store.getState().mode];
-    };
+    U.header = () => R.syncModeSwitch(wrap, ctx, false);
 
     // 只在狀態與輸入框不同時回寫（Esc 清空、Enter 加碼後清空），避免打字時游標跳位
     U.searchValue = () => {
@@ -185,7 +184,8 @@
       const surg = s.mode === 'surg';
       refs.pills.setAttribute('aria-label', surg ? '手術情境' : '身體部位');
       R.clear(refs.pills);
-      const active = ctx.data.clampRegion(s.mode, s.region);
+      const active = ctx.data.clampRegion(s.mode, s.region);     // null ＝ 沒有選取任何部位
+      refs.pills.appendChild(R.regionAllBtn(active === null));   // 「全部」固定在橫捲列最前面
       ctx.data.regionsFor(s.mode).forEach((region, i) => {
         // 事件委派認的是 .region-btn＋data-region-index；.region-pill 是 1b 的樣式與測試鉤子
         const b = R.el('button', 'region-btn region-pill');
@@ -193,7 +193,9 @@
         b.dataset.region = region.name;
         b.dataset.regionIndex = String(i);
         b.setAttribute('role', 'tab');
-        b.setAttribute('aria-selected', i === active ? 'true' : 'false');
+        const on = i === active;
+        b.setAttribute('aria-selected', on ? 'true' : 'false');
+        if (on) b.title = region.name + '（再點一次取消選取，顯示全部部位）';
         b.append(R.el('span', null, region.name), R.el('span', 'region-count', String(region.count)));
         refs.pills.appendChild(b);
       });
@@ -202,40 +204,44 @@
     U.panels = () => {
       const s = ctx.store.getState();
       R.clear(refs.panels);
-      // panelsFor() 是紅旗隔離的唯一出口：非急診模式一律回傳空的 redFlags。
+      // panelGroupsFor() 是紅旗隔離的唯一出口：非急診模式一律回傳空的 redFlags。
       // 渲染層不得自行從 window.CURATED 取 redFlags 繞過它（C5，臨床安全）。
-      for (const panel of ctx.data.panelsFor(s.mode, s.region)) {
-        const card = R.el('article', 'mobile-panel');
-        card.dataset.panel = panel.name;
-        card.appendChild(R.el('h4', 'm-panel-title', panel.name));
+      for (const group of ctx.data.panelGroupsFor(s.mode, s.region)) {
+        // group.region 只有「顯示全部部位」時才有值（見 data.js panelGroupsFor 的註解）
+        if (group.region) refs.panels.appendChild(R.regionHeading(group.region));
+        for (const panel of group.panels) {
+          const card = R.el('article', 'mobile-panel');
+          card.dataset.panel = panel.name;
+          card.appendChild(R.el('h4', 'm-panel-title', panel.name));
 
-        const rows = R.el('div', 'm-rows');
-        for (const chip of R.chipsFromPairs(panel.chief, ctx, { className: 'chip--row' })) rows.appendChild(chip);
+          const rows = R.el('div', 'm-rows');
+          for (const chip of R.chipsFromPairs(panel.chief, ctx, { className: 'chip--row' })) rows.appendChild(chip);
 
-        /* 設計稿把紅旗直接混進同一串列、只靠配色區分（L583）。這裡多留一行標題：
-           整列都是灰底白字的手機畫面上，只有邊框變色不足以說明「這些要優先排除」。 */
-        if (panel.redFlags.length) {
-          rows.appendChild(R.el('div', 'redflag-label m-redflag-label', '優先排除／提醒評估'));
-          for (const chip of R.chipsFromPairs(panel.redFlags, ctx, { warn: true, className: 'chip--row' })) {
-            rows.appendChild(chip);
+          /* 設計稿把紅旗直接混進同一串列、只靠配色區分（L583）。這裡多留一行標題：
+             整列都是灰底白字的手機畫面上，只有邊框變色不足以說明「這些要優先排除」。 */
+          if (panel.redFlags.length) {
+            rows.appendChild(R.el('div', 'redflag-label m-redflag-label', '優先排除／提醒評估'));
+            for (const chip of R.chipsFromPairs(panel.redFlags, ctx, { warn: true, className: 'chip--row' })) {
+              rows.appendChild(chip);
+            }
           }
-        }
 
-        const open = ctx.store.isExpanded(panel.name);
-        if (open && panel.diseases.length) {
-          for (const chip of R.chipsFromPairs(panel.diseases, ctx, { className: 'chip--row' })) rows.appendChild(chip);
-        }
-        card.appendChild(rows);
+          const open = ctx.store.isExpanded(panel.name);
+          if (open && panel.diseases.length) {
+            for (const chip of R.chipsFromPairs(panel.diseases, ctx, { className: 'chip--row' })) rows.appendChild(chip);
+          }
+          card.appendChild(rows);
 
-        if (panel.diseases.length) {
-          const toggle = R.el('button', 'panel-toggle');
-          toggle.type = 'button';
-          toggle.dataset.panelToggle = panel.name;
-          toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-          toggle.textContent = open ? '收合常見疾病' : '展開常見疾病 ' + panel.diseases.length;
-          card.appendChild(toggle);
+          if (panel.diseases.length) {
+            const toggle = R.el('button', 'panel-toggle');
+            toggle.type = 'button';
+            toggle.dataset.panelToggle = panel.name;
+            toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+            toggle.textContent = open ? '收合常見疾病' : '展開常見疾病 ' + panel.diseases.length;
+            card.appendChild(toggle);
+          }
+          refs.panels.appendChild(card);
         }
-        refs.panels.appendChild(card);
       }
     };
 

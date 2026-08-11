@@ -76,6 +76,7 @@ def reset(pg):
         const s = window.ICDApp.store;
         s.clearCart();
         s.setMode('outpatient');
+        s.setRegion(0);          // 取消選取（region=null）會跨模式保留，這裡明確歸位
         s.setQuery('');
         s.setFormat('lines');
         s.setSettingsOpen(false);
@@ -207,6 +208,127 @@ def test_region_pills_scroll_horizontally(page):
     second.click()
     expect(page.locator(f'.region-pill[data-region="{name}"]')).to_have_attribute("aria-selected", "true")
     expect(page.locator(".mobile-panel").first).to_be_visible()
+
+
+def test_region_toggle_clears_selection_and_shows_all(page):
+    """已選的部位再點一次＝取消選取，改顯示全部部位的面板卡，且不得撐出水平捲動。
+
+    橫捲 pill 列擠不下「目前顯示全部」的說明，所以取消後靠每組面板前的部位標題辨識來源。
+    """
+    reset(page)
+    pills = page.locator(".region-pill")
+    region_count = pills.count()
+    second = pills.nth(1)
+    second.click()
+    expect(second).to_have_attribute("aria-selected", "true")
+    one_region_cards = page.locator(".mobile-panel").count()
+    assert page.locator("#panels .region-heading").count() == 0, "選了部位時不該出現部位標題"
+
+    second.click()
+    expect(second).to_have_attribute("aria-selected", "false")
+    assert page.locator('.region-pill[aria-selected="true"]').count() == 0, "取消後仍有部位被標為選取"
+    assert page.evaluate("() => window.ICDApp.store.getState().region") is None
+
+    total = page.evaluate(
+        """() => {
+            const d = window.ICDApp.data, mode = window.ICDApp.store.getState().mode;
+            return d.regionsFor(mode).reduce((n, r, i) => n + d.panelsFor(mode, i).length, 0);
+        }"""
+    )
+    expect(page.locator(".mobile-panel")).to_have_count(total)
+    assert total > one_region_cards, f"顯示全部（{total}）沒有比單一部位（{one_region_cards}）多"
+    expect(page.locator("#panels .region-heading")).to_have_count(region_count)
+    assert_no_h_scroll(page, "取消部位選取")
+    # 底部固定列仍在視野內（顯示全部把捲動區拉長，不得把它擠掉）
+    expect(page.locator("#cart-bar")).to_be_visible()
+
+    pills.nth(0).click()
+    expect(pills.nth(0)).to_have_attribute("aria-selected", "true")
+    assert page.locator("#panels .region-heading").count() == 0
+
+
+def test_mode_chip_menu_switches_mode(page):
+    """模式徽章本身可切換：點它就地展開三選一（1a／1c／1b 同一份行為）。
+
+    手機專屬條件：徽章與選項都是 ≥44px 的觸控目標，展開後不得撐出水平捲動。
+    """
+    reset(page)
+    chip = page.locator("#mode-chip")
+    menu = page.locator("#mode-menu")
+    expect(chip).to_have_attribute("aria-haspopup", "menu")
+    expect(chip).to_have_attribute("aria-expanded", "false")
+    expect(menu).to_be_hidden()
+    assert box(chip)["height"] >= 43.5, f"徽章是可點的控制項，高度只有 {box(chip)['height']:.1f}px"
+
+    chip.click()
+    expect(chip).to_have_attribute("aria-expanded", "true")
+    expect(menu).to_be_visible()
+    opts = menu.locator("[data-mode]")
+    expect(opts).to_have_count(3)
+    expect(menu.locator('[data-mode="outpatient"]')).to_have_attribute("aria-checked", "true")
+    heights = page.eval_on_selector_all(
+        "#mode-menu [data-mode]", "(els) => els.map((e) => e.getBoundingClientRect().height)"
+    )
+    assert min(heights) >= 43.5, f"選項最矮只有 {min(heights):.1f}px（觸控門檻 44）"
+    assert_no_h_scroll(page, "模式選單展開")
+
+    menu.locator('[data-mode="emergency"]').click()
+    expect(menu).to_be_hidden()
+    expect(page.locator("body")).to_have_attribute("data-mode", "emergency")
+    expect(chip).to_have_text("內科急診")
+
+    # 兩條動線同步：設定 sheet 裡的 segmented 也要跟著選中
+    page.click("#settings-toggle")
+    expect(page.locator("#mode-er")).to_have_attribute("aria-pressed", "true")
+    page.keyboard.press("Escape")
+
+    chip.click()
+    expect(menu).to_be_visible()
+    page.keyboard.press("Escape")
+    expect(menu).to_be_hidden()
+    assert page.evaluate("() => document.activeElement.id") == "mode-chip"
+
+    chip.click()
+    expect(menu).to_be_visible()
+    page.locator("#cart-bar").click(position={"x": 5, "y": 5})     # 外點關閉
+    expect(menu).to_be_hidden()
+    reset(page)
+
+
+def test_region_all_button(page):
+    """橫捲部位列最前面的「全部」鈕：未選部位時＝選中，點它＝取消部位篩選。
+
+    手機專屬條件：它黏在最左邊（sticky），捲到最右邊也按得到，且高度守住 44px。
+    """
+    reset(page)
+    all_btn = page.locator(".region-all-btn")
+    pills = page.locator(".region-pill")
+    expect(all_btn).to_have_count(1)
+    region_count = pills.count()
+    assert box(all_btn)["height"] >= 43.5, f"「全部」高度只有 {box(all_btn)['height']:.1f}px"
+    assert box(all_btn)["x"] < box(pills.nth(0))["x"], "「全部」不在部位列最前面"
+
+    expect(all_btn).to_have_attribute("aria-selected", "false")
+    all_btn.click()
+    expect(all_btn).to_have_attribute("aria-selected", "true")
+    assert page.evaluate("() => window.ICDApp.store.getState().region") is None
+    assert page.locator('.region-pill[aria-selected="true"]').count() == 0
+    expect(page.locator("#panels .region-heading")).to_have_count(region_count)
+    assert_no_h_scroll(page, "「全部」選中")
+
+    # 橫捲到最右邊仍然按得到（sticky 黏在左緣）：第一顆部位已被捲出視窗，「全部」沒有
+    page.eval_on_selector("#region-pills", "(el) => { el.scrollLeft = el.scrollWidth; }")
+    page.wait_for_timeout(60)
+    assert box(pills.nth(0))["x"] < 0, "部位列沒有真的捲動，測不到 sticky"
+    assert box(all_btn)["x"] >= -0.5, f"捲到最右邊後「全部」被捲走了（x={box(all_btn)['x']:.0f}）"
+
+    page.eval_on_selector("#region-pills", "(el) => { el.scrollLeft = 0; }")
+    pills.nth(1).click()
+    expect(all_btn).to_have_attribute("aria-selected", "false")
+    assert page.locator("#panels .region-heading").count() == 0
+    # 既有的「再點一次取消」快捷保留，結果與按「全部」一致
+    pills.nth(1).click()
+    expect(all_btn).to_have_attribute("aria-selected", "true")
 
 
 def test_panel_cards_and_48px_code_rows(page):

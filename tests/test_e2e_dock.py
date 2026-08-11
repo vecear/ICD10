@@ -72,6 +72,7 @@ def reset(page):
         const s = window.ICDApp.store;
         s.clearCart();
         s.setMode('outpatient');
+        s.setRegion(0);          // 取消選取（region=null）會跨模式保留，這裡明確歸位
         s.setQuery('');
         s.setSettingsOpen(false);
         s.setCartOpen(true);
@@ -195,6 +196,42 @@ def test_region_pills_two_columns_no_hscroll(pg):
     expect(pills.nth(2)).to_have_attribute("aria-selected", "true")
     expect(pills.nth(0)).to_have_attribute("aria-selected", "false")
     assert pg.locator("#dock-panels .dock-panel").count() >= 1
+
+
+def test_region_toggle_clears_selection_and_shows_all(pg):
+    """已選的部位再點一次＝取消選取，改顯示全部部位的面板，且 176px 下不得破版。
+
+    取消後每組面板前會多一條部位標題（1c 擠不下說明文字，全靠這條分辨來源部位），
+    標題本身也必須守住「不得水平捲動、不得跑出視窗」這條硬性性質。
+    """
+    pills = pg.locator("#region-pills .region-btn")
+    region_count = pills.count()
+    second = pills.nth(1)
+    second.click()
+    expect(second).to_have_attribute("aria-selected", "true")
+    one_region_panels = pg.locator("#dock-panels .dock-panel").count()
+    assert pg.locator("#dock-panels .region-heading").count() == 0, "選了部位時不該出現部位標題"
+
+    second.click()
+    expect(second).to_have_attribute("aria-selected", "false")
+    assert pg.locator('#region-pills .region-btn[aria-selected="true"]').count() == 0, "取消後仍有部位被標為選取"
+    assert pg.evaluate("() => window.ICDApp.store.getState().region") is None
+
+    total = pg.evaluate(
+        """() => {
+            const d = window.ICDApp.data, mode = window.ICDApp.store.getState().mode;
+            return d.regionsFor(mode).reduce((n, r, i) => n + d.panelsFor(mode, i).length, 0);
+        }"""
+    )
+    expect(pg.locator("#dock-panels .dock-panel")).to_have_count(total)
+    assert total > one_region_panels, f"顯示全部（{total}）沒有比單一部位（{one_region_panels}）多"
+    expect(pg.locator("#dock-panels .region-heading")).to_have_count(region_count)
+    assert_no_hscroll(pg, "取消部位選取")
+    assert overflowing_elements(pg) == [], "顯示全部時有元素破版"
+
+    pills.nth(0).click()
+    expect(pills.nth(0)).to_have_attribute("aria-selected", "true")
+    assert pg.locator("#dock-panels .region-heading").count() == 0
 
 
 # ---- 面板展開／收合 ----
@@ -389,6 +426,89 @@ def test_settings_popover_fits_and_switches_mode(pg):
     expect(pg.locator("#settings-popover")).to_be_hidden()
     expect(pg.locator("#mode-chip")).to_have_text("急診")
     assert pg.get_attribute("body", "data-mode") == "emergency"
+
+
+def test_mode_chip_menu_switches_mode(pg):
+    """模式徽章本身可切換：點它就地展開三選一（1a／1b／1c 同一份行為）。
+
+    1c 專屬的硬性條件：選單展開時 176px 下仍不得水平溢出、選項不得跑出視窗。
+    """
+    chip = pg.locator("#mode-chip")
+    menu = pg.locator("#mode-menu")
+    expect(chip).to_have_attribute("aria-haspopup", "menu")
+    expect(chip).to_have_attribute("aria-expanded", "false")
+    expect(menu).to_be_hidden()
+
+    chip.click()
+    expect(chip).to_have_attribute("aria-expanded", "true")
+    expect(menu).to_be_visible()
+    opts = menu.locator("[data-mode]")
+    expect(opts).to_have_count(3)
+    # 176px 用短標籤，完整名稱留在 title
+    expect(menu.locator('[data-mode="outpatient"]')).to_have_text("門診")
+    expect(menu.locator('[data-mode="outpatient"]')).to_have_attribute("title", "內科門診")
+    expect(menu.locator('[data-mode="outpatient"]')).to_have_attribute("aria-checked", "true")
+    for i in range(opts.count()):
+        box = opts.nth(i).bounding_box()
+        assert box["x"] >= 0 and box["x"] + box["width"] <= DOCK["width"] + 0.5, f"選項溢出：{box}"
+    assert_no_hscroll(pg, "模式選單展開")
+    assert overflowing_elements(pg) == [], "模式選單展開時有元素破版"
+
+    menu.locator('[data-mode="surg"]').click()
+    expect(menu).to_be_hidden()
+    assert pg.get_attribute("body", "data-mode") == "surg"
+    expect(chip).to_have_text("外科")
+
+    # 兩條動線同步：設定 popover 裡的 segmented 也要跟著選中
+    open_settings(pg)
+    expect(pg.locator("#mode-surg")).to_have_attribute("aria-pressed", "true")
+    pg.keyboard.press("Escape")
+
+    # Esc 關閉並把焦點還給徽章
+    chip.click()
+    expect(menu).to_be_visible()
+    pg.keyboard.press("Escape")
+    expect(menu).to_be_hidden()
+    assert pg.evaluate("() => document.activeElement.id") == "mode-chip"
+
+    # 點外面關閉
+    chip.click()
+    expect(menu).to_be_visible()
+    pg.click("#region-pills")
+    expect(menu).to_be_hidden()
+
+
+def test_region_all_button(pg):
+    """部位兩欄 grid 最前面的「全部」鈕：未選部位時＝選中，點它＝取消部位篩選。
+
+    「全部」橫跨兩欄（它不是某一區），且不得被算成一個部位——部位數與部位標題數
+    必須仍然對得上。
+    """
+    all_btn = pg.locator("#region-pills .region-all-btn")
+    pills = pg.locator("#region-pills .region-btn")
+    expect(all_btn).to_have_count(1)
+    region_count = pills.count()
+    assert region_count >= 4
+
+    box = all_btn.bounding_box()
+    first_pill = pills.nth(0).bounding_box()
+    assert box["y"] < first_pill["y"], "「全部」鈕不在部位列最前面"
+    assert box["width"] > first_pill["width"] * 1.5, "「全部」應橫跨兩欄"
+    assert box["x"] >= 0 and box["x"] + box["width"] <= DOCK["width"] + 0.5, f"「全部」溢出：{box}"
+
+    expect(all_btn).to_have_attribute("aria-selected", "false")
+    all_btn.click()
+    expect(all_btn).to_have_attribute("aria-selected", "true")
+    assert pg.evaluate("() => window.ICDApp.store.getState().region") is None
+    assert pg.locator('#region-pills .region-btn[aria-selected="true"]').count() == 0
+    expect(pg.locator("#dock-panels .region-heading")).to_have_count(region_count)
+    assert_no_hscroll(pg, "「全部」選中")
+
+    # 選一個部位 → 「全部」退選；既有的「再點一次取消」快捷仍然把它亮回來
+    pills.nth(1).click()
+    expect(all_btn).to_have_attribute("aria-selected", "false")
+    pills.nth(1).click()
+    expect(all_btn).to_have_attribute("aria-selected", "true")
 
 
 # ---- 置頂（Document PiP） ----
