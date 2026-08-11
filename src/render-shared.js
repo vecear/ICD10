@@ -51,9 +51,18 @@
   }
 
   // ---- chip ----
-  /* 唯一的加碼入口。opts: {warn, cat, className, label, title}
+  /* 附加碼判定一律問資料層（data.js 的 isAdjunct），渲染層不得自己寫一份正則。 */
+  const isAdjunctCode = (ctx, code) => !!(ctx && ctx.data
+    && typeof ctx.data.isAdjunct === 'function' && ctx.data.isAdjunct(code));
+
+  /* 唯一的加碼入口。opts: {warn, cat, adjunct, star, className, title}
      `data-leaf` 讓測試與委派都能判斷葉碼；類目碼用 aria-disabled 而非 disabled——
-     disabled 會讓 Playwright 的可操作性檢查直接拒絕點擊，就測不到「點了也加不進去」。 */
+     disabled 會讓 Playwright 的可操作性檢查直接拒絕點擊，就測不到「點了也加不進去」。
+
+     中文標籤的 <span> 掛 `.chip-zh`：委派層要靠它取標籤文字，用 querySelector('span')
+     會在 ★chip 上取到 icon 的 span（R2 M1）。
+     附加碼的「附加碼」標記用 <i class="chip-tag"> 而不是 <span>：1c／1b 都有
+     `.chip--dock span`／`.chip--row span` 的 flex 與 ellipsis 規則，用 span 會被裁掉。 */
   function chipEl(code, label, opts) {
     const o = opts || {};
     const b = document.createElement('button');
@@ -61,9 +70,11 @@
     b.className = 'chip'
       + (o.warn ? ' chip--warn' : '')
       + (o.cat ? ' cat' : '')
+      + (o.adjunct ? ' chip--adjunct' : '')
       + (o.className ? ' ' + o.className : '');
     b.dataset.code = code;
     b.dataset.leaf = o.cat ? '0' : '1';
+    if (o.adjunct) b.dataset.adjunct = '1';
     if (o.cat) b.setAttribute('aria-disabled', 'true');
     if (o.star) {
       const star = icon('star', 12);
@@ -71,10 +82,20 @@
       b.appendChild(star);
     }
     const strong = el('b', null, code);
-    const span = el('span', null, label || '');
+    const span = el('span', 'chip-zh', label || '');
     b.append(strong, span);
-    b.title = o.title || (code + (label ? ' ' + label : '') + (o.cat ? '（類目碼，不可申報）' : ''));
+    if (o.adjunct) b.appendChild(el('i', 'chip-tag', '附加碼'));
+    const base = o.title || (code + (label ? ' ' + label : '') + (o.cat ? '（類目碼，不可申報）' : ''));
+    b.title = base + (o.adjunct ? '（附加碼：只能附加在主要疾病之後，不可作為主診斷）' : '');
     return b;
+  }
+
+  /* 帶 ctx 的 chip 建構：自動補上附加碼標記。凡是能拿到 ctx 的建構點都要走這裡，
+     否則附加碼只在部分區域看得出來（相關碼推薦區正是原本漏掉的那一塊）。 */
+  function chipWith(ctx, code, label, opts) {
+    const o = Object.assign({}, opts);
+    if (isAdjunctCode(ctx, code)) o.adjunct = true;
+    return chipEl(code, label, o);
   }
 
   /* [[code, label], …] → chip 陣列；label 空白時回頭查 CURATED_LABELS／全庫。 */
@@ -82,7 +103,7 @@
     const out = [];
     for (const pair of pairs || []) {
       const code = pair[0];
-      out.push(chipEl(code, pair[1] || ctx.data.labelOf(code), opts));
+      out.push(chipWith(ctx, code, pair[1] || ctx.data.labelOf(code), opts));
     }
     return out;
   }
@@ -94,6 +115,21 @@
     error: '全庫載入失敗，僅顯示精選面板結果',
     ready: '',
   };
+
+  /* 空狀態文案。全庫未就緒時的搜尋來源是精選池，而精選池沒有英文欄（建置期只注入中文），
+     此時叫使用者「試試英文」是唯一保證無效的建議（R2 I1）——依 pool／dbState 給誠實
+     而且真的可行的下一步。 */
+  const EMPTY_FULL = '查無結果，試試英文名稱或代碼前綴';
+  const EMPTY_CURATED = {
+    idle: '查無結果。全庫尚未載入，目前只搜尋精選面板；請改用中文或代碼前綴',
+    loading: '查無結果。全庫索引載入中，就緒後即可搜尋英文；目前請改用中文或代碼前綴',
+    error: '查無結果。全庫無法載入，目前只搜尋精選面板的中文與代碼；可在設定面板重新載入全庫',
+    ready: '查無結果，試試英文名稱或代碼前綴',
+  };
+
+  const emptyText = (pool, dbState) => (pool === 'full'
+    ? EMPTY_FULL
+    : EMPTY_CURATED[dbState] || EMPTY_CURATED.idle);
 
   /* card 是外層（要 hidden 切換），host 是 chip 容器，note 是右上角說明。 */
   function renderResults(card, host, note, ctx) {
@@ -108,13 +144,13 @@
     card.hidden = false;
     const rows = ctx.data.search(q);
     if (!rows.length) {
-      host.appendChild(el('span', 'result-empty', '查無結果，試試英文或代碼前綴'));
+      host.appendChild(el('span', 'result-empty', emptyText(rows.pool, s.dbState)));
       note.textContent = rows.pool === 'full' ? '' : DB_NOTE[s.dbState] || '';
       return;
     }
     for (const row of rows) {
       const leaf = row[1] === 1;
-      host.appendChild(chipEl(row[0], row[3], { cat: !leaf }));
+      host.appendChild(chipWith(ctx, row[0], row[3], { cat: !leaf }));
     }
     if (rows.pool === 'full') {
       note.textContent = '全庫命中 ' + rows.total.toLocaleString() + ' 筆'
@@ -152,7 +188,7 @@
       const wrap = el('div', 'related-group');
       wrap.appendChild(el('div', 'group-label', group.label));
       const row = el('div', 'chip-row');
-      for (const code of group.codes) row.appendChild(chipEl(code, ctx.data.labelOf(code)));
+      for (const code of group.codes) row.appendChild(chipWith(ctx, code, ctx.data.labelOf(code)));
       wrap.appendChild(row);
       host.appendChild(wrap);
     }
@@ -161,17 +197,24 @@
   // ---- 就診清單 ----
   function cartItemEl(item, i, ctx) {
     const fav = ctx.store.isFav(item.code);
+    const adjunct = isAdjunctCode(ctx, item.code);
     const li = document.createElement('li');
     li.dataset.code = item.code;
     li.draggable = true;
     li.tabIndex = 0;
     li.title = '拖曳可調整順序（或用 Alt+↑／Alt+↓）';
+    if (adjunct) li.classList.add('is-adjunct');
 
     const grip = icon('grip', 14);
     grip.classList.add('cart-grip');
     const badge = el('span', 'cart-badge', i === 0 ? '主' : String(i + 1));
     if (i === 0) badge.dataset.primary = 'true';
     badge.title = i === 0 ? '主診斷' : '第 ' + (i + 1) + ' 順位';
+    // 附加碼（B95–B97／Z16）站在第一位＝主診斷錯誤，徽章要自己看得出來
+    if (adjunct && i === 0) {
+      badge.dataset.warn = 'true';
+      badge.title = '附加碼不可作為主診斷：請加入主要疾病並把它排到第一位';
+    }
 
     const code = el('b', 'cart-code', item.code);
     code.title = '點擊複製此碼';
@@ -190,7 +233,10 @@
     remove.title = '移除';
     remove.appendChild(icon('x', 14));
 
-    li.append(grip, badge, code, zh, primary, favBtn, remove);
+    li.append(grip, badge, code, zh);
+    // 標記放在 .cart-zh 之外：那個 span 有 ellipsis，寫成 ::after 會被中文名擠掉一半
+    if (adjunct) li.appendChild(el('i', 'chip-tag', '附加碼'));
+    li.append(primary, favBtn, remove);
     return li;
   }
 
@@ -200,6 +246,11 @@
     s.cart.forEach((item, i) => ul.appendChild(cartItemEl(item, i, ctx)));
     if (empty) empty.hidden = s.cart.length > 0;
     if (count) count.textContent = s.cart.length ? String(s.cart.length) : '';
+    /* 第一位是附加碼時掛旗標，由 CSS 的 ::before 顯示整條警示（三套版面共用 #cart）。
+       刻意不插一個 <li>：#cart 的 li 索引就是清單順序，拖曳換序的 indexOfRow()
+       與 Alt+↑↓ 都直接用 children 索引，多一列非代碼的 li 會讓換序全部錯位。 */
+    if (s.cart.length && isAdjunctCode(ctx, s.cart[0].code)) ul.dataset.primaryAdjunct = 'true';
+    else delete ul.dataset.primaryAdjunct;
   }
 
   // ---- 貼入 HIS ----
@@ -228,13 +279,13 @@
     const s = ctx.store.getState();
     clear(host);
     for (const code of s.favs) {
-      host.appendChild(chipEl(code, ctx.data.labelOf(code), {
+      host.appendChild(chipWith(ctx, code, ctx.data.labelOf(code), {
         className: 'shelf-chip is-fav', star: true, title: '★ ' + code + ' ' + ctx.data.labelOf(code),
       }));
     }
     for (const code of s.recent) {
       if (s.favs.indexOf(code) >= 0) continue;
-      host.appendChild(chipEl(code, ctx.data.labelOf(code), { className: 'shelf-chip' }));
+      host.appendChild(chipWith(ctx, code, ctx.data.labelOf(code), { className: 'shelf-chip' }));
     }
     if (empty) {
       empty.hidden = !!(s.favs.length || s.recent.length);
@@ -300,6 +351,13 @@
     const note = el('div', 'settings-note', '');
     note.id = 'db-note';
     pop.appendChild(note);
+    /* 全庫載入失敗時的唯一出路。沒有這顆鈕，ensureDb() 會一直回傳快取起來的失敗 Promise，
+       使用者只能重新開啟整個 HTML 檔（R2 I2）。只在 dbState==='error' 時顯示。 */
+    const retry = el('button', 'btn btn-secondary db-retry', '重新載入全庫');
+    retry.type = 'button';
+    retry.id = 'db-retry';
+    retry.hidden = true;
+    pop.appendChild(retry);
     return pop;
   }
 
@@ -367,6 +425,8 @@
     }
     const note = root2.querySelector('#db-note');
     if (note) note.textContent = dbNoteText(ctx);
+    const retry = root2.querySelector('#db-retry');
+    if (retry) retry.hidden = s.dbState !== 'error';
     const pop = root2.querySelector('#settings-popover');
     const toggle = root2.querySelector('#settings-toggle');
     if (pop) pop.hidden = !s.settingsOpen;
@@ -382,7 +442,7 @@
   };
 
   root.ICDRender = {
-    icon, el, blueprint, clear, chipEl, chipsFromPairs,
+    icon, el, blueprint, clear, chipEl, chipWith, chipsFromPairs, emptyText,
     renderResults, relatedGroups, renderRelated,
     cartItemEl, renderCart, hisText, renderHis, renderShelf,
     settingsPopoverEl, syncSettings, dbNoteText, layoutNoteText, setPressed,

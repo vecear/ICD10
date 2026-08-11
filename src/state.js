@@ -211,7 +211,15 @@
     }
 
     // ---- 清單 ----
-    const bumpRecent = (code) => [code].concat(state.recent.filter((c) => c !== code)).slice(0, RECENT_LIMIT);
+    /* 最近使用：最新在前。內容沒變時**回傳原陣列**——setState 用 Object.is 判斷變更，
+       每次都給新陣列會讓「再點一次同一個已在最前面的碼」也被當成變更，白寫一次
+       localStorage 並多跑一輪常用列重繪（R2 M7）。 */
+    function bumpRecent(code) {
+      const prev = state.recent;
+      const next = [code].concat(prev.filter((c) => c !== code)).slice(0, RECENT_LIMIT);
+      if (prev.length === next.length && prev.every((c, i) => c === next[i])) return prev;
+      return next;
+    }
 
     /* 加入代碼。row 是搜尋結果自帶的資料列（[code, leaf, en, zh]），交給 canAdd 做葉碼複查。
        回傳 'added' | 'duplicate' | 'rejected'。 */

@@ -332,6 +332,8 @@ def test_cart_sheet_primary_and_remove(page):
     expect(page.locator("#cart-toggle")).to_have_attribute("aria-expanded", "true")
 
     # 拖曳把手與 draggable 都不該存在（觸控裝置不觸發 HTML5 DnD，留著是假可供性）
+    # 先確定真的有列可驗：count()==0 與 every() 在空清單上都會「靜默通過」
+    expect(page.locator("#cart li")).to_have_count(2)
     assert page.locator("#cart li .cart-grip").count() == 0
     assert page.eval_on_selector_all("#cart li", "(els) => els.every((e) => e.draggable === false)")
 
@@ -489,3 +491,155 @@ def test_no_page_errors_during_main_flow(browser_ctx, page_url):
         assert errors == [], f"主要動線丟出例外：{errors}"
     finally:
         pg.close()
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# R2 測試盲點補強（.review/r2-pipeline.md (b) 第 2、7 條）
+# ══════════════════════════════════════════════════════════════════════════
+def inject_probe_chips(pg, codes):
+    """注入「沒有 .cat class」的可點 chip，繞過 UI 層標記直接走事件委派進 addCode()。
+
+    正常渲染會替非葉碼加上 .cat（委派據此擋掉），所以 store 的 canAdd → data.isAddable()
+    那條防線在一般操作下永遠走不到。這裡刻意製造「上游防線被繞過」的情境。
+    """
+    pg.evaluate(
+        """(codes) => {
+            document.getElementById('probe-chips')?.remove();
+            const box = document.createElement('div');
+            box.id = 'probe-chips';
+            box.style.cssText = 'position:fixed;left:0;top:0;z-index:999999;background:#fff';
+            for (const code of codes) {
+                const b = document.createElement('button');
+                b.className = 'chip';          // 刻意不加 .cat
+                b.dataset.code = code;
+                b.textContent = code;
+                box.appendChild(b);
+            }
+            document.body.appendChild(box);
+        }""",
+        codes,
+    )
+
+
+def test_addcode_rejects_non_leaf_and_unknown_codes(page):
+    """葉碼防呆在手機版也必須真的擋住（R-4，臨床安全）。
+
+    M4 變異（isAddable 一律回 true）原本只有 wide 版面的 E2E 抓得到，1b／1c 都沒有
+    對應測試——三套版面共用同一條防線，卻只有一套被真的練到。
+    """
+    reset(page)
+    errors = []
+    page.on("pageerror", lambda exc: errors.append(str(exc)))
+    try:
+        # 陽性對照：注入的葉碼必須真的進得了清單 → 證明事件委派確實抵達 addCode
+        inject_probe_chips(page, ["E11.9"])
+        page.click('#probe-chips .chip[data-code="E11.9"]')
+        expect(page.locator('#cart li[data-code="E11.9"]')).to_have_count(1)
+        expect(page.locator("#cart-inline")).to_contain_text("E11.9")
+
+        probes = ["E11", "A00", "K11", "ZZZ99"]
+        inject_probe_chips(page, probes)
+        for code in probes:
+            page.click(f'#probe-chips .chip[data-code="{code}"]')
+            expect(page.locator(f'#cart li[data-code="{code}"]')).to_have_count(0)
+        assert page.locator("#cart li").count() == 1, \
+            f"類目碼／不存在代碼被加進清單（葉碼防呆失效）：{page.locator('#cart-inline').inner_text()}"
+    finally:
+        page.evaluate("() => document.getElementById('probe-chips')?.remove()")
+        reset(page)
+    assert not errors, f"addCode() 對非葉碼/不存在代碼拋出未捕捉例外：{errors}"
+
+
+def test_preferences_persist_across_reload_on_mobile(browser_ctx, page_url):
+    """手機版的偏好（格式／主題／最愛）必須跨重整存活，就診清單則不得跨診次殘留。
+
+    盲點 7：wide 有 test_favourite_toggle_and_persist／test_layout_preference_persists，
+    dock 有 test_switch_layout_from_settings，1b 兩類都缺席。持久化是共用 store，
+    但手機是唯一沒有常用列的版面，寫入路徑（cart sheet 裡的 ★）與桌機不同。
+    """
+    pg = browser_ctx.new_page()
+    try:
+        pg.goto(page_url)
+        pg.wait_for_selector('body[data-ready="1"]', timeout=8000)
+        pg.evaluate("() => { try { localStorage.clear(); } catch (e) {} }")
+
+        pg.locator("#panels .chip--row").first.click()
+        code = pg.evaluate("() => window.ICDApp.store.getState().cart[0].code")
+        pg.click("#cart-toggle")
+        expect(pg.locator("#cart-sheet")).to_be_visible()
+        fav = pg.locator(f'#cart li[data-code="{code}"] .cart-fav')
+        expect(fav).to_have_attribute("aria-pressed", "false")
+        fav.click()
+        expect(fav).to_have_attribute("aria-pressed", "true")
+
+        pg.click("#settings-toggle")
+        pg.click('#seg-format button[data-format="comma"]')
+        pg.click("#theme-toggle")                     # 深色模式鈕在設定 sheet 裡，先別關
+        pg.keyboard.press("Escape")
+        expect(pg.locator("#settings-popover")).to_be_hidden()
+        expect(pg.locator("html")).to_have_attribute("data-theme", "dark")
+        # 真的寫進 localStorage 了嗎（記憶體降級也會讓上面的斷言通過）
+        assert pg.evaluate("() => Object.keys(localStorage).length") > 0, "偏好完全沒寫進 localStorage"
+
+        pg.reload()
+        pg.wait_for_selector('body[data-ready="1"]', timeout=8000)
+        assert pg.evaluate("() => document.body.dataset.layout") == "mobile"
+        expect(pg.locator("html")).to_have_attribute("data-theme", "dark")
+        expect(pg.locator("#his-format-label")).to_have_text("逗號分隔")
+        assert pg.evaluate("() => window.ICDApp.store.getState().format") == "comma"
+        expect(pg.locator("#cart li")).to_have_count(0)              # 清單不跨診次
+        expect(pg.locator("#cart-inline")).to_have_text("尚未選碼")
+        assert pg.evaluate("() => window.ICDApp.store.getState().favs") == [code], "最愛沒有存活"
+        assert code in pg.evaluate("() => window.ICDApp.store.getState().recent"), "最近使用沒有存活"
+
+        # 重新加入同一個碼，★ 必須已經是亮的（持久化真的回到了 UI，不只回到 store）
+        pg.locator(f'#panels .chip[data-code="{code}"]').first.click()
+        pg.click("#cart-toggle")
+        expect(pg.locator(f'#cart li[data-code="{code}"] .cart-fav')).to_have_attribute("aria-pressed", "true")
+    finally:
+        pg.evaluate("() => { try { localStorage.clear(); } catch (e) {} }")
+        pg.close()
+
+
+def test_no_duplicate_ids(page):
+    """契約：同一時刻只掛一套版面，所以 #search／#cart／#copy-all 等 id 必須全域唯一。
+
+    盲點 7：wide 與 dock 都有這條，1b 缺席。歷史上真的發生過兩套版面同時掛載、
+    產生 10 組重複 id 的 Critical，而重複 id 只會讓 querySelector 悄悄選到殘留的那套。
+    """
+    def snapshot(tag):
+        result = page.evaluate("""() => {
+            const ids = [...document.querySelectorAll('[id]')].map((e) => e.id);
+            return {
+                total: ids.length, uniq: new Set(ids).size,
+                dups: ids.filter((v, i) => ids.indexOf(v) !== i),
+                roots: ['layout-wide', 'layout-dock', 'layout-mobile']
+                    .filter((id) => document.getElementById(id)),
+            };
+        }""")
+        assert result["total"] == result["uniq"], f"{tag}：重複 id {result['dups']}"
+        assert result["roots"] == ["layout-mobile"], f"{tag}：掛載中的版面是 {result['roots']}"
+        assert result["total"] > 10, f"{tag}：只掃到 {result['total']} 個 id，選擇器可能失效"
+
+    reset(page)
+    snapshot("初始")
+
+    page.locator("#panels .chip--row").first.click()
+    page.click("#cart-toggle")
+    page.click("#settings-toggle")
+    page.wait_for_timeout(150)
+    snapshot("清單抽屜＋設定同時開啟")
+    page.keyboard.press("Escape")
+
+    search(page, "L03")
+    snapshot("搜尋結果")
+    reset(page)
+
+    # 換版面／換回來不得留下上一套的殘骸（歷史 Critical：兩套同時掛載）
+    page.set_viewport_size({"width": 1200, "height": 844})
+    page.wait_for_selector('body[data-layout="wide"]', timeout=3000)
+    page.set_viewport_size(dict(MOBILE))
+    page.wait_for_selector('body[data-layout="mobile"]', timeout=3000)
+    page.wait_for_timeout(200)
+    snapshot("寬→窄來回切換後")
+    reset(page)

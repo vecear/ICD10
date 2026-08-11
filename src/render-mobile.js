@@ -257,7 +257,8 @@
         wrapper.appendChild(R.el('div', 'group-label', group.label));
         const rows = R.el('div', 'm-rows');
         for (const code of group.codes) {
-          rows.appendChild(R.chipEl(code, ctx.data.labelOf(code), { className: 'chip--row' }));
+          // chipWith 而不是 chipEl：附加碼（B95–B97／Z16）的標記要跟三套版面一致
+          rows.appendChild(R.chipWith(ctx, code, ctx.data.labelOf(code), { className: 'chip--row' }));
         }
         wrapper.appendChild(rows);
         refs.related.appendChild(wrapper);

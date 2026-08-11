@@ -277,3 +277,25 @@ test('flattenSymptomRelated 只攤平單一模式並去重', () => {
   assert.deepEqual(out, { 'R50.9': ['A41.9'] });
   assert.deepEqual(D.flattenSymptomRelated(undefined, L), {});
 });
+
+test('附加碼判定：B95–B97 與 Z16 是附加碼，其餘不是', () => {
+  // 臨床審查：這些碼只能附加在主要疾病之後，不可作為主診斷；UI 靠這個判定做標記。
+  for (const code of ['B95.0', 'B95.61', 'B96.20', 'B97.89', 'Z16', 'Z16.11', 'Z16.24']) {
+    assert.equal(D.isAdjunct(code), true, code);
+  }
+  for (const code of ['A41.9', 'B94.8', 'B98.0', 'L03.115', 'Z17.0', 'E11.9', '', null, undefined]) {
+    assert.equal(D.isAdjunct(code), false, String(code));
+  }
+});
+
+test('addability：三態，unknown 一樣不可加（防線強度不變）', () => {
+  // R2 I3：全庫未就緒且不在白名單時，是「無從判斷」不是「類目碼或不存在」——
+  // 兩者都不可加，但呼叫端要能分辨才給得出誠實的訊息。
+  const data = makeData();                       // 未載入全庫
+  assert.equal(data.addability('I10'), 'yes');   // 精選白名單內
+  assert.equal(data.addability('A00.0'), 'unknown');
+  assert.equal(data.isAddable('A00.0'), false, 'unknown 絕不可加');
+  assert.equal(data.addability('A00.0', ['A00.0', 1, '', '霍亂']), 'yes');
+  assert.equal(data.addability('L03', ['L03', 0, '', '蜂窩組織炎']), 'no');
+  assert.equal(data.addability(''), 'no');
+});

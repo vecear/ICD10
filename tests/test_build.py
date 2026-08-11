@@ -1,3 +1,4 @@
+import base64
 import hashlib
 import json
 import re
@@ -74,6 +75,51 @@ def test_build_embeds_fonts_and_design_system():
     for marker in ["--color-accent:", ".blueprint", "--his-surface:", "--his-ink:", "--warn-line:", "Barlow Condensed"]:
         assert marker in html, f"設計系統缺少 {marker}"
     assert not re.search(r"@import\s*(?:url\(|['\"])", html), "不得殘留 @import（Google Fonts 連結）"
+
+
+def test_embedded_fonts_decode_to_the_exact_source_woff2_files():
+    """字型 payload 必須真的是 assets/fonts 那 5 個 woff2，逐位元組相同。
+
+    R2 審查的最高優先盲點（M11）：把 base64 攔腰截斷，129 條測試全綠——因為
+    test_build_embeds_fonts_and_design_system 只用 regex 驗結構（data URI 前綴、
+    format('woff2')、family/weight），從不解碼 payload。字型壞掉的症狀只是瀏覽器
+    無聲 fallback 到系統字，沒有任何錯誤訊息，靠人眼永遠抓不到。
+
+    這裡驗四件事，任何一件不成立就是壞掉的字型：
+      (a) base64 可嚴格解碼（validate=True：有雜字元就丟例外，不靜默丟棄）
+      (b) 檔頭簽章是 wOF2
+      (c) woff2 檔頭第 8–12 byte 宣告的檔案總長度 == 實際解出的位元組數（截斷必露餡）
+      (d) sha256 與 assets/fonts/ 的原始檔相同（(c) 只擋截斷，這條連內容竄改都擋）
+    """
+    html = DIST.read_text(encoding="utf-8")
+    faces = re.findall(r"@font-face\{[^}]*\}", html)
+    assert len(faces) == len(build_module.FONTS), f"@font-face 數量 {len(faces)}"
+
+    embedded = {}
+    for face in faces:
+        family = re.search(r"font-family:'([^']+)'", face).group(1)
+        weight = int(re.search(r"font-weight:(\d+)", face).group(1))
+        payload = re.search(r"src:url\(data:font/woff2;base64,([^)]*)\) format\('woff2'\)", face)
+        assert payload, f"取不到 base64 payload：{face[:80]}"
+        b64 = payload.group(1)
+        assert b64, f"{family} {weight} 的 base64 payload 是空的"
+        # validate=True：base64 只要混進非法字元就丟例外，不像預設會靜默略過
+        raw = base64.b64decode(b64, validate=True)
+        embedded[(family, weight)] = raw
+
+    assert set(embedded) == {(family, weight) for _, family, weight in build_module.FONTS}
+
+    for fname, family, weight in build_module.FONTS:
+        raw = embedded[(family, weight)]
+        source = (ROOT / "assets" / "fonts" / fname).read_bytes()
+        assert raw[:4] == b"wOF2", f"{fname} 解出來不是合法 woff2（檔頭 {raw[:4]!r}）"
+        declared = int.from_bytes(raw[8:12], "big")
+        assert declared == len(raw), \
+            f"{fname} woff2 檔頭宣告 {declared:,} bytes，實得 {len(raw):,} bytes（payload 被截斷或損毀）"
+        assert len(raw) == len(source), \
+            f"{fname} 內嵌 {len(raw):,} bytes ≠ 原始檔 {len(source):,} bytes"
+        assert hashlib.sha256(raw).hexdigest() == hashlib.sha256(source).hexdigest(), \
+            f"{fname} 內嵌內容與 assets/fonts/{fname} 不一致"
 
 
 def test_curated_labels_cover_every_curated_code():

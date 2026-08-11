@@ -226,6 +226,9 @@
     // ── Document Picture-in-Picture（置頂小視窗） ───────────────────────
     let pipWin = null;
     let pinNote = '';
+    /* 這套 controller 是否還是生效版面。app.js 換版面時會呼叫 teardown() 把它設為 false，
+       此後任何遲來的 pagehide／requestWindow 都不得再動 #app（R2 C2）。 */
+    let alive = true;
 
     function setNote(text) {
       pinNote = text;
@@ -245,13 +248,48 @@
       doc.body.dataset.mode = state.mode;
       doc.body.dataset.db = state.dbState;
       doc.body.dataset.ready = '1';
+      /* 回饋 UI 也要跟過來（R2 I5）：#status（sr-only live region）與 #fallback-copy
+         （自動複製失敗時的手動複製對話框）都只存在於主文件。少了這一步，醫師在小視窗按
+         「複製並貼入 HIS」而剪貼簿被拒時，對話框會開在被小視窗擋住的主視窗，
+         小視窗零回饋、剪貼簿也空的。 */
+      for (const id of ['status', 'fallback-copy']) {
+        const node = document.getElementById(id);
+        if (node) doc.body.appendChild(node.cloneNode(true));
+      }
+    }
+
+    /* 小視窗裡的 #status／#fallback-copy 不在 dock 子樹底下，dock 上的監聽搆不到，
+       關閉鈕／背景點擊／Esc 只能掛在小視窗自己的 document 上。 */
+    function onPipDocClick(ev) {
+      const t = ev.target;
+      if (t && t.closest && t.closest('#fallback-close')) root.ICDInteractions.closeFallbackCopy();
+    }
+
+    function onPipDocMouseDown(ev) {
+      if (ev.target && ev.target.id === 'fallback-copy') root.ICDInteractions.closeFallbackCopy();
+    }
+
+    function onPipDocKeyDown(ev) {
+      if (ev.key !== 'Escape') return;
+      if (root.ICDInteractions.isFallbackOpen()) { root.ICDInteractions.closeFallbackCopy(); return; }
+      if (ctx.store.getState().settingsOpen) ctx.store.setSettingsOpen(false);
     }
 
     function restoreFromPip() {
       if (!pipWin) return;
       pipWin = null;
+      root.ICDInteractions.setFeedbackDocument(null);
       if (refs.placeholder.parentNode) refs.placeholder.parentNode.removeChild(refs.placeholder);
-      host.appendChild(dock);          // 跨文件 append 會自動 adopt 回主文件
+      /* 守門（R2 C2）：這套 dock 已經不是生效版面時**絕不能**塞回 #app——#app 裡已經有
+         新版面，兩套同時掛載會產生 10 組重複 id（search／cart／copy-all…），殘留那套停在
+         舊模式、急診紅旗照樣可點，而它的清單區永遠空白。這種情況只把節點摘下來丟掉。
+
+         兩個條件是刻意獨立的：`alive` 由 teardown() 設定，`body[data-layout]` 由 app.js
+         在掛載新版面時寫。任一層失效（例如日後新增的版面模組忘了觸發 teardown），另一層
+         仍然擋得住。 */
+      const stillMounted = alive && document.body.dataset.layout === 'dock';
+      if (stillMounted) host.appendChild(dock);   // 跨文件 append 會自動 adopt 回主文件
+      else if (dock.parentNode) dock.parentNode.removeChild(dock);
       ctx.store.setPinned(false);
       setNote('');
     }
@@ -275,10 +313,16 @@
       }
       if (!request || typeof request.then !== 'function') { setNote(PIN_NOTE.blocked); return; }
       request.then((w) => {
+        // 按下「置頂」後、視窗開出來之前就被換掉版面：這個小視窗已無主，直接關掉
+        if (!alive) { try { w.close(); } catch (e) { /* 已被關掉 */ } return; }
         pipWin = w;
         dressPipDocument(w.document);
         w.document.body.appendChild(dock);
         host.appendChild(refs.placeholder);
+        w.document.addEventListener('click', onPipDocClick);
+        w.document.addEventListener('mousedown', onPipDocMouseDown);
+        w.document.addEventListener('keydown', onPipDocKeyDown);
+        root.ICDInteractions.setFeedbackDocument(w.document);
         w.addEventListener('pagehide', restoreFromPip);
         ctx.store.setPinned(true);
         setNote(PIN_NOTE.open);
@@ -286,6 +330,13 @@
     }
 
     const togglePin = () => { if (pipWin) closePip(); else openPip(); };
+
+    /* app.js 換掉這套版面前呼叫（R2 C1）。順序不可對調：closePip() 要在 alive 還是 true
+       時跑完，dock 才會正常回到 #app 再由 ICDRender.clear() 移除。 */
+    function teardown() {
+      closePip();
+      alive = false;
+    }
 
     // #cart-toggle 的委派已收斂進 interactions.js；1c 這邊的語意就是單純切換 store.cartOpen
     ctx.onCartToggle = () => { ctx.store.toggleCart(); };
@@ -300,16 +351,9 @@
     let copiedTimer = null;
 
     const announce = (msg) => root.ICDInteractions.announce(msg);
-
-    function addFromChip(chip) {
-      const code = chip.dataset.code;
-      const span = chip.querySelector('span');
-      const zh = ctx.data.labelOf(code) || (span ? span.textContent : '');
-      const result = ctx.store.addCode(code, zh);
-      if (result === 'rejected') { announce(code + ' 是類目碼或不存在，無法加入清單'); return; }
-      announce(result === 'duplicate' ? code + ' 已在清單' : '已加入 ' + code + ' ' + zh);
-      ctx.data.ensureDb();
-    }
+    // 加碼規則（葉碼防線、白名單未就緒的訊息、附加碼提醒）一律共用 interactions.js 的
+    // 同一份實作，這裡不再抄一份——抄的那份正是 R2 M1／I3 兩條缺陷的來源。
+    const addFromChip = (chip) => root.ICDInteractions.activateChip(ctx, chip);
 
     function copyAll() {
       const text = R.hisText(ctx);
@@ -331,11 +375,7 @@
       }
 
       const chip = target.closest('.chip[data-code]');
-      if (chip) {
-        if (chip.classList.contains('cat') || chip.getAttribute('aria-disabled') === 'true') return;
-        addFromChip(chip);
-        return;
-      }
+      if (chip) { addFromChip(chip); return; }
       const region = target.closest('.region-btn');
       if (region) { store.setRegion(Number(region.dataset.regionIndex)); return; }
       const panelToggle = target.closest('.panel-toggle');
@@ -351,7 +391,8 @@
       if (primary) {
         const code = primary.closest('li').dataset.code;
         store.setPrimary(code);
-        announce(code + ' 已設為主診斷');
+        announce(code + ' 已設為主診斷'
+          + (ctx.data.isAdjunct(code) ? '；注意：這是附加碼，不可作為主診斷' : ''));
         return;
       }
       const fav = target.closest('.cart-fav');
@@ -380,6 +421,7 @@
       else if (btn.id === 'theme-toggle') store.toggleTheme();
       else if (btn.id === 'clear-cart') { store.clearCart(); announce('已清空就診清單'); }
       else if (btn.id === 'copy-all') copyAll();
+      else if (btn.id === 'db-retry') { announce('正在重新載入全庫…'); ctx.data.retryDb(); }
     }
 
     dock.addEventListener('click', (ev) => {
@@ -411,7 +453,7 @@
         ev.target.value = '';
         clearTimeout(searchTimer);
         ctx.store.setQuery('');
-        return;
+        return;                       // 浮層由 onPipDocKeyDown 一併關掉（R2 M3）
       }
       if (ev.key === 'Enter') {
         ev.preventDefault();
@@ -537,9 +579,10 @@
 
     const ALL = Object.keys(U);
 
+    /* 換版面時收回小視窗的責任在 teardown()（app.js 在 mount 前呼叫）。原本寫在這裡的
+       `changed 含 layout 就 closePip()` 是不可達的死碼：app.js 的 subscriber 一旦 mount()
+       成功就直接 return，舊 controller 根本收不到 update(['layout'])（R2 C1）。 */
     function update(changed) {
-      // 換到 1a 時整套 DOM 會被 app.js 換掉，留著的小視窗會變成孤兒——先收回來
-      if (changed && changed.indexOf('layout') >= 0 && ctx.store.getState().layout !== 'dock') closePip();
       let names = ALL;
       if (changed && changed.length) {
         const set = new Set();
@@ -549,7 +592,7 @@
       for (const name of names) U[name]();
     }
 
-    return { root: dock, refs, update };
+    return { root: dock, refs, update, teardown };
   }
 
   root.ICDDock = { mount };

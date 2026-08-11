@@ -13,7 +13,9 @@
     mode: ['header', 'rail', 'panels', 'quick', 'settings'],
     region: ['rail', 'panels'],
     query: ['results', 'searchValue'],
-    dbState: ['results', 'settings', 'related'],
+    // shelf 一定要在：常用列的中文名靠 data.labelOf() 查全庫，全庫就緒前是光禿禿的代碼，
+    // 漏了它就得剛好動到 favs／recent／shelfOpen 才會補上中文（R2 I4）
+    dbState: ['results', 'settings', 'related', 'shelf'],
     expanded: ['panels'],
     quickOpen: ['quick'],
     cart: ['cart', 'his', 'related'],

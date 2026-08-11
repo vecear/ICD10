@@ -58,7 +58,7 @@
 | `T78.2XXA` | 過敏性休克 | 過敏性休克之初期照護 | Anaphylactic shock, unspecified, initial encounter |
 | `I26.99` | 肺栓塞 | 其他肺栓塞未伴有急性肺性心臟病 | Other pulmonary embolism without acute cor pulmonale |
 | `I31.4` | 心包填塞 | 心包膜填塞 | Cardiac tamponade |
-| `J93.0` | 張力性氣胸 | 自發性壓力性氣胸 | Spontaneous tension pneumothorax |
+| `E27.2` | 艾迪森氏危象（腎上腺危象） | 艾迪森氏危象 | Addisonian crisis |
 
 ### 神經／頭頸
 
@@ -101,6 +101,7 @@
 | `E16.2` | 低血糖 | 低血糖 | Hypoglycemia, unspecified |
 | `I21.9` | 急性心肌梗塞 | 急性心肌梗塞 | Acute myocardial infarction, unspecified |
 | `K92.2` | 胃腸道出血 | 胃腸道出血 | Gastrointestinal hemorrhage, unspecified |
+| `I49.9` | 心律不整 | 心臟節律不整 | Cardiac arrhythmia, unspecified |
 
 #### 意識改變
 
@@ -116,13 +117,14 @@
 | `N39.0` | 泌尿道感染 UTI | 未明示部位之泌尿道感染症 | Urinary tract infection, site not specified |
 | `J18.9` | 肺炎 | 肺炎，未明示病原體 | Pneumonia, unspecified organism |
 | `E86.0` | 脫水 | 脫水 | Dehydration |
+| `K72.90` | 肝衰竭（肝性腦病變） | 肝衰竭未伴有昏迷 | Hepatic failure, unspecified without coma |
 | **優先排除（紅旗）** | | | |
 | `E16.2` | 低血糖 | 低血糖 | Hypoglycemia, unspecified |
 | `A41.9` | 敗血症 | 敗血症，未明示病原體 | Sepsis, unspecified organism |
 | `G03.9` | 腦膜炎 | 腦膜炎 | Meningitis, unspecified |
 | `I61.9` | 腦出血 | 非創傷性腦出血 | Nontraumatic intracerebral hemorrhage, unspecified |
 | `I63.9` | 急性缺血性腦中風 | 腦梗塞 | Cerebral infarction, unspecified |
-| `K72.90` | 肝衰竭 | 肝衰竭未伴有昏迷 | Hepatic failure, unspecified without coma |
+| `I60.9` | 蜘蛛膜下腔出血 | 非創傷性蜘蛛網膜下腔出血 | Nontraumatic subarachnoid hemorrhage, unspecified |
 | `G40.901` | 癲癇重積狀態 | 癲癇，非難治之癲癇，伴有癲癇重積狀態 | Epilepsy, unspecified, not intractable, with status epilepticus |
 
 #### 局部無力／疑似中風
@@ -137,7 +139,8 @@
 | `G45.9` | 暫時性腦缺血 TIA | 短暫性大腦缺血發作 | Transient cerebral ischemic attack, unspecified |
 | `G51.0` | 貝爾氏麻痺 | Bell 氏麻痺 | Bell's palsy |
 | `G35` | 多發性硬化症 | 多發性硬化症 | Multiple sclerosis |
-| `M62.81` | 肌無力 | 肌無力 | Muscle weakness (generalized) |
+| `M62.81` | 肌肉無力（廣泛性） | 肌無力 | Muscle weakness (generalized) |
+| `G70.00` | 重症肌無力 | 重症肌無力未伴有急性惡化 | Myasthenia gravis without (acute) exacerbation |
 | `G62.9` | 多發神經病變 | 多發神經病變 | Polyneuropathy, unspecified |
 | `R53.1` | 虛弱 | 虛弱 | Weakness |
 | **優先排除（紅旗）** | | | |
@@ -147,6 +150,7 @@
 | `E16.2` | 低血糖 | 低血糖 | Hypoglycemia, unspecified |
 | `G95.20` | 脊髓壓迫 | 脊髓壓迫 | Unspecified cord compression |
 | `G61.0` | Guillain-Barre 症候群（GBS） | Guillain-Barre 氏症候群 | Guillain-Barre syndrome |
+| `I71.00` | 主動脈剝離 | 未明示部位之主動脈瘤剝離 | Dissection of unspecified site of aorta |
 
 #### 喉嚨痛／頸部腫脹
 
@@ -162,11 +166,12 @@
 | `J04.0` | 急性喉炎 | 急性喉炎 | Acute laryngitis |
 | `B27.90` | 傳染性單核球增多症 | 傳染性單核球過多症，未伴有併發症 | Infectious mononucleosis, unspecified without complication |
 | `L04.0` | 頭頸部急性淋巴腺炎 | 臉、頭及頸部急性淋巴腺炎 | Acute lymphadenitis of face, head and neck |
+| `J05.10` | 急性會厭炎（未伴阻塞） | 急性會厭炎，未伴有阻塞 | Acute epiglottitis without obstruction |
 | **優先排除（紅旗）** | | | |
 | `J36` | 扁桃腺周圍膿瘍 | 扁桃腺周圍膿瘍 | Peritonsillar abscess |
 | `J39.0` | 咽後／咽旁膿瘍 | 後咽、咽旁膿瘍 | Retropharyngeal and parapharyngeal abscess |
 | `K12.2` | 口腔蜂窩組織炎（Ludwig） | 口腔蜂窩組織炎及膿瘍 | Cellulitis and abscess of mouth |
-| `J05.10` | 急性會厭炎 | 急性會厭炎，未伴有阻塞 | Acute epiglottitis without obstruction |
+| `J05.11` | 急性會厭炎併阻塞 | 急性會厭炎，併阻塞 | Acute epiglottitis with obstruction |
 | `I82.C19` | 頸內靜脈血栓（Lemierre） | 未明示側性頸內靜脈急性栓塞及血栓 | Acute embolism and thrombosis of unspecified internal jugular vein |
 | `M72.6` | 壞死性筋膜炎 | 壞死性筋膜炎 | Necrotizing fasciitis |
 
@@ -193,7 +198,7 @@
 | `I21.9` | 急性心肌梗塞 | 急性心肌梗塞 | Acute myocardial infarction, unspecified |
 | `I26.99` | 肺栓塞 | 其他肺栓塞未伴有急性肺性心臟病 | Other pulmonary embolism without acute cor pulmonale |
 | `I71.00` | 主動脈剝離 | 未明示部位之主動脈瘤剝離 | Dissection of unspecified site of aorta |
-| `J93.0` | 張力性氣胸 | 自發性壓力性氣胸 | Spontaneous tension pneumothorax |
+| `J93.0` | 張力性氣胸（自發性） | 自發性壓力性氣胸 | Spontaneous tension pneumothorax |
 | `I31.4` | 心包填塞 | 心包膜填塞 | Cardiac tamponade |
 | `K22.3` | 食道穿孔（Boerhaave） | 食道穿孔 | Perforation of esophagus |
 | `I40.9` | 急性心肌炎 | 急性心肌炎 | Acute myocarditis, unspecified |
@@ -218,9 +223,9 @@
 | `I21.9` | 急性心肌梗塞 | 急性心肌梗塞 | Acute myocardial infarction, unspecified |
 | `T78.2XXA` | 過敏性休克 | 過敏性休克之初期照護 | Anaphylactic shock, unspecified, initial encounter |
 | `T78.3XXA` | 血管性水腫 | 血管神經性水腫之初期照護 | Angioneurotic edema, initial encounter |
-| `J93.0` | 張力性氣胸 | 自發性壓力性氣胸 | Spontaneous tension pneumothorax |
+| `J93.0` | 張力性氣胸（自發性） | 自發性壓力性氣胸 | Spontaneous tension pneumothorax |
 | `I50.1` | 左心衰竭／急性肺水腫 | 左心衰竭 | Left ventricular failure, unspecified |
-| `E11.10` | 糖尿病酮酸中毒（DKA） | 第二型糖尿病，伴有酮酸中毒，未伴有昏迷 | Type 2 diabetes mellitus with ketoacidosis without coma |
+| `E11.10` | 糖尿病酮酸中毒 DKA（第二型） | 第二型糖尿病，伴有酮酸中毒，未伴有昏迷 | Type 2 diabetes mellitus with ketoacidosis without coma |
 
 #### 暈厥
 
@@ -238,6 +243,7 @@
 | **優先排除（紅旗）** | | | |
 | `I21.9` | 急性心肌梗塞 | 急性心肌梗塞 | Acute myocardial infarction, unspecified |
 | `I26.99` | 肺栓塞 | 其他肺栓塞未伴有急性肺性心臟病 | Other pulmonary embolism without acute cor pulmonale |
+| `I71.00` | 主動脈剝離 | 未明示部位之主動脈瘤剝離 | Dissection of unspecified site of aorta |
 | `K92.2` | 胃腸道出血 | 胃腸道出血 | Gastrointestinal hemorrhage, unspecified |
 | `E16.2` | 低血糖 | 低血糖 | Hypoglycemia, unspecified |
 | `I44.2` | 完全房室傳導阻斷 | 完全性房室傳導阻滯 | Atrioventricular block, complete |
@@ -289,10 +295,11 @@
 | **優先排除（紅旗）** | | | |
 | `K56.609` | 腸阻塞 | 腸阻塞，未明示阻塞程度 | Unspecified intestinal obstruction, unspecified as to partial versus complete obstruction |
 | `K92.2` | 胃腸道出血 | 胃腸道出血 | Gastrointestinal hemorrhage, unspecified |
-| `E11.10` | 糖尿病酮酸中毒（DKA） | 第二型糖尿病，伴有酮酸中毒，未伴有昏迷 | Type 2 diabetes mellitus with ketoacidosis without coma |
+| `E11.10` | 糖尿病酮酸中毒 DKA（第二型） | 第二型糖尿病，伴有酮酸中毒，未伴有昏迷 | Type 2 diabetes mellitus with ketoacidosis without coma |
+| `E10.10` | 糖尿病酮酸中毒 DKA（第一型） | 第一型糖尿病，伴有酮酸中毒，未伴有昏迷 | Type 1 diabetes mellitus with ketoacidosis without coma |
 | `I21.9` | 急性心肌梗塞 | 急性心肌梗塞 | Acute myocardial infarction, unspecified |
 | `G03.9` | 腦膜炎 | 腦膜炎 | Meningitis, unspecified |
-| `G93.6` | 腦水腫（顱內壓升高） | 腦水腫 | Cerebral edema |
+| `G93.6` | 腦水腫 | 腦水腫 | Cerebral edema |
 
 #### 腹瀉
 
@@ -328,10 +335,12 @@
 | `K29.01` | 急性胃炎伴出血 | 急性胃炎併出血 | Acute gastritis with bleeding |
 | `K22.6` | Mallory-Weiss 撕裂傷 | 胃、食道接合部裂傷出血徵候群 | Gastro-esophageal laceration-hemorrhage syndrome |
 | **優先排除（紅旗）** | | | |
-| `I85.01` | 食道靜脈曲張出血 | 食道靜脈曲張伴有出血 | Esophageal varices with bleeding |
+| `I85.01` | 食道靜脈曲張出血（原發） | 食道靜脈曲張伴有出血 | Esophageal varices with bleeding |
+| `I85.11` | 食道靜脈曲張出血（續發於肝硬化） | 續發性食道靜脈曲張伴有出血 | Secondary esophageal varices with bleeding |
 | `R57.1` | 低血容性休克 | 低血容性休克 | Hypovolemic shock |
 | `D62` | 急性失血性貧血 | 急性出血後貧血 | Acute posthemorrhagic anemia |
 | `K25.1` | 胃潰瘍穿孔 | 急性胃潰瘍併穿孔 | Acute gastric ulcer with perforation |
+| `K26.1` | 急性十二指腸潰瘍穿孔 | 急性十二指腸潰瘍併穿孔 | Acute duodenal ulcer with perforation |
 | `K22.3` | 食道穿孔（Boerhaave） | 食道穿孔 | Perforation of esophagus |
 
 ### 泌尿／生殖
@@ -352,7 +361,7 @@
 | `N41.0` | 急性攝護腺炎 | 急性攝護腺炎 | Acute prostatitis |
 | **優先排除（紅旗）** | | | |
 | `N10` | 急性腎盂腎炎 APN | 急性腎盂腎炎 | Acute pyelonephritis |
-| `R33.9` | 急性尿滯留 | 尿滯留 | Retention of urine, unspecified |
+| `R33.9` | 尿滯留 | 尿滯留 | Retention of urine, unspecified |
 | `N13.6` | 腎盂蓄膿 | 腎盂蓄膿 | Pyonephrosis |
 | `A41.9` | 敗血症 | 敗血症，未明示病原體 | Sepsis, unspecified organism |
 | `N17.9` | 急性腎損傷（AKI） | 急性腎衰竭 | Acute kidney failure, unspecified |
@@ -377,7 +386,7 @@
 | `C67.9` | 膀胱惡性腫瘤 | 膀胱惡性腫瘤 | Malignant neoplasm of bladder, unspecified |
 | `C64.9` | 腎惡性腫瘤 | 未明示側性腎惡性腫瘤，腎盂除外 | Malignant neoplasm of unspecified kidney, except renal pelvis |
 | `N05.9` | 腎炎症候群 | 非特異性的腎炎症候群伴有非特異性的組織形態改變 | Unspecified nephritic syndrome with unspecified morphologic changes |
-| `R33.9` | 急性尿滯留 | 尿滯留 | Retention of urine, unspecified |
+| `R33.9` | 尿滯留 | 尿滯留 | Retention of urine, unspecified |
 
 ### 皮膚／軟組織
 
@@ -419,8 +428,8 @@
 | `T78.2XXA` | 過敏性休克 | 過敏性休克之初期照護 | Anaphylactic shock, unspecified, initial encounter |
 | `T78.3XXA` | 血管性水腫 | 血管神經性水腫之初期照護 | Angioneurotic edema, initial encounter |
 | `J38.4` | 喉部水腫 | 喉部水腫 | Edema of larynx |
-| `L51.1` | 史帝芬強生症候群 SJS | 史帝芬-強生氏症候群 | Stevens-Johnson syndrome |
-| `L51.2` | 毒性表皮壞死症 TEN | 毒性表皮壞死鬆解症 | Toxic epidermal necrolysis [Lyell] |
+| `J45.901` | 氣喘急性發作 | 氣喘併(急性)發作 | Unspecified asthma with (acute) exacerbation |
+| `J96.00` | 急性呼吸衰竭 | 急性呼吸衰竭，未明示是否伴有缺氧或高碳酸血症 | Acute respiratory failure, unspecified whether with hypoxia or hypercapnia |
 
 ### 肌肉骨骼
 
@@ -541,6 +550,7 @@
 | `B25.9` | 巨細胞病毒疾病 | 巨細胞病毒疾病 | Cytomegaloviral disease, unspecified |
 | `A15.9` | 呼吸道結核病 | 呼吸道結核病 | Respiratory tuberculosis unspecified |
 | `A53.9` | 梅毒 | 梅毒 | Syphilis, unspecified |
+| `A53.0` | 潛伏性梅毒 | 未明示早期或晚期的潛伏性梅毒 | Latent syphilis, unspecified as early or late |
 | `A63.0` | 肛門生殖器疣 | 肛門生殖器疣 | Anogenital (venereal) warts |
 | `C46.9` | 卡波西氏肉瘤 | 卡波西氏肉瘤 | Kaposi's sarcoma, unspecified |
 
@@ -558,7 +568,7 @@
 | `K74.60` | 肝硬化 | 肝硬化 | Unspecified cirrhosis of liver |
 | `C22.0` | 肝細胞癌 | 肝細胞癌 | Liver cell carcinoma |
 | `K72.10` | 慢性肝衰竭 | 慢性肝衰竭未伴有昏迷 | Chronic hepatic failure without coma |
-| `I85.00` | 食道靜脈曲張未伴出血 | 食道靜脈曲張未伴有出血 | Esophageal varices without bleeding |
+| `I85.10` | 續發性食道靜脈曲張未伴出血 | 續發性食道靜脈曲張未伴有出血 | Secondary esophageal varices without bleeding |
 | `R18.8` | 腹水 | 其他腹水 | Other ascites |
 | `K76.0` | 脂肪肝 | 脂肪肝(變化)，他處未歸類者 | Fatty (change of) liver, not elsewhere classified |
 | `B18.0` | 慢性 B 型肝炎伴 D 型肝炎 | 慢性病毒性B型肝炎伴有D 型肝炎病毒 | Chronic viral hepatitis B with delta-agent |
@@ -586,6 +596,8 @@
 | `A31.0` | 肺部非結核分枝桿菌感染 NTM | 肺分枝桿菌感染 | Pulmonary mycobacterial infection |
 | `Z86.11` | 結核病個人史 | 結核病之個人史 | Personal history of tuberculosis |
 | `R91.8` | 肺部影像異常 | 肺部其他非特定性異常發現 | Other nonspecific abnormal finding of lung field |
+| `R74.01` | 肝指數上升（藥物肝毒性監測） | 轉胺基脢含量上升 | Elevation of levels of liver transaminase levels |
+| `K71.9` | 藥物性肝損傷 | 毒性肝疾病 | Toxic liver disease, unspecified |
 
 #### 長期抗生素治療／OPAT
 
@@ -602,8 +614,11 @@
 | `M00.9` | 化膿性關節炎 | 化膿性關節炎 | Pyogenic arthritis, unspecified |
 | `L03.90` | 蜂窩組織炎 | 蜂窩組織炎 | Cellulitis, unspecified |
 | `A41.9` | 敗血症 | 敗血症，未明示病原體 | Sepsis, unspecified organism |
-| `T80.211D` | 中心靜脈導管血流感染（後續） | 中心靜脈導管所致血流感染之後續照護 | Bloodstream infection due to central venous catheter, subsequent encounter |
-| `T84.50XD` | 人工關節感染（後續） | 未明示部位內人工關節所致之感染症及發炎性反應之後續照護 | Infection and inflammatory reaction due to unspecified internal joint prosthesis, subsequent encounter |
+| `K75.0` | 肝膿瘍 | 肝膿瘍 | Abscess of liver |
+| `T80.211A` | 中心靜脈導管血流感染（初期照護） | 中心靜脈導管所致血流感染之初期照護 | Bloodstream infection due to central venous catheter, initial encounter |
+| `T80.211D` | 中心靜脈導管血流感染（後續照護） | 中心靜脈導管所致血流感染之後續照護 | Bloodstream infection due to central venous catheter, subsequent encounter |
+| `T84.50XA` | 人工關節感染（初期照護） | 未明示部位內人工關節所致之感染症及發炎性反應之初期照護 | Infection and inflammatory reaction due to unspecified internal joint prosthesis, initial encounter |
+| `T84.50XD` | 人工關節感染（後續照護） | 未明示部位內人工關節所致之感染症及發炎性反應之後續照護 | Infection and inflammatory reaction due to unspecified internal joint prosthesis, subsequent encounter |
 | `Z16.24` | 多重抗生素抗藥性（附加碼） | 多種抗生素之抗藥性 | Resistance to multiple antibiotics |
 | `Z16.11` | 青黴素抗藥性（附加碼） | 青黴素之抗藥性 | Resistance to penicillins |
 | `Z22.322` | MRSA 帶菌者 | 金黃色葡萄球菌青黴素抗藥性之帶菌者或疑似帶菌者 | Carrier or suspected carrier of Methicillin resistant Staphylococcus aureus |
@@ -615,11 +630,12 @@
 | **主訴** | | | |
 | `M25.40` | 關節滲液 | 關節滲液 | Effusion, unspecified joint |
 | `M25.50` | 關節痛 | 關節痛 | Pain in unspecified joint |
-| `Z96.649` | 存有人工髖關節 | 存有人工髖關節 | Presence of unspecified artificial hip joint |
+| `Z09` | 治療後追蹤檢查 | 來院接受惡性腫瘤以外病況完整治療後之追蹤檢查 | Encounter for follow-up examination after completed treatment for conditions other than malignant neoplasm |
 | **常見疾病** | | | |
 | `M86.9` | 骨髓炎 | 骨髓炎 | Osteomyelitis, unspecified |
 | `M86.10` | 急性骨髓炎 | 未明示部位其他急性骨髓炎 | Other acute osteomyelitis, unspecified site |
-| `T84.50XD` | 人工關節感染（後續） | 未明示部位內人工關節所致之感染症及發炎性反應之後續照護 | Infection and inflammatory reaction due to unspecified internal joint prosthesis, subsequent encounter |
+| `T84.50XA` | 人工關節感染（初期照護） | 未明示部位內人工關節所致之感染症及發炎性反應之初期照護 | Infection and inflammatory reaction due to unspecified internal joint prosthesis, initial encounter |
+| `T84.50XD` | 人工關節感染（後續照護） | 未明示部位內人工關節所致之感染症及發炎性反應之後續照護 | Infection and inflammatory reaction due to unspecified internal joint prosthesis, subsequent encounter |
 | `M00.9` | 化膿性關節炎 | 化膿性關節炎 | Pyogenic arthritis, unspecified |
 | `M00.00` | 葡萄球菌性關節炎 | 未明示側性關節葡萄球菌性關節炎 | Staphylococcal arthritis, unspecified joint |
 | `M46.20` | 脊椎骨髓炎 | 未明示部位脊椎骨髓炎 | Osteomyelitis of vertebra, site unspecified |
@@ -628,6 +644,8 @@
 | `E11.621` | 第二型糖尿病伴足部潰瘍 | 第二型糖尿病，伴有足部潰瘍 | Type 2 diabetes mellitus with foot ulcer |
 | `L97.509` | 足部慢性潰瘍 | 未明示側性足部其他部位非壓迫性慢性潰瘍，未明示嚴重程度 | Non-pressure chronic ulcer of other part of unspecified foot with unspecified severity |
 | `M10.9` | 痛風 | 痛風 | Gout, unspecified |
+| `Z96.649` | 存有人工髖關節（狀態附加碼） | 存有人工髖關節 | Presence of unspecified artificial hip joint |
+| `Z96.659` | 存有人工膝關節（狀態附加碼） | 存有人工膝關節 | Presence of unspecified artificial knee joint |
 
 #### 疫苗接種與預防
 
@@ -640,12 +658,17 @@
 | `Z20.5` | 病毒性肝炎接觸暴露 | 病毒性肝炎之接觸和疑似曝露 | Contact with and (suspected) exposure to viral hepatitis |
 | `Z11.3` | 性傳染病篩檢 | 來院接受主要經由性傳播模式感染之篩檢 | Encounter for screening for infections with a predominantly sexual mode of transmission |
 | **常見疾病** | | | |
-| `J11.1` | 流感 | 未確認流感病毒所致流行性感冒併其他呼吸道表徵 | Influenza due to unidentified influenza virus with other respiratory manifestations |
-| `J13` | 肺炎鏈球菌肺炎 | 肺炎鏈球菌性肺炎 | Pneumonia due to Streptococcus pneumoniae |
-| `J18.9` | 肺炎 | 肺炎，未明示病原體 | Pneumonia, unspecified organism |
-| `B02.9` | 帶狀疱疹 | 帶狀疱疹未伴有併發症 | Zoster without complications |
-| `B16.9` | 急性 B 型肝炎 | 急性B型病毒性肝炎未併D 型肝炎病毒未伴有肝昏迷 | Acute hepatitis B without delta-agent and without hepatic coma |
-| `U07.1` | COVID-19 | 嚴重特殊傳染性肺炎 | COVID-19 |
+| `R50.83` | 疫苗接種後發燒 | 疫苗接種後發燒 | Postvaccination fever |
+| `T88.1XXA` | 疫苗接種後其他併發症（初期照護） | 免疫接種後其他併發症，他處未歸類之初期照護 | Other complications following immunization, not elsewhere classified, initial encounter |
+| `T80.52XA` | 疫苗接種後過敏性休克（初期照護） | 接種疫苗所致過敏性休克反應之初期照護 | Anaphylactic reaction due to vaccination, initial encounter |
+| `Z28.03` | 因免疫功能不全未接種 | 因病患之免疫功能不全而未執行疫苗接種 | Immunization not carried out because of immune compromised state of patient |
+| `Z28.04` | 因對疫苗成分過敏未接種 | 因病患對疫苗或成份過敏而未執行疫苗接種 | Immunization not carried out because of patient allergy to vaccine or component |
+| `J44.9` | 慢性阻塞性肺病 COPD | 慢性阻塞性肺病 | Chronic obstructive pulmonary disease, unspecified |
+| `E11.9` | 第二型糖尿病 | 第二型糖尿病，未伴有併發症 | Type 2 diabetes mellitus without complications |
+| `N18.5` | 第五期慢性腎臟疾病 | 第五期慢性腎臟疾病 | Chronic kidney disease, stage 5 |
+| `K74.60` | 肝硬化 | 肝硬化 | Unspecified cirrhosis of liver |
+| `Z90.81` | 無脾（脾臟切除後） | 脾臟後天性缺損 | Acquired absence of spleen |
+| `B20` | HIV 疾病 | 人類免疫不全病毒疾病 | Human immunodeficiency virus [HIV] disease |
 | `A53.9` | 梅毒 | 梅毒 | Syphilis, unspecified |
 | `A63.0` | 肛門生殖器疣 | 肛門生殖器疣 | Anogenital (venereal) warts |
 | `Z86.19` | 其他感染症個人史 | 其他感染症和寄生蟲病之個人史 | Personal history of other infectious and parasitic diseases |
@@ -664,11 +687,13 @@
 | `B54` | 瘧疾 | 瘧疾 | Unspecified malaria |
 | `B50.9` | 惡性瘧 | 惡性瘧 | Plasmodium falciparum malaria, unspecified |
 | `A92.0` | 屈公病 | 奇孔古尼亞病毒疾病 | Chikungunya virus disease |
+| `A27.9` | 鉤端螺旋體病 | 細鉤端螺旋體病 | Leptospirosis, unspecified |
+| `A92.5` | 茲卡病毒感染 | 茲卡病毒疾病 | Zika virus disease |
 | `A01.00` | 傷寒 | 傷寒 | Typhoid fever, unspecified |
 | `A75.9` | 斑疹傷寒 | 斑疹傷寒熱 | Typhus fever, unspecified |
 | `U07.1` | COVID-19 | 嚴重特殊傳染性肺炎 | COVID-19 |
 | `A09` | 感染性腸胃炎 | 感染性胃腸炎及大腸炎 | Infectious gastroenteritis and colitis, unspecified |
-| `B99.9` | 傳染病未明示 | 傳染病 | Unspecified infectious disease |
+| `B05.9` | 麻疹（未伴併發症） | 麻疹未伴有併發症 | Measles without complication |
 
 ### 神經／精神
 
@@ -1026,7 +1051,7 @@
 | `B85.2` | 蝨病 | 蝨病 | Pediculosis, unspecified |
 | `B88.9` | 侵染症 | 侵染(症) | Infestation, unspecified |
 | `W57.XXXA` | 無毒昆蟲叮咬（外因附加碼） | 被無毒昆蟲或節肢動物叮咬（傷）或螯（傷）之初期照護 | Bitten or stung by nonvenomous insect and other nonvenomous arthropods, initial encounter |
-| `T63.441A` | 蜜蜂螫傷 | 蜜蜂之毒液意外毒性作用之初期照護 | Toxic effect of venom of bees, accidental (unintentional), initial encounter |
+| `T63.441A` | 蜜蜂螫傷（初期照護） | 蜜蜂之毒液意外毒性作用之初期照護 | Toxic effect of venom of bees, accidental (unintentional), initial encounter |
 
 #### 糖尿病足／慢性傷口
 
@@ -1119,24 +1144,24 @@
 
 | 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
 |---|---|---|---|
-| `S01.01XA` | 頭皮撕裂傷（初診） | 頭皮撕裂傷未伴有異物之初期照護 | Laceration without foreign body of scalp, initial encounter |
-| `S01.81XA` | 頭部其他部位撕裂傷（初診） | 頭部其他部位撕裂傷未伴有異物之初期照護 | Laceration without foreign body of other part of head, initial encounter |
-| `S01.511A` | 嘴唇撕裂傷（初診） | 唇撕裂傷未伴有異物之初期照護 | Laceration without foreign body of lip, initial encounter |
-| `S61.419A` | 手部撕裂傷（初診） | 未明示側性手部撕裂傷未伴有異物之初期照護 | Laceration without foreign body of unspecified hand, initial encounter |
-| `S51.819A` | 前臂撕裂傷（初診） | 未明示側性前臂撕裂傷未伴有異物之初期照護 | Laceration without foreign body of unspecified forearm, initial encounter |
-| `S81.819A` | 小腿撕裂傷（初診） | 未明示側性小腿未伴有異物撕裂傷之初期照護 | Laceration without foreign body, unspecified lower leg, initial encounter |
-| `S91.319A` | 足部撕裂傷（初診） | 未明示側性足部撕裂傷未伴有異物之初期照護 | Laceration without foreign body, unspecified foot, initial encounter |
+| `S01.01XA` | 頭皮撕裂傷（初期照護） | 頭皮撕裂傷未伴有異物之初期照護 | Laceration without foreign body of scalp, initial encounter |
+| `S01.81XA` | 頭部其他部位撕裂傷（初期照護） | 頭部其他部位撕裂傷未伴有異物之初期照護 | Laceration without foreign body of other part of head, initial encounter |
+| `S01.511A` | 嘴唇撕裂傷（初期照護） | 唇撕裂傷未伴有異物之初期照護 | Laceration without foreign body of lip, initial encounter |
+| `S61.419A` | 手部撕裂傷（初期照護） | 未明示側性手部撕裂傷未伴有異物之初期照護 | Laceration without foreign body of unspecified hand, initial encounter |
+| `S51.819A` | 前臂撕裂傷（初期照護） | 未明示側性前臂撕裂傷未伴有異物之初期照護 | Laceration without foreign body of unspecified forearm, initial encounter |
+| `S81.819A` | 小腿撕裂傷（初期照護） | 未明示側性小腿未伴有異物撕裂傷之初期照護 | Laceration without foreign body, unspecified lower leg, initial encounter |
+| `S91.319A` | 足部撕裂傷（初期照護） | 未明示側性足部撕裂傷未伴有異物之初期照護 | Laceration without foreign body, unspecified foot, initial encounter |
 
 ### 挫傷／擦傷
 
 | 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
 |---|---|---|---|
-| `S00.03XA` | 頭皮挫傷（初診） | 頭皮挫傷之初期照護 | Contusion of scalp, initial encounter |
-| `S60.229A` | 手部挫傷（初診） | 未明示側性手部挫傷之初期照護 | Contusion of unspecified hand, initial encounter |
-| `S80.11XA` | 右小腿挫傷（初診） | 右側小腿挫傷之初期照護 | Contusion of right lower leg, initial encounter |
-| `S80.12XA` | 左小腿挫傷（初診） | 左側小腿挫傷之初期照護 | Contusion of left lower leg, initial encounter |
-| `S60.519A` | 手部擦傷（初診） | 未明示側性手部擦傷之初期照護 | Abrasion of unspecified hand, initial encounter |
-| `T14.90XA` | 未明示損傷（初診） | 損傷之初期照護 | Injury, unspecified, initial encounter |
+| `S00.03XA` | 頭皮挫傷（初期照護） | 頭皮挫傷之初期照護 | Contusion of scalp, initial encounter |
+| `S60.229A` | 手部挫傷（初期照護） | 未明示側性手部挫傷之初期照護 | Contusion of unspecified hand, initial encounter |
+| `S80.11XA` | 右小腿挫傷（初期照護） | 右側小腿挫傷之初期照護 | Contusion of right lower leg, initial encounter |
+| `S80.12XA` | 左小腿挫傷（初期照護） | 左側小腿挫傷之初期照護 | Contusion of left lower leg, initial encounter |
+| `S60.519A` | 手部擦傷（初期照護） | 未明示側性手部擦傷之初期照護 | Abrasion of unspecified hand, initial encounter |
+| `T14.90XA` | 未明示損傷（初期照護） | 損傷之初期照護 | Injury, unspecified, initial encounter |
 
 ### 傷口處置／術後
 
@@ -1145,46 +1170,46 @@
 | `Z48.01` | 手術傷口換藥 | 來院接受更換或移除手術傷口敷料 | Encounter for change or removal of surgical wound dressing |
 | `Z48.02` | 拆線 | 來院接受拆線 | Encounter for removal of sutures |
 | `Z09` | 治療後追蹤檢查 | 來院接受惡性腫瘤以外病況完整治療後之追蹤檢查 | Encounter for follow-up examination after completed treatment for conditions other than malignant neoplasm |
-| `T81.41XA` | 手術切口表淺感染 SSI（初診） | 手術切口表淺部位之處置後感染初期照護 | Infection following a procedure, superficial incisional surgical site, initial encounter |
-| `T81.31XA` | 手術傷口裂開（初診） | 手術傷口外部破裂，他處未歸類之初期照護 | Disruption of external operation (surgical) wound, not elsewhere classified, initial encounter |
+| `T81.41XA` | 手術切口表淺感染 SSI（初期照護） | 手術切口表淺部位之處置後感染初期照護 | Infection following a procedure, superficial incisional surgical site, initial encounter |
+| `T81.31XA` | 手術傷口裂開（初期照護） | 手術傷口外部破裂，他處未歸類之初期照護 | Disruption of external operation (surgical) wound, not elsewhere classified, initial encounter |
 | `Z47.2` | 移除內固定物 | 來院接受移除內固定裝置 | Encounter for removal of internal fixation device |
 | `Z47.89` | 骨科術後照護 | 來院接受其他骨科之術後療養 | Encounter for other orthopedic aftercare |
 
-### 複診／後續照護
+### 後續照護（癒合期）
 
 | 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
 |---|---|---|---|
-| `S01.01XD` | 頭皮撕裂傷（複診） | 頭皮撕裂傷未伴有異物之後續照護 | Laceration without foreign body of scalp, subsequent encounter |
-| `S01.81XD` | 頭部其他部位撕裂傷（複診） | 頭部其他部位撕裂傷未伴有異物之後續照護 | Laceration without foreign body of other part of head, subsequent encounter |
-| `S01.511D` | 嘴唇撕裂傷（複診） | 唇撕裂傷未伴有異物之後續照護 | Laceration without foreign body of lip, subsequent encounter |
-| `S61.419D` | 手部撕裂傷（複診） | 未明示側性手部撕裂傷未伴有異物之後續照護 | Laceration without foreign body of unspecified hand, subsequent encounter |
-| `S51.819D` | 前臂撕裂傷（複診） | 未明示側性前臂撕裂傷未伴有異物之後續照護 | Laceration without foreign body of unspecified forearm, subsequent encounter |
-| `S81.819D` | 小腿撕裂傷（複診） | 未明示側性小腿未伴有異物撕裂傷之後遺症 | Laceration without foreign body, unspecified lower leg, subsequent encounter |
-| `S91.319D` | 足部撕裂傷（複診） | 未明示側性足部撕裂傷未伴有異物之後續照護 | Laceration without foreign body, unspecified foot, subsequent encounter |
-| `S00.03XD` | 頭皮挫傷（複診） | 頭皮挫傷之後續照護 | Contusion of scalp, subsequent encounter |
-| `S60.229D` | 手部挫傷（複診） | 未明示側性手部挫傷之後續照護 | Contusion of unspecified hand, subsequent encounter |
-| `S80.11XD` | 右小腿挫傷（複診） | 右側小腿挫傷之後續照護 | Contusion of right lower leg, subsequent encounter |
-| `S80.12XD` | 左小腿挫傷（複診） | 左側小腿挫傷之後續照護 | Contusion of left lower leg, subsequent encounter |
-| `S60.519D` | 手部擦傷（複診） | 未明示側性手部擦傷之後續照護 | Abrasion of unspecified hand, subsequent encounter |
-| `T14.90XD` | 未明示損傷（複診） | 損傷之後續照護 | Injury, unspecified, subsequent encounter |
-| `T81.41XD` | 手術切口表淺感染 SSI（複診） | 手術切口表淺部位之處置後感染後續照護 | Infection following a procedure, superficial incisional surgical site, subsequent encounter |
-| `T81.31XD` | 手術傷口裂開（複診） | 手術傷口外部破裂，他處未歸類之後續照護 | Disruption of external operation (surgical) wound, not elsewhere classified, subsequent encounter |
-| `T20.20XD` | 頭臉頸二度燙傷（複診） | 頭、臉及頸部未明示部位二度燒傷之後續照護 | Burn of second degree of head, face, and neck, unspecified site, subsequent encounter |
-| `T23.209D` | 手部二度燙傷（複診） | 未明示側性手部未明示部位二度燒傷之後續照護 | Burn of second degree of unspecified hand, unspecified site, subsequent encounter |
-| `T24.209D` | 下肢二度燙傷（複診） | 未明示側性下肢（踝部及足部除外）未明示部位二度燒傷之後續照護 | Burn of second degree of unspecified site of unspecified lower limb, except ankle and foot, subsequent encounter |
-| `S93.401D` | 右踝扭傷（複診） | 右側踝部韌帶扭傷之後續照護 | Sprain of unspecified ligament of right ankle, subsequent encounter |
-| `S93.402D` | 左踝扭傷（複診） | 左側踝部韌帶扭傷之後續照護 | Sprain of unspecified ligament of left ankle, subsequent encounter |
-| `S63.509D` | 腕扭傷（複診） | 未明示側性腕部扭傷之後續照護 | Unspecified sprain of unspecified wrist, subsequent encounter |
-| `S16.1XXD` | 頸部拉傷（複診） | 頸部肌肉，筋膜和肌腱拉傷之後續照護 | Strain of muscle, fascia and tendon at neck level, subsequent encounter |
+| `S01.01XD` | 頭皮撕裂傷（後續照護） | 頭皮撕裂傷未伴有異物之後續照護 | Laceration without foreign body of scalp, subsequent encounter |
+| `S01.81XD` | 頭部其他部位撕裂傷（後續照護） | 頭部其他部位撕裂傷未伴有異物之後續照護 | Laceration without foreign body of other part of head, subsequent encounter |
+| `S01.511D` | 嘴唇撕裂傷（後續照護） | 唇撕裂傷未伴有異物之後續照護 | Laceration without foreign body of lip, subsequent encounter |
+| `S61.419D` | 手部撕裂傷（後續照護） | 未明示側性手部撕裂傷未伴有異物之後續照護 | Laceration without foreign body of unspecified hand, subsequent encounter |
+| `S51.819D` | 前臂撕裂傷（後續照護） | 未明示側性前臂撕裂傷未伴有異物之後續照護 | Laceration without foreign body of unspecified forearm, subsequent encounter |
+| `S81.819D` | 小腿撕裂傷（後續照護） | 未明示側性小腿未伴有異物撕裂傷之後遺症 | Laceration without foreign body, unspecified lower leg, subsequent encounter |
+| `S91.319D` | 足部撕裂傷（後續照護） | 未明示側性足部撕裂傷未伴有異物之後續照護 | Laceration without foreign body, unspecified foot, subsequent encounter |
+| `S00.03XD` | 頭皮挫傷（後續照護） | 頭皮挫傷之後續照護 | Contusion of scalp, subsequent encounter |
+| `S60.229D` | 手部挫傷（後續照護） | 未明示側性手部挫傷之後續照護 | Contusion of unspecified hand, subsequent encounter |
+| `S80.11XD` | 右小腿挫傷（後續照護） | 右側小腿挫傷之後續照護 | Contusion of right lower leg, subsequent encounter |
+| `S80.12XD` | 左小腿挫傷（後續照護） | 左側小腿挫傷之後續照護 | Contusion of left lower leg, subsequent encounter |
+| `S60.519D` | 手部擦傷（後續照護） | 未明示側性手部擦傷之後續照護 | Abrasion of unspecified hand, subsequent encounter |
+| `T14.90XD` | 未明示損傷（後續照護） | 損傷之後續照護 | Injury, unspecified, subsequent encounter |
+| `T81.41XD` | 手術切口表淺感染 SSI（後續照護） | 手術切口表淺部位之處置後感染後續照護 | Infection following a procedure, superficial incisional surgical site, subsequent encounter |
+| `T81.31XD` | 手術傷口裂開（後續照護） | 手術傷口外部破裂，他處未歸類之後續照護 | Disruption of external operation (surgical) wound, not elsewhere classified, subsequent encounter |
+| `T20.20XD` | 頭臉頸二度燙傷（後續照護） | 頭、臉及頸部未明示部位二度燒傷之後續照護 | Burn of second degree of head, face, and neck, unspecified site, subsequent encounter |
+| `T23.209D` | 手部二度燙傷（後續照護） | 未明示側性手部未明示部位二度燒傷之後續照護 | Burn of second degree of unspecified hand, unspecified site, subsequent encounter |
+| `T24.209D` | 下肢二度燙傷（後續照護） | 未明示側性下肢（踝部及足部除外）未明示部位二度燒傷之後續照護 | Burn of second degree of unspecified site of unspecified lower limb, except ankle and foot, subsequent encounter |
+| `S93.401D` | 右踝扭傷（後續照護） | 右側踝部韌帶扭傷之後續照護 | Sprain of unspecified ligament of right ankle, subsequent encounter |
+| `S93.402D` | 左踝扭傷（後續照護） | 左側踝部韌帶扭傷之後續照護 | Sprain of unspecified ligament of left ankle, subsequent encounter |
+| `S63.509D` | 腕扭傷（後續照護） | 未明示側性腕部扭傷之後續照護 | Unspecified sprain of unspecified wrist, subsequent encounter |
+| `S16.1XXD` | 頸部拉傷（後續照護） | 頸部肌肉，筋膜和肌腱拉傷之後續照護 | Strain of muscle, fascia and tendon at neck level, subsequent encounter |
 
 ### 燒燙傷
 
 | 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
 |---|---|---|---|
 | `T30.0` | 燙傷（部位與程度均未明示） | 未明示身體部位燒傷 | Burn of unspecified body region, unspecified degree |
-| `T20.20XA` | 頭臉頸二度燙傷（初診） | 頭、臉及頸部未明示部位二度燒傷之初期照護 | Burn of second degree of head, face, and neck, unspecified site, initial encounter |
-| `T23.209A` | 手部二度燙傷（初診） | 未明示側性手部未明示部位二度燒傷之初期照護 | Burn of second degree of unspecified hand, unspecified site, initial encounter |
-| `T24.209A` | 下肢二度燙傷（初診） | 未明示側性下肢（踝部及足部除外）未明示部位二度燒傷之初期照護 | Burn of second degree of unspecified site of unspecified lower limb, except ankle and foot, initial encounter |
+| `T20.20XA` | 頭臉頸二度燙傷（初期照護） | 頭、臉及頸部未明示部位二度燒傷之初期照護 | Burn of second degree of head, face, and neck, unspecified site, initial encounter |
+| `T23.209A` | 手部二度燙傷（初期照護） | 未明示側性手部未明示部位二度燒傷之初期照護 | Burn of second degree of unspecified hand, unspecified site, initial encounter |
+| `T24.209A` | 下肢二度燙傷（初期照護） | 未明示側性下肢（踝部及足部除外）未明示部位二度燒傷之初期照護 | Burn of second degree of unspecified site of unspecified lower limb, except ankle and foot, initial encounter |
 
 ### 膿瘍／皮膚病灶
 
@@ -1230,10 +1255,10 @@
 
 | 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
 |---|---|---|---|
-| `S93.401A` | 右踝扭傷（初診） | 右側踝部韌帶扭傷之初期照護 | Sprain of unspecified ligament of right ankle, initial encounter |
-| `S93.402A` | 左踝扭傷（初診） | 左側踝部韌帶扭傷之初期照護 | Sprain of unspecified ligament of left ankle, initial encounter |
-| `S63.509A` | 腕扭傷（初診） | 未明示側性腕部扭傷之初期照護 | Unspecified sprain of unspecified wrist, initial encounter |
-| `S16.1XXA` | 頸部拉傷（初診） | 頸部肌肉，筋膜和肌腱拉傷之初期照護 | Strain of muscle, fascia and tendon at neck level, initial encounter |
+| `S93.401A` | 右踝扭傷（初期照護） | 右側踝部韌帶扭傷之初期照護 | Sprain of unspecified ligament of right ankle, initial encounter |
+| `S93.402A` | 左踝扭傷（初期照護） | 左側踝部韌帶扭傷之初期照護 | Sprain of unspecified ligament of left ankle, initial encounter |
+| `S63.509A` | 腕扭傷（初期照護） | 未明示側性腕部扭傷之初期照護 | Unspecified sprain of unspecified wrist, initial encounter |
+| `S16.1XXA` | 頸部拉傷（初期照護） | 頸部肌肉，筋膜和肌腱拉傷之初期照護 | Strain of muscle, fascia and tendon at neck level, initial encounter |
 | `M62.830` | 背部肌肉痙攣 | 背部肌肉痙攣 | Muscle spasm of back |
 | `Z47.89` | 骨科術後照護 | 來院接受其他骨科之術後療養 | Encounter for other orthopedic aftercare |
 | `Z47.2` | 移除內固定物 | 來院接受移除內固定裝置 | Encounter for removal of internal fixation device |
@@ -1388,15 +1413,15 @@
 | `Z48.01` | 手術傷口換藥 | 來院接受更換或移除手術傷口敷料 | Encounter for change or removal of surgical wound dressing |
 | `Z48.02` | 拆線 | 來院接受拆線 | Encounter for removal of sutures |
 | `Z09` | 治療後追蹤檢查 | 來院接受惡性腫瘤以外病況完整治療後之追蹤檢查 | Encounter for follow-up examination after completed treatment for conditions other than malignant neoplasm |
-| `T81.41XA` | 手術切口表淺感染 SSI（初診） | 手術切口表淺部位之處置後感染初期照護 | Infection following a procedure, superficial incisional surgical site, initial encounter |
-| `T81.41XD` | 手術切口表淺感染 SSI（複診） | 手術切口表淺部位之處置後感染後續照護 | Infection following a procedure, superficial incisional surgical site, subsequent encounter |
-| `T14.90XA` | 未明示損傷（初診） | 損傷之初期照護 | Injury, unspecified, initial encounter |
-| `T14.90XD` | 未明示損傷（複診） | 損傷之後續照護 | Injury, unspecified, subsequent encounter |
-| `S61.419A` | 手部撕裂傷（初診） | 未明示側性手部撕裂傷未伴有異物之初期照護 | Laceration without foreign body of unspecified hand, initial encounter |
-| `S61.419D` | 手部撕裂傷（複診） | 未明示側性手部撕裂傷未伴有異物之後續照護 | Laceration without foreign body of unspecified hand, subsequent encounter |
-| `S93.401D` | 右踝扭傷（複診） | 右側踝部韌帶扭傷之後續照護 | Sprain of unspecified ligament of right ankle, subsequent encounter |
-| `S93.402D` | 左踝扭傷（複診） | 左側踝部韌帶扭傷之後續照護 | Sprain of unspecified ligament of left ankle, subsequent encounter |
-| `S60.229D` | 手部挫傷（複診） | 未明示側性手部挫傷之後續照護 | Contusion of unspecified hand, subsequent encounter |
+| `T81.41XA` | 手術切口表淺感染 SSI（初期照護） | 手術切口表淺部位之處置後感染初期照護 | Infection following a procedure, superficial incisional surgical site, initial encounter |
+| `T81.41XD` | 手術切口表淺感染 SSI（後續照護） | 手術切口表淺部位之處置後感染後續照護 | Infection following a procedure, superficial incisional surgical site, subsequent encounter |
+| `T14.90XA` | 未明示損傷（初期照護） | 損傷之初期照護 | Injury, unspecified, initial encounter |
+| `T14.90XD` | 未明示損傷（後續照護） | 損傷之後續照護 | Injury, unspecified, subsequent encounter |
+| `S61.419A` | 手部撕裂傷（初期照護） | 未明示側性手部撕裂傷未伴有異物之初期照護 | Laceration without foreign body of unspecified hand, initial encounter |
+| `S61.419D` | 手部撕裂傷（後續照護） | 未明示側性手部撕裂傷未伴有異物之後續照護 | Laceration without foreign body of unspecified hand, subsequent encounter |
+| `S93.401D` | 右踝扭傷（後續照護） | 右側踝部韌帶扭傷之後續照護 | Sprain of unspecified ligament of right ankle, subsequent encounter |
+| `S93.402D` | 左踝扭傷（後續照護） | 左側踝部韌帶扭傷之後續照護 | Sprain of unspecified ligament of left ankle, subsequent encounter |
+| `S60.229D` | 手部挫傷（後續照護） | 未明示側性手部挫傷之後續照護 | Contusion of unspecified hand, subsequent encounter |
 | `L02.91` | 皮膚膿瘍 | 皮膚膿瘍 | Cutaneous abscess, unspecified |
 | `L03.011` | 甲溝炎（右手指） | 右側手指蜂窩組織炎 | Cellulitis of right finger |
 | `L60.0` | 嵌甲 | 指（趾）甲內生 | Ingrowing nail |
@@ -1407,7 +1432,7 @@
 | `K40.90` | 腹股溝疝氣 | 單側腹股溝疝氣，未伴有阻塞或壞疽，未明示為復發 | Unilateral inguinal hernia, without obstruction or gangrene, not specified as recurrent |
 | `K35.80` | 急性闌尾炎 | 急性闌尾炎 | Unspecified acute appendicitis |
 
-## 全域關聯表（201 組）
+## 全域關聯表（203 組）
 
 點選左欄代碼後，右側「相關評估碼」會建議的碼。
 
@@ -1433,13 +1458,13 @@
 | `B02.9` 帶狀疱疹未伴有併發症 | `B02.29` 疱疹後侵及其他神經系統 |
 | `B16.9` 急性B型病毒性肝炎未併D 型肝炎病毒未伴有肝昏迷 | `B18.1` 慢性病毒性B型肝炎未伴有D 型肝炎病毒、`R74.01` 轉胺基脢含量上升、`Z23` 來院接受疫苗接種、`Z20.5` 病毒性肝炎之接觸和疑似曝露 |
 | `B17.10` 急性C型病毒性肝炎未伴有肝昏迷 | `B18.2` 慢性病毒性C型肝炎、`R74.01` 轉胺基脢含量上升、`K74.60` 肝硬化 |
-| `B18.1` 慢性病毒性B型肝炎未伴有D 型肝炎病毒 | `K74.60` 肝硬化、`R74.01` 轉胺基脢含量上升、`B18.2` 慢性病毒性C型肝炎、`C22.0` 肝細胞癌、`K72.10` 慢性肝衰竭未伴有昏迷、`I85.00` 食道靜脈曲張未伴有出血、`B18.0` 慢性病毒性B型肝炎伴有D 型肝炎病毒、`Z12.89` 來院接受其他部位惡性腫瘤之篩檢、`Z22.8` 其他感染性疾病之帶菌者 |
-| `B18.2` 慢性病毒性C型肝炎 | `K74.60` 肝硬化、`R74.01` 轉胺基脢含量上升、`B18.1` 慢性病毒性B型肝炎未伴有D 型肝炎病毒、`C22.0` 肝細胞癌、`K72.10` 慢性肝衰竭未伴有昏迷、`I85.00` 食道靜脈曲張未伴有出血、`B17.10` 急性C型病毒性肝炎未伴有肝昏迷、`Z12.89` 來院接受其他部位惡性腫瘤之篩檢 |
+| `B18.1` 慢性病毒性B型肝炎未伴有D 型肝炎病毒 | `K74.60` 肝硬化、`R74.01` 轉胺基脢含量上升、`B18.2` 慢性病毒性C型肝炎、`C22.0` 肝細胞癌、`K72.10` 慢性肝衰竭未伴有昏迷、`I85.10` 續發性食道靜脈曲張未伴有出血、`B18.0` 慢性病毒性B型肝炎伴有D 型肝炎病毒、`Z12.89` 來院接受其他部位惡性腫瘤之篩檢、`Z22.8` 其他感染性疾病之帶菌者 |
+| `B18.2` 慢性病毒性C型肝炎 | `K74.60` 肝硬化、`R74.01` 轉胺基脢含量上升、`B18.1` 慢性病毒性B型肝炎未伴有D 型肝炎病毒、`C22.0` 肝細胞癌、`K72.10` 慢性肝衰竭未伴有昏迷、`I85.10` 續發性食道靜脈曲張未伴有出血、`B17.10` 急性C型病毒性肝炎未伴有肝昏迷、`Z12.89` 來院接受其他部位惡性腫瘤之篩檢 |
 | `B20` 人類免疫不全病毒疾病 | `Z21` 無症狀之人類免疫不全病毒感染狀態、`B59` 肺囊蟲病、`B37.9` 念珠菌病、`A15.0` 肺結核、`B02.9` 帶狀疱疹未伴有併發症、`Z79.899` 長期 （現在之）藥物治療、`B37.0` 念珠菌性口炎、`B45.1` 腦隱球菌病、`B25.9` 巨細胞病毒疾病、`B58.9` 弓漿蟲病、`A15.9` 呼吸道結核病、`A53.9` 梅毒 |
 | `B50.9` 惡性瘧 | `B54` 瘧疾、`A90` 登革熱[典型登革熱]、`R50.9` 發燒 |
 | `B54` 瘧疾 | `B50.9` 惡性瘧、`A90` 登革熱[典型登革熱]、`R50.9` 發燒、`D64.9` 貧血、`A01.00` 傷寒 |
 | `B59` 肺囊蟲病 | `B20` 人類免疫不全病毒疾病、`Z79.899` 長期 （現在之）藥物治療、`J18.9` 肺炎，未明示病原體、`R06.02` 呼吸短促 |
-| `C22.0` 肝細胞癌 | `K74.60` 肝硬化、`B18.1` 慢性病毒性B型肝炎未伴有D 型肝炎病毒、`B18.2` 慢性病毒性C型肝炎、`Z12.89` 來院接受其他部位惡性腫瘤之篩檢、`I85.00` 食道靜脈曲張未伴有出血、`K72.10` 慢性肝衰竭未伴有昏迷 |
+| `C22.0` 肝細胞癌 | `K74.60` 肝硬化、`B18.1` 慢性病毒性B型肝炎未伴有D 型肝炎病毒、`B18.2` 慢性病毒性C型肝炎、`Z12.89` 來院接受其他部位惡性腫瘤之篩檢、`I85.10` 續發性食道靜脈曲張未伴有出血、`K72.10` 慢性肝衰竭未伴有昏迷 |
 | `D50.9` 缺鐵性貧血 | `D64.9` 貧血、`K92.2` 胃腸道出血、`N92.0` 月經量過多及次數過多伴有規則週期 |
 | `D64.9` 貧血 | `D50.9` 缺鐵性貧血、`D63.1` 慢性腎臟疾病導致的貧血、`R53.83` 其他疲勞 |
 | `D70.9` 嗜中性白血球缺乏症 | `A41.9` 敗血症，未明示病原體、`R50.9` 發燒、`J18.9` 肺炎，未明示病原體、`B37.9` 念珠菌病、`R65.21` 伴有敗血性休克的嚴重敗血症 |
@@ -1483,6 +1508,8 @@
 | `I82.409` 未明示側性下肢未明示深部靜脈急性栓塞及血栓 | `I26.99` 其他肺栓塞未伴有急性肺性心臟病、`Z79.01` 長期（現在之）服用抗凝血劑、`I87.2` 靜脈功能不足（慢性）（周邊）、`L03.90` 蜂窩組織炎 |
 | `I85.00` 食道靜脈曲張未伴有出血 | `K74.60` 肝硬化、`I85.01` 食道靜脈曲張伴有出血、`R18.8` 其他腹水、`K72.10` 慢性肝衰竭未伴有昏迷、`C22.0` 肝細胞癌 |
 | `I85.01` 食道靜脈曲張伴有出血 | `I85.00` 食道靜脈曲張未伴有出血、`K74.60` 肝硬化、`K92.0` 吐血、`D62` 急性出血後貧血、`R57.1` 低血容性休克 |
+| `I85.10` 續發性食道靜脈曲張未伴有出血 | `K74.60` 肝硬化、`I85.11` 續發性食道靜脈曲張伴有出血、`R18.8` 其他腹水、`K72.10` 慢性肝衰竭未伴有昏迷、`C22.0` 肝細胞癌 |
+| `I85.11` 續發性食道靜脈曲張伴有出血 | `I85.10` 續發性食道靜脈曲張未伴有出血、`K74.60` 肝硬化、`K92.0` 吐血、`D62` 急性出血後貧血、`R57.1` 低血容性休克 |
 | `J18.9` 肺炎，未明示病原體 | `J15.9` 細菌性肺炎、`J13` 肺炎鏈球菌性肺炎、`J15.212` 抗甲氧西林（抗藥性）金黃色葡萄球菌所致之肺炎、`J69.0` 吸入食物或嘔吐物所致之肺炎、`B96.0` 歸類於他處肺炎黴漿菌所致的疾病、`B95.3` 歸類於他處肺炎鏈球菌所致的疾病、`U07.1` 嚴重特殊傳染性肺炎、`R05.9` 咳嗽、`R50.9` 發燒 |
 | `J44.1` 慢性阻塞性肺病伴有(急性)發作 | `J44.9` 慢性阻塞性肺病、`J18.9` 肺炎，未明示病原體、`B95.3` 歸類於他處肺炎鏈球菌所致的疾病、`B96.3` 歸類於他處流行性感冒嗜血桿菌所致的疾病、`B96.1` 歸類於他處肺炎克氏桿菌所致的疾病 |
 | `J44.9` 慢性阻塞性肺病 | `J44.1` 慢性阻塞性肺病伴有(急性)發作、`J44.0` 慢性阻塞性肺病伴有急性下呼吸道感染、`F17.210` 尼古丁依賴，香菸，無併發症、`Z99.81` 補充氧氣之依賴、`J45.909` 氣喘,無併發症 |
@@ -1499,13 +1526,13 @@
 | `K59.00` 便秘 | `K64.9` 痔瘡、`R19.4` 排便習慣改變、`K58.9` 激躁性腸症候群未伴有腹瀉 |
 | `K64.9` 痔瘡 | `K64.5` 肛門周圍靜脈血栓、`K60.2` 肛門裂、`K62.5` 肛門及直腸出血 |
 | `K65.2` 自發細菌性腹膜炎 | `K74.60` 肝硬化、`R18.8` 其他腹水、`B96.20` 歸類於他處大腸桿菌所致的疾病 |
-| `K72.10` 慢性肝衰竭未伴有昏迷 | `K74.60` 肝硬化、`I85.00` 食道靜脈曲張未伴有出血、`R18.8` 其他腹水、`C22.0` 肝細胞癌、`B18.1` 慢性病毒性B型肝炎未伴有D 型肝炎病毒 |
-| `K74.60` 肝硬化 | `B18.1` 慢性病毒性B型肝炎未伴有D 型肝炎病毒、`B18.2` 慢性病毒性C型肝炎、`K76.0` 脂肪肝(變化)，他處未歸類者、`R18.8` 其他腹水、`K65.2` 自發細菌性腹膜炎、`I85.00` 食道靜脈曲張未伴有出血、`C22.0` 肝細胞癌、`K72.10` 慢性肝衰竭未伴有昏迷 |
+| `K72.10` 慢性肝衰竭未伴有昏迷 | `K74.60` 肝硬化、`I85.10` 續發性食道靜脈曲張未伴有出血、`R18.8` 其他腹水、`C22.0` 肝細胞癌、`B18.1` 慢性病毒性B型肝炎未伴有D 型肝炎病毒 |
+| `K74.60` 肝硬化 | `B18.1` 慢性病毒性B型肝炎未伴有D 型肝炎病毒、`B18.2` 慢性病毒性C型肝炎、`K76.0` 脂肪肝(變化)，他處未歸類者、`R18.8` 其他腹水、`K65.2` 自發細菌性腹膜炎、`I85.10` 續發性食道靜脈曲張未伴有出血、`C22.0` 肝細胞癌、`K72.10` 慢性肝衰竭未伴有昏迷 |
 | `K75.0` 肝膿瘍 | `B96.1` 歸類於他處肺炎克氏桿菌所致的疾病、`K83.09` 其他膽管炎、`A06.4` 阿米巴性肝膿瘍 |
 | `K76.0` 脂肪肝(變化)，他處未歸類者 | `R74.01` 轉胺基脢含量上升、`E78.5` 高血脂症、`E11.9` 第二型糖尿病，未伴有併發症、`E66.9` 肥胖 |
 | `K80.20` 膽囊結石未伴有膽囊炎未伴有阻塞 | `K81.0` 急性膽囊炎、`K83.09` 其他膽管炎、`R10.11` 右上四分之一腹痛、`K80.50` 膽管結石未伴有膽囊炎或膽管炎未伴有阻塞 |
 | `K81.0` 急性膽囊炎 | `K80.20` 膽囊結石未伴有膽囊炎未伴有阻塞、`K80.00` 膽囊結石併急性膽囊炎未伴有阻塞、`K83.09` 其他膽管炎、`R10.11` 右上四分之一腹痛 |
-| `K92.2` 胃腸道出血 | `K92.0` 吐血、`K92.1` 黑便、`K25.4` 慢性或未明示胃潰瘍併出血、`K26.4` 慢性或未明示十二指腸潰瘍併出血、`I85.01` 食道靜脈曲張伴有出血、`D62` 急性出血後貧血、`K29.01` 急性胃炎併出血 |
+| `K92.2` 胃腸道出血 | `K92.0` 吐血、`K92.1` 黑便、`K25.4` 慢性或未明示胃潰瘍併出血、`K26.4` 慢性或未明示十二指腸潰瘍併出血、`I85.11` 續發性食道靜脈曲張伴有出血、`I85.01` 食道靜脈曲張伴有出血、`D62` 急性出血後貧血、`K29.01` 急性胃炎併出血 |
 | `L03.115` 右側下肢蜂窩組織炎 | `B95.62` 歸類於他處抗甲氧西林（抗藥性）金黃色葡萄球菌感染所致的疾病、`B95.61` 歸類於他處甲氧西林敏感性金黃色葡萄球菌感染所致的疾病、`B95.0` 歸類於他處A群鏈球菌所致的疾病、`E11.9` 第二型糖尿病，未伴有併發症、`I87.2` 靜脈功能不足（慢性）（周邊）、`B35.3` 足癬 |
 | `L03.116` 左側下肢蜂窩組織炎 | `B95.62` 歸類於他處抗甲氧西林（抗藥性）金黃色葡萄球菌感染所致的疾病、`B95.61` 歸類於他處甲氧西林敏感性金黃色葡萄球菌感染所致的疾病、`B95.0` 歸類於他處A群鏈球菌所致的疾病、`E11.9` 第二型糖尿病，未伴有併發症、`I87.2` 靜脈功能不足（慢性）（周邊）、`B35.3` 足癬 |
 | `L03.90` 蜂窩組織炎 | `L03.115` 右側下肢蜂窩組織炎、`L03.116` 左側下肢蜂窩組織炎、`B95.62` 歸類於他處抗甲氧西林（抗藥性）金黃色葡萄球菌感染所致的疾病、`B95.61` 歸類於他處甲氧西林敏感性金黃色葡萄球菌感染所致的疾病、`B95.0` 歸類於他處A群鏈球菌所致的疾病、`A46` 丹毒、`E11.9` 第二型糖尿病，未伴有併發症、`Z16.24` 多種抗生素之抗藥性 |
@@ -1600,8 +1627,8 @@
 | `Z22.322` 金黃色葡萄球菌青黴素抗藥性之帶菌者或疑似帶菌者 | `B95.62` 歸類於他處抗甲氧西林（抗藥性）金黃色葡萄球菌感染所致的疾病、`L03.90` 蜂窩組織炎、`A41.9` 敗血症，未明示病原體、`Z16.24` 多種抗生素之抗藥性 |
 | `Z22.7` 潛伏結核病 | `A15.0` 肺結核、`A15.9` 呼吸道結核病、`R76.11` 無活動性結核病結核菌素皮膚試驗之非明示性反應、`R76.12` 無活動性結核病γ干擾素抗原反應的細胞介導免疫測定之非特定性反應、`Z86.11` 結核病之個人史、`R91.8` 肺部其他非特定性異常發現、`Z20.1` 結核病之接觸或疑似曝露 |
 | `Z22.8` 其他感染性疾病之帶菌者 | `B18.1` 慢性病毒性B型肝炎未伴有D 型肝炎病毒、`B18.2` 慢性病毒性C型肝炎、`K74.60` 肝硬化、`R74.01` 轉胺基脢含量上升、`C22.0` 肝細胞癌 |
-| `Z23` 來院接受疫苗接種 | `J11.1` 未確認流感病毒所致流行性感冒併其他呼吸道表徵、`J13` 肺炎鏈球菌性肺炎、`B02.9` 帶狀疱疹未伴有併發症、`B16.9` 急性B型病毒性肝炎未併D 型肝炎病毒未伴有肝昏迷、`U07.1` 嚴重特殊傳染性肺炎、`J18.9` 肺炎，未明示病原體 |
-| `Z28.9` 因未明示原因而未執行疫苗接種 | `Z23` 來院接受疫苗接種、`J11.1` 未確認流感病毒所致流行性感冒併其他呼吸道表徵、`J13` 肺炎鏈球菌性肺炎、`B16.9` 急性B型病毒性肝炎未併D 型肝炎病毒未伴有肝昏迷、`U07.1` 嚴重特殊傳染性肺炎 |
+| `Z23` 來院接受疫苗接種 | `J44.9` 慢性阻塞性肺病、`E11.9` 第二型糖尿病，未伴有併發症、`N18.5` 第五期慢性腎臟疾病、`K74.60` 肝硬化、`Z90.81` 脾臟後天性缺損、`B20` 人類免疫不全病毒疾病、`R50.83` 疫苗接種後發燒、`T88.1XXA` 免疫接種後其他併發症，他處未歸類之初期照護 |
+| `Z28.9` 因未明示原因而未執行疫苗接種 | `Z23` 來院接受疫苗接種、`Z28.03` 因病患之免疫功能不全而未執行疫苗接種、`Z28.04` 因病患對疫苗或成份過敏而未執行疫苗接種、`J44.9` 慢性阻塞性肺病、`E11.9` 第二型糖尿病，未伴有併發症、`B20` 人類免疫不全病毒疾病 |
 | `Z45.2` 來院接受血管導管裝置之調整及處理 | `T80.211D` 中心靜脈導管所致血流感染之後續照護、`Z79.2` 長期（現在之）服用抗生素、`I33.0` 急性及亞急性感染性心內膜炎、`M86.9` 骨髓炎、`A41.9` 敗血症，未明示病原體、`Z51.81` 來院接受治療性藥物值監測 |
 | `Z47.2` 來院接受移除內固定裝置 | `Z47.89` 來院接受其他骨科之術後療養、`Z09` 來院接受惡性腫瘤以外病況完整治療後之追蹤檢查、`Z48.02` 來院接受拆線 |
 | `Z47.89` 來院接受其他骨科之術後療養 | `Z47.2` 來院接受移除內固定裝置、`Z09` 來院接受惡性腫瘤以外病況完整治療後之追蹤檢查、`Z48.01` 來院接受更換或移除手術傷口敷料、`Z48.02` 來院接受拆線 |
@@ -1617,4 +1644,4 @@
 
 ---
 
-面板與快選代碼位置合計 870 筆。
+面板與快選代碼位置合計 895 筆。

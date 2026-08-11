@@ -12,6 +12,13 @@
 
   const has = (obj, key) => Object.prototype.hasOwnProperty.call(obj || {}, key);
 
+  /* 附加碼：B95–B97（「分類於他處疾病之病原體」）與 Z16（抗藥性）在 ICD-10-CM 只能
+     附加在主要疾病之後，**不得作為主診斷**。官方中文名（例如 Z16.11「青黴素之抗藥性」）
+     完全看不出這件事，而相關碼推薦區的 chip 走的就是官方中文名——所以判斷放在資料層，
+     讓三套版面在任何出現位置（面板／快選／搜尋結果／相關碼／常用列／清單）都標得出來。 */
+  const ADJUNCT_RE = /^(?:B9[567]|Z16)/;
+  const isAdjunct = (code) => typeof code === 'string' && ADJUNCT_RE.test(code);
+
   /* 蒐集所有人工精選出現過的代碼，供搜尋排序優先顯示。（原 app.js collectCuratedCodes，
      邏輯不動，只補上「欄位不存在」的防護，讓精簡的測試資料也能用。） */
   function collectCuratedCodes(C) {
@@ -245,19 +252,28 @@
          2. 搜尋結果列自帶 row[1]
          3. 精選白名單 CURATED_LABELS —— 安全性由 build.py 的 validate_curated()／
             build_curated_labels() 在建置期保證（強制全是 USE=1 葉碼）
-       渲染層與 store 的 canAdd 都要走這個函式，不得各自判斷。 */
-    function isAddable(code, row) {
-      if (typeof code !== 'string' || !code) return false;
+       渲染層與 store 的 canAdd 都要走這個函式，不得各自判斷。
+
+       addability() 是三態版本：'yes' 可加、'no' 明確不可加（類目碼／不存在）、
+       'unknown' 全庫未就緒且不在白名單，此刻無從判斷。'unknown' 一樣不可加
+       （isAddable 只認 'yes'，防線強度完全不變），差別只在呼叫端可以據此給出誠實的
+       訊息與可行的下一步——★最愛裡的非精選碼在全庫就緒前被拒時，以前會播報
+       「是類目碼或不存在」，與事實相反（R2 I3）。 */
+    function addability(code, row) {
+      if (typeof code !== 'string' || !code) return 'no';
       if (index) {
         const known = index.byCode.get(code);
-        return !!known && known[1] === 1;
+        return known && known[1] === 1 ? 'yes' : 'no';
       }
-      if (row) return Array.isArray(row) && row[1] === 1;
-      return has(labels, code) && !!labels[code];
+      if (row) return Array.isArray(row) && row[1] === 1 ? 'yes' : 'no';
+      if (has(labels, code) && !!labels[code]) return 'yes';
+      return 'unknown';
     }
 
+    const isAddable = (code, row) => addability(code, row) === 'yes';
+
     return {
-      labelOf, rowFor, isAddable,
+      labelOf, rowFor, isAddable, addability, isAdjunct,
       regionsFor, panelsFor, quickGroupsFor, clampRegion,
       ensureDb, retryDb, nextToken, isCurrentToken,
       search, searchCurated, relatedFor, familyFor,
@@ -272,7 +288,7 @@
   }
 
   return {
-    createData, collectCuratedCodes, flattenSymptomRelated, loadCodesFromDocument,
+    createData, collectCuratedCodes, flattenSymptomRelated, loadCodesFromDocument, isAdjunct,
     SEARCH_LIMIT, FAMILY_LIMIT,
   };
 });

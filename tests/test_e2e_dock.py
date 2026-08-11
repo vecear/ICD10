@@ -346,10 +346,21 @@ def test_search_rows_and_category_code(pg):
     assert_no_hscroll(pg, "搜尋結果")
     assert not overflowing_elements(pg), overflowing_elements(pg)
 
+    # 類目碼：一定要先「找得到」再斷言「加不進去」。
+    # 原本寫成 `if cats.count(): …`，一旦 .cat 標記機制整個消失（正是要防的那個 bug）
+    # count() 就是 0、斷言整段被跳過、測試照樣綠燈——tautological guard，比沒測更危險
+    # （R2 審查 .review/r2-pipeline.md (b) 第 3 條）。改成固定查詢 + 硬斷言。
+    search(pg, "E11")
+    pg.wait_for_selector("#search-results .chip.cat", timeout=3000)
     cats = pg.locator("#search-results .chip.cat")
-    if cats.count():
-        cats.first.click(force=True)          # 類目碼點得下去，但不得加入清單
-        expect(pg.locator("#cart li")).to_have_count(0)
+    assert cats.count() > 0, "查詢 E11 應該至少出現一個類目碼（E11 本身），類目碼標記可能失效"
+    cat = cats.first
+    expect(cat).to_have_attribute("data-leaf", "0")
+    expect(cat).to_have_attribute("aria-disabled", "true")
+    cat.click(force=True)                     # 類目碼點得下去，但不得加入清單
+    pg.wait_for_timeout(120)
+    expect(pg.locator("#cart li")).to_have_count(0)
+    expect(pg.locator(".dock-cart-codes")).to_have_text("尚未選碼")
 
     search(pg, "")
     expect(pg.locator("#results-card")).to_be_hidden()
@@ -480,3 +491,263 @@ def test_no_duplicate_ids(pg):
         return dupes;
     }""")
     assert dupes == [], f"重複 id：{dupes}"
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# R2 獨立審查（.review/r2-code.md）的回歸守門：置頂小視窗的生命週期
+# ══════════════════════════════════════════════════════════════════════════
+def open_pinned(browser_ctx, page_url):
+    """開一頁、切到側掛版面、按下「置頂」，回傳 (主視窗, 小視窗)；不支援就 skip。
+
+    視窗刻意放到 1440×900（審查報告的重現環境）：本檔預設的 176px 下，偏好切成
+    「工作台」會因為未達 LAYOUT_MIN_WIDTH 而降級成手機版面，測的就不是同一件事。
+    """
+    page = browser_ctx.new_page()
+    page.set_viewport_size(dict(WIDE))
+    page.goto(page_url)
+    page.wait_for_selector('body[data-ready="1"]', timeout=8000)
+    page.evaluate("() => window.ICDApp.store.setLayout('dock')")
+    page.wait_for_selector('body[data-layout="dock"]')
+    if not page.evaluate(PIP_PROBE):
+        page.close()
+        pytest.skip("此瀏覽器沒有 Document Picture-in-Picture，降級路徑另有測試")
+    before = set(browser_ctx.pages)
+    page.click("#pin-toggle")
+    page.wait_for_timeout(1500)
+    fresh = [p for p in browser_ctx.pages if p not in before]
+    assert len(fresh) == 1, f"沒有開出置頂小視窗：{[p.url for p in browser_ctx.pages]}"
+    return page, fresh[0]
+
+
+def pip_click_settings(pip, selector):
+    """在小視窗裡走完整動線：開設定 popover → 點裡面的鈕。
+
+    小視窗是另一個 document，沒有自己的 window.ICDApp（指令碼只在主視窗），所以狀態
+    操作一律用真實點擊走 render-dock.js 的 pipDelegate 代打，不能 pip.evaluate。
+    """
+    pip.click("#settings-toggle")
+    pip.wait_for_selector("#settings-popover:not([hidden])")
+    pip.click(selector)
+    pip.wait_for_timeout(300)
+
+
+def pip_set_mode(pip, button_id):
+    pip_click_settings(pip, "#" + button_id)
+
+
+def duplicate_ids(page):
+    return page.evaluate("""() => {
+        const seen = {}, dup = [];
+        for (const el of document.querySelectorAll('[id]')) {
+            seen[el.id] = (seen[el.id] || 0) + 1;
+            if (seen[el.id] === 2) dup.push(el.id);
+        }
+        return dup;
+    }""")
+
+
+def test_layout_switch_while_pinned_tears_down_pip(browser_ctx, page_url):
+    """R2 C1（臨床安全）：換版面時舊 controller 一定要收到卸載通知並收回小視窗。
+
+    原本 app.js 的 subscriber 只要 mount() 成功就直接 return，舊的 dock controller
+    永遠收不到 update(['layout'])，留在小視窗裡的側欄變成「活的殭屍」：主視窗已經切回
+    門診，小視窗仍列著 14 個急診紅旗，而且**點下去真的會把 A41.9 敗血症加進清單**——
+    整條路徑繞過「急診紅旗不得洩漏到門診」這個安全不變量。
+    """
+    page, pip = open_pinned(browser_ctx, page_url)
+    errors = []
+    page.on("pageerror", lambda e: errors.append(str(e)))
+
+    # 小視窗裡切到急診：先確認紅旗真的在（這是「殭屍化後仍可點」的前提）
+    pip_set_mode(pip, "mode-er")
+    assert pip.locator("#dock-panels .chip--warn").count() > 0, "急診模式下側欄應有紅旗"
+
+    # 設定鈕也一起搬進小視窗，所以「在小視窗裡切版面」是自然動線，不是刁鑽操作。
+    # 這一下會讓小視窗自己被收掉，所以點完不能再對它做任何等待（Target closed）。
+    pip.click("#settings-toggle")
+    pip.wait_for_selector("#settings-popover:not([hidden])")
+    pip.click('#seg-layout .seg-btn[data-layout-opt="wide"]', no_wait_after=True)
+    page.wait_for_selector('body[data-layout="wide"]', timeout=5000)
+    page.wait_for_timeout(800)
+
+    assert pip.is_closed(), "換版面後置頂小視窗必須被收回，否則變成不受控的殭屍"
+    assert page.evaluate("() => window.ICDApp.store.getState().pinned") is False
+    assert page.locator("#layout-dock").count() == 0, "主視窗不得殘留舊版面"
+    assert page.locator("#layout-wide").count() == 1
+    assert "置頂小視窗" not in page.evaluate("() => document.getElementById('app').textContent")
+
+    # 切回門診：全頁不得再有任何紅旗（殘留的急診側欄若還在就會被抓到）
+    page.evaluate("() => window.ICDApp.store.setMode('outpatient')")
+    page.wait_for_timeout(300)
+    assert page.locator(".chip--warn").count() == 0
+    assert duplicate_ids(page) == []
+    assert errors == [], errors
+    page.close()
+
+
+def test_pip_close_after_layout_switch_does_not_remount_dock(browser_ctx, page_url):
+    """R2 C2：restoreFromPip() 不得把已經不是生效版面的側欄塞回 #app。
+
+    C1 修好後使用者已經到不了原始重現路徑（切版面就會收回小視窗），所以這裡**刻意把
+    teardown 停掉**來模擬第一層失效，直接驗證第二層守門本身：關掉小視窗時 #app 裡
+    只能有一套版面，不得出現 10 組重複 id、也不得殘留可點的急診紅旗。
+    """
+    page, pip = open_pinned(browser_ctx, page_url)
+    pip_set_mode(pip, "mode-er")
+
+    # 停掉第一層（teardown）：小視窗會像修復前那樣活下來
+    page.evaluate("() => { window.ICDApp.controller.teardown = () => {}; }")
+    page.evaluate("() => window.ICDApp.store.setLayout('wide')")
+    page.wait_for_selector('body[data-layout="wide"]', timeout=5000)
+    page.wait_for_timeout(400)
+    assert not pip.is_closed(), "前置條件不成立：teardown 沒有被停掉，就測不到第二層"
+
+    pip.close()                       # pagehide → restoreFromPip
+    page.wait_for_timeout(800)
+
+    layouts = page.evaluate(
+        "() => Array.from(document.getElementById('app').children).map(e => e.id)"
+    )
+    assert layouts == ["layout-wide"], f"#app 同時掛了多套版面：{layouts}"
+    assert duplicate_ids(page) == [], f"出現重複 id：{duplicate_ids(page)}"
+    assert page.locator("#mode-chip").count() == 1
+    page.evaluate("() => window.ICDApp.store.setMode('outpatient')")
+    page.wait_for_timeout(300)
+    assert page.locator(".chip--warn").count() == 0, "門診模式下不得殘留可點的急診紅旗"
+    page.close()
+
+
+def test_pip_copy_failure_shows_fallback_inside_pip(browser_ctx, page_url):
+    """R2 I5：在置頂小視窗裡複製失敗時，後備視窗與播報都要在**小視窗**裡。
+
+    #status 與 #fallback-copy 原本寫死主文件，醫師在小視窗按「複製並貼入 HIS」會完全
+    沒有回饋、剪貼簿也是空的——對話框開在被小視窗擋住、根本看不到的主視窗。
+    """
+    page, pip = open_pinned(browser_ctx, page_url)
+    # 小視窗自己要有這兩個節點
+    assert pip.locator("#status").count() == 1
+    assert pip.locator("#fallback-copy").count() == 1
+
+    # 讓小視窗的剪貼簿與 execCommand 都失敗（＝主文件未取得焦點時的常態）
+    pip.evaluate(
+        """() => {
+            Object.defineProperty(navigator, 'clipboard', {
+                configurable: true,
+                get: () => ({ writeText: () => Promise.reject(new Error('blocked')) }),
+            });
+            document.execCommand = () => false;
+        }"""
+    )
+    pip.locator("#dock-panels .chip[data-code]:not(.cat)").first.click()
+    pip.wait_for_timeout(200)
+    pip.click("#copy-all")
+    pip.wait_for_timeout(500)
+
+    expect(pip.locator("#fallback-copy")).to_be_visible()
+    assert pip.input_value("#fallback-copy textarea") != "", "後備視窗裡沒有可複製的文字"
+    expect(page.locator("#fallback-copy")).to_be_hidden()       # 主視窗不該冒出對話框
+    assert pip.locator("#status").inner_text() != "", "小視窗裡沒有任何播報"
+
+    pip.click("#fallback-close")
+    expect(pip.locator("#fallback-copy")).to_be_hidden()
+    pip.close()
+    page.wait_for_timeout(600)
+    page.close()
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# R2 測試盲點補強（.review/r2-pipeline.md (b) 第 2、5 條）
+# ══════════════════════════════════════════════════════════════════════════
+def inject_probe_chips(page, codes):
+    """注入「沒有 .cat class」的可點 chip，繞過 UI 層標記直接走事件委派進 addCode()。
+
+    正常渲染會替非葉碼加上 .cat（委派據此擋掉），所以 store 的 canAdd → data.isAddable()
+    那條防線在一般操作下永遠走不到。這裡刻意製造「上游防線被繞過」的情境。
+    """
+    page.evaluate(
+        """(codes) => {
+            document.getElementById('probe-chips')?.remove();
+            const box = document.createElement('div');
+            box.id = 'probe-chips';
+            box.style.cssText = 'position:fixed;left:0;bottom:0;z-index:999999;background:#fff';
+            for (const code of codes) {
+                const b = document.createElement('button');
+                b.className = 'chip';          // 刻意不加 .cat
+                b.dataset.code = code;
+                b.textContent = code;
+                box.appendChild(b);
+            }
+            document.body.appendChild(box);
+        }""",
+        codes,
+    )
+
+
+def test_addcode_rejects_non_leaf_and_unknown_codes(pg):
+    """葉碼防呆在 1c 也必須真的擋住（R-4，臨床安全）。
+
+    M4 變異（isAddable 一律回 true）原本只有 wide 版面的 E2E 抓得到，dock 與 mobile
+    兩個版面完全沒有對應測試——三套版面共用同一條防線，但只有一套被真的練到。
+    """
+    errors = []
+    pg.on("pageerror", lambda exc: errors.append(str(exc)))
+    try:
+        # 陽性對照：注入的葉碼必須真的進得了清單 → 證明事件委派確實抵達 addCode
+        inject_probe_chips(pg, ["E11.9"])
+        pg.click('#probe-chips .chip[data-code="E11.9"]')
+        expect(pg.locator('#cart li[data-code="E11.9"]')).to_have_count(1)
+        pg.click("#clear-cart")
+        expect(pg.locator("#cart li")).to_have_count(0)
+
+        probes = ["E11", "A00", "K11", "ZZZ99"]
+        inject_probe_chips(pg, probes)
+        for code in probes:
+            pg.click(f'#probe-chips .chip[data-code="{code}"]')
+            expect(pg.locator(f'#cart li[data-code="{code}"]')).to_have_count(0)
+        assert pg.locator("#cart li").count() == 0, "類目碼／不存在代碼被加進清單（葉碼防呆失效）"
+        expect(pg.locator(".dock-cart-codes")).to_have_text("尚未選碼")
+        assert not errors, f"addCode() 對非葉碼/不存在代碼拋出未捕捉例外：{errors}"
+    finally:
+        pg.evaluate("() => document.getElementById('probe-chips')?.remove()")
+
+
+def test_copy_matches_what_the_dock_shows_in_every_format(pg):
+    """看到的＝貼出去的：剪貼簿必須等於「畫面上這幾列」照選定格式組出來的字串。
+
+    wide／mobile 都有「#his-preview 文字 == 剪貼簿」的交叉驗證，1c 只驗過剪貼簿本身
+    （.review/r2-pipeline.md (b) 第 5 條）。1c 依設計沒有預覽區（renderHis 寫進不掛進
+    DOM 的暫存 <pre>），所以這裡拿它真正顯示給醫師看的兩處——就診清單 #cart li 與
+    摘要列 .dock-cart-codes——當作「預覽」，跟剪貼簿逐字比對。期望值一律從 DOM 讀，
+    不從 store 讀：從 store 讀等於拿同一個真相來源自證。
+    """
+    chips = pg.locator('#dock-panels .chip[data-code]:not(.cat)')
+    chips.nth(0).click()
+    chips.nth(1).click()
+    chips.nth(2).click()
+    expect(pg.locator("#cart li")).to_have_count(3)
+
+    for fmt, joiner in (("lines", "\n"), ("comma", ","), ("names", "\n")):
+        open_settings(pg)
+        pg.click(f'#seg-format [data-format="{fmt}"]')
+        expect(pg.locator(f'#seg-format [data-format="{fmt}"]')).to_have_attribute("aria-pressed", "true")
+        shown = pg.eval_on_selector_all(
+            "#cart li[data-code]",
+            """(els) => els.map((li) => ({
+                code: li.dataset.code,
+                zh: li.querySelector('.cart-zh').textContent,
+            }))""",
+        )
+        assert len(shown) == 3, f"{fmt}：畫面上的清單列數不對 {shown}"
+        if fmt == "names":
+            expected = joiner.join(r["code"] + "\t" + r["zh"] for r in shown)
+        else:
+            expected = joiner.join(r["code"] for r in shown)
+
+        pg.click("#copy-all")
+        expect(pg.locator("#copy-all")).to_contain_text("已複製")
+        assert clipboard(pg) == expected, f"{fmt}：剪貼簿與畫面上的清單不一致"
+        # 摘要列（醫師收合清單時唯一看得到的東西）也必須是同一組碼、同一個順序
+        expect(pg.locator(".dock-cart-codes")).to_have_text("、".join(r["code"] for r in shown))
+
+    open_settings(pg)
+    pg.click('#seg-format [data-format="lines"]')

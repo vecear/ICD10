@@ -17,14 +17,31 @@
 
   const SEARCH_DEBOUNCE = 150;
 
+  /* 回饋 UI 所在的文件（R2 I5）。#status（live region）與 #fallback-copy（手動複製對話框）
+     原本寫死 `document`，但 1c 把整個側欄搬進 Document PiP 小視窗後，那是**另一個文件**：
+     複製失敗時對話框開在看不見的主視窗、播報也沒人聽得到，小視窗裡完全零回饋。
+     render-dock.js 開／關 PiP 時呼叫 setFeedbackDocument() 切換目標。 */
+  let feedbackTarget = null;
+
+  function feedbackDoc() {
+    try {
+      if (feedbackTarget && feedbackTarget.defaultView && !feedbackTarget.defaultView.closed) {
+        return feedbackTarget;
+      }
+    } catch (e) { /* 小視窗已關閉／跨文件存取失敗，退回主文件 */ }
+    return document;
+  }
+
+  const setFeedbackDocument = (doc) => { feedbackTarget = doc || null; };
+
   function announce(message) {
-    const status = document.getElementById('status');
+    const status = feedbackDoc().getElementById('status');
     if (status) status.textContent = message;
   }
 
-  // ---- 剪貼簿（原 app.js copyText，行為一字不改，只換後備視窗的顯示方式） ----
+  // ---- 剪貼簿（原 app.js copyText，行為不變，只把目標文件換成 feedbackDoc()） ----
   function openFallbackCopy(text) {
-    const box = document.getElementById('fallback-copy');
+    const box = feedbackDoc().getElementById('fallback-copy');
     if (!box) return;
     box.hidden = false;
     const ta = box.querySelector('textarea');
@@ -34,30 +51,100 @@
   }
 
   function closeFallbackCopy() {
-    const box = document.getElementById('fallback-copy');
+    const box = feedbackDoc().getElementById('fallback-copy');
     if (box) box.hidden = true;
   }
 
+  function isFallbackOpen() {
+    const box = feedbackDoc().getElementById('fallback-copy');
+    return !!box && !box.hidden;
+  }
+
   async function copyText(text) {
+    // 焦點在 PiP 小視窗時，主文件的 clipboard 會以「document is not focused」被拒；
+    // 用目前有焦點的那個文件自己的 clipboard 才會成功。
+    const doc = feedbackDoc();
     try {
-      await navigator.clipboard.writeText(text);
+      const view = doc.defaultView;
+      const clipboard = view && view.navigator && view.navigator.clipboard;
+      if (!clipboard) throw new Error('沒有剪貼簿 API');
+      await clipboard.writeText(text);
       return true;
     } catch (e) {
       try {
-        const ta = document.createElement('textarea');
+        const ta = doc.createElement('textarea');
         ta.value = text;
         // 離屏：避免暫存 textarea 取得焦點時整頁跳動
         ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;border:0;padding:0;';
         ta.setAttribute('aria-hidden', 'true');
-        document.body.appendChild(ta);
+        doc.body.appendChild(ta);
         ta.select();
-        const ok = document.execCommand('copy');
+        const ok = doc.execCommand('copy');
         ta.remove();
         if (ok) return true;
       } catch (e2) { /* fall through */ }
       openFallbackCopy(text);
       return false;
     }
+  }
+
+  // ---- 加碼（三套版面 ＋ PiP 代打共用同一份實作） ----
+  /* chip 的中文標籤。用 `.chip-zh` 而不是 querySelector('span')：★chip 的第一個 span
+     是星號 icon，取到的會是空字串（R2 M1）。 */
+  function chipLabel(ctx, chip, code) {
+    const span = chip.querySelector('.chip-zh');
+    return ctx.data.labelOf(code) || (span ? span.textContent : '');
+  }
+
+  /* 附加碼站上第一位就是主診斷錯誤，加碼當下就要講（臨床審查）。 */
+  function addedMessage(ctx, result, code, zh) {
+    if (result === 'duplicate') return code + ' 已在清單';
+    const cart = ctx.store.getState().cart;
+    const warn = cart.length && cart[0].code === code && ctx.data.isAdjunct(code)
+      ? '；注意：這是附加碼，不可作為主診斷，請加入主要疾病後把它設為主'
+      : '';
+    return '已加入 ' + code + ' ' + zh + warn;
+  }
+
+  /* 全庫就緒後重試一次。走到這裡代表剛才是「白名單查不到、無從判斷」而不是真的不可加。 */
+  function retryAdd(ctx, code, zh) {
+    const label = ctx.data.labelOf(code) || zh || '';
+    const result = ctx.store.addCode(code, label);
+    if (result !== 'rejected') { announce(addedMessage(ctx, result, code, label)); return; }
+    announce(ctx.data.getDbState() === 'error'
+      ? '全庫載入失敗，' + code + ' 目前無法加入；請在設定面板按「重新載入全庫」'
+      : code + ' 是類目碼或不存在，無法加入清單');
+  }
+
+  function addCode(ctx, code, zh) {
+    const result = ctx.store.addCode(code, zh);
+    if (result === 'rejected') {
+      /* 全庫未就緒時白名單只有 544 個精選碼，★最愛裡的非精選碼一定會被拒——
+         以前一律播報「是類目碼或不存在」，與事實相反（R2 I3）。三態的 addability()
+         能分辨「明確不可加」與「此刻無從判斷」，後者改成誠實說明並在就緒後自動補加。 */
+      if (ctx.data.addability(code) === 'unknown') {
+        announce('全庫尚未載入完成，' + code + ' 將在載入後自動加入…');
+        ctx.data.ensureDb().then(() => retryAdd(ctx, code, zh));
+        return;
+      }
+      announce(code + ' 是類目碼或不存在，無法加入清單');
+      return;
+    }
+    announce(addedMessage(ctx, result, code, zh));
+    // 相關碼的「同類目其他碼」需要全庫（impl-plan R-3）；第一次加碼就把它拉起來
+    ctx.data.ensureDb();
+  }
+
+  /* chip 點擊的唯一實作。1c 的側欄搬進 PiP 小視窗後主文件的委派搆不到那棵 DOM，
+     render-dock.js 得自己代打——共用這個函式，兩邊的規則不會各自漂移。 */
+  function activateChip(ctx, chip) {
+    const code = chip.dataset.code;
+    if (chip.classList.contains('cat') || chip.getAttribute('aria-disabled') === 'true') {
+      // 以前直接 return，連播報都沒有，使用者只覺得「按了沒反應」（R2 M2）
+      announce(code + ' 是類目碼，不可申報；請改選它下層的細碼');
+      return;
+    }
+    addCode(ctx, code, chipLabel(ctx, chip, code));
   }
 
   function wire(ctx) {
@@ -67,26 +154,9 @@
     let copiedTimer = null;
     let dragCode = null;
 
-    const isFallbackOpen = () => {
-      const box = document.getElementById('fallback-copy');
-      return !!box && !box.hidden;
-    };
-
-    function addFromChip(chip) {
-      const code = chip.dataset.code;
-      const span = chip.querySelector('span');
-      const zh = data.labelOf(code) || (span ? span.textContent : '');
-      // 不把 chip 上的 data-leaf 當成 row 傳進去：那等於讓 DOM 自證葉碼身分。
-      // isAddable 自己決定權威來源（全庫 index > 建置期白名單），繞不過。
-      const result = store.addCode(code, zh);
-      if (result === 'rejected') {
-        announce(code + ' 是類目碼或不存在，無法加入清單');
-        return;
-      }
-      announce(result === 'duplicate' ? code + ' 已在清單' : '已加入 ' + code + ' ' + zh);
-      // 相關碼的「同類目其他碼」需要全庫（impl-plan R-3）；第一次加碼就把它拉起來
-      data.ensureDb();
-    }
+    // 不把 chip 上的 data-leaf 當成 row 傳進去：那等於讓 DOM 自證葉碼身分。
+    // isAddable 自己決定權威來源（全庫 index > 建置期白名單），繞不過。
+    const addFromChip = (chip) => activateChip(ctx, chip);
 
     async function copyAll() {
       const text = root.ICDRender.hisText(ctx);
@@ -111,11 +181,7 @@
       }
 
       const chip = target.closest('.chip[data-code]');
-      if (chip) {
-        if (chip.classList.contains('cat') || chip.getAttribute('aria-disabled') === 'true') return;
-        addFromChip(chip);
-        return;
-      }
+      if (chip) { activateChip(ctx, chip); return; }
 
       const region = target.closest('.region-btn');
       if (region) { store.setRegion(Number(region.dataset.regionIndex)); return; }
@@ -136,7 +202,8 @@
       if (primary) {
         const code = primary.closest('li').dataset.code;
         store.setPrimary(code);
-        announce(code + ' 已設為主診斷');
+        announce(code + ' 已設為主診斷'
+          + (data.isAdjunct(code) ? '；注意：這是附加碼，不可作為主診斷' : ''));
         return;
       }
       const fav = target.closest('.cart-fav');
@@ -170,6 +237,8 @@
       if (btn.id === 'clear-cart') { store.clearCart(); announce('已清空就診清單'); return; }
       if (btn.id === 'copy-all') { copyAll(); return; }
       if (btn.id === 'fallback-close') { closeFallbackCopy(); return; }
+      // 全庫載入失敗後的重試入口（R2 I2）；ensureDb() 會回傳快取的失敗 Promise，只能走 retryDb()
+      if (btn.id === 'db-retry') { announce('正在重新載入全庫…'); data.retryDb(); return; }
     });
 
     // 點擊後備視窗的背景關閉
@@ -192,6 +261,9 @@
           ev.target.value = '';
           clearTimeout(debounce);
           store.setQuery('');
+          // Esc 在其他情境都會關掉開著的浮層，搜尋框裡也要一致（R2 M3）
+          if (isFallbackOpen()) closeFallbackCopy();
+          else if (store.getState().settingsOpen) store.setSettingsOpen(false);
           return;
         }
         if (ev.key === 'Enter') {
@@ -266,5 +338,8 @@
     });
   }
 
-  root.ICDInteractions = { wire, copyText, openFallbackCopy, closeFallbackCopy, announce };
+  root.ICDInteractions = {
+    wire, copyText, openFallbackCopy, closeFallbackCopy, isFallbackOpen, announce,
+    activateChip, setFeedbackDocument,
+  };
 })(typeof self !== 'undefined' ? self : this);

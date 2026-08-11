@@ -81,6 +81,14 @@
         const layout = resolveLayout(store.getState().layout);
         if (current && current.layout === layout) return false;
         const host = $('#app');
+        /* 換版面前一定要讓舊 controller 收尾（R2 C1）。1c 的側欄在置頂時人在 Document PiP
+           小視窗裡、不在 #app 底下，clear(host) 根本清不到它；沒有這一步，被換掉的
+           controller 會變成不受控的殭屍——停止更新卻仍可點，門診模式下照樣列著 14 個
+           急診紅旗並能把 A41.9 敗血症加進清單，直接繞過紅旗隔離這條安全不變量。
+           teardown 只在真的有東西要收（PiP 開著）時才做事，正常切版面不會多一次重繪。 */
+        if (current && current.controller && typeof current.controller.teardown === 'function') {
+          try { current.controller.teardown(); } catch (e) { /* 收尾失敗不得擋住換版面 */ }
+        }
         window.ICDRender.clear(host);
         current = { layout, controller: rendererFor(layout).mount(host, ctx) };
         document.body.dataset.layout = layout;
@@ -112,8 +120,13 @@
         resizeTimer = setTimeout(mount, RESIZE_DEBOUNCE);
       });
 
-      // 供 E2E 與後續階段取用（唯讀用途；狀態變更仍一律走 action）
-      window.ICDApp = { store, data, ctx, resolveLayout, remount: mount, get layout() { return current && current.layout; } };
+      // 供 E2E 與後續階段取用（唯讀用途；狀態變更仍一律走 action）。
+      // controller 讓 E2E 能驗證卸載路徑本身（例如刻意讓 teardown 失效，檢查第二層守門）。
+      window.ICDApp = {
+        store, data, ctx, resolveLayout, remount: mount,
+        get layout() { return current && current.layout; },
+        get controller() { return current && current.controller; },
+      };
 
       document.body.dataset.ready = '1';
       mark('icd-shell-ready');

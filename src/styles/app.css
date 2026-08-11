@@ -132,7 +132,18 @@ body {
   border: 1px dashed var(--color-neutral-400); background: transparent;
   color: var(--color-neutral-700); cursor: not-allowed;
 }
-.chip.cat b { color: var(--color-neutral-700); }
+/* 附加碼（B95–B97 病原體／Z16 抗藥性）：官方中文名（例如「青黴素之抗藥性」）完全看不出
+   它不能當主診斷，所以在任何出現位置都掛一個看得見的標記。用 <i class="chip-tag"> 而不是
+   <span>：`.chip--row span`／`.chip--dock span` 會把它當成中文欄拉成 flex:1 並裁掉。 */
+.chip--adjunct { border-color: var(--warn-line); }
+.chip--adjunct b { color: var(--warn-ink); }
+.chip--adjunct:hover { border-color: var(--warn-ink); background: var(--warn-surface); }
+.chip-tag {
+  flex: none; font-style: normal; font-family: var(--font-heading);
+  font-size: 10px; line-height: 1.4; letter-spacing: .06em; white-space: nowrap;
+  padding: 0 4px; border: 1px solid var(--warn-line);
+  background: var(--warn-bg); color: var(--warn-ink);
+}
 
 .chip--row {
   display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px;
@@ -194,6 +205,16 @@ body {
   border: 1px solid var(--color-divider); color: var(--color-neutral-700);
 }
 .cart-badge[data-primary="true"] { background: var(--sel-bg); color: var(--sel-ink); border-color: var(--sel-bg); }
+/* 附加碼站在第一位＝主診斷錯誤（B95–B97／Z16 只能附加在主要疾病之後）。
+   警示掛在 <ul> 的 ::before 而不是插一個 <li>：#cart 的 li 索引就是清單順序，
+   拖曳換序與 Alt+↑↓ 都直接用 children 索引，多一列非代碼的 li 會讓換序全部錯位。 */
+/* 用 ink-on-bg（淺 5.40:1／深 8.98:1）而不是 bg-on-line（淺只有 2.19:1，不合格） */
+.cart-badge[data-warn="true"] { background: var(--warn-bg); color: var(--warn-ink); border-color: var(--warn-line); font-weight: 700; }
+#cart[data-primary-adjunct="true"]::before {
+  content: "⚠ 第一位是附加碼（病原體／抗藥性），不可作為主診斷——請把主要疾病排到第一位";
+  display: block; margin-bottom: 6px; padding: 6px 8px; font-size: 12px; line-height: 1.5;
+  border: 1px solid var(--warn-line); background: var(--warn-bg); color: var(--warn-ink);
+}
 b.cart-code {
   font-family: var(--font-heading); font-size: 16px; letter-spacing: .04em;
   color: var(--color-accent-700); min-width: 74px; cursor: pointer;
@@ -234,6 +255,8 @@ b.cart-code {
 .settings-section > .kicker { display: block; margin-bottom: 5px; }
 .settings-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .settings-note { font-size: 12px; color: var(--color-neutral-700); border-top: 1px solid var(--color-divider); padding-top: 8px; }
+/* 全庫載入失敗時才出現（syncSettings 控制 hidden）；沒有它使用者只能重開整個檔案 */
+.db-retry { align-self: flex-start; }
 /* 生效版面 ≠ 偏好版面時的說明（#layout-note）。用 accent 而非 warn 色：這是狀態說明
    不是錯誤，且 accent-100／--color-text 在日夜兩套主題都有定義，對比一併成立。 */
 .settings-alert {

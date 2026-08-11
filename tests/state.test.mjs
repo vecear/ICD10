@@ -276,3 +276,24 @@ test('主題切換來回翻轉並持久化', () => {
   assert.equal(store.toggleTheme(), 'light');
   assert.equal(JSON.parse(backing.getItem('icd10.theme')), 'light');
 });
+
+test('最近使用內容沒變時不得算成變更（不重寫 localStorage、不觸發重繪）', () => {
+  // R2 M7：bumpRecent 以前每次都回新陣列，Object.is 判定必為變更，於是「再點一次
+  // 已經在最前面的碼」也會寫一次 localStorage 並多跑一輪常用列重繪。
+  const backing = fakeStorage();
+  const store = S.createStore({ storage: backing, theme: 'light' });
+  store.addCode('I10', '高血壓');
+  const before = backing.map.get(S.STORAGE_PREFIX + 'recent');
+
+  const changes = [];
+  store.subscribe((_state, changed) => changes.push(changed));
+  // 同一個碼再點一次：cart 已有、relatedCode 已是它、recent 也已在最前面 → 完全沒有變更
+  assert.equal(store.addCode('I10', '高血壓'), 'duplicate');
+  assert.deepEqual(changes, [], `不該有任何變更通知，實得 ${JSON.stringify(changes)}`);
+  assert.equal(backing.map.get(S.STORAGE_PREFIX + 'recent'), before);
+
+  // 換一個碼就必須照常更新
+  store.addCode('E11.9', '第2型糖尿病');
+  assert.deepEqual(store.getState().recent, ['E11.9', 'I10']);
+  assert.ok(changes.some((c) => c.indexOf('recent') >= 0), '換碼時 recent 仍要被視為變更');
+});

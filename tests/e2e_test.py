@@ -888,3 +888,375 @@ def test_layout_note_explains_downgrade_to_mobile(fresh_page, page_url):
     fresh_page.wait_for_selector('body[data-layout="wide"]', timeout=5000)
     open_settings(fresh_page)
     expect(fresh_page.locator("#layout-note")).to_be_hidden()
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# G. R2 獨立審查（.review/r2-code.md）的回歸守門
+# ══════════════════════════════════════════════════════════════════════════
+NON_CURATED_LEAF = "A00.0"          # 正牌葉碼，但不在建置期的 544 個精選白名單裡
+
+
+def kill_decompression(pg):
+    """模擬「瀏覽器不支援 DecompressionStream」——把建構子藏起來但留一份供之後還原。
+
+    這是全庫載入失敗的**永久**狀態（舊版瀏覽器），也是 I1／I2／I3 三條缺陷唯一不會
+    靠等待自行痊癒的情境，所以回歸測試一律用它，不倚賴預抓的時間差。
+    """
+    pg.add_init_script(
+        "window.__DS = window.DecompressionStream;"
+        "try { delete window.DecompressionStream; } catch (e) {}"
+    )
+
+
+def restore_decompression(pg):
+    pg.evaluate("() => { window.DecompressionStream = window.__DS; }")
+
+
+def test_empty_search_never_suggests_english_without_full_db(fresh_page, page_url):
+    """R2 I1：精選池的英文欄是空的，全庫未就緒時「試試英文」是唯一保證無效的建議。"""
+    kill_decompression(fresh_page)
+    fresh_page.goto(page_url)
+    fresh_page.wait_for_selector('body[data-ready="1"]', timeout=8000)
+    fresh_page.fill("#search", "cellulitis")
+    fresh_page.wait_for_selector('body[data-db="error"]', timeout=10000)
+    fresh_page.wait_for_timeout(300)
+
+    empty = fresh_page.locator(".result-empty")
+    expect(empty).to_be_visible()
+    text = empty.inner_text()
+    assert "試試英文" not in text, f"全庫不可用時仍叫使用者試英文：{text}"
+    assert "中文" in text and "代碼" in text, f"沒有給出可行的下一步：{text}"
+
+    # 四種 pool／dbState 組合的文案由 ICDRender.emptyText 決定，一次驗完
+    variants = fresh_page.evaluate(
+        """() => ({
+            full: window.ICDRender.emptyText('full', 'ready'),
+            idle: window.ICDRender.emptyText('curated', 'idle'),
+            loading: window.ICDRender.emptyText('curated', 'loading'),
+            error: window.ICDRender.emptyText('curated', 'error'),
+        })"""
+    )
+    assert "英文" in variants["full"], variants["full"]
+    for key in ("idle", "loading", "error"):
+        assert "試試英文" not in variants[key], f"{key}：{variants[key]}"
+        assert "中文" in variants[key] and "代碼" in variants[key], f"{key}：{variants[key]}"
+
+
+def test_db_error_offers_retry_button(fresh_page, page_url):
+    """R2 I2：全庫載入失敗後必須有重試路徑，否則使用者只能重開整個檔案。"""
+    kill_decompression(fresh_page)
+    fresh_page.goto(page_url)
+    fresh_page.wait_for_selector('body[data-ready="1"]', timeout=8000)
+    fresh_page.evaluate("() => window.ICDApp.data.ensureDb()")
+    fresh_page.wait_for_selector('body[data-db="error"]', timeout=10000)
+
+    open_settings(fresh_page)
+    retry = fresh_page.locator("#db-retry")
+    expect(retry).to_be_visible()
+
+    # 還原能力後按重試：要真的走到 ready，不是只換個文案
+    restore_decompression(fresh_page)
+    retry.click()
+    fresh_page.wait_for_selector('body[data-db="ready"]', timeout=30000)
+    open_settings(fresh_page)
+    expect(fresh_page.locator("#db-note")).to_contain_text("96,802")
+    expect(fresh_page.locator("#db-retry")).to_be_hidden()
+
+
+def test_non_curated_favourite_reports_honestly_and_self_heals(fresh_page, page_url):
+    """R2 I3：白名單外的★最愛在全庫未就緒時被拒，訊息不得說它「是類目碼或不存在」。"""
+    kill_decompression(fresh_page)
+    fresh_page.goto(page_url)
+    fresh_page.wait_for_selector('body[data-ready="1"]', timeout=8000)
+    assert fresh_page.evaluate(
+        "(c) => !window.CURATED_LABELS[c]", NON_CURATED_LEAF
+    ), f"{NON_CURATED_LEAF} 竟在精選白名單裡，這條測試就測不到東西了"
+    fresh_page.evaluate("(c) => window.ICDApp.store.setState({ favs: [c] })", NON_CURATED_LEAF)
+    fresh_page.evaluate("() => window.ICDApp.data.ensureDb()")
+    fresh_page.wait_for_selector('body[data-db="error"]', timeout=10000)
+
+    chip = fresh_page.locator(f'#shelf .shelf-chip[data-code="{NON_CURATED_LEAF}"]')
+    expect(chip).to_have_count(1)
+    chip.click()
+    fresh_page.wait_for_timeout(400)
+    status = fresh_page.locator("#status").inner_text()
+    assert "類目碼" not in status, f"訊息與事實相反（{NON_CURATED_LEAF} 是正牌葉碼）：{status}"
+    assert "重新載入全庫" in status, f"沒有給可行的下一步：{status}"
+    expect(fresh_page.locator("#cart li")).to_have_count(0)
+
+    # 全庫救回來之後，同一顆 chip 必須真的加得進去
+    restore_decompression(fresh_page)
+    open_settings(fresh_page)
+    fresh_page.click("#db-retry")
+    fresh_page.wait_for_selector('body[data-db="ready"]', timeout=30000)
+    fresh_page.locator(f'#shelf .shelf-chip[data-code="{NON_CURATED_LEAF}"]').click()
+    expect(fresh_page.locator(f'#cart li[data-code="{NON_CURATED_LEAF}"]')).to_have_count(1)
+
+
+def test_shelf_labels_fill_in_when_db_becomes_ready(fresh_page, page_url):
+    """R2 I4：常用列的中文名要在全庫就緒的當下自己補上（dbState 的 DEPS 漏了 shelf）。"""
+    fresh_page.goto(page_url)
+    fresh_page.wait_for_selector('body[data-ready="1"]', timeout=8000)
+    fresh_page.evaluate("(c) => window.ICDApp.store.setState({ favs: [c] })", NON_CURATED_LEAF)
+    chip = fresh_page.locator(f'#shelf .shelf-chip[data-code="{NON_CURATED_LEAF}"]')
+    expect(chip).to_have_count(1)
+    assert chip.locator(".chip-zh").inner_text() == "", "全庫未就緒時本來就查不到中文"
+
+    # 只等全庫就緒，中間不做任何其他操作——會自己補上才代表 DEPS 正確
+    fresh_page.evaluate("() => window.ICDApp.data.ensureDb()")
+    fresh_page.wait_for_selector('body[data-db="ready"]', timeout=30000)
+    fresh_page.wait_for_timeout(200)
+    assert "霍亂" in chip.locator(".chip-zh").inner_text(), (
+        "全庫就緒後常用列仍是光禿禿的代碼：" + chip.inner_text()
+    )
+
+
+def test_adjunct_codes_marked_in_every_position(page):
+    """臨床審查：B95–B97／Z16 是附加碼，不可當主診斷；任何出現位置都要看得出來。
+
+    官方中文名（例：Z16.11「青黴素之抗藥性」）完全看不出這件事，而相關碼推薦區的
+    chip 走的正是官方中文名——那裡原本是唯一沒有任何標示的地方。
+    """
+    reset(page)
+    # 1) 快選分組
+    chip = quick_chip(page, "病原體附加碼／抗藥性", "B95.61")
+    assert "chip--adjunct" in chip.get_attribute("class")
+    assert chip.locator(".chip-tag").inner_text() == "附加碼"
+    assert "不可作為主診斷" in chip.get_attribute("title")
+
+    # 2) 搜尋結果
+    search(page, "Z16.11")
+    result = page.locator('#search-results .chip[data-code="Z16.11"]')
+    expect(result).to_have_count(1)
+    assert result.get_attribute("data-adjunct") == "1"
+    page.fill("#search", "")
+
+    # 3) 相關碼推薦區（L03.115 蜂窩組織炎 → B95.0 鏈球菌）
+    reset(page)
+    search(page, "L03.115")
+    page.locator('#search-results .chip[data-code="L03.115"]').click()
+    page.fill("#search", "")
+    related = page.locator('#related .chip[data-code="B95.0"]')
+    expect(related).to_have_count(1)
+    assert related.get_attribute("data-adjunct") == "1", "相關碼推薦區沒有標示附加碼"
+    assert related.locator(".chip-tag").count() == 1
+
+    # 4) 站上主診斷（清單第一位）要有明確警示
+    reset(page)
+    quick_chip(page, "病原體附加碼／抗藥性", "B95.61").click()
+    cart = page.locator("#cart")
+    assert cart.get_attribute("data-primary-adjunct") == "true"
+    badge = page.locator('#cart li[data-code="B95.61"] .cart-badge')
+    assert badge.get_attribute("data-warn") == "true"
+    assert "不可作為主診斷" in badge.get_attribute("title")
+    assert "附加碼" in page.locator("#status").inner_text()
+    # 加入真正的主診斷並排到第一位後，警示要消失
+    quick_chip(page, "感染科常用", "A41.9").click()
+    page.locator('#cart li[data-code="A41.9"] .cart-primary').click()
+    assert cart.get_attribute("data-primary-adjunct") is None
+    reset(page)
+
+
+def test_category_chip_click_gives_feedback(page):
+    """R2 M2：點虛線類目碼以前完全沒有回饋，使用者只會覺得「按了沒反應」。"""
+    reset(page)
+    search(page, "L03")
+    cat = page.locator("#search-results .chip.cat").first
+    expect(cat).to_be_visible()
+    code = cat.get_attribute("data-code")
+    # aria-disabled 會被 Playwright 當成 disabled，真實使用者其實點得下去，所以要 force
+    cat.click(force=True)
+    page.wait_for_timeout(150)
+    status = page.locator("#status").inner_text()
+    assert code in status and "類目碼" in status, f"點類目碼沒有回饋：{status!r}"
+    expect(page.locator("#cart li")).to_have_count(0)
+    page.fill("#search", "")
+
+
+def test_escape_in_search_also_closes_settings(page):
+    """R2 M3：Esc 在搜尋框裡原本只清查詢、不關 popover，與其他情境不一致。"""
+    reset(page)
+    page.fill("#search", "發燒")
+    open_settings(page)
+    page.focus("#search")
+    page.keyboard.press("Escape")
+    expect(page.locator("#settings-popover")).to_be_hidden()
+    assert page.input_value("#search") == ""
+    assert page.evaluate("() => window.ICDApp.store.getState().settingsOpen") is False
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# R2 測試盲點補強（.review/r2-pipeline.md (b) 第 1、4 條）
+# ══════════════════════════════════════════════════════════════════════════
+def _codes_in(groups):
+    out = set()
+    for region in groups:
+        for panel in region["panels"]:
+            for field in ("chief", "diseases", "redFlags"):
+                out.update(pair[0] for pair in panel.get(field, []))
+            for code, values in panel.get("related", {}).items():
+                out.add(code)
+                out.update(values)
+    return out
+
+
+def _emergency_only_red_flag():
+    """挑一個「急診紅旗、且門診資料完全沒出現過」的代碼，當毒化探針。
+
+    不能寫死某個紅旗碼：紅旗碼可能同時是某張門診面板的常見疾病（A41.9 就是），
+    那樣「門診不得出現這個碼」會變成假紅燈。改成從 curated 即時挑一個乾淨的。
+    """
+    emergency = json.loads((CURATED_DIR / "internal_emergency.json").read_text(encoding="utf-8"))
+    outpatient = _codes_in(json.loads((CURATED_DIR / "internal_outpatient.json").read_text(encoding="utf-8")))
+    red_flags = set()
+    for region in emergency:
+        for panel in region["panels"]:
+            red_flags.update(pair[0] for pair in panel.get("redFlags", []))
+    candidates = sorted(red_flags - outpatient)
+    assert candidates, "找不到「只屬於急診」的紅旗碼，毒化探針無法成立"
+    return candidates[0]
+
+
+def test_embedded_fonts_actually_render_in_browser(page):
+    """建置期驗過 payload 還不夠：瀏覽器要真的能把這 5 個字型解析並套用。
+
+    盲點 1 的第二層。字型 base64 若損毀，瀏覽器會無聲 fallback 到系統字，
+    畫面「看起來還好」、console 也沒有錯誤，只有 FontFace 的 status 會變 'error'。
+    document.fonts 只在字型被用到時才真的下載／解析，所以這裡明確 load() 一次再驗。
+    """
+    reset(page)
+    result = page.evaluate(
+        """async () => {
+            const want = [['Barlow', 400], ['Barlow', 500], ['Barlow', 700],
+                          ['Barlow Condensed', 400], ['Barlow Condensed', 600]];
+            const rows = [];
+            for (const [family, weight] of want) {
+                let thrown = null;
+                try {
+                    await document.fonts.load(weight + " 16px '" + family + "'", 'Abc0123');
+                } catch (e) { thrown = String(e); }
+                const faces = [...document.fonts].filter(
+                    (f) => f.family.replace(/['"]/g, '') === family && String(f.weight) === String(weight)
+                );
+                rows.push({ family, weight, thrown, statuses: faces.map((f) => f.status) });
+            }
+            return { rows, total: document.fonts.size };
+        }"""
+    )
+    assert result["total"] == 5, f"document.fonts 應有 5 個 @font-face，實得 {result['total']}"
+    for row in result["rows"]:
+        label = f"{row['family']} {row['weight']}"
+        assert row["thrown"] is None, f"{label} 載入丟例外：{row['thrown']}"
+        assert row["statuses"] == ["loaded"], \
+            f"{label} 沒有成功載入（status={row['statuses']}）——內嵌的 woff2 很可能損毀"
+
+
+def test_outpatient_never_renders_red_flags_even_with_poisoned_data(fresh_page, page_url):
+    """臨床安全：就算 window.CURATED 的門診面板被塞進紅旗，畫面也一顆都不能出現。
+
+    盲點 4（M5）：panelsFor() 那條「門診一律清空 redFlags」的防線目前只有
+    data.test.mjs 用毒化假資料測得到——真實 curated 資料的門診面板本來就沒有
+    redFlags 欄位（build.py 上游擋掉），E2E 從未真的練到 code 層這條防線。
+    這裡在 app 開機前攔截 window.CURATED 的賦值把資料改壞，走完整渲染鏈驗證。
+    """
+    poison = _emergency_only_red_flag()
+    fresh_page.add_init_script(
+        """
+        (() => {
+          const POISON = '%s';
+          let stored;
+          Object.defineProperty(window, 'CURATED', {
+            configurable: true,
+            get() { return stored; },
+            set(value) {
+              try {
+                for (const region of value.internalOutpatient) {
+                  for (const panel of region.panels) panel.redFlags = [[POISON, '毒化紅旗']];
+                }
+                window.__poisoned = true;
+              } catch (e) { window.__poisoned = String(e); }
+              stored = value;
+            },
+          });
+        })();
+        """ % poison
+    )
+    fresh_page.goto(page_url)
+    fresh_page.wait_for_selector('body[data-ready="1"]', timeout=8000)
+
+    # 陽性對照：毒化真的生效了，否則下面的「沒看到紅旗」毫無意義
+    assert fresh_page.evaluate("() => window.__poisoned") is True, "毒化沒生效，這條測試等於沒測"
+    assert fresh_page.evaluate(
+        "() => window.CURATED.internalOutpatient[0].panels[0].redFlags.length"
+    ) > 0
+
+    regions = fresh_page.locator(".region-btn")
+    assert regions.count() > 0
+    for i in range(regions.count()):
+        regions.nth(i).click()
+        fresh_page.wait_for_timeout(60)
+        name = regions.nth(i).inner_text()
+        assert fresh_page.locator("#panels .chip--warn").count() == 0, f"門診部位「{name}」渲染出紅旗碼"
+        assert fresh_page.locator(f'#panels .chip[data-code="{poison}"]').count() == 0, \
+            f"門診部位「{name}」出現了被毒化塞進去的 {poison}"
+        assert fresh_page.locator("#panels .redflag-group").count() == 0, \
+            f"門診部位「{name}」出現紅旗區塊"
+
+    # data 層同樣要擋住（三套版面共用的唯一出口）
+    empty = fresh_page.evaluate(
+        """() => {
+            const n = window.ICDApp.data.regionsFor('outpatient').length;
+            for (let i = 0; i < n; i++) {
+                for (const p of window.ICDApp.data.panelsFor('outpatient', i)) {
+                    if ((p.redFlags || []).length) return false;
+                }
+            }
+            return true;
+        }"""
+    )
+    assert empty is True, "data.panelsFor() 把門診的紅旗放行了"
+
+    # 反面對照：同一份資料在急診模式下紅旗必須看得到，證明選擇器抓得到紅旗
+    fresh_page.evaluate("() => window.ICDApp.store.setMode('emergency')")
+    fresh_page.wait_for_timeout(120)
+    assert fresh_page.locator("#panels .chip--warn").count() > 0, \
+        "急診模式看不到任何紅旗，選擇器可能失效（上面的門診斷言會變成永遠成立）"
+
+
+def test_full_db_is_decompressed_only_once_under_concurrent_triggers(fresh_page, page_url):
+    """全庫（13MB gzip）不論被觸發幾次都只能解壓一次。
+
+    盲點 4（M6）：ensureDb 的 `if (dbPromise) return dbPromise` 快取守門目前只有
+    data.test.mjs 守著。真實踩法很平常——每敲一個字就呼叫一次 ensureDb（見
+    interactions.js 的 input 委派），沒有守門的話打五個字就是五次 13MB 解壓。
+    這裡用 DecompressionStream 的實際建構次數當計數器，量的是真的解壓了幾次。
+    """
+    fresh_page.add_init_script(
+        """
+        (() => {
+          window.__gunzips = 0;
+          const Orig = window.DecompressionStream;
+          window.DecompressionStream = function (format) {
+            window.__gunzips += 1;
+            return new Orig(format);
+          };
+        })();
+        """
+    )
+    fresh_page.goto(page_url)
+    fresh_page.wait_for_selector('body[data-ready="1"]', timeout=8000)
+
+    # (a) 真實使用者路徑：連續打字，每個字元都會觸發一次 ensureDb
+    for chunk in ("蜂", "蜂窩", "蜂窩組", "蜂窩組織", "蜂窩組織炎"):
+        fresh_page.fill("#search", chunk)
+    # (b) 明確的併發呼叫：同一輪 microtask 內一起打進去
+    fresh_page.evaluate("() => Promise.all([1,2,3,4,5].map(() => window.ICDApp.data.ensureDb()))")
+    fresh_page.wait_for_selector('body[data-db="ready"]', timeout=30000)
+    # 就緒之後再叫也不得重載
+    fresh_page.evaluate("() => window.ICDApp.data.ensureDb()")
+    fresh_page.wait_for_timeout(400)
+
+    gunzips = fresh_page.evaluate("() => window.__gunzips")
+    assert gunzips == 1, f"全庫被解壓了 {gunzips} 次，ensureDb 的快取守門失效"
+    assert fresh_page.evaluate("() => window.ICDApp.data.isReady()") is True
+    expect(fresh_page.locator("#search-results .chip").first).to_be_visible(timeout=3000)
