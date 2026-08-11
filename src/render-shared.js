@@ -58,6 +58,49 @@
     return el('h3', 'region-heading', name);
   }
 
+  /* 視覺隱藏（.sr-only）的標題。畫面上一個字都不多，但讀屏的標題導覽（H 鍵）拿得到
+     頁面層級——v3 §5-2：全站原本沒有 H1／H2，階層直接從 H3／H4 開始。
+     刻意不把現成的可見元素（.app-brand／.kicker／.dock-related-title）改成標題標籤：
+     industry.css 的 `h1..h6 { margin: 0 0 var(--space-2) }` 會被一併帶進來而擠動版面，
+     而樣式是另一條工作線的範圍。 */
+  function srHeading(level, text, id) {
+    const h = el('h' + level, 'sr-only', text);
+    if (id) h.id = id;
+    return h;
+  }
+
+  /* 部位列（含「全部」）的選中狀態，三套版面共用。
+
+     這裡原本是 `role="tab"`（容器 `role="tablist"`）＋ `aria-selected`。那等於向讀屏
+     宣告 WAI-ARIA Tabs Pattern 的鍵盤契約——roving tabindex、方向鍵在同組內移動——
+     但整份 src 從來沒有實作方向鍵，使用者被語意引導去按方向鍵卻毫無反應。
+     **宣告了契約卻不履行，比不宣告更糟**（v3 §5-3）。
+
+     而且這一列本來就不是 tabs：沒有任何 tabpanel 與之對應，還允許「一個都沒選」
+     （「全部」鈕）與「再點一次取消」，兩者都違反 tablist「永遠恰好一個 selected」的前提。
+     所以改成本專案既有、且與 #mode-switch 完全同型的誠實作法：一組 role="group" 的
+     切換鈕，狀態走 aria-pressed，鍵盤契約回到原生按鈕的 Tab／Enter／Space。
+
+     兩個出口同時寫：
+       aria-pressed   真正的狀態，AT 讀這個
+       .is-on         CSS 掛鉤（C1-2：不倚賴屬性選擇器單一途徑）
+     曾短暫並寫 `aria-selected` 當過渡期的 CSS 掛鉤，三個版面檔改吃 .is-on 之後已移除。 */
+  function markRegionSelected(b, on) {
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    b.classList.toggle('is-on', !!on);
+    return b;
+  }
+
+  /* 部位列的容器（三套版面共用）。role="group" ＋ aria-label 才撐得住那個標籤；
+     不用 <nav>：它不是導覽，是篩選器，掛 nav 會多出一個名不副實的 navigation 地標。 */
+  function regionGroupEl(id, label) {
+    const box = el('div');
+    box.id = id;
+    box.setAttribute('role', 'group');
+    box.setAttribute('aria-label', label);
+    return box;
+  }
+
   /* 部位列最前面的「全部」鈕（三套版面共用）。
      「點已選的部位再點一次取消」三套版面本來就都能用，但沒有任何視覺提示——使用者因此
      以為只有窄欄有這個功能（原話：「已選取再按一下清除也要在其他介面出現」）。這顆鈕把
@@ -68,9 +111,7 @@
     const b = el('button', 'region-all-btn', '全部');
     b.type = 'button';
     b.dataset.regionAll = '1';
-    b.setAttribute('role', 'tab');
-    b.setAttribute('aria-selected', active ? 'true' : 'false');
-    b.classList.toggle('is-on', active);      // C1-2：不倚賴屬性選擇器單一途徑
+    markRegionSelected(b, active);
     b.title = active ? '目前顯示全部部位' : '顯示全部部位（取消部位篩選）';
     return b;
   }
@@ -241,7 +282,13 @@
       badge.title = '附加碼不可作為主診斷：請加入主要疾病並把它排到第一位';
     }
 
+    /* 可點擊就必須可聚焦、可用鍵盤觸發（v1 §3 的唯一破口：三套版面都到不了這一顆）。
+       保留 <b> 而不換成 <button>：三套 CSS 都以 `b.cart-code` 選取它，換元素等於連帶
+       改掉外觀，而樣式是另一條工作線。補上 role＋tabindex＋鍵盤事件同樣語意完整；
+       鍵盤觸發在 interactions.js（1c 進 PiP 小視窗期間由 render-dock.js 代打）。 */
     const code = el('b', 'cart-code', item.code);
+    code.setAttribute('role', 'button');
+    code.tabIndex = 0;
     code.title = '點擊複製此碼';
     const zh = el('span', 'cart-zh', item.zh);
 
@@ -276,6 +323,16 @@
        與 Alt+↑↓ 都直接用 children 索引，多一列非代碼的 li 會讓換序全部錯位。 */
     if (s.cart.length && isAdjunctCode(ctx, s.cart[0].code)) ul.dataset.primaryAdjunct = 'true';
     else delete ul.dataset.primaryAdjunct;
+  }
+
+  /* 「清空」鈕：清單為空時停用。旁邊的 #copy-all 早就這樣做了（renderHis），只有這一顆
+     永遠可按，同一列兩顆鈕兩套規則（v1 §3）。停用時 title 要說明原因，否則按不動像壞掉
+     ——與設定面板的 #reset-panes 同一個作法。三套版面共用，各自在 U.cart 裡呼叫。 */
+  function syncClearBtn(btn, ctx) {
+    if (!btn) return;
+    const empty = !ctx.store.getState().cart.length;
+    btn.disabled = empty;
+    btn.title = empty ? '清單已是空的' : '清空本次就診清單';
   }
 
   // ---- 貼入 HIS ----
@@ -522,9 +579,10 @@
   }
 
   root.ICDRender = {
-    icon, el, blueprint, clear, regionHeading, regionAllBtn, chipEl, chipWith, chipsFromPairs, emptyText,
+    icon, el, blueprint, clear, regionHeading, srHeading, regionAllBtn, markRegionSelected, regionGroupEl,
+    chipEl, chipWith, chipsFromPairs, emptyText,
     renderResults, relatedGroups, renderRelated,
-    cartItemEl, renderCart, hisText, renderHis, renderShelf,
+    cartItemEl, renderCart, syncClearBtn, hisText, renderHis, renderShelf,
     settingsPopoverEl, syncSettings, dbNoteText, layoutNoteText, effectiveLayout, setPressed,
     modeSwitchEl, syncModeSwitch,
     FORMAT_LABEL, MODE_LABEL, MODE_SHORT, PANELS_TITLE, MODE_HINT, LAYOUT_LABEL, LAYOUT_MIN_WIDTH,

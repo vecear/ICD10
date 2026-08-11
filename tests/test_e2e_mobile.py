@@ -207,7 +207,7 @@ def test_region_pills_scroll_horizontally(page):
     second = pills.nth(1)
     name = second.get_attribute("data-region")
     second.click()
-    expect(page.locator(f'.region-pill[data-region="{name}"]')).to_have_attribute("aria-selected", "true")
+    expect(page.locator(f'.region-pill[data-region="{name}"]')).to_have_attribute("aria-pressed", "true")
     expect(page.locator(".mobile-panel").first).to_be_visible()
 
 
@@ -221,13 +221,13 @@ def test_region_toggle_clears_selection_and_shows_all(page):
     region_count = pills.count()
     second = pills.nth(1)
     second.click()
-    expect(second).to_have_attribute("aria-selected", "true")
+    expect(second).to_have_attribute("aria-pressed", "true")
     one_region_cards = page.locator(".mobile-panel").count()
     assert page.locator("#panels .region-heading").count() == 0, "選了部位時不該出現部位標題"
 
     second.click()
-    expect(second).to_have_attribute("aria-selected", "false")
-    assert page.locator('.region-pill[aria-selected="true"]').count() == 0, "取消後仍有部位被標為選取"
+    expect(second).to_have_attribute("aria-pressed", "false")
+    assert page.locator('.region-pill[aria-pressed="true"]').count() == 0, "取消後仍有部位被標為選取"
     assert page.evaluate("() => window.ICDApp.store.getState().region") is None
 
     total = page.evaluate(
@@ -244,7 +244,7 @@ def test_region_toggle_clears_selection_and_shows_all(page):
     expect(page.locator("#cart-bar")).to_be_visible()
 
     pills.nth(0).click()
-    expect(pills.nth(0)).to_have_attribute("aria-selected", "true")
+    expect(pills.nth(0)).to_have_attribute("aria-pressed", "true")
     assert page.locator("#panels .region-heading").count() == 0
 
 
@@ -305,11 +305,11 @@ def test_region_all_button(page):
     assert box(all_btn)["height"] >= 43.5, f"「全部」高度只有 {box(all_btn)['height']:.1f}px"
     assert box(all_btn)["x"] < box(pills.nth(0))["x"], "「全部」不在部位列最前面"
 
-    expect(all_btn).to_have_attribute("aria-selected", "false")
+    expect(all_btn).to_have_attribute("aria-pressed", "false")
     all_btn.click()
-    expect(all_btn).to_have_attribute("aria-selected", "true")
+    expect(all_btn).to_have_attribute("aria-pressed", "true")
     assert page.evaluate("() => window.ICDApp.store.getState().region") is None
-    assert page.locator('.region-pill[aria-selected="true"]').count() == 0
+    assert page.locator('.region-pill[aria-pressed="true"]').count() == 0
     expect(page.locator("#panels .region-heading")).to_have_count(region_count)
     assert_no_h_scroll(page, "「全部」選中")
 
@@ -321,11 +321,11 @@ def test_region_all_button(page):
 
     page.eval_on_selector("#region-pills", "(el) => { el.scrollLeft = 0; }")
     pills.nth(1).click()
-    expect(all_btn).to_have_attribute("aria-selected", "false")
+    expect(all_btn).to_have_attribute("aria-pressed", "false")
     assert page.locator("#panels .region-heading").count() == 0
     # 既有的「再點一次取消」快捷保留，結果與按「全部」一致
     pills.nth(1).click()
-    expect(all_btn).to_have_attribute("aria-selected", "true")
+    expect(all_btn).to_have_attribute("aria-pressed", "true")
 
 
 def test_panel_cards_and_48px_code_rows(page):
@@ -968,4 +968,127 @@ def test_pane_reset_from_settings(page):
     assert page.evaluate("() => document.getElementById('cart-sheet').style.height") == ""
     expect(page.locator("#reset-panes")).to_be_disabled()
     page.click("#settings-toggle")
+    reset(page)
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 可及性（1b）：地標、標題階層、部位列語意、代碼鍵盤可達
+# 依據 .review/v3-edge.md §5 的三條 ARIA 缺陷與 .review/v1-visual.md §3 的唯一破口。
+# ══════════════════════════════════════════════════════════════════════════
+HEADINGS_JS = """() => [...document.querySelectorAll('h1,h2,h3,h4,h5,h6')]
+    .filter((h) => !h.closest('[hidden]'))
+    .map((h) => ({ level: Number(h.tagName[1]), text: h.textContent.trim() }))"""
+
+
+def assert_heading_outline(pg, label):
+    """H1 恰好一個、排在最前、有 H2，且相鄰標題不得跳級（H2 → H4 是跳級）。"""
+    hs = pg.evaluate(HEADINGS_JS)
+    levels = [h["level"] for h in hs]
+    assert levels, f"{label}：整份文件沒有任何標題"
+    assert levels.count(1) == 1, f"{label}：H1 應恰好一個，實際 {levels.count(1)} 個 → {hs}"
+    assert levels[0] == 1, f"{label}：第一個標題不是 H1 → {hs}"
+    assert 2 in levels, f"{label}：完全沒有 H2 → {hs}"
+    for prev, cur in zip(levels, levels[1:]):
+        assert cur <= prev + 1, f"{label}：標題跳級 H{prev} → H{cur} → {hs}"
+
+
+def test_a11y_single_main_landmark(page):
+    """手機版面也要有 <main>，而且只能有一個（v3 §5-1）。"""
+    reset(page)
+    expect(page.locator('main, [role="main"]')).to_have_count(1)
+    scope = page.evaluate("""() => {
+        const m = document.querySelector('main');
+        const has = (id) => m.contains(document.getElementById(id));
+        return { panels: has('panels'), results: has('search-results'),
+                 pills: has('region-pills'), cart: has('cart') };
+    }""")
+    assert scope["panels"] and scope["results"], f"主訴面板／搜尋結果不在 main 裡：{scope}"
+    assert not scope["pills"] and not scope["cart"], f"main 把其他區塊吃進去了：{scope}"
+
+
+def test_a11y_heading_outline(page):
+    """標題階層要完整（v3 §5-2）。
+
+    手機版沒有可見的模式標題，少了 sr-only 的 H3 會從 H2 直接跳到面板卡的 H4。
+    """
+    reset(page)
+    assert_heading_outline(page, "1b 手機")
+    assert page.evaluate("() => document.querySelector('h1').textContent") == "ICD-10 門診導引"
+    assert page.evaluate("""() => ['h1', 'h2', '#panels-title'].every((sel) => {
+        const h = document.querySelector(sel);
+        return h && h.classList.contains('sr-only') && h.getBoundingClientRect().width <= 2;
+    })""") is True
+    assert "內科門診" in page.evaluate("() => document.querySelector('#panels-title').textContent")
+    assert_no_h_scroll(page, "補上 sr-only 標題後")
+
+
+def test_a11y_region_pills_are_toggle_buttons_not_fake_tabs(page):
+    """部位 pill 列不得再宣告 tablist／tab（v3 §5-3：宣告了方向鍵契約卻沒實作）。"""
+    reset(page)
+    assert page.locator('[role="tablist"], [role="tab"]').count() == 0, "還有元素宣告 tablist／tab 語意"
+    expect(page.locator("#region-pills")).to_have_attribute("role", "group")
+    expect(page.locator("#region-pills")).to_have_attribute("aria-label", "身體部位")
+
+    second = page.locator("#region-pills .region-pill").nth(1)
+    second.click()
+    expect(second).to_have_attribute("aria-pressed", "true")
+    expect(page.locator(".region-all-btn")).to_have_attribute("aria-pressed", "false")
+    assert page.locator('#region-pills .region-pill[aria-pressed="true"]').count() == 1
+
+    page.click(".region-all-btn")
+    expect(page.locator(".region-all-btn")).to_have_attribute("aria-pressed", "true")
+    assert page.locator('#region-pills .region-pill[aria-pressed="true"]').count() == 0
+    reset(page)
+
+
+def test_a11y_cart_code_is_keyboard_reachable_and_copies(page):
+    """b.cart-code 可點擊複製，就必須可聚焦、可鍵盤觸發（v1 §3）。"""
+    reset(page)
+    page.evaluate("() => window.ICDApp.store.addCode('I10', '本態性高血壓')")
+    page.click("#cart-toggle")                      # 逐列清單在抽屜裡
+    expect(page.locator("#cart-sheet")).to_be_visible()
+
+    code = page.locator('#cart li[data-code="I10"] b.cart-code')
+    expect(code).to_have_attribute("role", "button")
+    expect(code).to_have_attribute("tabindex", "0")
+
+    page.locator('#cart li[data-code="I10"]').focus()
+    page.keyboard.press("Tab")
+    landed = page.evaluate("""() => {
+        const a = document.activeElement;
+        const li = a.closest ? a.closest('li[data-code]') : null;
+        const cs = getComputedStyle(a);
+        return { tag: a.tagName, cls: a.className, code: li && li.dataset.code,
+                 focusVisible: a.matches(':focus-visible'),
+                 outline: cs.outlineWidth + ' ' + cs.outlineStyle };
+    }""")
+    assert landed["tag"] == "B" and "cart-code" in landed["cls"], f"Tab 沒有停在代碼上：{landed}"
+    assert landed["code"] == "I10"
+    assert landed["focusVisible"] is True, f"鍵盤聚焦後沒有 :focus-visible：{landed}"
+    assert landed["outline"].split()[0] != "0px" and "none" not in landed["outline"], \
+        f"聚焦沒有可見外框：{landed}"
+
+    page.keyboard.press("Enter")
+    page.wait_for_timeout(150)
+    assert page.evaluate("navigator.clipboard.readText()").replace("\r\n", "\n") == "I10"
+    assert page.locator("#status").inner_text() == "已複製 I10"
+    reset(page)
+
+
+def test_clear_cart_disabled_when_empty(page):
+    """清單為空時「清空」要與 #copy-all 一樣停用（v1 §3）。"""
+    reset(page)
+    expect(page.locator("#clear-cart")).to_be_disabled()
+    expect(page.locator("#copy-all")).to_be_disabled()
+
+    page.evaluate("() => window.ICDApp.store.addCode('I10', '本態性高血壓')")
+    expect(page.locator("#clear-cart")).to_be_enabled()
+    expect(page.locator("#copy-all")).to_be_enabled()
+
+    page.click("#cart-toggle")
+    expect(page.locator("#cart-sheet")).to_be_visible()
+    page.click("#clear-cart")
+    expect(page.locator("#cart li")).to_have_count(0)
+    expect(page.locator("#clear-cart")).to_be_disabled()
+    assert "空" in page.get_attribute("#clear-cart", "title")
     reset(page)

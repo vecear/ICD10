@@ -569,16 +569,16 @@ def test_region_toggle_clears_selection_and_shows_all(page):
     region_count = rail.count()
     second = rail.nth(1)
     second.click()
-    expect(second).to_have_attribute("aria-selected", "true")
+    expect(second).to_have_attribute("aria-pressed", "true")
     one_region_cards = page.locator("#panels .symptom-card").count()
     assert page.locator("#panels .region-heading").count() == 0, "選了部位時不該出現部位標題"
     # 選了部位時「全部」鈕不得標為選中（原 #region-all-note 的說明文字已由這顆鈕取代）
-    expect(page.locator(".region-all-btn")).to_have_attribute("aria-selected", "false")
+    expect(page.locator(".region-all-btn")).to_have_attribute("aria-pressed", "false")
 
     # 再點同一顆 → 取消選取，沒有任何一個部位是 selected
     second.click()
-    expect(second).to_have_attribute("aria-selected", "false")
-    assert page.locator('.region-btn[aria-selected="true"]').count() == 0, "取消後仍有部位被標為選取"
+    expect(second).to_have_attribute("aria-pressed", "false")
+    assert page.locator('.region-btn[aria-pressed="true"]').count() == 0, "取消後仍有部位被標為選取"
     assert page.evaluate("() => window.ICDApp.store.getState().region") is None
 
     total = page.evaluate(
@@ -592,15 +592,15 @@ def test_region_toggle_clears_selection_and_shows_all(page):
     # 每個部位一條標題，順序與 rail 一致；rail 上的「全部」也要跟著標為選中
     expect(page.locator("#panels .region-heading")).to_have_count(region_count)
     assert page.locator("#panels .region-heading").first.inner_text() == rail.first.get_attribute("data-region")
-    expect(page.locator(".region-all-btn")).to_have_attribute("aria-selected", "true")
+    expect(page.locator(".region-all-btn")).to_have_attribute("aria-pressed", "true")
     sw, cw = page.evaluate("() => [document.documentElement.scrollWidth, document.documentElement.clientWidth]")
     assert sw <= cw, f"顯示全部時水平溢出：{sw} > {cw}"
 
     # 點別的部位是換過去、不是取消；標題收起，「全部」也退選
     rail.nth(0).click()
-    expect(rail.nth(0)).to_have_attribute("aria-selected", "true")
+    expect(rail.nth(0)).to_have_attribute("aria-pressed", "true")
     assert page.locator("#panels .region-heading").count() == 0
-    expect(page.locator(".region-all-btn")).to_have_attribute("aria-selected", "false")
+    expect(page.locator(".region-all-btn")).to_have_attribute("aria-pressed", "false")
 
 
 def test_region_all_button(page):
@@ -625,24 +625,24 @@ def test_region_all_button(page):
         }"""
     ), "「全部」鈕不在部位列最前面"
 
-    expect(all_btn).to_have_attribute("aria-selected", "false")
+    expect(all_btn).to_have_attribute("aria-pressed", "false")
     all_btn.click()
-    expect(all_btn).to_have_attribute("aria-selected", "true")
+    expect(all_btn).to_have_attribute("aria-pressed", "true")
     assert page.evaluate("() => window.ICDApp.store.getState().region") is None
-    assert page.locator('.region-btn[aria-selected="true"]').count() == 0
+    assert page.locator('.region-btn[aria-pressed="true"]').count() == 0
     expect(page.locator("#panels .region-heading")).to_have_count(len(outpatient_regions))
 
     # 已是「全部」時再點一次仍是全部（它是狀態，不是切換鈕）
     all_btn.click()
-    expect(all_btn).to_have_attribute("aria-selected", "true")
+    expect(all_btn).to_have_attribute("aria-pressed", "true")
     assert page.evaluate("() => window.ICDApp.store.getState().region") is None
 
     # 選一個部位 → 「全部」退選；再點該部位一次（既有快捷）→ 「全部」自己亮回來
     rail.nth(1).click()
-    expect(all_btn).to_have_attribute("aria-selected", "false")
+    expect(all_btn).to_have_attribute("aria-pressed", "false")
     assert page.locator("#panels .region-heading").count() == 0
     rail.nth(1).click()
-    expect(all_btn).to_have_attribute("aria-selected", "true")
+    expect(all_btn).to_have_attribute("aria-pressed", "true")
     sw, cw = page.evaluate("() => [document.documentElement.scrollWidth, document.documentElement.clientWidth]")
     assert sw <= cw, f"「全部」選中時水平溢出：{sw} > {cw}"
 
@@ -1562,3 +1562,131 @@ def test_pane_reset_from_settings(page):
     expect(page.locator("#reset-panes")).to_be_disabled()
     page.click("#settings-toggle")
     reset(page)
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 可及性（1a）：地標、標題階層、部位列語意、代碼鍵盤可達
+# 依據 .review/v3-edge.md §5 的三條 ARIA 缺陷與 .review/v1-visual.md §3 的唯一破口。
+# ══════════════════════════════════════════════════════════════════════════
+HEADINGS_JS = """() => [...document.querySelectorAll('h1,h2,h3,h4,h5,h6')]
+    .filter((h) => !h.closest('[hidden]'))
+    .map((h) => ({ level: Number(h.tagName[1]), text: h.textContent.trim() }))"""
+
+
+def assert_heading_outline(pg, label):
+    """H1 恰好一個、排在最前、有 H2，且相鄰標題不得跳級（H2 → H4 是跳級）。"""
+    hs = pg.evaluate(HEADINGS_JS)
+    levels = [h["level"] for h in hs]
+    assert levels, f"{label}：整份文件沒有任何標題"
+    assert levels.count(1) == 1, f"{label}：H1 應恰好一個，實際 {levels.count(1)} 個 → {hs}"
+    assert levels[0] == 1, f"{label}：第一個標題不是 H1 → {hs}"
+    assert 2 in levels, f"{label}：完全沒有 H2 → {hs}"
+    for prev, cur in zip(levels, levels[1:]):
+        assert cur <= prev + 1, f"{label}：標題跳級 H{prev} → H{cur} → {hs}"
+
+
+def test_a11y_single_main_landmark(page):
+    """主要內容區要有 <main>，而且只能有一個（v3 §5-1：原本只有 banner＋complementary）。"""
+    reset(page)
+    expect(page.locator('main, [role="main"]')).to_have_count(1)
+    scope = page.evaluate("""() => {
+        const m = document.querySelector('main');
+        const has = (id) => m.contains(document.getElementById(id));
+        return { panels: has('panels'), results: has('search-results'),
+                 rail: has('region-rail'), cart: has('cart') };
+    }""")
+    assert scope["panels"] and scope["results"], f"主訴面板／搜尋結果不在 main 裡：{scope}"
+    # 部位列與右欄各自是 group／complementary，被包進 main 會讓地標導覽跳不開
+    assert not scope["rail"] and not scope["cart"], f"main 把其他地標吃進去了：{scope}"
+
+
+def test_a11y_heading_outline(page):
+    """標題階層要完整（v3 §5-2：原本全站沒有 H1／H2，直接從 H3／H4 開始）。"""
+    reset(page)
+    assert_heading_outline(page, "1a 工作台")
+    assert page.evaluate("() => document.querySelector('h1').textContent") == "ICD-10 門診導引"
+    # 補階層不得在畫面上多塞可見文字：H1／H2 都是 sr-only
+    assert page.evaluate("""() => ['h1', 'h2'].every((sel) => {
+        const h = document.querySelector(sel);
+        return h && h.classList.contains('sr-only') && h.getBoundingClientRect().width <= 2;
+    })""") is True
+
+
+def test_a11y_region_buttons_are_toggle_buttons_not_fake_tabs(page):
+    """部位列不得再宣告 tablist／tab（v3 §5-3）。
+
+    宣告 ARIA tabs 等於承諾 roving tabindex ＋ 方向鍵導覽，而整份 src 從來沒有實作，
+    讀屏使用者會被引導去按沒有作用的方向鍵。改成與 #mode-switch 同型的 role="group"
+    ＋ aria-pressed 切換鈕：宣告與實作一致，鍵盤契約就是原生按鈕的 Tab／Enter／Space。
+    """
+    reset(page)
+    assert page.locator('[role="tablist"], [role="tab"]').count() == 0, "還有元素宣告 tablist／tab 語意"
+    expect(page.locator("#region-rail")).to_have_attribute("role", "group")
+    expect(page.locator("#region-rail")).to_have_attribute("aria-label", "身體部位")
+
+    second = page.locator("#region-rail .region-btn").nth(1)
+    second.click()
+    expect(second).to_have_attribute("aria-pressed", "true")
+    expect(page.locator(".region-all-btn")).to_have_attribute("aria-pressed", "false")
+    assert page.locator('#region-rail .region-btn[aria-pressed="true"]').count() == 1
+
+    page.click(".region-all-btn")
+    expect(page.locator(".region-all-btn")).to_have_attribute("aria-pressed", "true")
+    assert page.locator('#region-rail .region-btn[aria-pressed="true"]').count() == 0
+    reset(page)
+
+
+def test_a11y_cart_code_is_keyboard_reachable_and_copies(page):
+    """b.cart-code 可點擊複製，就必須可聚焦、可鍵盤觸發（v1 §3：三套版面都到不了它）。"""
+    reset(page)
+    page.evaluate("() => window.ICDApp.store.addCode('I10', '本態性高血壓')")
+    code = page.locator('#cart li[data-code="I10"] b.cart-code')
+    expect(code).to_have_attribute("role", "button")
+    expect(code).to_have_attribute("tabindex", "0")
+
+    # 真的走鍵盤：清單列本身可聚焦，Tab 一次就該停在代碼上
+    page.locator('#cart li[data-code="I10"]').focus()
+    page.keyboard.press("Tab")
+    landed = page.evaluate("""() => {
+        const a = document.activeElement;
+        const li = a.closest ? a.closest('li[data-code]') : null;
+        const cs = getComputedStyle(a);
+        return { tag: a.tagName, cls: a.className, code: li && li.dataset.code,
+                 focusVisible: a.matches(':focus-visible'),
+                 outline: cs.outlineWidth + ' ' + cs.outlineStyle };
+    }""")
+    assert landed["tag"] == "B" and "cart-code" in landed["cls"], f"Tab 沒有停在代碼上：{landed}"
+    assert landed["code"] == "I10"
+    assert landed["focusVisible"] is True, f"鍵盤聚焦後沒有 :focus-visible：{landed}"
+    assert landed["outline"].split()[0] != "0px" and "none" not in landed["outline"], \
+        f"聚焦沒有可見外框：{landed}"
+
+    page.keyboard.press("Enter")
+    page.wait_for_timeout(150)
+    assert page.evaluate("navigator.clipboard.readText()").replace("\r\n", "\n") == "I10"
+    assert page.locator("#status").inner_text() == "已複製 I10"
+
+    # Space 也要能觸發（原生按鈕契約），而且不得讓頁面跟著捲一頁
+    page.evaluate("() => { document.getElementById('status').textContent = ''; }")
+    scroll_before = page.evaluate("() => window.scrollY")
+    page.keyboard.press(" ")
+    page.wait_for_timeout(150)
+    assert page.locator("#status").inner_text() == "已複製 I10", "Space 沒有觸發複製"
+    assert page.evaluate("() => window.scrollY") == scroll_before, "Space 沒有被 preventDefault"
+    reset(page)
+
+
+def test_clear_cart_disabled_when_empty(page):
+    """清單為空時「清空」要與旁邊的「複製並貼入 HIS」一樣停用（v1 §3：同一列兩套規則）。"""
+    reset(page)
+    expect(page.locator("#clear-cart")).to_be_disabled()
+    expect(page.locator("#copy-all")).to_be_disabled()
+
+    page.evaluate("() => window.ICDApp.store.addCode('I10', '本態性高血壓')")
+    expect(page.locator("#clear-cart")).to_be_enabled()
+    expect(page.locator("#copy-all")).to_be_enabled()
+
+    page.click("#clear-cart")
+    expect(page.locator("#cart li")).to_have_count(0)
+    expect(page.locator("#clear-cart")).to_be_disabled()
+    assert "空" in page.get_attribute("#clear-cart", "title"), "停用時要說明原因，否則按不動像壞掉"

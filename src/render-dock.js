@@ -23,6 +23,12 @@
 
   const SEARCH_DEBOUNCE = 150;          // 與 interactions.js 同值
 
+  /* 置頂小視窗的預設請求尺寸。寬度 200px 剛好落在兩欄門檻（327px）的錯誤那一側：
+     部位 grid 與面板列都只排得出一欄，一屏可見代碼 17 個。改成 340px 之後同一屏
+     33 個（+94%），而 340 仍在 1c 的窄欄工作範圍內（176–565px，見 dock.css 的
+     media query 與 docs/dense-ui-principle.md）。使用者仍可自行縮放小視窗。 */
+  const PIP_SIZE = { width: 340, height: 900 };
+
   /* Lucide `pin`，stroke-width 1.5；**不寫 xmlns**（控制者裁示 C4：輸出不得含 h-t-t-p 字串）。
      所以也不能用 createElementNS——改用 innerHTML 交給 HTML 剖析器建立 SVG 節點。 */
   const PIN_PATH = '<path d="M12 17v5"/>'
@@ -125,7 +131,10 @@
        三顆短標籤鈕約 89 ＋ 三個 3px 間距 ＋ 置頂 ＋ 設定；置頂在 ≤239px 時只留 pin icon
        （dock.css 的 media query），完整說明留在 title——那是唯一塞不下的一項，
        算式與取捨見 docs/dense-ui-principle.md。 */
-    const head = R.el('div', 'dock-head');
+    /* <header> 而不是 <div>：這一列與 1a／1b 的 header 是同一個角色（banner 地標），
+       三套版面的地標組成要一致。頁面唯一的 H1 掛在這裡（sr-only，176px 寬容不下可見標題）。 */
+    const head = R.el('header', 'dock-head');
+    head.appendChild(R.srHeading(1, 'ICD-10 門診導引'));
 
     const search = document.createElement('input');
     search.id = 'search';
@@ -170,14 +179,18 @@
     dock.appendChild(head);
 
     // ── 部位／情境：兩欄 grid，一眼全見（不可下拉、不可橫向捲動） ────────────
-    refs.pills = R.el('nav');
-    refs.pills.id = 'region-pills';
-    refs.pills.setAttribute('role', 'tablist');
-    refs.pills.setAttribute('aria-label', '身體部位');
+    refs.pills = R.regionGroupEl('region-pills', '身體部位');
     dock.appendChild(refs.pills);
 
-    // ── 捲動內容：搜尋結果 ＋ 扁平面板列表 ────────────────────────────────
-    const body = R.el('div', 'dock-scroll');
+    /* ── 捲動內容：搜尋結果 ＋ 扁平面板列表 ────────────────────────────────
+       這一區＝<main>（v3 §5-1）。整個側欄只有這一個 main；頭部是 banner，
+       部位列是 role="group"，相關疾病與清單是其後的一般區塊。 */
+    const body = R.el('main', 'dock-scroll');
+    body.appendChild(R.srHeading(2, '診斷碼選擇'));
+    /* 1c 沒有可見的模式標題（1a 的 #panels-title），面板名也只是 <span>。補一個 sr-only
+       的 H3 銜接 H2 與 .region-heading，內容與 1a 同源於 R.PANELS_TITLE，由 U.header 更新。 */
+    refs.panelsTitle = R.srHeading(3, '', 'panels-title');
+    body.appendChild(refs.panelsTitle);
     const resultsCard = R.el('div');
     resultsCard.id = 'results-card';
     resultsCard.hidden = true;
@@ -234,6 +247,7 @@
     const clearBtn = R.el('button', 'btn dock-clear', '清空');
     clearBtn.type = 'button';
     clearBtn.id = 'clear-cart';
+    refs.clearCart = clearBtn;
     bar.append(refs.copyAll, clearBtn);
 
     cartBox.append(cartToggle, refs.cartInline, bar);
@@ -372,7 +386,7 @@
       if (!api || typeof api.requestWindow !== 'function') { setNote(PIN_NOTE.unsupported); return; }
       let request = null;
       try {
-        request = api.requestWindow({ width: 200, height: 900 });
+        request = api.requestWindow({ width: PIP_SIZE.width, height: PIP_SIZE.height });
       } catch (e) {
         setNote(PIN_NOTE.blocked);
         return;
@@ -463,11 +477,7 @@
       if (panelToggle) { store.toggleExpanded(panelToggle.dataset.panelToggle); return; }
 
       const cartCode = target.closest('b.cart-code');
-      if (cartCode) {
-        const code = cartCode.closest('li').dataset.code;
-        root.ICDInteractions.copyText(code).then((ok) => { if (ok) announce('已複製 ' + code); });
-        return;
-      }
+      if (cartCode) { root.ICDInteractions.copyCartCode(cartCode); return; }
       const primary = target.closest('.cart-primary');
       if (primary) {
         const code = primary.closest('li').dataset.code;
@@ -530,6 +540,14 @@
 
     dock.addEventListener('keydown', (ev) => {
       if (dock.ownerDocument === document) return;
+      /* PiP 期間主文件的委派搆不到這棵 DOM，b.cart-code 的鍵盤觸發也要在這裡代打，
+         規則與 interactions.js 同一份（Enter／Space，Space 要擋掉捲頁）。 */
+      const codeBtn = ev.target && ev.target.closest ? ev.target.closest('b.cart-code') : null;
+      if (codeBtn && (ev.key === 'Enter' || ev.key === ' ' || ev.key === 'Spacebar')) {
+        ev.preventDefault();
+        root.ICDInteractions.copyCartCode(codeBtn);
+        return;
+      }
       if (!ev.target || ev.target.id !== 'search') return;
       if (ev.key === 'Escape') {
         ev.target.value = '';
@@ -553,7 +571,10 @@
     // ── 更新器 ──────────────────────────────────────────────────────────
     const U = {};
 
-    U.header = () => R.syncModeSwitch(dock, ctx);
+    U.header = () => {
+      R.syncModeSwitch(dock, ctx);
+      refs.panelsTitle.textContent = R.PANELS_TITLE[ctx.store.getState().mode];
+    };
 
     U.searchValue = () => {
       const s = ctx.store.getState();
@@ -573,9 +594,8 @@
         b.type = 'button';
         b.dataset.region = region.name;
         b.dataset.regionIndex = String(i);
-        b.setAttribute('role', 'tab');
         const on = i === active;
-        b.setAttribute('aria-selected', on ? 'true' : 'false');
+        R.markRegionSelected(b, on);
         // 176px 兩欄下較長的名稱會 ellipsis（設計如此），title 保住完整名稱與面板數；
         // 選取中的那顆順便說明「再點一次取消」，否則滑鼠使用者看不出來
         b.title = region.name + '（' + region.count + '）'
@@ -634,6 +654,7 @@
     U.cart = () => {
       const s = ctx.store.getState();
       R.renderCart(refs.cart, null, refs.cartCount, ctx);
+      R.syncClearBtn(refs.clearCart, ctx);
       refs.cartCodes.textContent = s.cart.length ? s.cart.map((x) => x.code).join('、') : '尚未選碼';
       const open = !!(s.cartOpen && s.cart.length);
       refs.cartInline.hidden = !open;

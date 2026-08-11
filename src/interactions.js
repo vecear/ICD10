@@ -89,6 +89,15 @@
     }
   }
 
+  /* 清單列上的代碼是可點擊複製的控制項（render-shared.js 給它 role="button" ＋ tabindex）。
+     滑鼠點擊、鍵盤 Enter／Space、以及 1c 進 PiP 小視窗時的代打全部共用這一份實作。 */
+  function copyCartCode(node) {
+    const li = node && node.closest ? node.closest('li[data-code]') : null;
+    if (!li) return;
+    const code = li.dataset.code;
+    copyText(code).then((ok) => { if (ok) announce('已複製 ' + code); });
+  }
+
   // ---- 加碼（三套版面 ＋ PiP 代打共用同一份實作） ----
   /* chip 的中文標籤。用 `.chip-zh` 而不是 querySelector('span')：★chip 的第一個 span
      是星號 icon，取到的會是空字串（R2 M1）。 */
@@ -223,7 +232,7 @@
       const region = target.closest('.region-btn');
       if (region) {
         store.toggleRegion(Number(region.dataset.regionIndex));
-        // 只播報取消：那是新的、看不出來的狀態（tab 全部變成未選取），選取本身有 aria-selected
+        // 只播報取消：那是「全部按鈕都變成未選取」這個看不出來的狀態；選取本身有 aria-pressed 可讀
         if (store.getState().region === null) announce('已取消部位篩選，顯示全部部位');
         return;
       }
@@ -235,11 +244,7 @@
       if (quickToggle) { store.toggleQuick(quickToggle.dataset.quickToggle); return; }
 
       const cartCode = target.closest('b.cart-code');
-      if (cartCode) {
-        const code = cartCode.closest('li').dataset.code;
-        copyText(code).then((ok) => { if (ok) announce('已複製 ' + code); });
-        return;
-      }
+      if (cartCode) { copyCartCode(cartCode); return; }
       const primary = target.closest('.cart-primary');
       if (primary) {
         const code = primary.closest('li').dataset.code;
@@ -322,6 +327,15 @@
           return;
         }
       }
+      /* b.cart-code 是 role="button" 的自訂控制項，原生按鈕的 Enter／Space 要自己補，
+         否則鍵盤使用者聚焦得到卻按不動（v1 §3 的唯一破口）。Space 一定要 preventDefault，
+         不然清單區會跟著捲一頁。 */
+      const codeBtn = ev.target && ev.target.closest ? ev.target.closest('b.cart-code') : null;
+      if (codeBtn && (ev.key === 'Enter' || ev.key === ' ' || ev.key === 'Spacebar')) {
+        ev.preventDefault();
+        copyCartCode(codeBtn);
+        return;
+      }
       if (ev.key === 'Escape') {
         if (isFallbackOpen()) { closeFallbackCopy(); return; }
         if (store.getState().settingsOpen) store.setSettingsOpen(false);
@@ -383,7 +397,7 @@
 
   root.ICDInteractions = {
     wire, copyText, openFallbackCopy, closeFallbackCopy, isFallbackOpen, announce,
-    activateChip, setFeedbackDocument,
+    activateChip, copyCartCode, setFeedbackDocument,
     // 1c 置頂時 main document 的委派搆不到側欄，render-dock.js 要用同一份實作代打
     chooseMode, chooseAllRegions, resetPanes,
   };

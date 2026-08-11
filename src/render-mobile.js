@@ -58,6 +58,8 @@
        模式列自己佔一行、三格等寬撐滿；觸控目標仍是 44px。互動與 1a／1c 完全一致
        （一次點擊即切換），差的只是配置——那是空間限制不是功能差異。 */
     const header = R.el('header', 'm-header');
+    // 頁面唯一的 H1（sr-only）：手機版 header 沒有可見的品牌字，階層仍要有起點
+    header.append(R.srHeading(1, 'ICD-10 門診導引'));
     refs.modeSwitch = R.modeSwitchEl(false);
 
     const search = document.createElement('input');
@@ -91,15 +93,20 @@
     wrap.appendChild(header);
 
     // ── 部位／情境：橫向捲動 pill 列（L370-374） ──────────────────────────
-    refs.pills = R.el('nav');
-    refs.pills.id = 'region-pills';
-    refs.pills.setAttribute('role', 'tablist');
-    refs.pills.setAttribute('aria-label', '身體部位');
+    refs.pills = R.regionGroupEl('region-pills', '身體部位');
     wrap.appendChild(refs.pills);
 
-    // ── 捲動內容：搜尋結果卡＋面板卡（L376-399） ──────────────────────────
-    const scroll = R.el('div', 'm-scroll');
+    /* ── 捲動內容：搜尋結果卡＋面板卡（L376-399） ──────────────────────────
+       這一區＝<main>（v3 §5-1）。三套版面各只有一個 main，其餘區塊分別是 banner
+       （header）、role="group"（部位列）與底部清單列。 */
+    const scroll = R.el('main', 'm-scroll');
     scroll.id = 'm-scroll';
+    scroll.appendChild(R.srHeading(2, '診斷碼選擇'));
+    /* 手機沒有可見的模式標題（1a 有 #panels-title）。少了它，階層會從 H2 直接跳到
+       面板的 H4（選了部位時連 .region-heading 的 H3 都不會出現），所以補一個 sr-only
+       的 H3，內容與 1a 同源於 R.PANELS_TITLE，由 U.header 隨模式更新。 */
+    refs.panelsTitle = R.srHeading(3, '', 'panels-title');
+    scroll.appendChild(refs.panelsTitle);
 
     const resultsCard = R.el('div');
     resultsCard.id = 'results-card';
@@ -140,6 +147,7 @@
     const clearBtn = R.el('button', 'btn btn-ghost', '清空');
     clearBtn.type = 'button';
     clearBtn.id = 'clear-cart';
+    refs.clearCart = clearBtn;
     sheetHead.append(R.el('span', 'kicker', '本次就診清單'), refs.hisFormat, clearBtn);
 
     refs.cart = R.el('ul');
@@ -201,7 +209,10 @@
     // ── 更新器 ──────────────────────────────────────────────────────────
     const U = {};
 
-    U.header = () => R.syncModeSwitch(wrap, ctx);
+    U.header = () => {
+      R.syncModeSwitch(wrap, ctx);
+      refs.panelsTitle.textContent = R.PANELS_TITLE[ctx.store.getState().mode];
+    };
 
     // 只在狀態與輸入框不同時回寫（Esc 清空、Enter 加碼後清空），避免打字時游標跳位
     U.searchValue = () => {
@@ -222,9 +233,8 @@
         b.type = 'button';
         b.dataset.region = region.name;
         b.dataset.regionIndex = String(i);
-        b.setAttribute('role', 'tab');
         const on = i === active;
-        b.setAttribute('aria-selected', on ? 'true' : 'false');
+        R.markRegionSelected(b, on);
         if (on) b.title = region.name + '（再點一次取消選取，顯示全部部位）';
         b.append(R.el('span', null, region.name), R.el('span', 'region-count', String(region.count)));
         refs.pills.appendChild(b);
@@ -304,6 +314,7 @@
     U.cartSheet = () => {
       const s = ctx.store.getState();
       R.renderCart(refs.cart, refs.cartEmpty, refs.cartCount, ctx);
+      R.syncClearBtn(refs.clearCart, ctx);
       /* C6：手機不做拖曳換序。把把手與 draggable 拿掉，免得留下點不動的假可供性
          （HTML5 DnD 在觸控裝置根本不觸發）；排序改用每列的「主」鈕。 */
       for (const li of refs.cart.children) {

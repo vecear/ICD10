@@ -41,14 +41,10 @@ body[data-layout="mobile"] .m-header {
 body[data-layout="mobile"] .m-head-row { display: flex; align-items: center; gap: 8px; }
 /* 模式三鈕：整列三格等寬（.seg-btn 的 min-height 在下面統一提到 44px） */
 body[data-layout="mobile"] .mode-switch { display: flex; width: 100%; }
+/* 底色、選中態、格間分隔線由 app.css 的 .mode-btn 共用區塊提供（v5 收斂）；
+   這裡只留 1b 真正不同的等寬 flex 與字級。 */
 body[data-layout="mobile"] .mode-btn {
   flex: 1; min-width: 0; font-size: 14px; letter-spacing: .06em;
-  color: var(--color-accent-800); background: var(--color-accent-100);
-}
-body[data-layout="mobile"] .mode-btn + .mode-btn { border-left: 1px solid var(--color-accent); }
-body[data-layout="mobile"] .mode-btn.is-on,
-body[data-layout="mobile"] .mode-btn[aria-pressed="true"] {
-  background: var(--sel-bg); color: var(--sel-ink);
 }
 body[data-layout="mobile"] #search {
   flex: 1; min-width: 0; min-height: 44px;
@@ -85,8 +81,8 @@ body[data-layout="mobile"] .region-all-btn {
   cursor: pointer; font: inherit; font-size: 14px; color: var(--color-text);
   white-space: nowrap; border-radius: 0;
 }
-body[data-layout="mobile"] .region-pill[aria-selected="true"],
-body[data-layout="mobile"] .region-all-btn[aria-selected="true"] {
+body[data-layout="mobile"] .region-pill.is-on,
+body[data-layout="mobile"] .region-all-btn.is-on {
   border-color: var(--color-accent); background: var(--color-accent-100);
   color: var(--color-accent-800); font-weight: 600;
 }
@@ -94,9 +90,9 @@ body[data-layout="mobile"] .region-all-btn[aria-selected="true"] {
 body[data-layout="mobile"] .region-all-btn {
   position: sticky; left: 0; z-index: 2; background: var(--color-neutral-100);
 }
-body[data-layout="mobile"] .region-all-btn[aria-selected="true"] { background: var(--color-accent-100); }
+body[data-layout="mobile"] .region-all-btn.is-on { background: var(--color-accent-100); }
 body[data-layout="mobile"] .region-pill .region-count { font-size: 12px; color: var(--color-neutral-700); }
-body[data-layout="mobile"] .region-pill[aria-selected="true"] .region-count { color: var(--color-accent-800); }
+body[data-layout="mobile"] .region-pill.is-on .region-count { color: var(--color-accent-800); }
 
 /* 取消部位選取（顯示全部部位）時，每組面板前的部位標題。橫捲 pill 列擠不下說明文字，
    全部部位的面板要靠這行才分得出來自哪一區。 */
@@ -107,16 +103,22 @@ body[data-layout="mobile"] .region-heading {
 }
 
 /* ── 捲動內容區（L376） ──────────────────────────────────────────────── */
+/* 內距 12/14/16 → 8/12/10、區塊間距 12 → 8（v5 密度）。只動容器的留白，
+   不動任何 44/48px 觸控目標，也不動代碼列之間的 6px 間隔（那是相鄰觸控目標的緩衝）。 */
 body[data-layout="mobile"] .m-scroll {
   flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
-  padding: 12px 14px 16px; display: flex; flex-direction: column; gap: 12px;
+  padding: 8px 12px 10px; display: flex; flex-direction: column; gap: 8px;
 }
 body[data-layout="mobile"] .m-rows { display: flex; flex-direction: column; gap: 6px; }
 
 /* 代碼列：48px 整列按鈕，左代碼、中中文、右「＋」（L382、L393、L435） */
 body[data-layout="mobile"] .chip--row { min-height: 48px; padding: 6px 10px; }
+/* min-width 用 min(72px, 34%)（v5）：390px 下 34% 遠大於 72px，所以一般情況完全等同
+   原本的 72px；但在 200% 瀏覽器縮放（等效視窗 195px）時 72px 會把中文欄壓到 15px，
+   文字硬裁成一個字而且窄到連刪節號都放不下（150% 時還正常）。改成相對值之後，
+   代碼欄跟著讓，中文欄保得住刪節號。代碼本身不會被裁（flex:none，基準是內容寬）。 */
 body[data-layout="mobile"] .chip--row b {
-  flex: none; min-width: 72px; font-size: 15px; letter-spacing: .04em; text-align: left;
+  flex: none; min-width: min(72px, 34%); font-size: 15px; letter-spacing: .04em; text-align: left;
 }
 body[data-layout="mobile"] .chip--row span {
   flex: 1; min-width: 0; font-size: 14px; text-align: left;

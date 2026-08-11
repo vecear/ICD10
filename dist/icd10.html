@@ -352,11 +352,32 @@ textarea.input { min-height: 90px; resize: vertical; }
   /* 紅旗警示配色（new-design.dc.html L21）。
      impl-plan R-7：設計稿把這組寫在 `[data-theme]` 選擇器上，只要哪天忘了在 html 標
      data-theme，`border:1px solid var(--warn-line)` 會變成無效宣告，整個警示盒的框線
-     與底色靜默消失且不報錯。這裡改掛 :root，深色值走 :root[data-theme="dark"]。 */
+     與底色靜默消失且不報錯。這裡改掛 :root，深色值走 :root[data-theme="dark"]。
+
+     --warn-line 從設計稿的 #c9a24a 改深成 #a17e30（v5）：它是**非文字**的狀態指示
+     （紅旗 chip 的框、附加碼標記的框、紅旗盒與清單主診斷警示帶的框），WCAG 2.1 的
+     1.4.11 要求 ≥3:1，而 #c9a24a 對本產品的五種底色只有 2.15–2.26，日間實測看不太出來。
+     #a17e30 實測 3.39（頁面底 #f2f2f3）／3.46（warn-bg）／3.48（neutral-100、accent-100）
+     ／3.58（warn-surface）。--warn-ink（文字用）不動，文字層對比維持 5.40。 */
   --warn-bg: #fbf4e4;
   --warn-surface: #fdf8ec;
-  --warn-line: #c9a24a;
+  --warn-line: #a17e30;
   --warn-ink: #8a5a12;
+
+  /* 非文字 UI 元件／狀態指示用的中性線（WCAG 1.4.11 ≥3:1）。
+     用在「不可申報的類目碼」虛線與可拖曳分隔條的握把——這兩個都是使用者要看得出來
+     才有意義的元件，不是純結構分隔線（純分隔線仍用 --color-divider，它刻意很淡）。
+     值＝industry ramp 的 --color-neutral-600；實測對五種淺色底 3.82–4.04。 */
+  --line-strong: #7a7a7d;
+
+  /* #copy-all 的 hover 底色。與 --his-btn 同組，**不隨主題翻轉**：色值剛好等於淺色主題
+     的 --color-accent-200，但不能寫成 var(--color-accent-200)——深色主題會把它翻成深色，
+     HIS 區的「深底淺字」就破了。 */
+  --his-btn-hover: #d6ebff;
+
+  /* 啟動失敗畫面（#fatal-error）的錯誤紅。淺色底 #f2f2f3 實測 4.86:1（文字門檻 4.5 通過）；
+     同一個紅在深色底 #14181c 只有 3.28:1，故深色另給值（見下方 dark 區塊）。 */
+  --fatal-line: #c0392b;
 
   /* 貼入 HIS 預覽區專用 token（impl-plan R-2）：**刻意不隨主題翻轉**。
      設計稿的 #his-preview 是 `background:var(--color-accent-800); color:#f2f2f3`，
@@ -392,8 +413,17 @@ textarea.input { min-height: 90px; resize: vertical; }
 
   --warn-bg: #2e2410;
   --warn-surface: #241c0c;
-  --warn-line: #7a6128;
+  /* 同淺色的理由（v5）：設計稿的 #7a6128 對深色底只有 2.29–3.03，未達非文字 3:1。
+     #a08036 實測 3.62（accent-100 #22303d，深色裡最亮的底）／4.10（warn-bg）／
+     4.19（neutral-100）／4.52（warn-surface）／4.79（頁面底）。 */
+  --warn-line: #a08036;
   --warn-ink: #e8c26a;
+  /* 深色底的中性線：#5d5d60（原 neutral-400 深色值）只有 2.05–2.72，未達 3:1。
+     #89898d 實測 3.87（accent-100）／4.38（warn-bg）／4.48（neutral-100）／5.12（頁面底）。 */
+  --line-strong: #89898d;
+  /* #c0392b 在深色底只有 3.28:1（#fatal-error 的 h2 是文字，門檻 4.5）；改用同色相
+     的淺階，實測 6.18:1。 */
+  --fatal-line: #e8776a;
 
   --color-bg: #14181c;
   --color-surface: #1b2026;
@@ -443,36 +473,80 @@ body {
   font-family: var(--font-heading); font-size: 11px; letter-spacing: .12em;
   text-transform: uppercase; color: var(--color-neutral-700);
 }
-.muted { color: var(--color-neutral-700); }
 
-/* ── chip：唯一的加碼入口（設計稿 L433-435、L505、L615-617） ── */
+/* ── chip：唯一的加碼入口（設計稿 L433-435、L505、L615-617） ─────────────────
+   **硬性慣例：chip 的顏色一律走下面五個 --chip-* 自訂屬性，幾何規則只准引用、不准
+   自己寫色值。** 這條慣例是踩過三次同一個坑之後訂的：
+
+   `.chip--row`（1b）與 `.chip--dock`（1c）是幾何變體，它們用 `border` shorthand，
+   而 shorthand 會連 border-color 一起重設。它們與 `.chip--warn` 同為 (0,1,0) 特異度、
+   位置又在後 → 急診紅旗的警示邊框被靜默洗掉。實測後果：手機版紅旗 chip 的邊框對比
+   1.38／1.87，與一般碼完全相同（＝那條線根本沒被畫出來，而手機不會 hover，永遠救不回來）；
+   附加碼 chip 在 1b／1c 同樣遺失。過去的補法是替出事的版面各加一條「救回來」的規則
+   （dock.css 曾有一條 .chip--dock.chip--warn），治標，而且每新增一個變體就要記得補一次。
+
+   自訂屬性沒有這個問題：它由「有設定它的那條規則」決定，幾何規則沒設定就不會覆蓋，
+   跟 shorthand、來源順序、版面前綴的特異度全都無關。日後在任何版面新增 .chip--x，
+   只要 border/background 引用 --chip-line／--chip-bg，警示色就不會再消失。
+   守門測試：tests/test_e2e_clinical_visuals.py。 */
 .chip {
-  display: inline-flex; align-items: baseline; gap: 7px; padding: 7px 11px;
-  border: 1px solid var(--color-divider); background: transparent; cursor: pointer;
-  font: inherit; font-size: 14px; color: var(--color-text); border-radius: 0;
+  --chip-line: var(--color-divider);
+  --chip-line-hover: var(--color-accent);
+  --chip-bg: transparent;
+  --chip-bg-hover: var(--color-accent-100);
+  --chip-code-ink: var(--color-accent-700);
+  /* 內距 7→5、line-height 1.25（v5 密度）：chip 是 white-space:nowrap 的單行按鈕，
+     body 的 1.55 在這裡不是可讀性而是純留白（1c 早已是 1.25）。桌機 1440×900 實測
+     chip 高 37.69 → 29.5px；門診全部位全展開時一屏完整可見代碼 47 → 62（+32%），
+     該區總捲高 7520 → 6858px。1b 的 48px 觸控高度是硬底線，不受影響。 */
+  display: inline-flex; align-items: baseline; gap: 7px; padding: 5px 11px;
+  border: 1px solid var(--chip-line); background: var(--chip-bg); cursor: pointer;
+  font: inherit; font-size: 14px; line-height: 1.25; color: var(--color-text); border-radius: 0;
   max-width: 100%; text-align: left;
 }
-.chip b { font-family: var(--font-heading); letter-spacing: .03em; color: var(--color-accent-700); white-space: nowrap; }
+/* tabular-nums：Barlow Condensed 的 `1111` 只有 `0000` 的 58% 寬（16px 實測 17.94 vs
+   30.98px），代碼欄縱向掃視時數字不成欄。內嵌 woff2 子集實測支援 tnum——加上之後
+   兩者都是 30.34px。 */
+.chip b {
+  font-family: var(--font-heading); letter-spacing: .03em; color: var(--chip-code-ink);
+  white-space: nowrap; font-variant-numeric: tabular-nums;
+}
 .chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.chip:hover { border-color: var(--color-accent); background: var(--color-accent-100); }
+.chip:hover { border-color: var(--chip-line-hover); background: var(--chip-bg-hover); }
 .chip:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 
-.chip--warn { border-color: var(--warn-line); background: var(--warn-bg); }
-.chip--warn b { color: var(--warn-ink); }
-.chip--warn:hover { border-color: var(--warn-ink); background: var(--warn-surface); }
-
-/* 類目碼：虛線框＋not-allowed（設計稿 L615-617）。文字色由設計稿的 neutral-600
-   改為 neutral-700：600 在淺色底只有 3.72:1，未達正文 4.5:1。 */
-.chip.cat, .chip.cat:hover {
-  border: 1px dashed var(--color-neutral-400); background: transparent;
-  color: var(--color-neutral-700); cursor: not-allowed;
+/* 幾何變體：只管尺寸與排列，顏色沿用上面的 --chip-*（見本節開頭的慣例） */
+.chip--row {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px;
+  padding: 6px 10px; border: 1px solid var(--chip-line); border-radius: 0;
 }
+.chip--row span { flex: 1; }
+.chip--dock {
+  display: flex; align-items: baseline; gap: 5px; width: 100%; min-width: 0;
+  min-height: 21px; padding: 1px 3px; border: 0;
+  border-bottom: 1px solid var(--chip-line); text-align: left;
+}
+.chip-row { display: flex; gap: 4px; flex-wrap: wrap; }
+
+/* ── 臨床視覺分層（docs/dense-ui-principle.md 硬性邊界 #3）────────────────────
+   這一段刻意排在所有 .chip--* 幾何規則**之後**：自訂屬性本來就不怕順序，這裡再加一道
+   來源順序的保險——就算日後有人忘了慣例、在幾何規則裡直接寫死 border，順序也還站在
+   警示色這一邊。這三項的顏色與邊框不因密度或版面調整而弱化。 */
+
+/* 急診紅旗 */
+.chip--warn {
+  --chip-line: var(--warn-line); --chip-line-hover: var(--warn-ink);
+  --chip-bg: var(--warn-bg); --chip-bg-hover: var(--warn-surface);
+  --chip-code-ink: var(--warn-ink);
+}
+
 /* 附加碼（B95–B97 病原體／Z16 抗藥性）：官方中文名（例如「青黴素之抗藥性」）完全看不出
    它不能當主診斷，所以在任何出現位置都掛一個看得見的標記。用 <i class="chip-tag"> 而不是
    <span>：`.chip--row span`／`.chip--dock span` 會把它當成中文欄拉成 flex:1 並裁掉。 */
-.chip--adjunct { border-color: var(--warn-line); }
-.chip--adjunct b { color: var(--warn-ink); }
-.chip--adjunct:hover { border-color: var(--warn-ink); background: var(--warn-surface); }
+.chip--adjunct {
+  --chip-line: var(--warn-line); --chip-line-hover: var(--warn-ink);
+  --chip-bg-hover: var(--warn-surface); --chip-code-ink: var(--warn-ink);
+}
 .chip-tag {
   flex: none; font-style: normal; font-family: var(--font-heading);
   font-size: 10px; line-height: 1.4; letter-spacing: .06em; white-space: nowrap;
@@ -480,17 +554,15 @@ body {
   background: var(--warn-bg); color: var(--warn-ink);
 }
 
-.chip--row {
-  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px;
-  padding: 6px 10px; border: 1px solid var(--color-divider); border-radius: 0;
+/* 類目碼：虛線框＋not-allowed（設計稿 L615-617）。文字色由設計稿的 neutral-600
+   改為 neutral-700：600 在淺色底只有 3.72:1，未達正文 4.5:1。
+   虛線改吃 --line-strong（原 neutral-400 對淺色底只有 1.79、深色 2.72，未達非文字 3:1）。 */
+.chip.cat, .chip.cat:hover {
+  --chip-line: var(--line-strong); --chip-line-hover: var(--line-strong);
+  --chip-bg-hover: transparent;
+  border: 1px dashed var(--chip-line); background: transparent;
+  color: var(--color-neutral-700); cursor: not-allowed;
 }
-.chip--row span { flex: 1; }
-.chip--dock {
-  display: flex; align-items: baseline; gap: 5px; width: 100%; min-width: 0;
-  min-height: 21px; padding: 1px 3px; border: 0;
-  border-bottom: 1px solid var(--color-divider); text-align: left;
-}
-.chip-row { display: flex; gap: 6px; flex-wrap: wrap; }
 
 /* ── segmented 控制（設計稿 L533-538）。C1-2：不依賴 :has()，選中狀態由
    interactions.js 同時寫 aria-pressed 與 .is-on，兩個選擇器都能命中。 ── */
@@ -553,6 +625,7 @@ body {
 b.cart-code {
   font-family: var(--font-heading); font-size: 16px; letter-spacing: .04em;
   color: var(--color-accent-700); min-width: 74px; cursor: pointer;
+  font-variant-numeric: tabular-nums;      /* 清單各列代碼要成欄，理由同 .chip b */
 }
 .cart-zh { flex: 1; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #cart li button {
@@ -573,12 +646,13 @@ b.cart-code {
   margin: 0 0 10px; padding: 10px; background: var(--his-surface); border: 1px solid var(--his-line);
   font-family: var(--font-heading); font-size: 14px; line-height: 1.55; letter-spacing: .03em;
   white-space: pre-wrap; word-break: break-all; min-height: 64px; color: var(--his-ink);
+  font-variant-numeric: tabular-nums;      /* 要貼進 HIS 的代碼串，數字等寬才對得齊 */
 }
 #copy-all {
   width: 100%; min-height: 44px; font-size: 15px; letter-spacing: .04em;
   background: var(--his-btn); color: var(--his-btn-ink); border: 1px solid var(--his-btn);
 }
-#copy-all:hover { background: #d6ebff; }
+#copy-all:hover { background: var(--his-btn-hover); }
 #copy-all:disabled { opacity: .5; cursor: not-allowed; }
 
 /* ── header 的看診模式三鈕（共同部分；三套版面只調尺寸與所在列） ──
@@ -586,7 +660,12 @@ b.cart-code {
    segmented 完全一致，不另立一套視覺。border 改用 accent：它在 header 是主要控制項，
    跟旁邊的搜尋框要分得出來。不用 :has()、不用 color-mix()（C1）。 */
 .mode-switch { flex: none; border-color: var(--color-accent); }
-.mode-btn { flex: 0 0 auto; }
+/* 底色／選中態／格與格之間的分隔線收斂在這裡（v5）：三個版面檔原本各自逐字重複
+   同樣的 `.mode-btn + .mode-btn` 與 `.mode-btn.is-on` 兩條規則。各版面現在只留自己
+   真正不同的東西（字級、內距、flex 行為）。 */
+.mode-btn { flex: 0 0 auto; background: var(--color-accent-100); color: var(--color-accent-800); }
+.mode-btn + .mode-btn { border-left: 1px solid var(--color-accent); }
+.mode-btn.is-on, .mode-btn[aria-pressed="true"] { background: var(--sel-bg); color: var(--sel-ink); }
 
 /* ── 設定 popover（共同部分；三套版面各自定位） ── */
 .settings-popover {
@@ -618,7 +697,8 @@ b.cart-code {
 }
 .pane-resizer::before {
   content: ""; position: absolute; left: 50%; top: 50%; width: 28px; height: 1px;
-  margin: -1px 0 0 -14px; background: var(--color-neutral-400);
+  /* 握把是可操作元件（拖曳），適用 WCAG 1.4.11 的 3:1；neutral-400 只有 1.79／2.72 */
+  margin: -1px 0 0 -14px; background: var(--line-strong);
 }
 .pane-resizer:hover::before,
 .pane-resizer.is-dragging::before { height: 2px; background: var(--color-accent); }
@@ -633,8 +713,8 @@ b.cart-code {
 #fallback-copy textarea { width: min(480px, 90vw); height: 160px; font: inherit; font-size: 14px; }
 
 /* ── 致命錯誤 ── */
-#fatal-error { margin: 24px; padding: 16px 18px; border: 1px solid #c0392b; background: var(--color-bg); }
-#fatal-error h2 { color: #c0392b; font-size: 20px; }
+#fatal-error { margin: 24px; padding: 16px 18px; border: 1px solid var(--fatal-line); background: var(--color-bg); }
+#fatal-error h2 { color: var(--fatal-line); font-size: 20px; }
 #fatal-error p { font-size: 14px; line-height: 1.6; }
 
 
@@ -657,22 +737,28 @@ b.cart-code {
 /* 看診模式三鈕直接排在 header 這一列（1440 空間充足，用全名）；高度與搜尋框、
    設定鈕齊平的 40px，未選中的底色沿用 accent-100，一眼就看得出這是一組控制項。 */
 #layout-wide .mode-btn {
-  font-size: 13px; letter-spacing: .08em; padding: 0 13px; min-height: 40px;
-  background: var(--color-accent-100); color: var(--color-accent-800); white-space: nowrap;
+  font-size: 13px; letter-spacing: .08em; padding: 0 13px; min-height: 40px; white-space: nowrap;
 }
-#layout-wide .mode-btn + .mode-btn { border-left: 1px solid var(--color-accent); }
-#layout-wide .mode-btn:hover { background: var(--color-accent-200); }
-#layout-wide .mode-btn.is-on, #layout-wide .mode-btn[aria-pressed="true"] {
-  background: var(--sel-bg); color: var(--sel-ink);
-}
+/* 底色、選中態與格間分隔線在 app.css（三版面共用）。
+   `:not(.is-on)` 不可省：ID 選擇器的權重高於 `.mode-btn.is-on`，少了它「滑過已選中的
+   模式鈕」會把選中底色（--sel-bg）掉回一般 hover 底。setPressed() 一律同時寫
+   aria-pressed 與 .is-on，所以判 .is-on 就夠。 */
+#layout-wide .mode-btn:not(.is-on):hover { background: var(--color-accent-200); }
 #layout-wide #search { flex: 1; min-width: 0; min-height: 40px; font-size: 16px; background: transparent; }
 #layout-wide #settings-toggle { min-height: 40px; font-size: 13px; letter-spacing: .05em; white-space: nowrap; }
-#layout-wide #settings-popover { top: 56px; right: 16px; width: 300px; padding: 14px; }
+/* top 跟著 header 下緣走，不寫死（.app-header 是 position:relative 的包含塊）。
+   原本寫死的 56px 在 header 實高 63px 時已經有 7px 重疊，header 只要再多一列就會第三次
+   重演「popover 蓋住開它的那顆設定鈕、點兩次關不掉」——1c 的 46/64/93px 與 1b 的 60px
+   都各失準過一次，兩處早已改成跟隨寫法（dock.css `top:100%`、mobile.css `calc(100% - 4px)`）。 */
+#layout-wide #settings-popover { top: 100%; right: 16px; width: 300px; padding: 14px; }
 
-/* ── 常用列（L93-101） ── */
+/* ── 常用列（L93-101） ──
+   內距 7→4、min-height 40→28（v5 密度）：這一列常態只放一行提示或一排 chip，
+   chip 本身已由 app.css 收到 29.5px 高，40px 的下限只是替空狀態多留 12px 白。
+   實測：空狀態 40 → 29.1px；有 chip 時 52.7 → 39px（由 chip 高度決定，min-height 不參與）。 */
 #shelf {
-  display: flex; align-items: center; gap: 10px; padding: 7px 16px;
-  border-bottom: 1px solid var(--color-divider); min-height: 40px; flex: none;
+  display: flex; align-items: center; gap: 10px; padding: 4px 16px;
+  border-bottom: 1px solid var(--color-divider); min-height: 28px; flex: none;
 }
 #shelf .shelf-kicker { white-space: nowrap; }
 .shelf-chips { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; min-width: 0; }
@@ -681,9 +767,14 @@ b.cart-code {
 .shelf-empty { font-size: 13px; color: var(--color-neutral-700); }
 
 /* ── 三欄主體（L103） ── */
+/* 兩側欄用 min(固定值, 百分比)：1440 下算出來就是設計值 184／400px（16% = 230、
+   34% = 490，都比固定值大），但視窗（或 200% 瀏覽器縮放後的等效視窗）變窄時兩側會
+   跟著讓，中欄不會被壓成放不下一個標題的寬度。實測 200% 縮放（等效視窗 720px）：
+   中欄 272 → 720px，`#panels-title`「內科門診主訴」從逐字換行 6 列回到 1 列。 */
 .workbench {
   flex: 1; min-height: 0;
-  display: grid; grid-template-columns: 184px minmax(0, 1fr) 400px; align-items: stretch;
+  display: grid; grid-template-columns: min(184px, 16%) minmax(0, 1fr) min(400px, 34%);
+  align-items: stretch;
 }
 .workbench > * { min-width: 0; overflow-y: auto; }
 
@@ -691,14 +782,23 @@ b.cart-code {
 #region-rail { border-right: 1px solid var(--color-divider); padding: 12px 0; background: var(--color-neutral-100); }
 #region-rail-title { font-size: 12px; padding: 0 16px 8px; }
 /* 「全部」鈕與部位鈕外觀一致（它就是「不篩選」那一個選項），只差沒有右側計數。
-   規則寫在同一組選擇器裡，日後改樣式不會只改到一半。 */
-.region-btn, .region-all-btn {
+   規則寫在同一組選擇器裡，日後改樣式不會只改到一半。
+
+   一律掛 body[data-layout="wide"]（v5）：`.region-btn` 這個類名三個版面共用
+   （1c 是 `.region-btn.region-pill--dock`、1b 是 `.region-btn.region-pill`，
+   事件委派認的就是 `.region-btn`），本檔早於 dock/mobile 寫成，當時沒有隔離需求，
+   結果這組裸類名一路洩漏到另外兩個版面，逼它們用 body[data-layout] 前綴整組蓋回去。
+   已知洩漏的實例：1c 的部位鈕 hover 底色其實來自本檔而不是 dock.css。 */
+body[data-layout="wide"] .region-btn,
+body[data-layout="wide"] .region-all-btn {
   display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%;
   padding: 9px 16px; border: 0; border-left: 3px solid transparent; cursor: pointer;
   font: inherit; font-size: 14px; text-align: left; background: transparent; color: var(--color-text);
 }
-.region-btn:hover, .region-all-btn:hover { background: var(--color-accent-100); }
-.region-btn[aria-selected="true"], .region-all-btn[aria-selected="true"] {
+body[data-layout="wide"] .region-btn:hover,
+body[data-layout="wide"] .region-all-btn:hover { background: var(--color-accent-100); }
+body[data-layout="wide"] .region-btn.is-on,
+body[data-layout="wide"] .region-all-btn.is-on {
   border-left-color: var(--color-accent); background: var(--color-accent-100);
   color: var(--color-accent-800); font-weight: 600;
 }
@@ -734,13 +834,17 @@ body[data-layout="wide"] .region-heading {
   background: var(--color-accent-100); color: var(--color-accent-800);
   border-bottom: 1px solid var(--color-divider);
 }
-.panel-toggle {
+/* 同上：`.panel-toggle` 也是三版面共用的類名（1c／1b 各有自己的形態），本檔一併補上
+   版面限定，讓 dock/mobile 不必再為了蓋掉洩漏值而多寫規則。
+   `.marker` 圖示只有 1a 的面板展開鈕有（1c 是「＋疾病」純文字、1b 是「展開常見疾病」
+   純文字），所以旋轉規則留在本檔即可。 */
+body[data-layout="wide"] .panel-toggle {
   display: flex; align-items: center; gap: 4px; margin-top: 10px; border: 0; background: none;
   padding: 4px 0; cursor: pointer; font: inherit; font-size: 13px;
   color: var(--color-accent-700); text-align: left; white-space: nowrap; width: fit-content;
 }
-.panel-toggle .marker { transition: transform .12s ease; }
-.panel-toggle[aria-expanded="true"] .marker { transform: rotate(90deg); }
+body[data-layout="wide"] .panel-toggle .marker { transition: transform .12s ease; }
+body[data-layout="wide"] .panel-toggle[aria-expanded="true"] .marker { transform: rotate(90deg); }
 .disease-group { padding-top: 4px; }
 
 /* 底部快選分組（L158-167，預設全收合） */
@@ -770,7 +874,7 @@ body[data-layout="wide"] .region-heading {
 /* ── 900–1239px：rail 降成頂部 pill 列，右欄縮到 360px（impl-plan §4.6） ── */
 @media (max-width: 1239px) {
   .workbench {
-    grid-template-columns: minmax(0, 1fr) 360px;
+    grid-template-columns: minmax(0, 1fr) min(360px, 40%);
     grid-template-areas: "rail rail" "sheet cart";
     grid-template-rows: auto minmax(0, 1fr);
   }
@@ -781,11 +885,13 @@ body[data-layout="wide"] .region-heading {
   #region-rail-title { padding: 0 6px 0 0; }
   .worksheet { grid-area: sheet; }
   #cart-pane { grid-area: cart; }
-  .region-btn, .region-all-btn {
+  body[data-layout="wide"] .region-btn,
+  body[data-layout="wide"] .region-all-btn {
     width: auto; flex: 0 0 auto; padding: 6px 11px;
     border: 1px solid var(--color-divider); border-left-width: 1px;
   }
-  .region-btn[aria-selected="true"], .region-all-btn[aria-selected="true"] {
+  body[data-layout="wide"] .region-btn.is-on,
+  body[data-layout="wide"] .region-all-btn.is-on {
     border-color: var(--color-accent); border-left-color: var(--color-accent);
   }
   /* 橫排 pill 列裡不需要那條分隔線（它是為了直向 rail 才存在的） */
@@ -834,14 +940,10 @@ body[data-layout="dock"] .dock-spacer { flex: 1; min-width: 0; }
    flex:1；padding 用 seg-btn--sm 的 3px 4px，letter-spacing 收到 .02em（.06em 每顆多 1.2px，
    三顆＋間距就是 4px，那是 176px 下擠不擠得下的差別）。 */
 body[data-layout="dock"] .mode-switch { display: flex; width: auto; flex: none; }
+/* 底色、選中態、格間分隔線由 app.css 的 .mode-btn 共用區塊提供（v5 收斂：原本三個
+   版面檔各自逐字重複同樣兩條規則）；這裡只留 1c 真正不同的 flex 行為與 letter-spacing。 */
 body[data-layout="dock"] .mode-btn {
   flex: 0 0 auto; min-width: 0; letter-spacing: .02em;
-  color: var(--color-accent-800); background: var(--color-accent-100);
-}
-body[data-layout="dock"] .mode-btn + .mode-btn { border-left: 1px solid var(--color-accent); }
-body[data-layout="dock"] .mode-btn.is-on,
-body[data-layout="dock"] .mode-btn[aria-pressed="true"] {
-  background: var(--sel-bg); color: var(--sel-ink);
 }
 body[data-layout="dock"] #pin-toggle {
   display: inline-flex; align-items: center; justify-content: center; gap: 3px; flex: none;
@@ -889,8 +991,10 @@ body[data-layout="dock"] .dock-pinned-away {
 body[data-layout="dock"] #settings-popover { top: 100%; left: 6px; right: 6px; padding: 7px; gap: 6px; }
 body[data-layout="dock"] #settings-popover .kicker { font-size: 10px; letter-spacing: .1em; }
 body[data-layout="dock"] .settings-section > .kicker { margin-bottom: 3px; }
-/* 小號 segmented：22px 高、10px 字，min-width:0＋ellipsis 讓三格擠得進 164px */
-body[data-layout="dock"] #settings-popover .seg-btn { padding: 3px 4px; font-size: 10px; min-height: 22px; }
+/* 小號 segmented（22px 高、10px 字，min-width:0＋ellipsis 讓三格擠得進 164px）：
+   1c 的設定 popover 由 settingsPopoverEl(true)／segRow(..., small=true) 產生，8 顆
+   seg-btn 全部帶 .seg-btn--sm（實測 8/8），app.css 的 .seg-btn--sm 已是同樣三個值，
+   本檔原本那條同名覆寫是純重複，v5 刪除。 */
 body[data-layout="dock"] #theme-toggle { width: 100%; min-height: 26px; font-size: 11px; }
 body[data-layout="dock"] #shelf-toggle { display: none; }     /* 1c 沒有常用列 */
 body[data-layout="dock"] #db-note { font-size: 10px; padding-top: 6px; }
@@ -922,8 +1026,8 @@ body[data-layout="dock"] .region-all-btn {
 }
 body[data-layout="dock"] .region-pill--dock:hover,
 body[data-layout="dock"] .region-all-btn:hover { border-color: var(--color-accent); }
-body[data-layout="dock"] .region-pill--dock[aria-selected="true"],
-body[data-layout="dock"] .region-all-btn[aria-selected="true"] {
+body[data-layout="dock"] .region-pill--dock.is-on,
+body[data-layout="dock"] .region-all-btn.is-on {
   border-color: var(--color-accent); background: var(--color-accent-100);
   color: var(--color-accent-800); font-weight: 600;
 }
@@ -951,16 +1055,19 @@ body[data-layout="dock"] .chip-row { flex-direction: column; flex-wrap: nowrap; 
 body[data-layout="dock"] .chip--dock { font-size: 11px; }
 body[data-layout="dock"] .chip--dock b { font-size: 12px; letter-spacing: .02em; }
 body[data-layout="dock"] .chip--dock span { flex: 1; min-width: 0; font-size: 11px; line-height: 1.25; }
+/* hover 走 --chip-bg-hover／--chip-line-hover（app.css 的 chip 慣例），不寫死 accent：
+   寫死 accent 的舊版本讓紅旗 chip 一 hover 就掉成一般藍底、警示配色在「準備點下去」
+   那一刻消失（0,3,0 壓過 .chip--warn:hover 的 0,2,0）。 */
 body[data-layout="dock"] .chip--dock:hover {
-  background: var(--color-accent-100); border-bottom-color: var(--color-accent);
+  background: var(--chip-bg-hover); border-bottom-color: var(--chip-line-hover);
 }
 /* 類目碼：app.css 的 .chip.cat 會補回四邊實框，1c 只留虛線下緣 */
 body[data-layout="dock"] .chip--dock.cat,
 body[data-layout="dock"] .chip--dock.cat:hover {
-  border: 0; border-bottom: 1px dashed var(--color-neutral-400); background: transparent;
+  border: 0; border-bottom: 1px dashed var(--chip-line); background: transparent;
 }
-/* 紅旗碼（只有急診模式產得出來，見 data.js panelsFor） */
-body[data-layout="dock"] .chip--dock.chip--warn { border-bottom-color: var(--warn-line); }
+/* 紅旗碼的下緣警示線由 app.css 的 --chip-line 直接帶進來（見該檔 chip 區塊的慣例），
+   本檔原本那條「救回來」的 .chip--dock.chip--warn 補丁已不需要，v5 刪除。 */
 
 /* ── 搜尋結果（L272-279） ── */
 body[data-layout="dock"] #results-card { flex: none; border: 1px solid var(--color-accent); padding: 7px; }
@@ -982,7 +1089,11 @@ body[data-layout="dock"] .dock-panel-name {
   line-height: 1.25;                        /* 同上：nowrap 單行標題不需要 body 的 1.55 */
   color: var(--color-accent-800); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+/* display/align-items 顯式寫出來（v5）：這兩個值原本是從 wide.css 沒有版面限定的
+   `.panel-toggle` 洩漏過來的，wide.css 補上 body[data-layout="wide"] 之後就要自己宣告，
+   否則按鈕會從 flex 盒掉回 inline-block，在 align-items:baseline 的標題列裡對不齊。 */
 body[data-layout="dock"] .dock-panel .panel-toggle {
+  display: flex; align-items: center;
   flex: none; margin: 0; padding: 0; border: 0; background: none; cursor: pointer;
   font: inherit; font-size: 10px; color: var(--color-accent-800); white-space: nowrap;
 }
@@ -1052,9 +1163,14 @@ body[data-layout="dock"] #cart li button { font-size: 10px; padding: 1px 3px; }
 body[data-layout="dock"] #cart[data-primary-adjunct="true"]::before {
   font-size: 10px; line-height: 1.4; padding: 4px 5px; margin-bottom: 4px;
 }
+/* 附加碼標記：字級 9→10px（v5）。9px 同時踩破 docs/dense-ui-principle.md 的兩條硬性
+   邊界——邊界 #2「低於 10px 一律不准」，以及邊界 #3「附加碼標記不得因密度弱化」。
+   B95–B97／Z16 不能當主診斷，這個標記是唯一看得出來的線索，密度在這裡讓步。
+   letter-spacing 維持 0（.06em 在 176px 下每個標記多 1.8px，是水平溢出的邊緣）；
+   原本兩條規則（清單列／chip 內）三個值逐字重複，收斂成一條，清單列只留 order。 */
+body[data-layout="dock"] .chip-tag { font-size: 10px; padding: 0 2px; letter-spacing: 0; }
 /* 1c 的清單列是兩行（中文另起一行，order:5），附加碼標記排在中文之後 */
-body[data-layout="dock"] #cart li .chip-tag { order: 6; font-size: 9px; padding: 0 2px; letter-spacing: 0; }
-body[data-layout="dock"] .chip--dock .chip-tag { font-size: 9px; padding: 0 2px; letter-spacing: 0; }
+body[data-layout="dock"] #cart li .chip-tag { order: 6; }
 
 /* 貼入 HIS 的行動列：深底不隨主題翻轉（--his-*），與 1a 的 HIS 卡片同一組 token */
 body[data-layout="dock"] .dock-his {
@@ -1116,14 +1232,10 @@ body[data-layout="mobile"] .m-header {
 body[data-layout="mobile"] .m-head-row { display: flex; align-items: center; gap: 8px; }
 /* 模式三鈕：整列三格等寬（.seg-btn 的 min-height 在下面統一提到 44px） */
 body[data-layout="mobile"] .mode-switch { display: flex; width: 100%; }
+/* 底色、選中態、格間分隔線由 app.css 的 .mode-btn 共用區塊提供（v5 收斂）；
+   這裡只留 1b 真正不同的等寬 flex 與字級。 */
 body[data-layout="mobile"] .mode-btn {
   flex: 1; min-width: 0; font-size: 14px; letter-spacing: .06em;
-  color: var(--color-accent-800); background: var(--color-accent-100);
-}
-body[data-layout="mobile"] .mode-btn + .mode-btn { border-left: 1px solid var(--color-accent); }
-body[data-layout="mobile"] .mode-btn.is-on,
-body[data-layout="mobile"] .mode-btn[aria-pressed="true"] {
-  background: var(--sel-bg); color: var(--sel-ink);
 }
 body[data-layout="mobile"] #search {
   flex: 1; min-width: 0; min-height: 44px;
@@ -1160,8 +1272,8 @@ body[data-layout="mobile"] .region-all-btn {
   cursor: pointer; font: inherit; font-size: 14px; color: var(--color-text);
   white-space: nowrap; border-radius: 0;
 }
-body[data-layout="mobile"] .region-pill[aria-selected="true"],
-body[data-layout="mobile"] .region-all-btn[aria-selected="true"] {
+body[data-layout="mobile"] .region-pill.is-on,
+body[data-layout="mobile"] .region-all-btn.is-on {
   border-color: var(--color-accent); background: var(--color-accent-100);
   color: var(--color-accent-800); font-weight: 600;
 }
@@ -1169,9 +1281,9 @@ body[data-layout="mobile"] .region-all-btn[aria-selected="true"] {
 body[data-layout="mobile"] .region-all-btn {
   position: sticky; left: 0; z-index: 2; background: var(--color-neutral-100);
 }
-body[data-layout="mobile"] .region-all-btn[aria-selected="true"] { background: var(--color-accent-100); }
+body[data-layout="mobile"] .region-all-btn.is-on { background: var(--color-accent-100); }
 body[data-layout="mobile"] .region-pill .region-count { font-size: 12px; color: var(--color-neutral-700); }
-body[data-layout="mobile"] .region-pill[aria-selected="true"] .region-count { color: var(--color-accent-800); }
+body[data-layout="mobile"] .region-pill.is-on .region-count { color: var(--color-accent-800); }
 
 /* 取消部位選取（顯示全部部位）時，每組面板前的部位標題。橫捲 pill 列擠不下說明文字，
    全部部位的面板要靠這行才分得出來自哪一區。 */
@@ -1182,16 +1294,22 @@ body[data-layout="mobile"] .region-heading {
 }
 
 /* ── 捲動內容區（L376） ──────────────────────────────────────────────── */
+/* 內距 12/14/16 → 8/12/10、區塊間距 12 → 8（v5 密度）。只動容器的留白，
+   不動任何 44/48px 觸控目標，也不動代碼列之間的 6px 間隔（那是相鄰觸控目標的緩衝）。 */
 body[data-layout="mobile"] .m-scroll {
   flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
-  padding: 12px 14px 16px; display: flex; flex-direction: column; gap: 12px;
+  padding: 8px 12px 10px; display: flex; flex-direction: column; gap: 8px;
 }
 body[data-layout="mobile"] .m-rows { display: flex; flex-direction: column; gap: 6px; }
 
 /* 代碼列：48px 整列按鈕，左代碼、中中文、右「＋」（L382、L393、L435） */
 body[data-layout="mobile"] .chip--row { min-height: 48px; padding: 6px 10px; }
+/* min-width 用 min(72px, 34%)（v5）：390px 下 34% 遠大於 72px，所以一般情況完全等同
+   原本的 72px；但在 200% 瀏覽器縮放（等效視窗 195px）時 72px 會把中文欄壓到 15px，
+   文字硬裁成一個字而且窄到連刪節號都放不下（150% 時還正常）。改成相對值之後，
+   代碼欄跟著讓，中文欄保得住刪節號。代碼本身不會被裁（flex:none，基準是內容寬）。 */
 body[data-layout="mobile"] .chip--row b {
-  flex: none; min-width: 72px; font-size: 15px; letter-spacing: .04em; text-align: left;
+  flex: none; min-width: min(72px, 34%); font-size: 15px; letter-spacing: .04em; text-align: left;
 }
 body[data-layout="mobile"] .chip--row span {
   flex: 1; min-width: 0; font-size: 14px; text-align: left;
@@ -2547,6 +2665,49 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     return el('h3', 'region-heading', name);
   }
 
+  /* 視覺隱藏（.sr-only）的標題。畫面上一個字都不多，但讀屏的標題導覽（H 鍵）拿得到
+     頁面層級——v3 §5-2：全站原本沒有 H1／H2，階層直接從 H3／H4 開始。
+     刻意不把現成的可見元素（.app-brand／.kicker／.dock-related-title）改成標題標籤：
+     industry.css 的 `h1..h6 { margin: 0 0 var(--space-2) }` 會被一併帶進來而擠動版面，
+     而樣式是另一條工作線的範圍。 */
+  function srHeading(level, text, id) {
+    const h = el('h' + level, 'sr-only', text);
+    if (id) h.id = id;
+    return h;
+  }
+
+  /* 部位列（含「全部」）的選中狀態，三套版面共用。
+
+     這裡原本是 `role="tab"`（容器 `role="tablist"`）＋ `aria-selected`。那等於向讀屏
+     宣告 WAI-ARIA Tabs Pattern 的鍵盤契約——roving tabindex、方向鍵在同組內移動——
+     但整份 src 從來沒有實作方向鍵，使用者被語意引導去按方向鍵卻毫無反應。
+     **宣告了契約卻不履行，比不宣告更糟**（v3 §5-3）。
+
+     而且這一列本來就不是 tabs：沒有任何 tabpanel 與之對應，還允許「一個都沒選」
+     （「全部」鈕）與「再點一次取消」，兩者都違反 tablist「永遠恰好一個 selected」的前提。
+     所以改成本專案既有、且與 #mode-switch 完全同型的誠實作法：一組 role="group" 的
+     切換鈕，狀態走 aria-pressed，鍵盤契約回到原生按鈕的 Tab／Enter／Space。
+
+     兩個出口同時寫：
+       aria-pressed   真正的狀態，AT 讀這個
+       .is-on         CSS 掛鉤（C1-2：不倚賴屬性選擇器單一途徑）
+     曾短暫並寫 `aria-selected` 當過渡期的 CSS 掛鉤，三個版面檔改吃 .is-on 之後已移除。 */
+  function markRegionSelected(b, on) {
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    b.classList.toggle('is-on', !!on);
+    return b;
+  }
+
+  /* 部位列的容器（三套版面共用）。role="group" ＋ aria-label 才撐得住那個標籤；
+     不用 <nav>：它不是導覽，是篩選器，掛 nav 會多出一個名不副實的 navigation 地標。 */
+  function regionGroupEl(id, label) {
+    const box = el('div');
+    box.id = id;
+    box.setAttribute('role', 'group');
+    box.setAttribute('aria-label', label);
+    return box;
+  }
+
   /* 部位列最前面的「全部」鈕（三套版面共用）。
      「點已選的部位再點一次取消」三套版面本來就都能用，但沒有任何視覺提示——使用者因此
      以為只有窄欄有這個功能（原話：「已選取再按一下清除也要在其他介面出現」）。這顆鈕把
@@ -2557,9 +2718,7 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     const b = el('button', 'region-all-btn', '全部');
     b.type = 'button';
     b.dataset.regionAll = '1';
-    b.setAttribute('role', 'tab');
-    b.setAttribute('aria-selected', active ? 'true' : 'false');
-    b.classList.toggle('is-on', active);      // C1-2：不倚賴屬性選擇器單一途徑
+    markRegionSelected(b, active);
     b.title = active ? '目前顯示全部部位' : '顯示全部部位（取消部位篩選）';
     return b;
   }
@@ -2730,7 +2889,13 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
       badge.title = '附加碼不可作為主診斷：請加入主要疾病並把它排到第一位';
     }
 
+    /* 可點擊就必須可聚焦、可用鍵盤觸發（v1 §3 的唯一破口：三套版面都到不了這一顆）。
+       保留 <b> 而不換成 <button>：三套 CSS 都以 `b.cart-code` 選取它，換元素等於連帶
+       改掉外觀，而樣式是另一條工作線。補上 role＋tabindex＋鍵盤事件同樣語意完整；
+       鍵盤觸發在 interactions.js（1c 進 PiP 小視窗期間由 render-dock.js 代打）。 */
     const code = el('b', 'cart-code', item.code);
+    code.setAttribute('role', 'button');
+    code.tabIndex = 0;
     code.title = '點擊複製此碼';
     const zh = el('span', 'cart-zh', item.zh);
 
@@ -2765,6 +2930,16 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
        與 Alt+↑↓ 都直接用 children 索引，多一列非代碼的 li 會讓換序全部錯位。 */
     if (s.cart.length && isAdjunctCode(ctx, s.cart[0].code)) ul.dataset.primaryAdjunct = 'true';
     else delete ul.dataset.primaryAdjunct;
+  }
+
+  /* 「清空」鈕：清單為空時停用。旁邊的 #copy-all 早就這樣做了（renderHis），只有這一顆
+     永遠可按，同一列兩顆鈕兩套規則（v1 §3）。停用時 title 要說明原因，否則按不動像壞掉
+     ——與設定面板的 #reset-panes 同一個作法。三套版面共用，各自在 U.cart 裡呼叫。 */
+  function syncClearBtn(btn, ctx) {
+    if (!btn) return;
+    const empty = !ctx.store.getState().cart.length;
+    btn.disabled = empty;
+    btn.title = empty ? '清單已是空的' : '清空本次就診清單';
   }
 
   // ---- 貼入 HIS ----
@@ -3011,9 +3186,10 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
   }
 
   root.ICDRender = {
-    icon, el, blueprint, clear, regionHeading, regionAllBtn, chipEl, chipWith, chipsFromPairs, emptyText,
+    icon, el, blueprint, clear, regionHeading, srHeading, regionAllBtn, markRegionSelected, regionGroupEl,
+    chipEl, chipWith, chipsFromPairs, emptyText,
     renderResults, relatedGroups, renderRelated,
-    cartItemEl, renderCart, hisText, renderHis, renderShelf,
+    cartItemEl, renderCart, syncClearBtn, hisText, renderHis, renderShelf,
     settingsPopoverEl, syncSettings, dbNoteText, layoutNoteText, effectiveLayout, setPressed,
     modeSwitchEl, syncModeSwitch,
     FORMAT_LABEL, MODE_LABEL, MODE_SHORT, PANELS_TITLE, MODE_HINT, LAYOUT_LABEL, LAYOUT_MIN_WIDTH,
@@ -3064,7 +3240,9 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
 
     // ── header ──────────────────────────────────────────────────────────
     const header = R.el('header', 'app-header');
-    header.append(R.el('div', 'app-brand', 'ICD-10'));
+    // 頁面唯一的 H1（sr-only）。可見的 .app-brand 只有「ICD-10」，改成 <h1> 會被
+    // industry.css 的 h* 邊界值擠動版面，所以用視覺隱藏的標題補階層（見 srHeading）。
+    header.append(R.srHeading(1, 'ICD-10 門診導引'), R.el('div', 'app-brand', 'ICD-10'));
     // 看診模式三鈕直接並排在 header（1440 空間充足，用全名、不壓縮）
     refs.modeSwitch = R.modeSwitchEl(false);
     header.appendChild(refs.modeSwitch);
@@ -3103,10 +3281,7 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     // ── 三欄主體 ────────────────────────────────────────────────────────
     const bench = R.el('div', 'workbench');
 
-    const rail = R.el('nav');
-    rail.id = 'region-rail';
-    rail.setAttribute('role', 'tablist');
-    rail.setAttribute('aria-label', '身體部位');
+    const rail = R.regionGroupEl('region-rail', '身體部位');
     refs.railTitle = R.el('div', 'kicker', '身體部位');
     refs.railTitle.id = 'region-rail-title';
     /* 原本這裡有一行 #region-all-note（「目前顯示全部部位，點任一部位可篩選」），用來
@@ -3117,7 +3292,11 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     refs.rail = rail;
     bench.appendChild(rail);
 
-    const sheet = R.el('div', 'worksheet');
+    /* 主要內容區＝<main>（v3 §5-1：原本只有 banner 與 complementary 兩個地標，
+       中間的搜尋結果＋主訴面板不屬於任何地標，AT 的地標導覽跳不進來）。
+       只有這一個 main：部位列是 role="group"、右欄是 <aside>（complementary）。 */
+    const sheet = R.el('main', 'worksheet');
+    sheet.append(R.srHeading(2, '診斷碼選擇'));
     const resultsCard = R.el('div');
     resultsCard.id = 'results-card';
     resultsCard.hidden = true;
@@ -3158,6 +3337,7 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     const clearBtn = R.el('button', 'btn btn-ghost', '清空');
     clearBtn.type = 'button';
     clearBtn.id = 'clear-cart';
+    refs.clearCart = clearBtn;
     cartHead.append(cartTitle, clearBtn);
     aside.appendChild(cartHead);
 
@@ -3257,10 +3437,9 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
         b.type = 'button';
         b.dataset.region = region.name;
         b.dataset.regionIndex = String(i);
-        b.setAttribute('role', 'tab');
         const on = i === active;
-        b.setAttribute('aria-selected', on ? 'true' : 'false');
-        // 「再點一次取消」不是通用慣例，滑鼠使用者看不出來；鍵盤／讀屏走 aria-selected 與播報
+        R.markRegionSelected(b, on);
+        // 「再點一次取消」不是通用慣例，滑鼠使用者看不出來；鍵盤／讀屏走 aria-pressed 與播報
         if (on) b.title = region.name + '（再點一次取消選取，顯示全部部位）';
         b.append(R.el('span', null, region.name), R.el('span', 'region-count', String(region.count)));
         refs.rail.appendChild(b);
@@ -3337,7 +3516,10 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
 
     U.results = () => R.renderResults(refs.resultsCard, refs.results, refs.resultNote, ctx);
     U.related = () => R.renderRelated(refs.related, refs.relatedEmpty, ctx);
-    U.cart = () => R.renderCart(refs.cart, refs.cartEmpty, refs.cartCount, ctx);
+    U.cart = () => {
+      R.renderCart(refs.cart, refs.cartEmpty, refs.cartCount, ctx);
+      R.syncClearBtn(refs.clearCart, ctx);
+    };
     U.his = () => R.renderHis(refs.hisPreview, refs.hisFormat, refs.copyAll, ctx);
     U.shelf = () => {
       const s = ctx.store.getState();
@@ -3392,6 +3574,12 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
   const R = root.ICDRender;
 
   const SEARCH_DEBOUNCE = 150;          // 與 interactions.js 同值
+
+  /* 置頂小視窗的預設請求尺寸。寬度 200px 剛好落在兩欄門檻（327px）的錯誤那一側：
+     部位 grid 與面板列都只排得出一欄，一屏可見代碼 17 個。改成 340px 之後同一屏
+     33 個（+94%），而 340 仍在 1c 的窄欄工作範圍內（176–565px，見 dock.css 的
+     media query 與 docs/dense-ui-principle.md）。使用者仍可自行縮放小視窗。 */
+  const PIP_SIZE = { width: 340, height: 900 };
 
   /* Lucide `pin`，stroke-width 1.5；**不寫 xmlns**（控制者裁示 C4：輸出不得含 h-t-t-p 字串）。
      所以也不能用 createElementNS——改用 innerHTML 交給 HTML 剖析器建立 SVG 節點。 */
@@ -3495,7 +3683,10 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
        三顆短標籤鈕約 89 ＋ 三個 3px 間距 ＋ 置頂 ＋ 設定；置頂在 ≤239px 時只留 pin icon
        （dock.css 的 media query），完整說明留在 title——那是唯一塞不下的一項，
        算式與取捨見 docs/dense-ui-principle.md。 */
-    const head = R.el('div', 'dock-head');
+    /* <header> 而不是 <div>：這一列與 1a／1b 的 header 是同一個角色（banner 地標），
+       三套版面的地標組成要一致。頁面唯一的 H1 掛在這裡（sr-only，176px 寬容不下可見標題）。 */
+    const head = R.el('header', 'dock-head');
+    head.appendChild(R.srHeading(1, 'ICD-10 門診導引'));
 
     const search = document.createElement('input');
     search.id = 'search';
@@ -3540,14 +3731,18 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     dock.appendChild(head);
 
     // ── 部位／情境：兩欄 grid，一眼全見（不可下拉、不可橫向捲動） ────────────
-    refs.pills = R.el('nav');
-    refs.pills.id = 'region-pills';
-    refs.pills.setAttribute('role', 'tablist');
-    refs.pills.setAttribute('aria-label', '身體部位');
+    refs.pills = R.regionGroupEl('region-pills', '身體部位');
     dock.appendChild(refs.pills);
 
-    // ── 捲動內容：搜尋結果 ＋ 扁平面板列表 ────────────────────────────────
-    const body = R.el('div', 'dock-scroll');
+    /* ── 捲動內容：搜尋結果 ＋ 扁平面板列表 ────────────────────────────────
+       這一區＝<main>（v3 §5-1）。整個側欄只有這一個 main；頭部是 banner，
+       部位列是 role="group"，相關疾病與清單是其後的一般區塊。 */
+    const body = R.el('main', 'dock-scroll');
+    body.appendChild(R.srHeading(2, '診斷碼選擇'));
+    /* 1c 沒有可見的模式標題（1a 的 #panels-title），面板名也只是 <span>。補一個 sr-only
+       的 H3 銜接 H2 與 .region-heading，內容與 1a 同源於 R.PANELS_TITLE，由 U.header 更新。 */
+    refs.panelsTitle = R.srHeading(3, '', 'panels-title');
+    body.appendChild(refs.panelsTitle);
     const resultsCard = R.el('div');
     resultsCard.id = 'results-card';
     resultsCard.hidden = true;
@@ -3604,6 +3799,7 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     const clearBtn = R.el('button', 'btn dock-clear', '清空');
     clearBtn.type = 'button';
     clearBtn.id = 'clear-cart';
+    refs.clearCart = clearBtn;
     bar.append(refs.copyAll, clearBtn);
 
     cartBox.append(cartToggle, refs.cartInline, bar);
@@ -3742,7 +3938,7 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
       if (!api || typeof api.requestWindow !== 'function') { setNote(PIN_NOTE.unsupported); return; }
       let request = null;
       try {
-        request = api.requestWindow({ width: 200, height: 900 });
+        request = api.requestWindow({ width: PIP_SIZE.width, height: PIP_SIZE.height });
       } catch (e) {
         setNote(PIN_NOTE.blocked);
         return;
@@ -3833,11 +4029,7 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
       if (panelToggle) { store.toggleExpanded(panelToggle.dataset.panelToggle); return; }
 
       const cartCode = target.closest('b.cart-code');
-      if (cartCode) {
-        const code = cartCode.closest('li').dataset.code;
-        root.ICDInteractions.copyText(code).then((ok) => { if (ok) announce('已複製 ' + code); });
-        return;
-      }
+      if (cartCode) { root.ICDInteractions.copyCartCode(cartCode); return; }
       const primary = target.closest('.cart-primary');
       if (primary) {
         const code = primary.closest('li').dataset.code;
@@ -3900,6 +4092,14 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
 
     dock.addEventListener('keydown', (ev) => {
       if (dock.ownerDocument === document) return;
+      /* PiP 期間主文件的委派搆不到這棵 DOM，b.cart-code 的鍵盤觸發也要在這裡代打，
+         規則與 interactions.js 同一份（Enter／Space，Space 要擋掉捲頁）。 */
+      const codeBtn = ev.target && ev.target.closest ? ev.target.closest('b.cart-code') : null;
+      if (codeBtn && (ev.key === 'Enter' || ev.key === ' ' || ev.key === 'Spacebar')) {
+        ev.preventDefault();
+        root.ICDInteractions.copyCartCode(codeBtn);
+        return;
+      }
       if (!ev.target || ev.target.id !== 'search') return;
       if (ev.key === 'Escape') {
         ev.target.value = '';
@@ -3923,7 +4123,10 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     // ── 更新器 ──────────────────────────────────────────────────────────
     const U = {};
 
-    U.header = () => R.syncModeSwitch(dock, ctx);
+    U.header = () => {
+      R.syncModeSwitch(dock, ctx);
+      refs.panelsTitle.textContent = R.PANELS_TITLE[ctx.store.getState().mode];
+    };
 
     U.searchValue = () => {
       const s = ctx.store.getState();
@@ -3943,9 +4146,8 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
         b.type = 'button';
         b.dataset.region = region.name;
         b.dataset.regionIndex = String(i);
-        b.setAttribute('role', 'tab');
         const on = i === active;
-        b.setAttribute('aria-selected', on ? 'true' : 'false');
+        R.markRegionSelected(b, on);
         // 176px 兩欄下較長的名稱會 ellipsis（設計如此），title 保住完整名稱與面板數；
         // 選取中的那顆順便說明「再點一次取消」，否則滑鼠使用者看不出來
         b.title = region.name + '（' + region.count + '）'
@@ -4004,6 +4206,7 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     U.cart = () => {
       const s = ctx.store.getState();
       R.renderCart(refs.cart, null, refs.cartCount, ctx);
+      R.syncClearBtn(refs.clearCart, ctx);
       refs.cartCodes.textContent = s.cart.length ? s.cart.map((x) => x.code).join('、') : '尚未選碼';
       const open = !!(s.cartOpen && s.cart.length);
       refs.cartInline.hidden = !open;
@@ -4120,6 +4323,8 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
        模式列自己佔一行、三格等寬撐滿；觸控目標仍是 44px。互動與 1a／1c 完全一致
        （一次點擊即切換），差的只是配置——那是空間限制不是功能差異。 */
     const header = R.el('header', 'm-header');
+    // 頁面唯一的 H1（sr-only）：手機版 header 沒有可見的品牌字，階層仍要有起點
+    header.append(R.srHeading(1, 'ICD-10 門診導引'));
     refs.modeSwitch = R.modeSwitchEl(false);
 
     const search = document.createElement('input');
@@ -4153,15 +4358,20 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     wrap.appendChild(header);
 
     // ── 部位／情境：橫向捲動 pill 列（L370-374） ──────────────────────────
-    refs.pills = R.el('nav');
-    refs.pills.id = 'region-pills';
-    refs.pills.setAttribute('role', 'tablist');
-    refs.pills.setAttribute('aria-label', '身體部位');
+    refs.pills = R.regionGroupEl('region-pills', '身體部位');
     wrap.appendChild(refs.pills);
 
-    // ── 捲動內容：搜尋結果卡＋面板卡（L376-399） ──────────────────────────
-    const scroll = R.el('div', 'm-scroll');
+    /* ── 捲動內容：搜尋結果卡＋面板卡（L376-399） ──────────────────────────
+       這一區＝<main>（v3 §5-1）。三套版面各只有一個 main，其餘區塊分別是 banner
+       （header）、role="group"（部位列）與底部清單列。 */
+    const scroll = R.el('main', 'm-scroll');
     scroll.id = 'm-scroll';
+    scroll.appendChild(R.srHeading(2, '診斷碼選擇'));
+    /* 手機沒有可見的模式標題（1a 有 #panels-title）。少了它，階層會從 H2 直接跳到
+       面板的 H4（選了部位時連 .region-heading 的 H3 都不會出現），所以補一個 sr-only
+       的 H3，內容與 1a 同源於 R.PANELS_TITLE，由 U.header 隨模式更新。 */
+    refs.panelsTitle = R.srHeading(3, '', 'panels-title');
+    scroll.appendChild(refs.panelsTitle);
 
     const resultsCard = R.el('div');
     resultsCard.id = 'results-card';
@@ -4202,6 +4412,7 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     const clearBtn = R.el('button', 'btn btn-ghost', '清空');
     clearBtn.type = 'button';
     clearBtn.id = 'clear-cart';
+    refs.clearCart = clearBtn;
     sheetHead.append(R.el('span', 'kicker', '本次就診清單'), refs.hisFormat, clearBtn);
 
     refs.cart = R.el('ul');
@@ -4263,7 +4474,10 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     // ── 更新器 ──────────────────────────────────────────────────────────
     const U = {};
 
-    U.header = () => R.syncModeSwitch(wrap, ctx);
+    U.header = () => {
+      R.syncModeSwitch(wrap, ctx);
+      refs.panelsTitle.textContent = R.PANELS_TITLE[ctx.store.getState().mode];
+    };
 
     // 只在狀態與輸入框不同時回寫（Esc 清空、Enter 加碼後清空），避免打字時游標跳位
     U.searchValue = () => {
@@ -4284,9 +4498,8 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
         b.type = 'button';
         b.dataset.region = region.name;
         b.dataset.regionIndex = String(i);
-        b.setAttribute('role', 'tab');
         const on = i === active;
-        b.setAttribute('aria-selected', on ? 'true' : 'false');
+        R.markRegionSelected(b, on);
         if (on) b.title = region.name + '（再點一次取消選取，顯示全部部位）';
         b.append(R.el('span', null, region.name), R.el('span', 'region-count', String(region.count)));
         refs.pills.appendChild(b);
@@ -4366,6 +4579,7 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     U.cartSheet = () => {
       const s = ctx.store.getState();
       R.renderCart(refs.cart, refs.cartEmpty, refs.cartCount, ctx);
+      R.syncClearBtn(refs.clearCart, ctx);
       /* C6：手機不做拖曳換序。把把手與 draggable 拿掉，免得留下點不動的假可供性
          （HTML5 DnD 在觸控裝置根本不觸發）；排序改用每列的「主」鈕。 */
       for (const li of refs.cart.children) {
@@ -4522,6 +4736,15 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     }
   }
 
+  /* 清單列上的代碼是可點擊複製的控制項（render-shared.js 給它 role="button" ＋ tabindex）。
+     滑鼠點擊、鍵盤 Enter／Space、以及 1c 進 PiP 小視窗時的代打全部共用這一份實作。 */
+  function copyCartCode(node) {
+    const li = node && node.closest ? node.closest('li[data-code]') : null;
+    if (!li) return;
+    const code = li.dataset.code;
+    copyText(code).then((ok) => { if (ok) announce('已複製 ' + code); });
+  }
+
   // ---- 加碼（三套版面 ＋ PiP 代打共用同一份實作） ----
   /* chip 的中文標籤。用 `.chip-zh` 而不是 querySelector('span')：★chip 的第一個 span
      是星號 icon，取到的會是空字串（R2 M1）。 */
@@ -4656,7 +4879,7 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
       const region = target.closest('.region-btn');
       if (region) {
         store.toggleRegion(Number(region.dataset.regionIndex));
-        // 只播報取消：那是新的、看不出來的狀態（tab 全部變成未選取），選取本身有 aria-selected
+        // 只播報取消：那是「全部按鈕都變成未選取」這個看不出來的狀態；選取本身有 aria-pressed 可讀
         if (store.getState().region === null) announce('已取消部位篩選，顯示全部部位');
         return;
       }
@@ -4668,11 +4891,7 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
       if (quickToggle) { store.toggleQuick(quickToggle.dataset.quickToggle); return; }
 
       const cartCode = target.closest('b.cart-code');
-      if (cartCode) {
-        const code = cartCode.closest('li').dataset.code;
-        copyText(code).then((ok) => { if (ok) announce('已複製 ' + code); });
-        return;
-      }
+      if (cartCode) { copyCartCode(cartCode); return; }
       const primary = target.closest('.cart-primary');
       if (primary) {
         const code = primary.closest('li').dataset.code;
@@ -4755,6 +4974,15 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
           return;
         }
       }
+      /* b.cart-code 是 role="button" 的自訂控制項，原生按鈕的 Enter／Space 要自己補，
+         否則鍵盤使用者聚焦得到卻按不動（v1 §3 的唯一破口）。Space 一定要 preventDefault，
+         不然清單區會跟著捲一頁。 */
+      const codeBtn = ev.target && ev.target.closest ? ev.target.closest('b.cart-code') : null;
+      if (codeBtn && (ev.key === 'Enter' || ev.key === ' ' || ev.key === 'Spacebar')) {
+        ev.preventDefault();
+        copyCartCode(codeBtn);
+        return;
+      }
       if (ev.key === 'Escape') {
         if (isFallbackOpen()) { closeFallbackCopy(); return; }
         if (store.getState().settingsOpen) store.setSettingsOpen(false);
@@ -4816,7 +5044,7 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
 
   root.ICDInteractions = {
     wire, copyText, openFallbackCopy, closeFallbackCopy, isFallbackOpen, announce,
-    activateChip, setFeedbackDocument,
+    activateChip, copyCartCode, setFeedbackDocument,
     // 1c 置頂時 main document 的委派搆不到側欄，render-dock.js 要用同一份實作代打
     chooseMode, chooseAllRegions, resetPanes,
   };

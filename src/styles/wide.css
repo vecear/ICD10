@@ -16,22 +16,28 @@
 /* 看診模式三鈕直接排在 header 這一列（1440 空間充足，用全名）；高度與搜尋框、
    設定鈕齊平的 40px，未選中的底色沿用 accent-100，一眼就看得出這是一組控制項。 */
 #layout-wide .mode-btn {
-  font-size: 13px; letter-spacing: .08em; padding: 0 13px; min-height: 40px;
-  background: var(--color-accent-100); color: var(--color-accent-800); white-space: nowrap;
+  font-size: 13px; letter-spacing: .08em; padding: 0 13px; min-height: 40px; white-space: nowrap;
 }
-#layout-wide .mode-btn + .mode-btn { border-left: 1px solid var(--color-accent); }
-#layout-wide .mode-btn:hover { background: var(--color-accent-200); }
-#layout-wide .mode-btn.is-on, #layout-wide .mode-btn[aria-pressed="true"] {
-  background: var(--sel-bg); color: var(--sel-ink);
-}
+/* 底色、選中態與格間分隔線在 app.css（三版面共用）。
+   `:not(.is-on)` 不可省：ID 選擇器的權重高於 `.mode-btn.is-on`，少了它「滑過已選中的
+   模式鈕」會把選中底色（--sel-bg）掉回一般 hover 底。setPressed() 一律同時寫
+   aria-pressed 與 .is-on，所以判 .is-on 就夠。 */
+#layout-wide .mode-btn:not(.is-on):hover { background: var(--color-accent-200); }
 #layout-wide #search { flex: 1; min-width: 0; min-height: 40px; font-size: 16px; background: transparent; }
 #layout-wide #settings-toggle { min-height: 40px; font-size: 13px; letter-spacing: .05em; white-space: nowrap; }
-#layout-wide #settings-popover { top: 56px; right: 16px; width: 300px; padding: 14px; }
+/* top 跟著 header 下緣走，不寫死（.app-header 是 position:relative 的包含塊）。
+   原本寫死的 56px 在 header 實高 63px 時已經有 7px 重疊，header 只要再多一列就會第三次
+   重演「popover 蓋住開它的那顆設定鈕、點兩次關不掉」——1c 的 46/64/93px 與 1b 的 60px
+   都各失準過一次，兩處早已改成跟隨寫法（dock.css `top:100%`、mobile.css `calc(100% - 4px)`）。 */
+#layout-wide #settings-popover { top: 100%; right: 16px; width: 300px; padding: 14px; }
 
-/* ── 常用列（L93-101） ── */
+/* ── 常用列（L93-101） ──
+   內距 7→4、min-height 40→28（v5 密度）：這一列常態只放一行提示或一排 chip，
+   chip 本身已由 app.css 收到 29.5px 高，40px 的下限只是替空狀態多留 12px 白。
+   實測：空狀態 40 → 29.1px；有 chip 時 52.7 → 39px（由 chip 高度決定，min-height 不參與）。 */
 #shelf {
-  display: flex; align-items: center; gap: 10px; padding: 7px 16px;
-  border-bottom: 1px solid var(--color-divider); min-height: 40px; flex: none;
+  display: flex; align-items: center; gap: 10px; padding: 4px 16px;
+  border-bottom: 1px solid var(--color-divider); min-height: 28px; flex: none;
 }
 #shelf .shelf-kicker { white-space: nowrap; }
 .shelf-chips { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; min-width: 0; }
@@ -40,9 +46,14 @@
 .shelf-empty { font-size: 13px; color: var(--color-neutral-700); }
 
 /* ── 三欄主體（L103） ── */
+/* 兩側欄用 min(固定值, 百分比)：1440 下算出來就是設計值 184／400px（16% = 230、
+   34% = 490，都比固定值大），但視窗（或 200% 瀏覽器縮放後的等效視窗）變窄時兩側會
+   跟著讓，中欄不會被壓成放不下一個標題的寬度。實測 200% 縮放（等效視窗 720px）：
+   中欄 272 → 720px，`#panels-title`「內科門診主訴」從逐字換行 6 列回到 1 列。 */
 .workbench {
   flex: 1; min-height: 0;
-  display: grid; grid-template-columns: 184px minmax(0, 1fr) 400px; align-items: stretch;
+  display: grid; grid-template-columns: min(184px, 16%) minmax(0, 1fr) min(400px, 34%);
+  align-items: stretch;
 }
 .workbench > * { min-width: 0; overflow-y: auto; }
 
@@ -50,14 +61,23 @@
 #region-rail { border-right: 1px solid var(--color-divider); padding: 12px 0; background: var(--color-neutral-100); }
 #region-rail-title { font-size: 12px; padding: 0 16px 8px; }
 /* 「全部」鈕與部位鈕外觀一致（它就是「不篩選」那一個選項），只差沒有右側計數。
-   規則寫在同一組選擇器裡，日後改樣式不會只改到一半。 */
-.region-btn, .region-all-btn {
+   規則寫在同一組選擇器裡，日後改樣式不會只改到一半。
+
+   一律掛 body[data-layout="wide"]（v5）：`.region-btn` 這個類名三個版面共用
+   （1c 是 `.region-btn.region-pill--dock`、1b 是 `.region-btn.region-pill`，
+   事件委派認的就是 `.region-btn`），本檔早於 dock/mobile 寫成，當時沒有隔離需求，
+   結果這組裸類名一路洩漏到另外兩個版面，逼它們用 body[data-layout] 前綴整組蓋回去。
+   已知洩漏的實例：1c 的部位鈕 hover 底色其實來自本檔而不是 dock.css。 */
+body[data-layout="wide"] .region-btn,
+body[data-layout="wide"] .region-all-btn {
   display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%;
   padding: 9px 16px; border: 0; border-left: 3px solid transparent; cursor: pointer;
   font: inherit; font-size: 14px; text-align: left; background: transparent; color: var(--color-text);
 }
-.region-btn:hover, .region-all-btn:hover { background: var(--color-accent-100); }
-.region-btn[aria-selected="true"], .region-all-btn[aria-selected="true"] {
+body[data-layout="wide"] .region-btn:hover,
+body[data-layout="wide"] .region-all-btn:hover { background: var(--color-accent-100); }
+body[data-layout="wide"] .region-btn.is-on,
+body[data-layout="wide"] .region-all-btn.is-on {
   border-left-color: var(--color-accent); background: var(--color-accent-100);
   color: var(--color-accent-800); font-weight: 600;
 }
@@ -93,13 +113,17 @@ body[data-layout="wide"] .region-heading {
   background: var(--color-accent-100); color: var(--color-accent-800);
   border-bottom: 1px solid var(--color-divider);
 }
-.panel-toggle {
+/* 同上：`.panel-toggle` 也是三版面共用的類名（1c／1b 各有自己的形態），本檔一併補上
+   版面限定，讓 dock/mobile 不必再為了蓋掉洩漏值而多寫規則。
+   `.marker` 圖示只有 1a 的面板展開鈕有（1c 是「＋疾病」純文字、1b 是「展開常見疾病」
+   純文字），所以旋轉規則留在本檔即可。 */
+body[data-layout="wide"] .panel-toggle {
   display: flex; align-items: center; gap: 4px; margin-top: 10px; border: 0; background: none;
   padding: 4px 0; cursor: pointer; font: inherit; font-size: 13px;
   color: var(--color-accent-700); text-align: left; white-space: nowrap; width: fit-content;
 }
-.panel-toggle .marker { transition: transform .12s ease; }
-.panel-toggle[aria-expanded="true"] .marker { transform: rotate(90deg); }
+body[data-layout="wide"] .panel-toggle .marker { transition: transform .12s ease; }
+body[data-layout="wide"] .panel-toggle[aria-expanded="true"] .marker { transform: rotate(90deg); }
 .disease-group { padding-top: 4px; }
 
 /* 底部快選分組（L158-167，預設全收合） */
@@ -129,7 +153,7 @@ body[data-layout="wide"] .region-heading {
 /* ── 900–1239px：rail 降成頂部 pill 列，右欄縮到 360px（impl-plan §4.6） ── */
 @media (max-width: 1239px) {
   .workbench {
-    grid-template-columns: minmax(0, 1fr) 360px;
+    grid-template-columns: minmax(0, 1fr) min(360px, 40%);
     grid-template-areas: "rail rail" "sheet cart";
     grid-template-rows: auto minmax(0, 1fr);
   }
@@ -140,11 +164,13 @@ body[data-layout="wide"] .region-heading {
   #region-rail-title { padding: 0 6px 0 0; }
   .worksheet { grid-area: sheet; }
   #cart-pane { grid-area: cart; }
-  .region-btn, .region-all-btn {
+  body[data-layout="wide"] .region-btn,
+  body[data-layout="wide"] .region-all-btn {
     width: auto; flex: 0 0 auto; padding: 6px 11px;
     border: 1px solid var(--color-divider); border-left-width: 1px;
   }
-  .region-btn[aria-selected="true"], .region-all-btn[aria-selected="true"] {
+  body[data-layout="wide"] .region-btn.is-on,
+  body[data-layout="wide"] .region-all-btn.is-on {
     border-color: var(--color-accent); border-left-color: var(--color-accent);
   }
   /* 橫排 pill 列裡不需要那條分隔線（它是為了直向 rail 才存在的） */

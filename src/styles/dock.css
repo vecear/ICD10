@@ -38,14 +38,10 @@ body[data-layout="dock"] .dock-spacer { flex: 1; min-width: 0; }
    flex:1；padding 用 seg-btn--sm 的 3px 4px，letter-spacing 收到 .02em（.06em 每顆多 1.2px，
    三顆＋間距就是 4px，那是 176px 下擠不擠得下的差別）。 */
 body[data-layout="dock"] .mode-switch { display: flex; width: auto; flex: none; }
+/* 底色、選中態、格間分隔線由 app.css 的 .mode-btn 共用區塊提供（v5 收斂：原本三個
+   版面檔各自逐字重複同樣兩條規則）；這裡只留 1c 真正不同的 flex 行為與 letter-spacing。 */
 body[data-layout="dock"] .mode-btn {
   flex: 0 0 auto; min-width: 0; letter-spacing: .02em;
-  color: var(--color-accent-800); background: var(--color-accent-100);
-}
-body[data-layout="dock"] .mode-btn + .mode-btn { border-left: 1px solid var(--color-accent); }
-body[data-layout="dock"] .mode-btn.is-on,
-body[data-layout="dock"] .mode-btn[aria-pressed="true"] {
-  background: var(--sel-bg); color: var(--sel-ink);
 }
 body[data-layout="dock"] #pin-toggle {
   display: inline-flex; align-items: center; justify-content: center; gap: 3px; flex: none;
@@ -93,8 +89,10 @@ body[data-layout="dock"] .dock-pinned-away {
 body[data-layout="dock"] #settings-popover { top: 100%; left: 6px; right: 6px; padding: 7px; gap: 6px; }
 body[data-layout="dock"] #settings-popover .kicker { font-size: 10px; letter-spacing: .1em; }
 body[data-layout="dock"] .settings-section > .kicker { margin-bottom: 3px; }
-/* 小號 segmented：22px 高、10px 字，min-width:0＋ellipsis 讓三格擠得進 164px */
-body[data-layout="dock"] #settings-popover .seg-btn { padding: 3px 4px; font-size: 10px; min-height: 22px; }
+/* 小號 segmented（22px 高、10px 字，min-width:0＋ellipsis 讓三格擠得進 164px）：
+   1c 的設定 popover 由 settingsPopoverEl(true)／segRow(..., small=true) 產生，8 顆
+   seg-btn 全部帶 .seg-btn--sm（實測 8/8），app.css 的 .seg-btn--sm 已是同樣三個值，
+   本檔原本那條同名覆寫是純重複，v5 刪除。 */
 body[data-layout="dock"] #theme-toggle { width: 100%; min-height: 26px; font-size: 11px; }
 body[data-layout="dock"] #shelf-toggle { display: none; }     /* 1c 沒有常用列 */
 body[data-layout="dock"] #db-note { font-size: 10px; padding-top: 6px; }
@@ -126,8 +124,8 @@ body[data-layout="dock"] .region-all-btn {
 }
 body[data-layout="dock"] .region-pill--dock:hover,
 body[data-layout="dock"] .region-all-btn:hover { border-color: var(--color-accent); }
-body[data-layout="dock"] .region-pill--dock[aria-selected="true"],
-body[data-layout="dock"] .region-all-btn[aria-selected="true"] {
+body[data-layout="dock"] .region-pill--dock.is-on,
+body[data-layout="dock"] .region-all-btn.is-on {
   border-color: var(--color-accent); background: var(--color-accent-100);
   color: var(--color-accent-800); font-weight: 600;
 }
@@ -155,16 +153,19 @@ body[data-layout="dock"] .chip-row { flex-direction: column; flex-wrap: nowrap; 
 body[data-layout="dock"] .chip--dock { font-size: 11px; }
 body[data-layout="dock"] .chip--dock b { font-size: 12px; letter-spacing: .02em; }
 body[data-layout="dock"] .chip--dock span { flex: 1; min-width: 0; font-size: 11px; line-height: 1.25; }
+/* hover 走 --chip-bg-hover／--chip-line-hover（app.css 的 chip 慣例），不寫死 accent：
+   寫死 accent 的舊版本讓紅旗 chip 一 hover 就掉成一般藍底、警示配色在「準備點下去」
+   那一刻消失（0,3,0 壓過 .chip--warn:hover 的 0,2,0）。 */
 body[data-layout="dock"] .chip--dock:hover {
-  background: var(--color-accent-100); border-bottom-color: var(--color-accent);
+  background: var(--chip-bg-hover); border-bottom-color: var(--chip-line-hover);
 }
 /* 類目碼：app.css 的 .chip.cat 會補回四邊實框，1c 只留虛線下緣 */
 body[data-layout="dock"] .chip--dock.cat,
 body[data-layout="dock"] .chip--dock.cat:hover {
-  border: 0; border-bottom: 1px dashed var(--color-neutral-400); background: transparent;
+  border: 0; border-bottom: 1px dashed var(--chip-line); background: transparent;
 }
-/* 紅旗碼（只有急診模式產得出來，見 data.js panelsFor） */
-body[data-layout="dock"] .chip--dock.chip--warn { border-bottom-color: var(--warn-line); }
+/* 紅旗碼的下緣警示線由 app.css 的 --chip-line 直接帶進來（見該檔 chip 區塊的慣例），
+   本檔原本那條「救回來」的 .chip--dock.chip--warn 補丁已不需要，v5 刪除。 */
 
 /* ── 搜尋結果（L272-279） ── */
 body[data-layout="dock"] #results-card { flex: none; border: 1px solid var(--color-accent); padding: 7px; }
@@ -186,7 +187,11 @@ body[data-layout="dock"] .dock-panel-name {
   line-height: 1.25;                        /* 同上：nowrap 單行標題不需要 body 的 1.55 */
   color: var(--color-accent-800); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+/* display/align-items 顯式寫出來（v5）：這兩個值原本是從 wide.css 沒有版面限定的
+   `.panel-toggle` 洩漏過來的，wide.css 補上 body[data-layout="wide"] 之後就要自己宣告，
+   否則按鈕會從 flex 盒掉回 inline-block，在 align-items:baseline 的標題列裡對不齊。 */
 body[data-layout="dock"] .dock-panel .panel-toggle {
+  display: flex; align-items: center;
   flex: none; margin: 0; padding: 0; border: 0; background: none; cursor: pointer;
   font: inherit; font-size: 10px; color: var(--color-accent-800); white-space: nowrap;
 }
@@ -256,9 +261,14 @@ body[data-layout="dock"] #cart li button { font-size: 10px; padding: 1px 3px; }
 body[data-layout="dock"] #cart[data-primary-adjunct="true"]::before {
   font-size: 10px; line-height: 1.4; padding: 4px 5px; margin-bottom: 4px;
 }
+/* 附加碼標記：字級 9→10px（v5）。9px 同時踩破 docs/dense-ui-principle.md 的兩條硬性
+   邊界——邊界 #2「低於 10px 一律不准」，以及邊界 #3「附加碼標記不得因密度弱化」。
+   B95–B97／Z16 不能當主診斷，這個標記是唯一看得出來的線索，密度在這裡讓步。
+   letter-spacing 維持 0（.06em 在 176px 下每個標記多 1.8px，是水平溢出的邊緣）；
+   原本兩條規則（清單列／chip 內）三個值逐字重複，收斂成一條，清單列只留 order。 */
+body[data-layout="dock"] .chip-tag { font-size: 10px; padding: 0 2px; letter-spacing: 0; }
 /* 1c 的清單列是兩行（中文另起一行，order:5），附加碼標記排在中文之後 */
-body[data-layout="dock"] #cart li .chip-tag { order: 6; font-size: 9px; padding: 0 2px; letter-spacing: 0; }
-body[data-layout="dock"] .chip--dock .chip-tag { font-size: 9px; padding: 0 2px; letter-spacing: 0; }
+body[data-layout="dock"] #cart li .chip-tag { order: 6; }
 
 /* 貼入 HIS 的行動列：深底不隨主題翻轉（--his-*），與 1a 的 HIS 卡片同一組 token */
 body[data-layout="dock"] .dock-his {

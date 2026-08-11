@@ -194,8 +194,8 @@ def test_region_pills_two_columns_no_hscroll(pg):
 
     # 兩欄是可點的 tab，不是裝飾
     pills.nth(2).click()
-    expect(pills.nth(2)).to_have_attribute("aria-selected", "true")
-    expect(pills.nth(0)).to_have_attribute("aria-selected", "false")
+    expect(pills.nth(2)).to_have_attribute("aria-pressed", "true")
+    expect(pills.nth(0)).to_have_attribute("aria-pressed", "false")
     assert pg.locator("#dock-panels .dock-panel").count() >= 1
 
 
@@ -209,13 +209,13 @@ def test_region_toggle_clears_selection_and_shows_all(pg):
     region_count = pills.count()
     second = pills.nth(1)
     second.click()
-    expect(second).to_have_attribute("aria-selected", "true")
+    expect(second).to_have_attribute("aria-pressed", "true")
     one_region_panels = pg.locator("#dock-panels .dock-panel").count()
     assert pg.locator("#dock-panels .region-heading").count() == 0, "選了部位時不該出現部位標題"
 
     second.click()
-    expect(second).to_have_attribute("aria-selected", "false")
-    assert pg.locator('#region-pills .region-btn[aria-selected="true"]').count() == 0, "取消後仍有部位被標為選取"
+    expect(second).to_have_attribute("aria-pressed", "false")
+    assert pg.locator('#region-pills .region-btn[aria-pressed="true"]').count() == 0, "取消後仍有部位被標為選取"
     assert pg.evaluate("() => window.ICDApp.store.getState().region") is None
 
     total = pg.evaluate(
@@ -231,7 +231,7 @@ def test_region_toggle_clears_selection_and_shows_all(pg):
     assert overflowing_elements(pg) == [], "顯示全部時有元素破版"
 
     pills.nth(0).click()
-    expect(pills.nth(0)).to_have_attribute("aria-selected", "true")
+    expect(pills.nth(0)).to_have_attribute("aria-pressed", "true")
     assert pg.locator("#dock-panels .region-heading").count() == 0
 
 
@@ -582,19 +582,19 @@ def test_region_all_button(pg):
     assert box["width"] > first_pill["width"] * 1.5, "「全部」應橫跨兩欄"
     assert box["x"] >= 0 and box["x"] + box["width"] <= DOCK["width"] + 0.5, f"「全部」溢出：{box}"
 
-    expect(all_btn).to_have_attribute("aria-selected", "false")
+    expect(all_btn).to_have_attribute("aria-pressed", "false")
     all_btn.click()
-    expect(all_btn).to_have_attribute("aria-selected", "true")
+    expect(all_btn).to_have_attribute("aria-pressed", "true")
     assert pg.evaluate("() => window.ICDApp.store.getState().region") is None
-    assert pg.locator('#region-pills .region-btn[aria-selected="true"]').count() == 0
+    assert pg.locator('#region-pills .region-btn[aria-pressed="true"]').count() == 0
     expect(pg.locator("#dock-panels .region-heading")).to_have_count(region_count)
     assert_no_hscroll(pg, "「全部」選中")
 
     # 選一個部位 → 「全部」退選；既有的「再點一次取消」快捷仍然把它亮回來
     pills.nth(1).click()
-    expect(all_btn).to_have_attribute("aria-selected", "false")
+    expect(all_btn).to_have_attribute("aria-pressed", "false")
     pills.nth(1).click()
-    expect(all_btn).to_have_attribute("aria-selected", "true")
+    expect(all_btn).to_have_attribute("aria-pressed", "true")
 
 
 # ---- 置頂（Document PiP） ----
@@ -1192,4 +1192,144 @@ def test_pane_resize_works_inside_pip(browser_ctx, page_url):
     assert page.evaluate("() => !!document.getElementById('layout-dock')") is True
     assert round(pane_h(page, "#region-pills")) == round(after)
     page.evaluate("() => window.ICDApp.store.resetPaneSizes()")
+    page.close()
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 可及性（1c）：地標、標題階層、部位列語意、代碼鍵盤可達
+# 依據 .review/v3-edge.md §5 的三條 ARIA 缺陷與 .review/v1-visual.md §3 的唯一破口。
+# ══════════════════════════════════════════════════════════════════════════
+HEADINGS_JS = """() => [...document.querySelectorAll('h1,h2,h3,h4,h5,h6')]
+    .filter((h) => !h.closest('[hidden]'))
+    .map((h) => ({ level: Number(h.tagName[1]), text: h.textContent.trim() }))"""
+
+
+def assert_heading_outline(page, label):
+    """H1 恰好一個、排在最前、有 H2，且相鄰標題不得跳級（H2 → H4 是跳級）。"""
+    hs = page.evaluate(HEADINGS_JS)
+    levels = [h["level"] for h in hs]
+    assert levels, f"{label}：整份文件沒有任何標題"
+    assert levels.count(1) == 1, f"{label}：H1 應恰好一個，實際 {levels.count(1)} 個 → {hs}"
+    assert levels[0] == 1, f"{label}：第一個標題不是 H1 → {hs}"
+    assert 2 in levels, f"{label}：完全沒有 H2 → {hs}"
+    for prev, cur in zip(levels, levels[1:]):
+        assert cur <= prev + 1, f"{label}：標題跳級 H{prev} → H{cur} → {hs}"
+
+
+def test_a11y_single_main_landmark(pg):
+    """側掛窄欄也要有 <main>，而且只能有一個（v3 §5-1）。"""
+    expect(pg.locator('main, [role="main"]')).to_have_count(1)
+    scope = pg.evaluate("""() => {
+        const m = document.querySelector('main');
+        const has = (id) => m.contains(document.getElementById(id));
+        return { panels: has('dock-panels'), results: has('search-results'),
+                 pills: has('region-pills'), cart: has('cart') };
+    }""")
+    assert scope["panels"] and scope["results"], f"面板／搜尋結果不在 main 裡：{scope}"
+    assert not scope["pills"] and not scope["cart"], f"main 把其他區塊吃進去了：{scope}"
+
+
+def test_a11y_heading_outline(pg):
+    """標題階層要完整（v3 §5-2）。1c 沒有可見標題，全部用 sr-only 補，不多占一個像素。"""
+    assert_heading_outline(pg, "1c 側掛窄欄")
+    assert pg.evaluate("() => document.querySelector('h1').textContent") == "ICD-10 門診導引"
+    assert pg.evaluate("""() => ['h1', 'h2', '#panels-title'].every((sel) => {
+        const h = document.querySelector(sel);
+        return h && h.classList.contains('sr-only') && h.getBoundingClientRect().width <= 2;
+    })""") is True
+    # sr-only 標題不得把 176px 的窄欄撐出水平捲動
+    assert_no_hscroll(pg, "補上 sr-only 標題後")
+
+
+def test_a11y_region_buttons_are_toggle_buttons_not_fake_tabs(pg):
+    """部位 grid 不得再宣告 tablist／tab（v3 §5-3：宣告了方向鍵契約卻沒實作）。"""
+    assert pg.locator('[role="tablist"], [role="tab"]').count() == 0, "還有元素宣告 tablist／tab 語意"
+    expect(pg.locator("#region-pills")).to_have_attribute("role", "group")
+    expect(pg.locator("#region-pills")).to_have_attribute("aria-label", "身體部位")
+
+    second = pg.locator("#region-pills .region-btn").nth(1)
+    second.click()
+    expect(second).to_have_attribute("aria-pressed", "true")
+    expect(pg.locator(".region-all-btn")).to_have_attribute("aria-pressed", "false")
+    assert pg.locator('#region-pills .region-btn[aria-pressed="true"]').count() == 1
+
+    pg.click(".region-all-btn")
+    expect(pg.locator(".region-all-btn")).to_have_attribute("aria-pressed", "true")
+    assert pg.locator('#region-pills .region-btn[aria-pressed="true"]').count() == 0
+
+
+def test_a11y_cart_code_is_keyboard_reachable_and_copies(pg):
+    """b.cart-code 可點擊複製，就必須可聚焦、可鍵盤觸發（v1 §3）。"""
+    pg.evaluate("() => window.ICDApp.store.addCode('I10', '本態性高血壓')")
+    code = pg.locator('#cart li[data-code="I10"] b.cart-code')
+    expect(code).to_have_attribute("role", "button")
+    expect(code).to_have_attribute("tabindex", "0")
+
+    pg.locator('#cart li[data-code="I10"]').focus()
+    pg.keyboard.press("Tab")
+    landed = pg.evaluate("""() => {
+        const a = document.activeElement;
+        const li = a.closest ? a.closest('li[data-code]') : null;
+        const cs = getComputedStyle(a);
+        return { tag: a.tagName, cls: a.className, code: li && li.dataset.code,
+                 focusVisible: a.matches(':focus-visible'),
+                 outline: cs.outlineWidth + ' ' + cs.outlineStyle };
+    }""")
+    assert landed["tag"] == "B" and "cart-code" in landed["cls"], f"Tab 沒有停在代碼上：{landed}"
+    assert landed["code"] == "I10"
+    assert landed["focusVisible"] is True, f"鍵盤聚焦後沒有 :focus-visible：{landed}"
+    assert landed["outline"].split()[0] != "0px" and "none" not in landed["outline"], \
+        f"聚焦沒有可見外框：{landed}"
+
+    pg.keyboard.press("Enter")
+    pg.wait_for_timeout(150)
+    assert clipboard(pg) == "I10"
+    assert pg.locator("#status").inner_text() == "已複製 I10"
+
+
+def test_clear_cart_disabled_when_empty(pg):
+    """清單為空時「清空」要與同一列的 #copy-all 一樣停用（v1 §3）。"""
+    expect(pg.locator("#clear-cart")).to_be_disabled()
+    expect(pg.locator("#copy-all")).to_be_disabled()
+
+    pg.evaluate("() => window.ICDApp.store.addCode('I10', '本態性高血壓')")
+    expect(pg.locator("#clear-cart")).to_be_enabled()
+    expect(pg.locator("#copy-all")).to_be_enabled()
+
+    pg.click("#clear-cart")
+    expect(pg.locator("#cart li")).to_have_count(0)
+    expect(pg.locator("#clear-cart")).to_be_disabled()
+    assert "空" in pg.get_attribute("#clear-cart", "title")
+
+
+def test_pip_requests_width_above_two_column_threshold(browser_ctx, page_url):
+    """置頂小視窗的預設請求寬度要落在兩欄門檻（327px）的正確一側。
+
+    原本請求 200px：部位 grid 與面板列都只排得出一欄，一屏可見代碼 17 個
+    （.review/v2-density.md）。改成 340px 後同一屏 33 個，而 340 仍在 1c 的
+    窄欄工作範圍內。這裡直接攔截 requestWindow 讀它拿到的參數，不必真的開視窗。
+    """
+    page = browser_ctx.new_page()
+    page.add_init_script("""
+        window.__pipOpts = null;
+        Object.defineProperty(window, 'documentPictureInPicture', {
+            configurable: true,
+            value: {
+                requestWindow: (opts) => {
+                    window.__pipOpts = { width: opts.width, height: opts.height };
+                    return Promise.reject(new Error('stub：只攔參數，不真的開視窗'));
+                },
+            },
+        });
+    """)
+    page.goto(page_url)
+    page.wait_for_selector('body[data-ready="1"]')
+    page.evaluate("() => window.ICDApp.store.setLayout('dock')")
+    page.wait_for_selector('body[data-layout="dock"]')
+
+    page.click("#pin-toggle")
+    page.wait_for_timeout(200)
+    opts = page.evaluate("() => window.__pipOpts")
+    assert opts is not None, "沒有呼叫 requestWindow"
+    assert opts["width"] >= 327, f"請求寬度 {opts['width']}px 仍落在單欄那一側（門檻 327px）"
     page.close()

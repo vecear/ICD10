@@ -40,7 +40,9 @@
 
     // ── header ──────────────────────────────────────────────────────────
     const header = R.el('header', 'app-header');
-    header.append(R.el('div', 'app-brand', 'ICD-10'));
+    // 頁面唯一的 H1（sr-only）。可見的 .app-brand 只有「ICD-10」，改成 <h1> 會被
+    // industry.css 的 h* 邊界值擠動版面，所以用視覺隱藏的標題補階層（見 srHeading）。
+    header.append(R.srHeading(1, 'ICD-10 門診導引'), R.el('div', 'app-brand', 'ICD-10'));
     // 看診模式三鈕直接並排在 header（1440 空間充足，用全名、不壓縮）
     refs.modeSwitch = R.modeSwitchEl(false);
     header.appendChild(refs.modeSwitch);
@@ -79,10 +81,7 @@
     // ── 三欄主體 ────────────────────────────────────────────────────────
     const bench = R.el('div', 'workbench');
 
-    const rail = R.el('nav');
-    rail.id = 'region-rail';
-    rail.setAttribute('role', 'tablist');
-    rail.setAttribute('aria-label', '身體部位');
+    const rail = R.regionGroupEl('region-rail', '身體部位');
     refs.railTitle = R.el('div', 'kicker', '身體部位');
     refs.railTitle.id = 'region-rail-title';
     /* 原本這裡有一行 #region-all-note（「目前顯示全部部位，點任一部位可篩選」），用來
@@ -93,7 +92,11 @@
     refs.rail = rail;
     bench.appendChild(rail);
 
-    const sheet = R.el('div', 'worksheet');
+    /* 主要內容區＝<main>（v3 §5-1：原本只有 banner 與 complementary 兩個地標，
+       中間的搜尋結果＋主訴面板不屬於任何地標，AT 的地標導覽跳不進來）。
+       只有這一個 main：部位列是 role="group"、右欄是 <aside>（complementary）。 */
+    const sheet = R.el('main', 'worksheet');
+    sheet.append(R.srHeading(2, '診斷碼選擇'));
     const resultsCard = R.el('div');
     resultsCard.id = 'results-card';
     resultsCard.hidden = true;
@@ -134,6 +137,7 @@
     const clearBtn = R.el('button', 'btn btn-ghost', '清空');
     clearBtn.type = 'button';
     clearBtn.id = 'clear-cart';
+    refs.clearCart = clearBtn;
     cartHead.append(cartTitle, clearBtn);
     aside.appendChild(cartHead);
 
@@ -233,10 +237,9 @@
         b.type = 'button';
         b.dataset.region = region.name;
         b.dataset.regionIndex = String(i);
-        b.setAttribute('role', 'tab');
         const on = i === active;
-        b.setAttribute('aria-selected', on ? 'true' : 'false');
-        // 「再點一次取消」不是通用慣例，滑鼠使用者看不出來；鍵盤／讀屏走 aria-selected 與播報
+        R.markRegionSelected(b, on);
+        // 「再點一次取消」不是通用慣例，滑鼠使用者看不出來；鍵盤／讀屏走 aria-pressed 與播報
         if (on) b.title = region.name + '（再點一次取消選取，顯示全部部位）';
         b.append(R.el('span', null, region.name), R.el('span', 'region-count', String(region.count)));
         refs.rail.appendChild(b);
@@ -313,7 +316,10 @@
 
     U.results = () => R.renderResults(refs.resultsCard, refs.results, refs.resultNote, ctx);
     U.related = () => R.renderRelated(refs.related, refs.relatedEmpty, ctx);
-    U.cart = () => R.renderCart(refs.cart, refs.cartEmpty, refs.cartCount, ctx);
+    U.cart = () => {
+      R.renderCart(refs.cart, refs.cartEmpty, refs.cartCount, ctx);
+      R.syncClearBtn(refs.clearCart, ctx);
+    };
     U.his = () => R.renderHis(refs.hisPreview, refs.hisFormat, refs.copyAll, ctx);
     U.shelf = () => {
       const s = ctx.store.getState();
