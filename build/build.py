@@ -22,6 +22,7 @@ STYLESHEETS = ["styles/industry.css", "styles/app.css", "styles/wide.css", "styl
 # logic → state → data 都是零 DOM 的純模組（node --test 直接測），其後才碰 DOM。
 SOURCES = [
     "logic.js", "state.js", "data.js",
+    "resize.js",
     "render-shared.js", "render-wide.js", "render-dock.js", "render-mobile.js",
     "interactions.js", "app.js",
 ]

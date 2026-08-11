@@ -581,25 +581,12 @@ b.cart-code {
 #copy-all:hover { background: #d6ebff; }
 #copy-all:disabled { opacity: .5; cursor: not-allowed; }
 
-/* ── 模式徽章的三選一選單（共同部分；三套版面只調字級與觸控高度） ──
-   徽章從 <span> 變成 <button>，各版面既有的 #mode-chip 外觀規則（邊框／底色／字級）
-   照舊生效，這裡只補按鈕本身需要的重置與游標。定位靠 .mode-switch 的相對定位，
-   不用 :has()、不用 color-mix()（C1）。 */
-.mode-switch { position: relative; display: inline-flex; flex: none; }
-#mode-chip { font: inherit; border-radius: 0; cursor: pointer; }
-#mode-chip:hover, #mode-chip.is-open { border-color: var(--color-accent-700); }
-.mode-menu {
-  position: absolute; top: calc(100% + 4px); left: 0; z-index: 25;
-  display: flex; flex-direction: column; min-width: 100%;
-  border: 1px solid var(--color-accent); background: var(--color-bg); box-shadow: var(--shadow-md);
-}
-.mode-opt {
-  display: block; width: 100%; padding: 7px 14px; border: 0; border-radius: 0;
-  background: transparent; color: var(--color-text); cursor: pointer;
-  font: inherit; font-size: 14px; letter-spacing: .02em; text-align: left; white-space: nowrap;
-}
-.mode-opt:hover { background: var(--color-accent-100); }
-.mode-opt.is-on, .mode-opt[aria-checked="true"] { background: var(--sel-bg); color: var(--sel-ink); }
+/* ── header 的看診模式三鈕（共同部分；三套版面只調尺寸與所在列） ──
+   結構就是一組 .seg-row／.seg-btn，選中表現（--sel-bg／--sel-ink）與設定 popover 裡的
+   segmented 完全一致，不另立一套視覺。border 改用 accent：它在 header 是主要控制項，
+   跟旁邊的搜尋框要分得出來。不用 :has()、不用 color-mix()（C1）。 */
+.mode-switch { flex: none; border-color: var(--color-accent); }
+.mode-btn { flex: 0 0 auto; }
 
 /* ── 設定 popover（共同部分；三套版面各自定位） ── */
 .settings-popover {
@@ -619,6 +606,27 @@ b.cart-code {
   border-left: 2px solid var(--color-accent);
   background: var(--color-accent-100); color: var(--color-text);
 }
+
+/* ── 窗格分隔條（可拖曳調整高度；三套版面共用，見 src/resize.js） ──
+   看診工具要安靜：平時只有一條短短的細線，滑過／拖曳／鍵盤聚焦才顯色。
+   touch-action:none 是觸控拖曳的前提——沒有它，手指一動就變成捲動頁面，pointermove
+   會直接被瀏覽器收走。不用 :has()、不用 color-mix()（C1 相容備援）。 */
+.pane-resizer {
+  flex: none; position: relative; display: block; width: 100%; height: 8px;
+  margin: 0; padding: 0; border: 0; background: transparent;
+  cursor: row-resize; touch-action: none;
+}
+.pane-resizer::before {
+  content: ""; position: absolute; left: 50%; top: 50%; width: 28px; height: 1px;
+  margin: -1px 0 0 -14px; background: var(--color-neutral-400);
+}
+.pane-resizer:hover::before,
+.pane-resizer.is-dragging::before { height: 2px; background: var(--color-accent); }
+.pane-resizer:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -2px; }
+/* 拖曳中：整棵版面不得選到文字（否則拖過標題就會反白一片） */
+.is-resizing, .is-resizing * { user-select: none; -webkit-user-select: none; }
+/* 被調整過的窗格自己捲動；細捲軸讓內容寬度損失最小（1c 只有 164px 可用） */
+[data-pane-sized] { scrollbar-width: thin; }
 
 /* ── 複製後備視窗（沿用 #fallback-copy / #fallback-close） ── */
 #fallback-copy { position: fixed; inset: 0; z-index: 40; }
@@ -646,10 +654,16 @@ b.cart-code {
   border-bottom: 1px solid var(--color-divider); position: relative; flex: none;
 }
 .app-brand { font-family: var(--font-heading); font-weight: 600; font-size: 18px; letter-spacing: .02em; white-space: nowrap; }
-#mode-chip {
-  font-family: var(--font-heading); font-size: 13px; letter-spacing: .08em; padding: 3px 9px;
-  border: 1px solid var(--color-accent); color: var(--color-accent-800);
-  background: var(--color-accent-100); white-space: nowrap;
+/* 看診模式三鈕直接排在 header 這一列（1440 空間充足，用全名）；高度與搜尋框、
+   設定鈕齊平的 40px，未選中的底色沿用 accent-100，一眼就看得出這是一組控制項。 */
+#layout-wide .mode-btn {
+  font-size: 13px; letter-spacing: .08em; padding: 0 13px; min-height: 40px;
+  background: var(--color-accent-100); color: var(--color-accent-800); white-space: nowrap;
+}
+#layout-wide .mode-btn + .mode-btn { border-left: 1px solid var(--color-accent); }
+#layout-wide .mode-btn:hover { background: var(--color-accent-200); }
+#layout-wide .mode-btn.is-on, #layout-wide .mode-btn[aria-pressed="true"] {
+  background: var(--sel-bg); color: var(--sel-ink);
 }
 #layout-wide #search { flex: 1; min-width: 0; min-height: 40px; font-size: 16px; background: transparent; }
 #layout-wide #settings-toggle { min-height: 40px; font-size: 13px; letter-spacing: .05em; white-space: nowrap; }
@@ -693,6 +707,11 @@ b.cart-code {
 body[data-layout="wide"] .region-all-btn {
   margin-bottom: 4px; padding-bottom: 11px; border-bottom: 1px solid var(--color-divider);
 }
+
+/* 分隔條：中欄與右欄都是 gap:14px 的 flex column，直接插進去會變成 14+10+14＝38px 的
+   大縫。上下各 -12px 讓 10px 的分隔條剛好落在原本那 14px 的間距裡（14−12＋10−12＋14＝14），
+   視覺節奏完全不變，也不會蓋到上下元素的可點區域。 */
+body[data-layout="wide"] .pane-resizer { height: 10px; margin: -12px 0; }
 
 /* 中：主訴工作區（L112-168） */
 .worksheet { padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; }
@@ -781,7 +800,7 @@ body[data-layout="wide"] .region-heading {
 
    三條硬性規則：
    1. **每一條規則都限定在 body[data-layout="dock"] 之下**——1a/1b 的骨架檔會同時被載入，
-      而 app.css/wide.css 有幾條沒有版面前綴的規則（`#mode-chip`、`.region-btn`、
+      而 app.css/wide.css 有幾條沒有版面前綴的規則（`.mode-switch`、`.region-btn`、
       `.panel-toggle`、`#cart li`…），這裡靠「屬性選擇器＋來源順序」壓過去。
    2. **不使用 color-mix()**（控制者裁示 C1：舊瀏覽器備援），也不使用 `:has()`。
    3. HIS 區只吃 --his-* token（不隨主題翻轉），不得用 --color-accent-800／-900：
@@ -796,35 +815,37 @@ body[data-layout="dock"] #layout-dock {
   overflow: hidden; background: var(--color-bg);
 }
 
-/* ── header（L232-262） ── */
+/* ── header（L232-262；密度原則見 docs/dense-ui-principle.md） ──
+   兩列：搜尋框一列，「模式三鈕＋置頂＋設定」一列。合併前是三列（97px），合併後 67px。 */
 body[data-layout="dock"] .dock-head {
   position: relative; flex: none;
-  display: flex; flex-direction: column; gap: 5px;
-  padding: 6px; border-bottom: 1px solid var(--color-divider);
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 5px 6px; border-bottom: 1px solid var(--color-divider);
 }
 body[data-layout="dock"] #search {
   min-height: 28px; padding: 3px 7px; font-size: 12px; background: transparent;
 }
-body[data-layout="dock"] .dock-tools { display: flex; align-items: center; gap: 5px; min-width: 0; }
+body[data-layout="dock"] .dock-tools { display: flex; align-items: center; gap: 3px; min-width: 0; }
+/* 模式三鈕與置頂／設定之間的彈性空白：模式鈕收成文字寬之後多出來的寬度全部歸它，
+   置頂與設定才會靠右對齊而不是跟著飄。 */
 body[data-layout="dock"] .dock-spacer { flex: 1; min-width: 0; }
-body[data-layout="dock"] #mode-chip {
-  font-family: var(--font-heading); font-size: 10px; letter-spacing: .06em;
-  padding: 1px 5px; min-height: 22px; border: 1px solid var(--color-accent);
-  color: var(--color-accent-800); background: var(--color-accent-100); white-space: nowrap;
+/* 模式三鈕：**不等寬撐滿**，縮成跟文字一樣寬（使用者原話「緊縮跟文字一樣寬就好」）。
+   width:auto 蓋掉沒有版面前綴的 .mode-switch，.mode-btn 的 flex:0 0 auto 蓋掉 .seg-btn 的
+   flex:1；padding 用 seg-btn--sm 的 3px 4px，letter-spacing 收到 .02em（.06em 每顆多 1.2px，
+   三顆＋間距就是 4px，那是 176px 下擠不擠得下的差別）。 */
+body[data-layout="dock"] .mode-switch { display: flex; width: auto; flex: none; }
+body[data-layout="dock"] .mode-btn {
+  flex: 0 0 auto; min-width: 0; letter-spacing: .02em;
+  color: var(--color-accent-800); background: var(--color-accent-100);
 }
-/* 模式選單：176px 下不得溢出，所以只給最小寬度、不撐滿；字級與 seg 的小號一致。
-   1c 刻意**不以徽章為定位基準**（.mode-switch 改回 static），改掛在 .dock-head 上、
-   用與設定 popover 同一組座標（top:64px／left:6px）：徽章只有約 34px 寬，選單掛在它
-   身上會讓 .mode-switch 的 scrollWidth 大於 clientWidth——那正是 1c 破版檢查
-   （overflowing_elements 的判準 b）要抓的形狀，會變成一條永遠亮著的假警報。 */
-body[data-layout="dock"] .mode-switch { position: static; }
-body[data-layout="dock"] .mode-menu {
-  top: 64px; left: 6px; right: auto; min-width: 68px; max-width: 164px;
+body[data-layout="dock"] .mode-btn + .mode-btn { border-left: 1px solid var(--color-accent); }
+body[data-layout="dock"] .mode-btn.is-on,
+body[data-layout="dock"] .mode-btn[aria-pressed="true"] {
+  background: var(--sel-bg); color: var(--sel-ink);
 }
-body[data-layout="dock"] .mode-opt { padding: 5px 9px; font-size: 11px; }
 body[data-layout="dock"] #pin-toggle {
-  display: inline-flex; align-items: center; gap: 3px; flex: none;
-  min-height: 22px; padding: 0 6px; font: inherit; font-size: 11px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 3px; flex: none;
+  min-height: 22px; min-width: 24px; padding: 0 4px; font: inherit; font-size: 11px;
   border: 1px solid var(--color-divider); border-radius: 0;
   background: transparent; color: var(--color-text); cursor: pointer; white-space: nowrap;
 }
@@ -835,9 +856,20 @@ body[data-layout="dock"] #pin-toggle[aria-pressed="true"] {
 }
 body[data-layout="dock"] #pin-toggle .icn { display: flex; }
 body[data-layout="dock"] #settings-toggle {
-  flex: none; min-height: 22px; padding: 0 6px; font-size: 11px; letter-spacing: .04em;
+  flex: none; min-height: 22px; padding: 0 4px; font-size: 11px; letter-spacing: .02em;
 }
-/* PiP 不支援／被擋下時的提示：絕不靜默失敗（設計 L240 的 10px 灰字） */
+/* 極窄（PiP 預設 200px、最小測試寬 176px）：整列的寬度帳是
+   模式三鈕 ~89 ＋ 3 個 3px 間距 ＋ 置頂 ＋ 設定 ≤ 164。
+   置頂帶 icon＋「置頂中」要 47px，加起來 177 > 164——先壓過內距（6→4）與字級
+   （seg-btn--sm 已是 10px）仍差 13px，唯一還能讓的就是置頂那兩個字。
+   所以 ≤239px 時只留 pin icon，完整說明改由 title 提供（U.pin 會隨 pinned 更新 title），
+   狀態另有 aria-pressed ＋ 反白底色兩條線索。模式鈕與「設定」的文字一律不砍。 */
+@media (max-width: 239px) {
+  body[data-layout="dock"] .dock-pin-label { display: none; }
+}
+/* PiP 不支援／被擋下時的提示：絕不靜默失敗（設計 L240 的 10px 灰字）。
+   成功那一則在 render-dock.js 設了逾時會自己消失（一次性說明不該永久占一列）；
+   失敗那兩則留著，它們是還沒解決的問題。 */
 body[data-layout="dock"] #pin-note {
   font-size: 10px; line-height: 1.35; color: var(--color-neutral-700);
 }
@@ -847,11 +879,14 @@ body[data-layout="dock"] .dock-pinned-away {
 }
 
 /* ── 設定 popover（L712-713：top:46px;left:6px;right:6px;padding:7px） ──
-   **top 從 46px 改成 64px**（唯一偏離的數值，理由是交付物原型的算術錯誤）：
-   header 內距 6 ＋ 搜尋框 28 ＋ gap 5 ＝ 39 才是那排鈕的頂端，鈕高 22 → 底端 61。
-   46px 會讓 popover 蓋住「設定」鈕本身的下 15px，使用者再點一次關不掉（Playwright 實測
-   pointer events 被 popover 攔截）。64px 剛好貼在那排鈕下方 3px，左右與內距完全照設計。 */
-body[data-layout="dock"] #settings-popover { top: 64px; left: 6px; right: 6px; padding: 7px; gap: 6px; }
+   **top 從 46px 改成 100%**（唯一偏離的數值）：設計原值 46px 會讓 popover 蓋住「設定」鈕
+   本身，使用者再點一次關不掉（Playwright 實測 pointer events 被 popover 攔截，
+   test_settings_popover_fits_and_switches_mode 守住這條）。
+   歷來換成寫死的 64px／93px 都在 header 改版時失準過一次，改用 100%（＝貼著 .dock-head
+   的下緣，它是 position:relative 的包含塊）就跟著 header 高度自動走——header 少一列、
+   或置頂提示出現讓 header 長高，都不必再回來改這個數字。1b 的 #settings-popover 早已
+   是同一招（mobile.css 的 calc(100% - 4px)）。 */
+body[data-layout="dock"] #settings-popover { top: 100%; left: 6px; right: 6px; padding: 7px; gap: 6px; }
 body[data-layout="dock"] #settings-popover .kicker { font-size: 10px; letter-spacing: .1em; }
 body[data-layout="dock"] .settings-section > .kicker { margin-bottom: 3px; }
 /* 小號 segmented：22px 高、10px 字，min-width:0＋ellipsis 讓三格擠得進 164px */
@@ -862,19 +897,27 @@ body[data-layout="dock"] #db-note { font-size: 10px; padding-top: 6px; }
 
 /* ── 部位／情境：兩欄 grid（L264、L679-681）。
    minmax(0,1fr) 不可省——預設的 1fr 最小值是 max-content，長名稱會把整欄撐出視窗。 ── */
-/* auto-fill 而不是寫死兩欄：176px 下算出來剛好是 2 欄（內容 164、gap 3 → floor(167/79)=2），
-   但 Chrome 一般視窗最小寬約 500px，使用者把側掛開在分頁裡時會被迫更寬——
-   那時自動變成 4～6 欄填滿，而不是把兩欄拉成一片空白。PiP 視窗（真正的 176）不受影響。 */
+/* auto-fill 而不是寫死兩欄：176px 下算出來剛好是 2 欄，但 Chrome 一般視窗最小寬約 500px，
+   使用者把側掛開在分頁裡時會被迫更寬——那時自動變成 4～6 欄填滿，而不是把兩欄拉成一片空白。
+   PiP 視窗（真正的 176）不受影響。
+   最小欄寬 72 而不是 76：部位區被拖小之後自己會長出垂直捲軸（約 15px），164−15＝149 的
+   可用寬度下 76×2+3=155 排不下會掉成一欄，72×2+3=147 才守得住設計要求的兩欄。 */
 body[data-layout="dock"] #region-pills {
-  flex: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 3px;
+  flex: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 3px;
   padding: 6px; border-bottom: 1px solid var(--color-divider); background: var(--color-neutral-100);
 }
+/* 176px 下分隔條縮到 7px：三條共 21px，從捲動內容區借走的高度要壓到最低 */
+body[data-layout="dock"] .pane-resizer { height: 7px; }
+body[data-layout="dock"] .pane-resizer::before { width: 24px; margin-left: -12px; }
+/* line-height 1.2 而不是繼承 body 的 1.55：這些是 nowrap 的單行按鈕，1.55 的行距在
+   單行裡不是可讀性而是純留白（每顆 3px，176px 下 6 列就是 18px）。密度原則的通則是
+   「單行不換行的 UI 骨架一律收 line-height，只有會換行的內文才保留 body 行距」。 */
 body[data-layout="dock"] .region-pill--dock,
 body[data-layout="dock"] .region-all-btn {
   display: block; width: 100%; min-width: 0; padding: 2px 4px; min-height: 20px;
   border: 1px solid var(--color-divider); border-left-width: 1px; border-radius: 0;
   background: transparent; color: var(--color-text); cursor: pointer;
-  font: inherit; font-size: 11px; letter-spacing: .02em;
+  font: inherit; font-size: 11px; line-height: 1.2; letter-spacing: .02em;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center;
 }
 body[data-layout="dock"] .region-pill--dock:hover,
@@ -891,7 +934,7 @@ body[data-layout="dock"] .region-all-btn { grid-column: 1 / -1; }
 /* 取消部位選取（顯示全部部位）時，每組面板前的部位標題。176px 下只給一行小標＋下緣線，
    長名稱 ellipsis；沒有它，全部部位的面板連在一起會分不出來自哪一區。 */
 body[data-layout="dock"] .region-heading {
-  margin: 3px 0 0; padding: 0 0 2px;
+  margin: 3px 0 0; padding: 0 0 2px; line-height: 1.25;
   font-family: var(--font-heading); font-size: 11px; letter-spacing: .08em;
   color: var(--color-accent-800); border-bottom: 1px solid var(--color-accent);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -936,6 +979,7 @@ body[data-layout="dock"] .dock-panel-head {
 }
 body[data-layout="dock"] .dock-panel-name {
   flex: 1; min-width: 0; font-family: var(--font-heading); font-size: 12px; letter-spacing: .04em;
+  line-height: 1.25;                        /* 同上：nowrap 單行標題不需要 body 的 1.55 */
   color: var(--color-accent-800); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 body[data-layout="dock"] .dock-panel .panel-toggle {
@@ -967,8 +1011,10 @@ body[data-layout="dock"] #related .group-label {
 body[data-layout="dock"] .dock-cart {
   flex: none; border-top: 1px solid var(--color-divider); background: var(--color-neutral-100);
 }
+/* 內距 8/10 → 5/6：這一列在版面裡跟 header、部位區、捲動區都相鄰，它們一律 5～6px；
+   多出來的那 6px 只是讓清單摘要看起來比別區鬆，沒有分隔作用（分隔靠上緣線）。 */
 body[data-layout="dock"] #cart-toggle {
-  display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px;
+  display: flex; align-items: center; gap: 8px; width: 100%; padding: 5px 6px;
   border: 0; background: none; cursor: pointer; font: inherit; text-align: left; color: var(--color-text);
 }
 body[data-layout="dock"] .dock-cart-kicker {
@@ -1059,19 +1105,26 @@ body[data-layout="mobile"] #layout-mobile {
 body[data-layout="mobile"] .btn,
 body[data-layout="mobile"] .input { border-radius: 0; }
 
-/* ── header：模式徽章＋搜尋（44px）＋設定鈕（44×44）（L349-352） ──────── */
+/* ── header：模式三鈕一行 ＋（搜尋 44px ＋設定鈕 44×44）一行（L349-352） ────
+   390px 放不下「三顆模式鈕＋搜尋＋設定」同一列，所以 header 改成兩行的 flex column；
+   兩行都是 44px，觸控門檻不打折。 */
 body[data-layout="mobile"] .m-header {
   flex: none; position: relative;
-  display: flex; align-items: center; gap: 8px;
+  display: flex; flex-direction: column; align-items: stretch; gap: 8px;
   padding: 10px 14px; border-bottom: 1px solid var(--color-divider);
 }
-/* 徽章現在是可點的控制項，所以要守住 44px 觸控門檻（與 #search／#settings-toggle 同高） */
-body[data-layout="mobile"] #mode-chip {
-  flex: none; font-family: var(--font-heading); font-size: 12px; letter-spacing: .06em;
-  padding: 3px 7px; min-height: 44px; border: 1px solid var(--color-accent);
-  color: var(--color-accent-800); background: var(--color-accent-100); white-space: nowrap;
+body[data-layout="mobile"] .m-head-row { display: flex; align-items: center; gap: 8px; }
+/* 模式三鈕：整列三格等寬（.seg-btn 的 min-height 在下面統一提到 44px） */
+body[data-layout="mobile"] .mode-switch { display: flex; width: 100%; }
+body[data-layout="mobile"] .mode-btn {
+  flex: 1; min-width: 0; font-size: 14px; letter-spacing: .06em;
+  color: var(--color-accent-800); background: var(--color-accent-100);
 }
-body[data-layout="mobile"] .mode-opt { min-height: 44px; font-size: 15px; padding: 10px 16px; }
+body[data-layout="mobile"] .mode-btn + .mode-btn { border-left: 1px solid var(--color-accent); }
+body[data-layout="mobile"] .mode-btn.is-on,
+body[data-layout="mobile"] .mode-btn[aria-pressed="true"] {
+  background: var(--sel-bg); color: var(--sel-ink);
+}
 body[data-layout="mobile"] #search {
   flex: 1; min-width: 0; min-height: 44px;
   font-size: 16px;            /* <16px 會讓行動瀏覽器聚焦時自動放大整頁 */
@@ -1081,10 +1134,12 @@ body[data-layout="mobile"] #settings-toggle {
   flex: none; min-height: 44px; min-width: 44px; padding: 0 10px; font-size: 13px;
 }
 
-/* 設定 sheet：由 header 下方展開，左右各留 12px（L740-741） */
+/* 設定 sheet：由 header 下方展開，左右各留 12px（L740-741）。
+   top 用 calc(100% - 4px) 而不是寫死數字：header 現在是兩行，寫死的 60px 會讓 sheet
+   蓋住「設定」鈕本身（點一次關不掉，同 1c 那條教訓）；跟著 header 高度走就不會分歧。 */
 body[data-layout="mobile"] #settings-popover {
-  top: 60px; left: 12px; right: 12px; padding: 12px;
-  max-height: calc(100dvh - 140px); overflow-y: auto;
+  top: calc(100% - 4px); left: 12px; right: 12px; padding: 12px;
+  max-height: calc(100dvh - 190px); overflow-y: auto;
 }
 /* 「桌機版面」與「常用列」在手機沒有對應 UI，由 render-mobile.js 標上類名後藏起來 */
 body[data-layout="mobile"] .is-desktop-only { display: none; }
@@ -1216,6 +1271,11 @@ body[data-layout="mobile"] .cart-empty { font-size: 13px; color: var(--color-neu
 body[data-layout="mobile"] #his-preview {
   margin: 0; padding: 8px; min-height: 0; max-height: 84px; overflow-y: auto; font-size: 13px;
 }
+
+/* 分隔條：手指拖得到才有意義，加高到 16px 並把握把畫長（滑鼠版是 8px／28px）。
+   ::before 的顏色與粗細沿用 app.css，只改幾何。 */
+body[data-layout="mobile"] .pane-resizer { height: 16px; }
+body[data-layout="mobile"] .pane-resizer::before { width: 44px; height: 2px; margin-left: -22px; }
 
 /* ── 底部固定列（L417-423）：--his-* 場，不隨主題翻轉 ───────────────── */
 body[data-layout="mobile"] .m-cart-bar {
@@ -1381,14 +1441,20 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
   const STORAGE_PREFIX = 'icd10.';
   const RECENT_LIMIT = 8;                 // 設計交付物 L512
   const FAVS_LIMIT = 40;                  // 常用列放得下的上限；避免壞掉的寫入無限膨脹 localStorage
-  // 只有這五個欄位跨診次保留。cart 絕不持久化：跨診次殘留＝臨床事故（impl-plan R-9）。
-  const PERSISTED_KEYS = ['favs', 'theme', 'layout', 'format', 'recent'];
+  // 只有這六個欄位跨診次保留。cart 絕不持久化：跨診次殘留＝臨床事故（impl-plan R-9）。
+  const PERSISTED_KEYS = ['favs', 'theme', 'layout', 'format', 'recent', 'paneSizes'];
 
   const MODES = ['outpatient', 'emergency', 'surg'];
   const FORMATS = ['lines', 'comma', 'names'];
   const LAYOUTS = ['wide', 'dock'];
   const THEMES = ['light', 'dark'];
   const DB_STATES = ['idle', 'loading', 'ready', 'error'];
+  /* 窗格高度的分組鍵＝**生效版面**，比 LAYOUTS 多一個 mobile：mobile 不是可選的偏好
+     （視窗夠窄自動生效），但它有自己的窗格，高度必須分開記——176px 側掛欄調出來的
+     60px 部位區套到 1440 工作台毫無意義（使用者要求「分版面各記各的」）。 */
+  const PANE_LAYOUTS = ['wide', 'dock', 'mobile'];
+  const PANE_MIN = 24;      // 存得進來的最小值；各窗格自己的下限另由渲染層給（見 resize.js）
+  const PANE_MAX = 4000;    // 上限只防壞資料，實際能多高由 resize.js 依當下空間再夾一次
 
   // ---- 儲存：不可用時安靜降級成記憶體 ----
   function memoryBacking() {
@@ -1477,10 +1543,10 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
       theme: THEMES.indexOf(theme) >= 0 ? theme : detectTheme(),
       layout: 'wide',            // wide | dock（持久化）；實際生效版面另由 resolveLayout 依寬度決定
       settingsOpen: false,
-      modeMenuOpen: false,       // header 模式徽章展開的三選一選單（三套版面共用）
       shelfOpen: true,           // 常用列
       cartOpen: true,            // 1c/1b 的清單摺疊
       pinned: false,             // Document PiP 置頂
+      paneSizes: {},             // { 版面: { 窗格key: 像素 } } 手動調整過的窗格高度（持久化）
       dbState: 'idle',           // idle | loading | ready | error
     };
   }
@@ -1497,6 +1563,25 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
       if (!code || out.indexOf(code) >= 0) continue;
       out.push(code);
       if (limit && out.length >= limit) break;
+    }
+    return out;
+  }
+
+  /* 窗格高度：{ 版面: { key: 像素 } }。壞掉的值一律丟棄而不是夾進來——夾出來的數字
+     使用者從沒選過，看起來像「它自己記錯了」；丟掉就退回預設高度，至少是可解釋的。 */
+  function sanitizePaneSizes(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+    const out = {};
+    for (const layout of PANE_LAYOUTS) {
+      const group = value[layout];
+      if (!group || typeof group !== 'object' || Array.isArray(group)) continue;
+      const clean = {};
+      for (const key of Object.keys(group)) {
+        const px = Number(group[key]);
+        if (!Number.isFinite(px) || px < PANE_MIN || px > PANE_MAX) continue;
+        clean[key] = Math.round(px);
+      }
+      if (Object.keys(clean).length) out[layout] = clean;
     }
     return out;
   }
@@ -1524,6 +1609,8 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     if (favs) patch.favs = favs;
     const recent = sanitizeCodes(readJson(storage, 'recent'), RECENT_LIMIT);
     if (recent) patch.recent = recent;
+    const paneSizes = sanitizePaneSizes(readJson(storage, 'paneSizes'));
+    if (paneSizes) patch.paneSizes = paneSizes;
     return patch;
   }
 
@@ -1649,8 +1736,8 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     /* 切模式：相關碼是依模式產生的，**必須清空**，否則急診紅旗會洩漏到門診（C5，臨床安全）。
        部位歸零，但「沒有選取任何部位」（region === null）不是某個部位的索引，換模式後
        依然成立——強行歸零等於把醫師剛取消掉的篩選又自己裝回去。
-       兩條切模式的動線（設定 popover 的 segmented 與 header 徽章的選單）都收在這裡，
-       所以兩處的浮層一律關掉，選完不會留一個開著的選單擋住剛換好的畫面。 */
+       兩條切模式的動線（header 的三顆模式鈕與設定 popover 的 segmented）都收在這裡，
+       所以設定 popover 一律關掉，選完不會留一個開著的浮層擋住剛換好的畫面。 */
     function setMode(mode) {
       if (MODES.indexOf(mode) < 0) return false;
       setState({
@@ -1658,7 +1745,6 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
         region: state.region === null ? null : 0,
         relatedCode: null,
         settingsOpen: false,
-        modeMenuOpen: false,
       });
       return true;
     }
@@ -1702,6 +1788,54 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
       return true;
     }
 
+    // ---- 窗格高度 ----
+    /* 只存「使用者要多高」，不存「實際套用多高」——視窗變小時 resize.js 會把它夾小，
+       但意圖要留著，視窗放大時窗格才長得回去。整棵 paneSizes 一律換成新物件：
+       getState() 回傳的是內部物件本身，就地改動會讓 setState 的變更偵測靜默失效。 */
+    function setPaneSize(layout, key, px) {
+      if (PANE_LAYOUTS.indexOf(layout) < 0) return false;
+      if (typeof key !== 'string' || !key) return false;
+      const value = Number(px);
+      if (!Number.isFinite(value)) return false;
+      const clamped = Math.round(Math.max(PANE_MIN, Math.min(PANE_MAX, value)));
+      const group = state.paneSizes[layout] || {};
+      if (group[key] === clamped) return true;      // 沒變就不寫：拖曳結束值相同時不必多寫一次 localStorage
+      const entry = {};
+      entry[key] = clamped;
+      const next = Object.assign({}, state.paneSizes);
+      next[layout] = Object.assign({}, group, entry);
+      setState({ paneSizes: next });
+      return true;
+    }
+
+    /* 回復預設。不給版面＝全部清掉（測試與「重置一切」用）；給版面＝只清那一套，
+       在 176px 窄欄按「回復預設高度」不該把桌機工作台調好的高度一起抹掉。 */
+    function resetPaneSizes(layout) {
+      if (layout === undefined || layout === null) {
+        if (!Object.keys(state.paneSizes).length) return false;
+        setState({ paneSizes: {} });
+        return true;
+      }
+      if (PANE_LAYOUTS.indexOf(layout) < 0) return false;
+      if (!state.paneSizes[layout]) return false;
+      const next = Object.assign({}, state.paneSizes);
+      delete next[layout];
+      setState({ paneSizes: next });
+      return true;
+    }
+
+    function paneSizeFor(layout, key) {
+      const group = state.paneSizes[layout];
+      const px = group ? group[key] : undefined;
+      return typeof px === 'number' ? px : null;
+    }
+
+    const hasPaneSizes = (layout) => {
+      if (layout === undefined || layout === null) return Object.keys(state.paneSizes).length > 0;
+      const group = state.paneSizes[layout];
+      return !!group && Object.keys(group).length > 0;
+    };
+
     // ---- 最愛 ----
     function toggleFav(code) {
       if (typeof code !== 'string' || !code) return false;
@@ -1736,17 +1870,10 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     const setQuery = (query) => { setState({ query: typeof query === 'string' ? query : '' }); };
     const setRelatedCode = (code) => { setState({ relatedCode: code || null }); };
     const setCopied = (copied) => { setState({ copied: !!copied }); };
-    /* 設定 popover 與模式選單互斥：兩者在 1c 的 176px 下會直接疊在一起，
-       在 1a/1b 也沒有「同時開兩個浮層」的道理，所以開一個就關掉另一個。 */
-    const setSettingsOpen = (open) => { setState({ settingsOpen: !!open, modeMenuOpen: open ? false : state.modeMenuOpen }); };
+    const setSettingsOpen = (open) => { setState({ settingsOpen: !!open }); };
     const toggleSettings = () => {
-      setState({ settingsOpen: !state.settingsOpen, modeMenuOpen: false });
+      setState({ settingsOpen: !state.settingsOpen });
       return state.settingsOpen;
-    };
-    const setModeMenuOpen = (open) => { setState({ modeMenuOpen: !!open, settingsOpen: open ? false : state.settingsOpen }); };
-    const toggleModeMenu = () => {
-      setState({ modeMenuOpen: !state.modeMenuOpen, settingsOpen: false });
-      return state.modeMenuOpen;
     };
     const setShelfOpen = (open) => { setState({ shelfOpen: !!open }); };
     const toggleShelf = () => { setState({ shelfOpen: !state.shelfOpen }); return state.shelfOpen; };
@@ -1765,18 +1892,19 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
       storage,                    // 讓渲染層／測試能問 storage.available
       addCode, removeCode, clearCart, setPrimary, reorder,
       setMode, setRegion, toggleRegion, setLayout, setTheme, toggleTheme, setFormat,
+      setPaneSize, resetPaneSizes, paneSizeFor, hasPaneSizes,
       toggleFav, isFav,
       toggleExpanded, toggleQuick, isExpanded, isQuickOpen,
       setQuery, setRelatedCode, setCopied, setDbState,
-      setSettingsOpen, toggleSettings, setModeMenuOpen, toggleModeMenu, setShelfOpen, toggleShelf,
+      setSettingsOpen, toggleSettings, setShelfOpen, toggleShelf,
       setCartOpen, toggleCart, setPinned,
     };
   }
 
   return {
-    createStore, safeStorage, loadPersisted, persist, defaultState,
+    createStore, safeStorage, loadPersisted, persist, defaultState, sanitizePaneSizes,
     STORAGE_PREFIX, PERSISTED_KEYS, RECENT_LIMIT, FAVS_LIMIT,
-    MODES, FORMATS, LAYOUTS, THEMES, DB_STATES,
+    MODES, FORMATS, LAYOUTS, THEMES, DB_STATES, PANE_LAYOUTS, PANE_MIN, PANE_MAX,
   };
 });
 
@@ -2101,6 +2229,261 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     SEARCH_LIMIT, FAMILY_LIMIT,
   };
 });
+
+</script>
+<script>
+/* 窗格高度手動調整（三套版面共用）。掛 window.ICDResize。
+
+   為什麼是共用模組：三套版面垂直堆疊的內容不同，但「拖一條線改某一區的高度」完全一樣——
+   分隔條的 ARIA、滑鼠／觸控／鍵盤三種操作、夾在合理範圍、視窗變小時重新夾值，只能有
+   一份實作；分頭寫必然漂移（1c 修好的毛病 1b 還在）。
+
+   兩種容器模式（由有沒有給 flex 元素決定）：
+     fill   容器是固定高度的 flex column（1c／1b 的整窗骨架）。某個窗格能長到多高，取決於
+            彈性內容區還讓得出多少空間，所以上限要扣掉其他兄弟的高度與彈性區的最低高度。
+     scroll 容器自己會捲動（1a 的中欄／右欄）。上限只需保留 reserve 給同欄其他內容。
+
+   高度存在 store 的 paneSizes[版面][key]（localStorage），**分版面各記各的**：176px 側掛欄
+   調出來的 60px 部位區，套到 1440 工作台毫無意義。store 只存「使用者要多高」，實際套用值
+   永遠再夾一次——記住的絕對高度在小視窗會超出，這裡負責讓它退讓而不是把畫面擠爆。
+
+   Document PiP：1c 會把整棵 DOM 搬進**另一個 document**。所以這裡不碰全域 document／window，
+   分隔條一律用自己的 ownerDocument，拖曳期間再用 setPointerCapture 把事件釘在分隔條上。 */
+(function (root) {
+  'use strict';
+
+  const KEY_STEP = 16;            // 鍵盤一次調整的像素
+  const DEFAULT_FLEX_MIN = 80;    // fill 模式：彈性內容區至少留這麼高，否則主訴面板被擠成一條縫
+  const DEFAULT_RESERVE = 160;    // scroll 模式：留給同欄其他內容的高度
+  const DEFAULT_MIN = 44;         // 窗格下限：不得被拖到消失或只剩一條線
+
+  function raf(fn) {
+    if (typeof root.requestAnimationFrame === 'function') return root.requestAnimationFrame(fn);
+    return setTimeout(fn, 16);
+  }
+
+  function cancelRaf(id) {
+    if (typeof root.cancelAnimationFrame === 'function') root.cancelAnimationFrame(id);
+    else clearTimeout(id);
+  }
+
+  /* 分隔條是 <div role="separator" tabindex="0">，不是 <button>：window splitter 的鍵盤
+     契約是方向鍵，用 button 會多出 Enter／Space 觸發的語意與一整套按鈕外觀要壓掉。 */
+  function separatorEl(doc, label) {
+    const sep = doc.createElement('div');
+    sep.className = 'pane-resizer';
+    sep.setAttribute('role', 'separator');
+    sep.setAttribute('aria-orientation', 'horizontal');
+    sep.setAttribute('tabindex', '0');
+    sep.setAttribute('aria-label', label + '高度');
+    sep.title = label + '：拖曳調整高度（聚焦後可用 ↑↓）';
+    return sep;
+  }
+
+  // 窗格可能包在標題／內距的外層裡（例如 1c 的「相關疾病／評估」）；分隔條要插在容器的直屬子層
+  function outerChild(container, el) {
+    let node = el;
+    while (node && node.parentNode !== container) node = node.parentNode;
+    return node || null;
+  }
+
+  const heightOf = (node) => node.getBoundingClientRect().height;
+
+  /* opts:
+       layout    'wide' | 'dock' | 'mobile'（存進 paneSizes 的分組鍵）
+       store     ICDState 的 store
+       container 垂直堆疊的容器
+       flex      容器裡吸收剩餘空間的元素；給了就是 fill 模式，不給就是 scroll 模式
+       flexMin   fill 模式下彈性區的最低高度
+       reserve   scroll 模式下保留給其他內容的高度
+       panes     [{ key, el, label, sign, min, scroll, visible }]
+                   sign  +1 ＝ 窗格在分隔條**上方**（往下拖變高）；-1 ＝ 在下方（往上拖變高）
+                   scroll false ＝ 窗格內部已有自己的捲動子元素，不要再加 overflow  */
+  function createGroup(opts) {
+    const container = opts.container;
+    const flex = opts.flex || null;
+    const flexMin = typeof opts.flexMin === 'number' ? opts.flexMin : DEFAULT_FLEX_MIN;
+    const reserve = typeof opts.reserve === 'number' ? opts.reserve : DEFAULT_RESERVE;
+    const store = opts.store;
+    const layout = opts.layout;
+    const live = {};              // 拖曳中的暫存高度：不進 store，放開才寫一次
+    const panes = [];
+    let frame = 0;
+    let observer = null;
+
+    for (const def of opts.panes || []) {
+      const outer = outerChild(container, def.el);
+      if (!outer) continue;       // 結構不符就整條不裝：寧可沒有分隔條，也不要一條拖了沒反應的
+      const pane = {
+        key: def.key,
+        el: def.el,
+        outer,
+        label: def.label || '區塊',
+        sign: def.sign < 0 ? -1 : 1,
+        min: typeof def.min === 'number' ? def.min : DEFAULT_MIN,
+        scroll: def.scroll !== false,
+        visible: typeof def.visible === 'function' ? def.visible : () => true,
+        sep: separatorEl(container.ownerDocument, def.label || '區塊'),
+      };
+      if (pane.sign > 0) container.insertBefore(pane.sep, outer.nextSibling);
+      else container.insertBefore(pane.sep, outer);
+      if (def.el.id) pane.sep.setAttribute('aria-controls', def.el.id);
+      bind(pane);
+      panes.push(pane);
+    }
+
+    /* 這個窗格現在最高可以到多少。fill 模式要真的把兄弟量一遍：其他窗格可能也被調過，
+       只看容器高度會算出一個「一套用就把彈性區壓成零」的上限。 */
+    function maxFor(pane) {
+      const avail = container.clientHeight;
+      if (!avail) return pane.min;                 // 還沒佈局（或已從文件卸下）：先不動它
+      if (!flex) return Math.max(pane.min, avail - reserve);
+      let used = 0;
+      for (const child of container.children) {
+        if (child === pane.outer) continue;
+        used += child === flex ? flexMin : heightOf(child);
+      }
+      const extra = Math.max(0, heightOf(pane.outer) - heightOf(pane.el));
+      return Math.max(pane.min, avail - used - extra);
+    }
+
+    function storedFor(pane) {
+      const px = store.paneSizeFor(layout, pane.key);
+      return typeof px === 'number' ? px : null;
+    }
+
+    function wantedFor(pane) {
+      return Object.prototype.hasOwnProperty.call(live, pane.key) ? live[pane.key] : storedFor(pane);
+    }
+
+    function setSize(pane, px) {
+      const st = pane.el.style;
+      st.height = Math.round(px) + 'px';
+      st.maxHeight = 'none';           // CSS 的 max-height 預設值（170／190／210px）會蓋掉較大的 height
+      st.flexShrink = '0';
+      if (pane.scroll) st.overflowY = 'auto';
+      pane.el.dataset.paneSized = '1';
+    }
+
+    function clearSize(pane) {
+      if (!pane.el.dataset.paneSized) return;
+      const st = pane.el.style;
+      st.height = '';
+      st.maxHeight = '';
+      st.flexShrink = '';
+      if (pane.scroll) st.overflowY = '';
+      delete pane.el.dataset.paneSized;
+    }
+
+    /* 套用所有窗格高度並同步分隔條狀態。任何重繪之後都要跑一次：內容變了、視窗變了、
+       另一個窗格被拉大了，原本合法的高度都可能已經不合法。 */
+    function applyAll() {
+      for (const pane of panes) {
+        const on = !!pane.visible();
+        pane.sep.hidden = !on;
+        const want = on ? wantedFor(pane) : null;
+        if (want === null) clearSize(pane);
+        else setSize(pane, Math.max(pane.min, Math.min(want, maxFor(pane))));
+        if (!on) continue;
+        /* 還沒被調過的窗格是「內容多高就多高」，可能比下限還矮（1a 的清單只有一列時
+           才 44px，下限卻是 60）。valuemin／valuemax 要把當下的值包進去，否則讀屏拿到
+           一組 min > now 的自相矛盾數字。 */
+        const now = Math.round(heightOf(pane.el));
+        pane.sep.setAttribute('aria-valuenow', String(now));
+        pane.sep.setAttribute('aria-valuemin', String(Math.min(pane.min, now)));
+        pane.sep.setAttribute('aria-valuemax', String(Math.max(Math.round(maxFor(pane)), now)));
+      }
+    }
+
+    function schedule() {
+      if (frame) return;
+      frame = raf(() => { frame = 0; applyAll(); });
+    }
+
+    // 放開滑鼠／按完方向鍵才寫 store：拖曳中每一格都寫等於每秒數十次 localStorage
+    function commit(pane) {
+      const applied = Math.round(heightOf(pane.el));
+      delete live[pane.key];
+      store.setPaneSize(layout, pane.key, applied);
+      applyAll();
+    }
+
+    function bind(pane) {
+      pane.sep.addEventListener('pointerdown', (ev) => {
+        if (ev.pointerType === 'mouse' && ev.button !== 0) return;
+        ev.preventDefault();                       // 不要讓整頁選到文字
+        const doc = pane.sep.ownerDocument;        // PiP 時是小視窗那個 document
+        const startY = ev.clientY;
+        const startH = heightOf(pane.el);
+        container.classList.add('is-resizing');
+        pane.sep.classList.add('is-dragging');
+        try { pane.sep.setPointerCapture(ev.pointerId); } catch (e) { /* 合成事件沒有真的指標 */ }
+        try { pane.sep.focus({ preventScroll: true }); } catch (e) { pane.sep.focus(); }
+
+        const move = (e) => {
+          if (e.pointerId !== undefined && e.pointerId !== ev.pointerId) return;
+          live[pane.key] = startH + pane.sign * (e.clientY - startY);
+          schedule();
+        };
+        const finish = (e) => {
+          if (e && e.pointerId !== undefined && e.pointerId !== ev.pointerId) return;
+          doc.removeEventListener('pointermove', move);
+          doc.removeEventListener('pointerup', finish);
+          doc.removeEventListener('pointercancel', finish);
+          if (frame) { cancelRaf(frame); frame = 0; }
+          container.classList.remove('is-resizing');
+          pane.sep.classList.remove('is-dragging');
+          try { pane.sep.releasePointerCapture(ev.pointerId); } catch (e2) { /* 沒抓到就不用放 */ }
+          applyAll();                              // 先把最後一次移動套上去，再存實際套用值
+          commit(pane);
+        };
+        // 掛在 document：有指標捕捉時事件仍會從分隔條冒泡上來，沒有捕捉（合成事件）時也接得到
+        doc.addEventListener('pointermove', move);
+        doc.addEventListener('pointerup', finish);
+        doc.addEventListener('pointercancel', finish);
+      });
+
+      pane.sep.addEventListener('keydown', (ev) => {
+        let dy = 0;
+        if (ev.key === 'ArrowUp') dy = -KEY_STEP;
+        else if (ev.key === 'ArrowDown') dy = KEY_STEP;
+        else return;
+        ev.preventDefault();                       // 方向鍵不要順便捲動整個內容區
+        live[pane.key] = heightOf(pane.el) + pane.sign * dy;
+        applyAll();
+        commit(pane);
+      });
+    }
+
+    /* 視窗（或 PiP 小視窗）改變大小要重新夾值。用 ResizeObserver 觀察容器本身：
+       它跨 document 仍然有效（1c 被搬進 PiP 後照樣通知），而且我們從不改容器自己的尺寸，
+       不會觸發 observer 迴圈。沒有 ResizeObserver 的舊瀏覽器退回 window resize。 */
+    if (typeof root.ResizeObserver === 'function') {
+      observer = new root.ResizeObserver(() => schedule());
+      observer.observe(container);
+    } else if (typeof root.addEventListener === 'function') {
+      root.addEventListener('resize', schedule);
+    }
+
+    applyAll();
+
+    return {
+      applyAll,
+      panes,
+      destroy() {
+        if (observer) observer.disconnect();
+        else if (typeof root.removeEventListener === 'function') root.removeEventListener('resize', schedule);
+        if (frame) { cancelRaf(frame); frame = 0; }
+        for (const pane of panes) {
+          clearSize(pane);
+          if (pane.sep.parentNode) pane.sep.parentNode.removeChild(pane.sep);
+        }
+      },
+    };
+  }
+
+  root.ICDResize = { createGroup, KEY_STEP, DEFAULT_MIN };
+})(typeof self !== 'undefined' ? self : this);
 
 </script>
 <script>
@@ -2477,7 +2860,12 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     const shelf = el('button', 'btn btn-secondary', '隱藏常用列');
     shelf.type = 'button';
     shelf.id = 'shelf-toggle';
-    display.append(theme, shelf);
+    /* 拖曳分隔條調過的高度沒有其他出口：拖過頭把某一區壓到只剩下限時，光靠再拖回去
+       很難回到原本的比例。這顆鈕只清「目前生效版面」那一組（見 interactions.js）。 */
+    const panes = el('button', 'btn btn-secondary', '回復預設高度');
+    panes.type = 'button';
+    panes.id = 'reset-panes';
+    display.append(theme, shelf, panes);
     pop.appendChild(section('顯示', display));
     const note = el('div', 'settings-note', '');
     note.id = 'db-note';
@@ -2522,12 +2910,15 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
 
      resolveLayout() 有兩種降級：視窗未達 LAYOUT_MIN_WIDTH 時偏好 wide 會變 mobile，
      以及偏好的版面模組不存在時退回 wide。兩種都會讓 seg-layout 顯示的選中項與眼前
-     畫面對不上，沒有說明的話使用者只會覺得設定壞了。
-     生效版面讀 body[data-layout]——app.js 掛載後一定會寫，且永遠等於實際掛載的版面，
-     這裡不重算一次寬度，免得兩邊判斷分歧。 */
+     畫面對不上，沒有說明的話使用者只會覺得設定壞了。 */
+  /* 生效版面（wide|dock|mobile）。app.js 掛載後一定會寫進 body[data-layout]，且永遠等於
+     實際掛載的版面——這裡不重算一次寬度，免得兩邊判斷分歧。1c 被搬進 PiP 小視窗時，
+     主文件的 body 仍標著 dock，取到的值依然正確。 */
+  const effectiveLayout = () => (document.body && document.body.dataset.layout) || '';
+
   function layoutNoteText(ctx, effective) {
     const pref = ctx.store.getState().layout;
-    const now = effective || (document.body && document.body.dataset.layout) || '';
+    const now = effective || effectiveLayout();
     if (!now || now === pref) return '';
     const prefLabel = LAYOUT_LABEL[pref] || pref;
     const nowLabel = LAYOUT_LABEL[now] || now;
@@ -2548,6 +2939,17 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     if (theme) theme.textContent = s.theme === 'dark' ? '日間模式' : '夜間模式';
     const shelf = root2.querySelector('#shelf-toggle');
     if (shelf) shelf.textContent = s.shelfOpen ? '隱藏常用列' : '顯示常用列';
+    /* 「回復預設高度」只對**生效版面**有意義（同 layoutNoteText：讀 body[data-layout]，
+       不自己重算寬度）。沒調過任何高度時停用並說明，免得按了沒反應像壞掉。 */
+    const panes = root2.querySelector('#reset-panes');
+    if (panes) {
+      const effective = effectiveLayout();
+      const dirty = ctx.store.hasPaneSizes(effective);
+      panes.disabled = !dirty;
+      panes.title = dirty
+        ? '把本版面各區塊的高度回復成預設'
+        : '本版面各區塊都是預設高度（拖曳區塊之間的分隔線即可調整）';
+    }
     const layoutNote = root2.querySelector('#layout-note');
     if (layoutNote) {
       const text = layoutNoteText(ctx);
@@ -2575,65 +2977,44 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     surg: '選擇傷口、外傷或術後情境',
   };
 
-  // ---- header 模式徽章＋三選一選單 ----
-  /* 使用者原話：「我希望可以在圈起來的地方直接切換門急診外科」，圈的就是 header 的
-     #mode-chip。徽章本身變成可操作的控制項：點它就地展開三選一，點一個就切換並關閉。
-     不做循環切換（點一下換下一個）——那會 overshoot，而且看不到還有哪些選項。
-     三套版面共用同一份結構與行為（使用者要求「功能請統一」），只有可見標籤在 1c 用短版。
+  // ---- header 的看診模式三鈕 ----
+  /* 使用者原話：「我不要點擊下拉 我希望三個按鈕並排」——三顆按鈕直接並排在 header，
+     一次點擊就切換，沒有任何展開動作（不做循環切換：那會 overshoot，也看不到還有哪些選項）。
+     外觀與選中表現沿用設計系統既有的 segmented（.seg-row／.seg-btn），選中狀態由
+     setPressed() 同時寫 aria-pressed 與 .is-on（C1-2：不倚賴 :has() 或單一屬性選擇器）。
+
+     三套版面共用同一份結構與行為（使用者要求「功能請統一」）；`compact` 只在 1c 的 176px
+     為真，換成短標籤＋小號尺寸——那是空間限制，不是功能差異。三顆鈕各自在哪一列由各版面
+     的 CSS 決定（1a 直接排在 header 那列，1b／1c 獨立成一行）。
 
      設定 popover 裡原有的模式 segmented 保留：兩條動線並存，狀態同源於 store.mode，
      syncModeSwitch()／syncSettings() 各自從同一份狀態算選中樣式，不會對不起來。 */
-  function modeSwitchEl(short) {
-    const wrap = el('div', 'mode-switch');
-    const chip = el('button', 'mode-chip');
-    chip.type = 'button';
-    chip.id = 'mode-chip';
-    chip.setAttribute('aria-haspopup', 'menu');
-    chip.setAttribute('aria-expanded', 'false');
-    chip.setAttribute('aria-controls', 'mode-menu');
-
-    const menu = el('div', 'mode-menu');
-    menu.id = 'mode-menu';
-    menu.hidden = true;
-    menu.setAttribute('role', 'menu');
-    menu.setAttribute('aria-label', '看診模式');
+  function modeSwitchEl(compact) {
+    const row = el('div', 'seg-row mode-switch');
+    row.id = 'mode-switch';
+    row.setAttribute('role', 'group');
+    row.setAttribute('aria-label', '看診模式');
     for (const def of MODE_DEFS) {
-      const b = el('button', 'mode-opt', short ? MODE_SHORT[def[0]] : def[1]);
+      const b = el('button', 'seg-btn mode-btn' + (compact ? ' seg-btn--sm' : ''),
+        compact ? MODE_SHORT[def[0]] : def[1]);
       b.type = 'button';
       b.dataset.mode = def[0];
-      b.setAttribute('role', 'menuitemradio');
-      b.setAttribute('aria-checked', 'false');
-      b.title = def[1];               // 短標籤時完整名稱留在 title
-      menu.appendChild(b);
+      b.setAttribute('aria-pressed', 'false');
+      b.title = '看診模式：' + def[1];        // 短標籤時完整名稱留在 title
+      row.appendChild(b);
     }
-    wrap.append(chip, menu);
-    return wrap;
+    return row;
   }
 
-  function syncModeSwitch(root2, ctx, short) {
-    const s = ctx.store.getState();
-    const chip = root2.querySelector('#mode-chip');
-    const menu = root2.querySelector('#mode-menu');
-    if (chip) {
-      chip.textContent = short ? MODE_SHORT[s.mode] : MODE_LABEL[s.mode];
-      chip.title = '看診模式：' + MODE_LABEL[s.mode] + '（點擊切換門診／急診／外科）';
-      chip.setAttribute('aria-expanded', s.modeMenuOpen ? 'true' : 'false');
-      chip.classList.toggle('is-open', s.modeMenuOpen);
-    }
-    if (!menu) return;
-    menu.hidden = !s.modeMenuOpen;
-    for (const b of menu.querySelectorAll('[data-mode]')) {
-      const on = b.getAttribute('data-mode') === s.mode;
-      b.setAttribute('aria-checked', on ? 'true' : 'false');
-      b.classList.toggle('is-on', on);        // C1-2：不倚賴屬性選擇器單一途徑
-    }
+  function syncModeSwitch(root2, ctx) {
+    setPressed(root2.querySelector('#mode-switch'), 'data-mode', ctx.store.getState().mode);
   }
 
   root.ICDRender = {
     icon, el, blueprint, clear, regionHeading, regionAllBtn, chipEl, chipWith, chipsFromPairs, emptyText,
     renderResults, relatedGroups, renderRelated,
     cartItemEl, renderCart, hisText, renderHis, renderShelf,
-    settingsPopoverEl, syncSettings, dbNoteText, layoutNoteText, setPressed,
+    settingsPopoverEl, syncSettings, dbNoteText, layoutNoteText, effectiveLayout, setPressed,
     modeSwitchEl, syncModeSwitch,
     FORMAT_LABEL, MODE_LABEL, MODE_SHORT, PANELS_TITLE, MODE_HINT, LAYOUT_LABEL, LAYOUT_MIN_WIDTH,
   };
@@ -2671,7 +3052,9 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     layout: ['settings'],
     shelfOpen: ['shelf', 'settings'],
     settingsOpen: ['settings'],
-    modeMenuOpen: ['header'],
+    // 高度本身由 update() 末尾的 applyPanes() 統一處理；這裡只同步設定面板的
+    // 「回復預設高度」可按狀態（不寫這條會退回全量重繪，每拖一次整片重畫）
+    paneSizes: ['settings'],
   };
 
   function mount(host, ctx) {
@@ -2682,7 +3065,7 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     // ── header ──────────────────────────────────────────────────────────
     const header = R.el('header', 'app-header');
     header.append(R.el('div', 'app-brand', 'ICD-10'));
-    // 模式徽章＝可操作的三選一（使用者要求「在圈起來的地方直接切換門急診外科」）
+    // 看診模式三鈕直接並排在 header（1440 空間充足，用全名、不壓縮）
     refs.modeSwitch = R.modeSwitchEl(false);
     header.appendChild(refs.modeSwitch);
 
@@ -2779,6 +3162,8 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     aside.appendChild(cartHead);
 
     const cartBox = R.el('div', 'cart-box');
+    cartBox.id = 'cart-box';          // 分隔條的 aria-controls 指向它
+    refs.cartBox = cartBox;
     refs.cart = R.el('ul');
     refs.cart.id = 'cart';
     refs.cartEmpty = R.el('div', 'cart-empty', '點左側任何代碼加入；第一碼即主診斷，拖曳可調整順序。');
@@ -2813,12 +3198,41 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     wide.appendChild(bench);
     host.appendChild(wide);
 
+    /* ── 可拖曳的窗格分隔條（功能與 1b／1c 統一） ────────────────────────────
+       1a 是三欄版面，垂直方向只有兩條分界真的值得可調，其餘刻意不做：
+         中欄 搜尋結果↓  命中幾十筆時會把主訴面板整片推到摺線下，壓低它就能邊看結果邊選面板
+         右欄 清單↓      清單長了會把「貼入 HIS」擠出視野，壓低它讓複製鈕留在視線內
+       不做的：header／常用列是固定高度的控制列；右欄的「相關疾病」排在最後，拉它只是
+       改自己的長度（欄本身會捲動），拖了等於沒拖。三欄的**寬度**不在這次範圍內。
+       這兩欄各自會捲動（.workbench > * { overflow-y:auto }），不是固定高度的 flex 盒，
+       所以走 resize.js 的 scroll 模式：上限＝欄高扣掉 reserve，保證同欄其他內容還看得到。 */
+    const paneOpts = { layout: 'wide', store: ctx.store };
+    refs.paneGroups = [
+      root.ICDResize.createGroup(Object.assign({
+        container: sheet,
+        reserve: 220,
+        panes: [{
+          key: 'results', el: refs.results, label: '搜尋結果區', sign: 1, min: 60,
+          visible: () => !refs.resultsCard.hidden,
+        }],
+      }, paneOpts)),
+      root.ICDResize.createGroup(Object.assign({
+        container: aside,
+        reserve: 260,
+        panes: [{
+          key: 'cart', el: refs.cartBox, label: '就診清單區', sign: 1, min: 60,
+          visible: () => ctx.store.getState().cart.length > 0,
+        }],
+      }, paneOpts)),
+    ];
+    const applyPanes = () => { for (const g of refs.paneGroups) g.applyAll(); };
+
     // ── 更新器 ──────────────────────────────────────────────────────────
     const U = {};
 
     U.header = () => {
       const s = ctx.store.getState();
-      R.syncModeSwitch(wide, ctx, false);
+      R.syncModeSwitch(wide, ctx);
       refs.panelsTitle.textContent = R.PANELS_TITLE[s.mode];
       refs.modeHint.textContent = R.MODE_HINT[s.mode];
     };
@@ -2942,6 +3356,8 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
         names = ALL.filter((n) => set.has(n));
       }
       for (const name of names) U[name]();
+      // 內容變了（搜尋結果出現、清單加碼）就得重新夾一次高度，見 render-dock.js 同一段註解
+      applyPanes();
     }
 
     return { root: wide, refs, update };
@@ -2990,6 +3406,17 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     open: '已開啟置頂小視窗，可拖到 HIS 旁邊',
     blocked: '瀏覽器擋下置頂視窗；可改用瀏覽器「一律位於最上層」',
     unsupported: '此瀏覽器不支援置頂小視窗；改用 Edge／Chrome 116 以上',
+  };
+  /* 成功那一則是「一次性的操作說明」，看過就沒用了，卻在 176px 下永久占掉兩行（約 27px）；
+     密度原則要求可回收的常駐提示要自己消失。失敗那兩則相反：它們是使用者還沒解決的問題，
+     講的是下一步該怎麼做，必須留著，不設逾時。 */
+  const PIN_NOTE_TTL = 6000;
+
+  /* 置頂鈕的 title。≤239px 時可見文字被藏起來，可讀名稱只剩 title，所以它得自己說完
+     「現在是什麼狀態、按下去會怎樣」，不能停在固定一句。 */
+  const PIN_TITLE = {
+    off: '置頂：開啟浮動小視窗，永遠顯示在最上層',
+    on: '置頂中：點一下關閉浮動小視窗',
   };
 
   function pinIcon() {
@@ -3050,9 +3477,11 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     layout: ['settings'],
     shelfOpen: [],
     settingsOpen: ['settings'],
-    modeMenuOpen: ['header'],
     cartOpen: ['cart'],
     pinned: ['pin'],
+    // 窗格高度本身由 update() 末尾的 paneGroup.applyAll() 統一處理，這裡只需同步
+    // 設定面板裡「回復預設高度」的可按狀態——不寫這條會退回全量重繪，每拖一次整片重畫
+    paneSizes: ['settings'],
   };
 
   function mount(host, ctx) {
@@ -3060,7 +3489,12 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     const dock = R.el('div');
     dock.id = 'layout-dock';
 
-    // ── header：搜尋 → 模式徽章／置頂／設定 → 提示 → 設定 popover ────────────
+    /* ── header：搜尋 →（模式三鈕＋置頂＋設定 同一列）→ 提示 → 設定 popover ──────
+       密度原則（docs/dense-ui-principle.md）：模式三鈕不再等寬撐滿，縮成跟文字一樣寬，
+       與置頂／設定併成同一列，header 從三列變兩列。176px 下的寬度帳（可用 164px）：
+       三顆短標籤鈕約 89 ＋ 三個 3px 間距 ＋ 置頂 ＋ 設定；置頂在 ≤239px 時只留 pin icon
+       （dock.css 的 media query），完整說明留在 title——那是唯一塞不下的一項，
+       算式與取捨見 docs/dense-ui-principle.md。 */
     const head = R.el('div', 'dock-head');
 
     const search = document.createElement('input');
@@ -3073,15 +3507,21 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     refs.search = search;
     head.appendChild(search);
 
+    /* 模式三鈕＋置頂＋設定同一列。三套版面同一份行為，只有標籤與尺寸用短版塞進 176px；
+       模式鈕在 1c 是 fit-content（dock.css 的 .mode-btn），空出來的寬度全部給右側的
+       spacer 吸收，置頂與設定仍靠右對齊。 */
     const tools = R.el('div', 'dock-tools');
-    // 模式徽章＝可操作的三選一（三套版面同一份行為，只有標籤用短版塞進 176px）
     refs.modeSwitch = R.modeSwitchEl(true);
+    tools.appendChild(refs.modeSwitch);
+
     const pin = R.el('button', 'dock-pin');
     pin.type = 'button';
     pin.id = 'pin-toggle';
-    pin.title = '永遠置頂顯示（浮動小視窗）';
+    pin.title = PIN_TITLE.off;
     pin.setAttribute('aria-pressed', 'false');
-    refs.pinLabel = R.el('span', null, '置頂');
+    /* 文字掛 .dock-pin-label：≤239px 時由 CSS 藏起來（那時可讀名稱改由 title 提供，
+       所以 title 必須跟著 pinned 狀態走，見 U.pin）。 */
+    refs.pinLabel = R.el('span', 'dock-pin-label', '置頂');
     pin.append(pinIcon(), refs.pinLabel);
     refs.pin = pin;
     const settingsToggle = R.el('button', 'btn btn-secondary', '設定');
@@ -3089,7 +3529,7 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     settingsToggle.id = 'settings-toggle';
     settingsToggle.setAttribute('aria-expanded', 'false');
     settingsToggle.setAttribute('aria-haspopup', 'true');
-    tools.append(refs.modeSwitch, R.el('span', 'dock-spacer'), pin, settingsToggle);
+    tools.append(R.el('span', 'dock-spacer'), pin, settingsToggle);
     head.appendChild(tools);
 
     refs.pinNote = R.el('div', 'dock-pin-note');
@@ -3177,16 +3617,56 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
 
     host.appendChild(dock);
 
+    /* ── 可拖曳的窗格分隔條（使用者要求：各窗格高度可手動調整） ─────────────
+       1c 是使用者提出這個需求的版面，四條分界裡有三條可調：
+         部位區↓   兩欄 grid 會隨模式長到十幾列，壓小它就把空間讓給主訴面板
+         相關疾病↑ 預設最高 170px，建議多時想看全、看診中想收窄
+         清單↑     預設最高 210px，碼多時要能拉高
+       header 那條**刻意不做**：搜尋框＋（模式三鈕／置頂／設定）那一列是固定內容，拉高只是留白，
+       拉低就會把控制項裁掉——沒有意義的分隔條只會製造誤觸（見 .review/r6-resizable.md）。
+       捲動內容區（.dock-scroll）是彈性區，吸收其他窗格讓出／占走的空間，本身不設高度。 */
+    refs.paneGroup = root.ICDResize.createGroup({
+      layout: 'dock',
+      store: ctx.store,
+      container: dock,
+      flex: body,
+      flexMin: 90,
+      panes: [
+        { key: 'regions', el: refs.pills, label: '部位區', sign: 1, min: 44 },
+        {
+          key: 'related', el: refs.related, label: '相關疾病區', sign: -1, min: 48,
+          visible: () => !refs.relatedWrap.hidden,
+        },
+        {
+          key: 'cart', el: refs.cartInline, label: '清單區', sign: -1, min: 48,
+          visible: () => !refs.cartInline.hidden,
+        },
+      ],
+    });
+
     // ── Document Picture-in-Picture（置頂小視窗） ───────────────────────
     let pipWin = null;
     let pinNote = '';
+    let noteTimer = null;
     /* 這套 controller 是否還是生效版面。app.js 換版面時會呼叫 teardown() 把它設為 false，
        此後任何遲來的 pagehide／requestWindow 都不得再動 #app（R2 C2）。 */
     let alive = true;
 
-    function setNote(text) {
+    /* transient＝這則提示看過就該讓出版面（只有「已開啟」那則是）。逾時後把提示清掉並重畫，
+       header 就縮回一列。任何新的 setNote() 都會先取消上一個逾時，不會清掉後來那一則。 */
+    function setNote(text, transient) {
+      clearTimeout(noteTimer);
+      noteTimer = null;
       pinNote = text;
       U.pin();
+      if (transient && text) {
+        noteTimer = setTimeout(() => {
+          noteTimer = null;
+          if (pinNote !== text) return;      // 期間換了別的提示，不要蓋掉
+          pinNote = '';
+          U.pin();
+        }, PIN_NOTE_TTL);
+      }
     }
 
     /* 樣式全部 inline 在單一 <style> 裡，複製節點過去即可（連 @font-face 的 data: URI 一起）。
@@ -3224,11 +3704,8 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     }
 
     function onPipDocKeyDown(ev) {
-      if (root.ICDInteractions.modeMenuKey(ev)) return;      // 選單內 ↑↓／Home／End 移動焦點
       if (ev.key !== 'Escape') return;
       if (root.ICDInteractions.isFallbackOpen()) { root.ICDInteractions.closeFallbackCopy(); return; }
-      // 小視窗裡的 #mode-chip 不在主文件，關閉後的焦點回歸要指名這個文件
-      if (root.ICDInteractions.closeModeMenu(ctx, ev.target && ev.target.ownerDocument)) return;
       if (ctx.store.getState().settingsOpen) ctx.store.setSettingsOpen(false);
     }
 
@@ -3249,6 +3726,8 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
       else if (dock.parentNode) dock.parentNode.removeChild(dock);
       ctx.store.setPinned(false);
       setNote('');
+      // 小視窗與主視窗高度不同，窗格高度要照新的可用空間重新夾一次
+      if (stillMounted) refs.paneGroup.applyAll();
     }
 
     function closePip() {
@@ -3281,8 +3760,12 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
         w.document.addEventListener('keydown', onPipDocKeyDown);
         root.ICDInteractions.setFeedbackDocument(w.document);
         w.addEventListener('pagehide', restoreFromPip);
+        // 小視窗自己的縮放不會經過主視窗；窗格高度要跟著重新夾（ResizeObserver 跨文件時
+        // 未必送得到，這條是明確的第二層保險）
+        w.addEventListener('resize', () => refs.paneGroup.applyAll());
         ctx.store.setPinned(true);
-        setNote(PIN_NOTE.open);
+        setNote(PIN_NOTE.open, true);
+        refs.paneGroup.applyAll();
       }).catch(() => { setNote(PIN_NOTE.blocked); });
     }
 
@@ -3292,6 +3775,8 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
        時跑完，dock 才會正常回到 #app 再由 ICDRender.clear() 移除。 */
     function teardown() {
       closePip();
+      clearTimeout(noteTimer);      // 逾時若在版面換掉後才到，U.pin() 會去動已卸下的節點
+      noteTimer = null;
       alive = false;
     }
 
@@ -3330,19 +3815,12 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
         && !target.closest('#settings-popover') && !target.closest('#settings-toggle')) {
         store.setSettingsOpen(false);
       }
-      if (store.getState().modeMenuOpen
-        && !target.closest('#mode-menu') && !target.closest('#mode-chip')) {
-        store.setModeMenuOpen(false);
-      }
-
       const chip = target.closest('.chip[data-code]');
       if (chip) { addFromChip(chip); return; }
-      /* 模式徽章／「全部」鈕：規則共用 interactions.js 的同一份實作（那裡的 docOf()
-         會自己認出這是 PiP 文件），這裡只負責在主文件委派搆不到時把事件轉過去。 */
-      const modeOpt = target.closest('#mode-menu [data-mode]');
-      if (modeOpt) { root.ICDInteractions.chooseMode(ctx, modeOpt.getAttribute('data-mode'), modeOpt); return; }
-      const modeChip = target.closest('#mode-chip');
-      if (modeChip) { root.ICDInteractions.toggleModeMenu(ctx, modeChip); return; }
+      /* 模式三鈕／「全部」鈕：規則共用 interactions.js 的同一份實作，這裡只負責在
+         主文件委派搆不到時把事件轉過去。模式鈕要排在下方泛用 `.seg-btn` 那條之前。 */
+      const modeBtn = target.closest('#mode-switch [data-mode]');
+      if (modeBtn) { root.ICDInteractions.chooseMode(ctx, modeBtn.getAttribute('data-mode')); return; }
       const regionAll = target.closest('.region-all-btn');
       if (regionAll) { root.ICDInteractions.chooseAllRegions(ctx); return; }
       const region = target.closest('.region-btn');
@@ -3392,6 +3870,7 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
       if (!btn) return;
       if (btn.id === 'settings-toggle') store.toggleSettings();
       else if (btn.id === 'theme-toggle') store.toggleTheme();
+      else if (btn.id === 'reset-panes') root.ICDInteractions.resetPanes(ctx);
       else if (btn.id === 'clear-cart') { store.clearCart(); announce('已清空就診清單'); }
       else if (btn.id === 'copy-all') copyAll();
       else if (btn.id === 'db-retry') { announce('正在重新載入全庫…'); ctx.data.retryDb(); }
@@ -3444,7 +3923,7 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     // ── 更新器 ──────────────────────────────────────────────────────────
     const U = {};
 
-    U.header = () => R.syncModeSwitch(dock, ctx, true);
+    U.header = () => R.syncModeSwitch(dock, ctx);
 
     U.searchValue = () => {
       const s = ctx.store.getState();
@@ -3540,6 +4019,7 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
       refs.pin.setAttribute('aria-pressed', s.pinned ? 'true' : 'false');
       refs.pin.classList.toggle('is-on', s.pinned);       // C1-2：不倚賴單一屬性選擇器
       refs.pinLabel.textContent = s.pinned ? '置頂中' : '置頂';
+      refs.pin.title = s.pinned ? PIN_TITLE.on : PIN_TITLE.off;
       refs.pinNote.textContent = pinNote;
       refs.pinNote.hidden = !pinNote;
     };
@@ -3567,6 +4047,9 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
         names = ALL.filter((n) => set.has(n));
       }
       for (const name of names) U[name]();
+      /* 窗格高度不進 DEPS，一律在每次重繪後重跑：內容變了（換模式部位變多、相關碼出現、
+         清單展開）原本合法的高度就可能超出可用空間，得當場重新夾一次。成本是量三個元素。 */
+      refs.paneGroup.applyAll();
     }
 
     return { root: dock, refs, update, teardown };
@@ -3615,9 +4098,11 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     layout: ['settings'],
     shelfOpen: ['settings'],
     settingsOpen: ['settings'],
-    modeMenuOpen: ['header'],
     cartOpen: ['cartSheet', 'cartBar'],
     pinned: [],
+    // 高度本身由 update() 末尾的 paneGroup.applyAll() 統一處理；這裡只同步設定面板的
+    // 「回復預設高度」可按狀態（不寫這條會退回全量重繪，每拖一次整片重畫）
+    paneSizes: ['settings'],
   };
 
   function mount(host, ctx) {
@@ -3630,9 +4115,11 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     const wrap = R.el('div');
     wrap.id = 'layout-mobile';
 
-    // ── header：模式徽章＋搜尋（44px）＋設定鈕（44×44）（L349-368） ──────────
+    /* ── header：模式三鈕獨立一行 ＋ 搜尋（44px）＋設定鈕（44×44）（L349-368） ──
+       390px 塞不下「三顆模式鈕＋搜尋＋設定」同一列（搜尋會被壓到剩幾十 px），所以
+       模式列自己佔一行、三格等寬撐滿；觸控目標仍是 44px。互動與 1a／1c 完全一致
+       （一次點擊即切換），差的只是配置——那是空間限制不是功能差異。 */
     const header = R.el('header', 'm-header');
-    // 模式徽章＝可操作的三選一（與 1a／1c 同一份行為，使用者要求「功能請統一」）
     refs.modeSwitch = R.modeSwitchEl(false);
 
     const search = document.createElement('input');
@@ -3660,7 +4147,9 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     const shelfBtn = pop.querySelector('#shelf-toggle');
     if (shelfBtn) shelfBtn.classList.add('is-desktop-only');
 
-    header.append(refs.modeSwitch, search, settingsToggle, pop);
+    const headRow = R.el('div', 'm-head-row');
+    headRow.append(search, settingsToggle);
+    header.append(refs.modeSwitch, headRow, pop);
     wrap.appendChild(header);
 
     // ── 部位／情境：橫向捲動 pill 列（L370-374） ──────────────────────────
@@ -3747,10 +4236,34 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
 
     host.appendChild(wrap);
 
+    /* ── 可拖曳的窗格分隔條（功能與 1a／1c 統一） ────────────────────────────
+       390×844 只有兩條分界值得可調：相關碼區（預設最高 190px，抽屜開著時被壓到 84px）
+       與清單抽屜（預設最高 46vh）。**部位 pill 列不做**：它是單行橫向捲動列，高度就是
+       一顆 44px 觸控目標，可調只會讓觸控目標變小；header 同理是固定內容。
+       .m-scroll 是彈性區，吸收其他窗格讓出／占走的空間。 */
+    refs.paneGroup = root.ICDResize.createGroup({
+      layout: 'mobile',
+      store: ctx.store,
+      container: wrap,
+      flex: scroll,
+      flexMin: 120,
+      panes: [
+        {
+          key: 'related', el: refs.related, label: '相關碼區', sign: -1, min: 56,
+          visible: () => !refs.relatedWrap.hidden,
+        },
+        {
+          // 抽屜自己是 flex column、內部由 ul#cart 捲動，不要再給它一層 overflow
+          key: 'sheet', el: refs.cartSheet, label: '清單抽屜', sign: -1, min: 120, scroll: false,
+          visible: () => !refs.cartSheet.hidden,
+        },
+      ],
+    });
+
     // ── 更新器 ──────────────────────────────────────────────────────────
     const U = {};
 
-    U.header = () => R.syncModeSwitch(wrap, ctx, false);
+    U.header = () => R.syncModeSwitch(wrap, ctx);
 
     // 只在狀態與輸入框不同時回寫（Esc 清空、Enter 加碼後清空），避免打字時游標跳位
     U.searchValue = () => {
@@ -3892,6 +4405,8 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
       sheetOpen = !sheetOpen;
       U.cartSheet();
       U.cartBar();
+      // 同理：抽屜的分隔條要跟著出現／消失，也不能靠 store 的 notify
+      refs.paneGroup.applyAll();
     };
 
     const ALL = Object.keys(U);
@@ -3904,6 +4419,8 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
         names = ALL.filter((n) => set.has(n));
       }
       for (const name of names) U[name]();
+      // 內容變了（相關碼出現、抽屜展開）就得重新夾一次高度，見 render-dock.js 同一段註解
+      refs.paneGroup.applyAll();
     }
 
     return { root: wrap, refs, update };
@@ -3922,6 +4439,7 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
      .quick-toggle[data-quick-toggle] 展開快選分組
      #cart li 內：b.cart-code 複製單碼、.cart-primary 設為主診斷、.cart-fav ★、.cart-remove ✕
      #copy-all / #clear-cart / #settings-toggle / #theme-toggle / #shelf-toggle
+     #mode-switch 內的 .mode-btn[data-mode]  header 的看診模式三鈕（一次點擊即切換）
      #seg-mode|#seg-format|#seg-layout 內的 .seg-btn
      #cart-toggle              點擊時呼叫 ctx.onCartToggle()——「切換清單面板」這個動作本身
                                 共用，但「切換的是什麼」由各版面自己決定（1c 是 store 的
@@ -4053,44 +4571,14 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
 
   /* chip 點擊的唯一實作。1c 的側欄搬進 PiP 小視窗後主文件的委派搆不到那棵 DOM，
      render-dock.js 得自己代打——共用這個函式，兩邊的規則不會各自漂移。 */
-  // ---- 模式徽章的三選一選單（三套版面共用同一份行為） ----
-  /* 徽章與選單是宣告式渲染的（render-shared.js 的 modeSwitchEl／syncModeSwitch），
-     這裡只負責「開關 ＋ 焦點」。焦點必須在這一層做：store 通知是同步的，動作回來時
-     DOM 已經是新的，直接找元素即可；渲染層不得掛 closure handler。
-     `doc` 一律由觸發元素的 ownerDocument 推得——1c 置頂時整個側欄在 Document PiP
-     的另一個文件裡，寫死 document 會找不到節點（同 R2 I5 的教訓）。 */
-  const docOf = (node) => (node && node.ownerDocument) || document;
-
-  function focusModeMenu(doc) {
-    const menu = doc.getElementById('mode-menu');
-    if (!menu || menu.hidden) return;
-    const first = menu.querySelector('[aria-checked="true"]') || menu.querySelector('[data-mode]');
-    if (first && typeof first.focus === 'function') first.focus();
-  }
-
-  function closeModeMenu(ctx, doc) {
-    if (!ctx.store.getState().modeMenuOpen) return false;
-    ctx.store.setModeMenuOpen(false);
-    const chip = (doc || document).getElementById('mode-chip');
-    if (chip && typeof chip.focus === 'function') chip.focus();   // 關掉浮層要把焦點還回觸發者
-    return true;
-  }
-
-  function toggleModeMenu(ctx, chip) {
-    ctx.store.toggleModeMenu();
-    if (ctx.store.getState().modeMenuOpen) focusModeMenu(docOf(chip));
-    else if (chip && typeof chip.focus === 'function') chip.focus();
-  }
-
-  /* 點選單裡的一項。已經是目前模式時只關選單——走 setMode() 會連帶清掉 relatedCode，
-     等於「按了目前的模式」把右側相關碼建議清空，那是沒道理的副作用。 */
-  function chooseMode(ctx, mode, node) {
-    const store = ctx.store;
-    const doc = docOf(node);
-    if (store.getState().mode === mode) { closeModeMenu(ctx, doc); return; }
-    store.setMode(mode);                       // 一併關掉選單（見 state.js setMode）
-    const chip = doc.getElementById('mode-chip');
-    if (chip && typeof chip.focus === 'function') chip.focus();
+  // ---- header 的看診模式三鈕（三套版面共用同一份行為） ----
+  /* 三顆鈕是宣告式渲染的（render-shared.js 的 modeSwitchEl／syncModeSwitch），一次點擊
+     就切換，沒有任何展開動作。已經是目前模式時什麼都不做——走 setMode() 會連帶清掉
+     relatedCode，等於「按了目前的模式」把右側相關碼建議清空，那是沒道理的副作用。
+     設定 popover 的 segmented 走 `.seg-btn` 那條泛用委派，兩者狀態同源於 store.mode。 */
+  function chooseMode(ctx, mode) {
+    if (ctx.store.getState().mode === mode) return;
+    ctx.store.setMode(mode);
     announce('已切換為' + ((root.ICDRender && root.ICDRender.MODE_LABEL[mode]) || mode));
   }
 
@@ -4102,23 +4590,14 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     announce(was === null ? '目前已顯示全部部位' : '已取消部位篩選，顯示全部部位');
   }
 
-  /* 選單內的 ↑↓／Home／End 循環移動焦點（role="menu" 的鍵盤契約）。
-     回傳是否吃掉這次按鍵。 */
-  function modeMenuKey(ev) {
-    const menu = ev.target && ev.target.closest ? ev.target.closest('#mode-menu') : null;
-    if (!menu) return false;
-    const keys = ['ArrowDown', 'ArrowUp', 'Home', 'End'];
-    if (keys.indexOf(ev.key) < 0) return false;
-    const items = Array.prototype.slice.call(menu.querySelectorAll('[data-mode]'));
-    if (!items.length) return false;
-    const here = items.indexOf(ev.target.closest('[data-mode]'));
-    let next = 0;
-    if (ev.key === 'End') next = items.length - 1;
-    else if (ev.key === 'ArrowDown') next = (here + 1) % items.length;
-    else if (ev.key === 'ArrowUp') next = (here - 1 + items.length) % items.length;
-    ev.preventDefault();
-    items[next].focus();
-    return true;
+  /* 設定面板的「回復預設高度」（三套版面共用）。只清**生效版面**那一組：在 176px 窄欄
+     按下它，不該把桌機工作台調好的高度一起抹掉（分版面各記各的）。 */
+  function resetPanes(ctx) {
+    const layout = (root.ICDRender && root.ICDRender.effectiveLayout())
+      || ctx.store.getState().layout;
+    announce(ctx.store.resetPaneSizes(layout)
+      ? '已回復本版面各區塊的預設高度'
+      : '本版面各區塊都已是預設高度');
   }
 
   function activateChip(ctx, chip) {
@@ -4163,20 +4642,13 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
         && !target.closest('#settings-popover') && !target.closest('#settings-toggle')) {
         store.setSettingsOpen(false);
       }
-      // 模式選單同理（外點關閉；焦點不搶回徽章，使用者的注意力已經在別處）
-      if (store.getState().modeMenuOpen
-        && !target.closest('#mode-menu') && !target.closest('#mode-chip')) {
-        store.setModeMenuOpen(false);
-      }
-
       const chip = target.closest('.chip[data-code]');
       if (chip) { activateChip(ctx, chip); return; }
 
-      // 模式徽章與其選單：要排在 `.region-btn`／泛用 button 之前
-      const modeOpt = target.closest('#mode-menu [data-mode]');
-      if (modeOpt) { chooseMode(ctx, modeOpt.getAttribute('data-mode'), modeOpt); return; }
-      const modeChip = target.closest('#mode-chip');
-      if (modeChip) { toggleModeMenu(ctx, modeChip); return; }
+      /* header 的模式三鈕：要排在下方泛用 `.seg-btn` 那條之前——那條沒有「已是目前模式
+         就不動」的守門，也不播報。設定 popover 的 #seg-mode 仍走泛用那條。 */
+      const modeBtn = target.closest('#mode-switch [data-mode]');
+      if (modeBtn) { chooseMode(ctx, modeBtn.getAttribute('data-mode')); return; }
 
       const regionAll = target.closest('.region-all-btn');
       if (regionAll) { chooseAllRegions(ctx); return; }
@@ -4236,6 +4708,7 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
       if (btn.id === 'settings-toggle') { store.toggleSettings(); return; }
       if (btn.id === 'theme-toggle') { store.toggleTheme(); return; }
       if (btn.id === 'shelf-toggle') { store.toggleShelf(); return; }
+      if (btn.id === 'reset-panes') { resetPanes(ctx); return; }
       if (btn.id === 'cart-toggle') { if (typeof ctx.onCartToggle === 'function') ctx.onCartToggle(); return; }
       if (btn.id === 'clear-cart') { store.clearCart(); announce('已清空就診清單'); return; }
       if (btn.id === 'copy-all') { copyAll(); return; }
@@ -4267,7 +4740,6 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
           // Esc 在其他情境都會關掉開著的浮層，搜尋框裡也要一致（R2 M3）
           if (isFallbackOpen()) closeFallbackCopy();
           else if (store.getState().settingsOpen) store.setSettingsOpen(false);
-          else if (store.getState().modeMenuOpen) store.setModeMenuOpen(false);
           return;
         }
         if (ev.key === 'Enter') {
@@ -4285,11 +4757,9 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
       }
       if (ev.key === 'Escape') {
         if (isFallbackOpen()) { closeFallbackCopy(); return; }
-        if (closeModeMenu(ctx, docOf(ev.target))) return;
         if (store.getState().settingsOpen) store.setSettingsOpen(false);
         return;
       }
-      if (modeMenuKey(ev)) return;
       // 鍵盤換序（觸控裝置不觸發 HTML5 拖放，鍵盤使用者也需要換序手段；impl-plan R-5）
       const li = ev.target && ev.target.closest ? ev.target.closest('#cart li[data-code]') : null;
       if (li && ev.altKey && (ev.key === 'ArrowUp' || ev.key === 'ArrowDown')) {
@@ -4348,7 +4818,7 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     wire, copyText, openFallbackCopy, closeFallbackCopy, isFallbackOpen, announce,
     activateChip, setFeedbackDocument,
     // 1c 置頂時 main document 的委派搆不到側欄，render-dock.js 要用同一份實作代打
-    toggleModeMenu, chooseMode, closeModeMenu, chooseAllRegions, modeMenuKey,
+    chooseMode, chooseAllRegions, resetPanes,
   };
 })(typeof self !== 'undefined' ? self : this);
 

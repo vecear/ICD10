@@ -28,7 +28,9 @@
     layout: ['settings'],
     shelfOpen: ['shelf', 'settings'],
     settingsOpen: ['settings'],
-    modeMenuOpen: ['header'],
+    // 高度本身由 update() 末尾的 applyPanes() 統一處理；這裡只同步設定面板的
+    // 「回復預設高度」可按狀態（不寫這條會退回全量重繪，每拖一次整片重畫）
+    paneSizes: ['settings'],
   };
 
   function mount(host, ctx) {
@@ -39,7 +41,7 @@
     // ── header ──────────────────────────────────────────────────────────
     const header = R.el('header', 'app-header');
     header.append(R.el('div', 'app-brand', 'ICD-10'));
-    // 模式徽章＝可操作的三選一（使用者要求「在圈起來的地方直接切換門急診外科」）
+    // 看診模式三鈕直接並排在 header（1440 空間充足，用全名、不壓縮）
     refs.modeSwitch = R.modeSwitchEl(false);
     header.appendChild(refs.modeSwitch);
 
@@ -136,6 +138,8 @@
     aside.appendChild(cartHead);
 
     const cartBox = R.el('div', 'cart-box');
+    cartBox.id = 'cart-box';          // 分隔條的 aria-controls 指向它
+    refs.cartBox = cartBox;
     refs.cart = R.el('ul');
     refs.cart.id = 'cart';
     refs.cartEmpty = R.el('div', 'cart-empty', '點左側任何代碼加入；第一碼即主診斷，拖曳可調整順序。');
@@ -170,12 +174,41 @@
     wide.appendChild(bench);
     host.appendChild(wide);
 
+    /* ── 可拖曳的窗格分隔條（功能與 1b／1c 統一） ────────────────────────────
+       1a 是三欄版面，垂直方向只有兩條分界真的值得可調，其餘刻意不做：
+         中欄 搜尋結果↓  命中幾十筆時會把主訴面板整片推到摺線下，壓低它就能邊看結果邊選面板
+         右欄 清單↓      清單長了會把「貼入 HIS」擠出視野，壓低它讓複製鈕留在視線內
+       不做的：header／常用列是固定高度的控制列；右欄的「相關疾病」排在最後，拉它只是
+       改自己的長度（欄本身會捲動），拖了等於沒拖。三欄的**寬度**不在這次範圍內。
+       這兩欄各自會捲動（.workbench > * { overflow-y:auto }），不是固定高度的 flex 盒，
+       所以走 resize.js 的 scroll 模式：上限＝欄高扣掉 reserve，保證同欄其他內容還看得到。 */
+    const paneOpts = { layout: 'wide', store: ctx.store };
+    refs.paneGroups = [
+      root.ICDResize.createGroup(Object.assign({
+        container: sheet,
+        reserve: 220,
+        panes: [{
+          key: 'results', el: refs.results, label: '搜尋結果區', sign: 1, min: 60,
+          visible: () => !refs.resultsCard.hidden,
+        }],
+      }, paneOpts)),
+      root.ICDResize.createGroup(Object.assign({
+        container: aside,
+        reserve: 260,
+        panes: [{
+          key: 'cart', el: refs.cartBox, label: '就診清單區', sign: 1, min: 60,
+          visible: () => ctx.store.getState().cart.length > 0,
+        }],
+      }, paneOpts)),
+    ];
+    const applyPanes = () => { for (const g of refs.paneGroups) g.applyAll(); };
+
     // ── 更新器 ──────────────────────────────────────────────────────────
     const U = {};
 
     U.header = () => {
       const s = ctx.store.getState();
-      R.syncModeSwitch(wide, ctx, false);
+      R.syncModeSwitch(wide, ctx);
       refs.panelsTitle.textContent = R.PANELS_TITLE[s.mode];
       refs.modeHint.textContent = R.MODE_HINT[s.mode];
     };
@@ -299,6 +332,8 @@
         names = ALL.filter((n) => set.has(n));
       }
       for (const name of names) U[name]();
+      // 內容變了（搜尋結果出現、清單加碼）就得重新夾一次高度，見 render-dock.js 同一段註解
+      applyPanes();
     }
 
     return { root: wide, refs, update };

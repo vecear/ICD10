@@ -37,6 +37,17 @@
     blocked: '瀏覽器擋下置頂視窗；可改用瀏覽器「一律位於最上層」',
     unsupported: '此瀏覽器不支援置頂小視窗；改用 Edge／Chrome 116 以上',
   };
+  /* 成功那一則是「一次性的操作說明」，看過就沒用了，卻在 176px 下永久占掉兩行（約 27px）；
+     密度原則要求可回收的常駐提示要自己消失。失敗那兩則相反：它們是使用者還沒解決的問題，
+     講的是下一步該怎麼做，必須留著，不設逾時。 */
+  const PIN_NOTE_TTL = 6000;
+
+  /* 置頂鈕的 title。≤239px 時可見文字被藏起來，可讀名稱只剩 title，所以它得自己說完
+     「現在是什麼狀態、按下去會怎樣」，不能停在固定一句。 */
+  const PIN_TITLE = {
+    off: '置頂：開啟浮動小視窗，永遠顯示在最上層',
+    on: '置頂中：點一下關閉浮動小視窗',
+  };
 
   function pinIcon() {
     const span = document.createElement('span');
@@ -96,9 +107,11 @@
     layout: ['settings'],
     shelfOpen: [],
     settingsOpen: ['settings'],
-    modeMenuOpen: ['header'],
     cartOpen: ['cart'],
     pinned: ['pin'],
+    // 窗格高度本身由 update() 末尾的 paneGroup.applyAll() 統一處理，這裡只需同步
+    // 設定面板裡「回復預設高度」的可按狀態——不寫這條會退回全量重繪，每拖一次整片重畫
+    paneSizes: ['settings'],
   };
 
   function mount(host, ctx) {
@@ -106,7 +119,12 @@
     const dock = R.el('div');
     dock.id = 'layout-dock';
 
-    // ── header：搜尋 → 模式徽章／置頂／設定 → 提示 → 設定 popover ────────────
+    /* ── header：搜尋 →（模式三鈕＋置頂＋設定 同一列）→ 提示 → 設定 popover ──────
+       密度原則（docs/dense-ui-principle.md）：模式三鈕不再等寬撐滿，縮成跟文字一樣寬，
+       與置頂／設定併成同一列，header 從三列變兩列。176px 下的寬度帳（可用 164px）：
+       三顆短標籤鈕約 89 ＋ 三個 3px 間距 ＋ 置頂 ＋ 設定；置頂在 ≤239px 時只留 pin icon
+       （dock.css 的 media query），完整說明留在 title——那是唯一塞不下的一項，
+       算式與取捨見 docs/dense-ui-principle.md。 */
     const head = R.el('div', 'dock-head');
 
     const search = document.createElement('input');
@@ -119,15 +137,21 @@
     refs.search = search;
     head.appendChild(search);
 
+    /* 模式三鈕＋置頂＋設定同一列。三套版面同一份行為，只有標籤與尺寸用短版塞進 176px；
+       模式鈕在 1c 是 fit-content（dock.css 的 .mode-btn），空出來的寬度全部給右側的
+       spacer 吸收，置頂與設定仍靠右對齊。 */
     const tools = R.el('div', 'dock-tools');
-    // 模式徽章＝可操作的三選一（三套版面同一份行為，只有標籤用短版塞進 176px）
     refs.modeSwitch = R.modeSwitchEl(true);
+    tools.appendChild(refs.modeSwitch);
+
     const pin = R.el('button', 'dock-pin');
     pin.type = 'button';
     pin.id = 'pin-toggle';
-    pin.title = '永遠置頂顯示（浮動小視窗）';
+    pin.title = PIN_TITLE.off;
     pin.setAttribute('aria-pressed', 'false');
-    refs.pinLabel = R.el('span', null, '置頂');
+    /* 文字掛 .dock-pin-label：≤239px 時由 CSS 藏起來（那時可讀名稱改由 title 提供，
+       所以 title 必須跟著 pinned 狀態走，見 U.pin）。 */
+    refs.pinLabel = R.el('span', 'dock-pin-label', '置頂');
     pin.append(pinIcon(), refs.pinLabel);
     refs.pin = pin;
     const settingsToggle = R.el('button', 'btn btn-secondary', '設定');
@@ -135,7 +159,7 @@
     settingsToggle.id = 'settings-toggle';
     settingsToggle.setAttribute('aria-expanded', 'false');
     settingsToggle.setAttribute('aria-haspopup', 'true');
-    tools.append(refs.modeSwitch, R.el('span', 'dock-spacer'), pin, settingsToggle);
+    tools.append(R.el('span', 'dock-spacer'), pin, settingsToggle);
     head.appendChild(tools);
 
     refs.pinNote = R.el('div', 'dock-pin-note');
@@ -223,16 +247,56 @@
 
     host.appendChild(dock);
 
+    /* ── 可拖曳的窗格分隔條（使用者要求：各窗格高度可手動調整） ─────────────
+       1c 是使用者提出這個需求的版面，四條分界裡有三條可調：
+         部位區↓   兩欄 grid 會隨模式長到十幾列，壓小它就把空間讓給主訴面板
+         相關疾病↑ 預設最高 170px，建議多時想看全、看診中想收窄
+         清單↑     預設最高 210px，碼多時要能拉高
+       header 那條**刻意不做**：搜尋框＋（模式三鈕／置頂／設定）那一列是固定內容，拉高只是留白，
+       拉低就會把控制項裁掉——沒有意義的分隔條只會製造誤觸（見 .review/r6-resizable.md）。
+       捲動內容區（.dock-scroll）是彈性區，吸收其他窗格讓出／占走的空間，本身不設高度。 */
+    refs.paneGroup = root.ICDResize.createGroup({
+      layout: 'dock',
+      store: ctx.store,
+      container: dock,
+      flex: body,
+      flexMin: 90,
+      panes: [
+        { key: 'regions', el: refs.pills, label: '部位區', sign: 1, min: 44 },
+        {
+          key: 'related', el: refs.related, label: '相關疾病區', sign: -1, min: 48,
+          visible: () => !refs.relatedWrap.hidden,
+        },
+        {
+          key: 'cart', el: refs.cartInline, label: '清單區', sign: -1, min: 48,
+          visible: () => !refs.cartInline.hidden,
+        },
+      ],
+    });
+
     // ── Document Picture-in-Picture（置頂小視窗） ───────────────────────
     let pipWin = null;
     let pinNote = '';
+    let noteTimer = null;
     /* 這套 controller 是否還是生效版面。app.js 換版面時會呼叫 teardown() 把它設為 false，
        此後任何遲來的 pagehide／requestWindow 都不得再動 #app（R2 C2）。 */
     let alive = true;
 
-    function setNote(text) {
+    /* transient＝這則提示看過就該讓出版面（只有「已開啟」那則是）。逾時後把提示清掉並重畫，
+       header 就縮回一列。任何新的 setNote() 都會先取消上一個逾時，不會清掉後來那一則。 */
+    function setNote(text, transient) {
+      clearTimeout(noteTimer);
+      noteTimer = null;
       pinNote = text;
       U.pin();
+      if (transient && text) {
+        noteTimer = setTimeout(() => {
+          noteTimer = null;
+          if (pinNote !== text) return;      // 期間換了別的提示，不要蓋掉
+          pinNote = '';
+          U.pin();
+        }, PIN_NOTE_TTL);
+      }
     }
 
     /* 樣式全部 inline 在單一 <style> 裡，複製節點過去即可（連 @font-face 的 data: URI 一起）。
@@ -270,11 +334,8 @@
     }
 
     function onPipDocKeyDown(ev) {
-      if (root.ICDInteractions.modeMenuKey(ev)) return;      // 選單內 ↑↓／Home／End 移動焦點
       if (ev.key !== 'Escape') return;
       if (root.ICDInteractions.isFallbackOpen()) { root.ICDInteractions.closeFallbackCopy(); return; }
-      // 小視窗裡的 #mode-chip 不在主文件，關閉後的焦點回歸要指名這個文件
-      if (root.ICDInteractions.closeModeMenu(ctx, ev.target && ev.target.ownerDocument)) return;
       if (ctx.store.getState().settingsOpen) ctx.store.setSettingsOpen(false);
     }
 
@@ -295,6 +356,8 @@
       else if (dock.parentNode) dock.parentNode.removeChild(dock);
       ctx.store.setPinned(false);
       setNote('');
+      // 小視窗與主視窗高度不同，窗格高度要照新的可用空間重新夾一次
+      if (stillMounted) refs.paneGroup.applyAll();
     }
 
     function closePip() {
@@ -327,8 +390,12 @@
         w.document.addEventListener('keydown', onPipDocKeyDown);
         root.ICDInteractions.setFeedbackDocument(w.document);
         w.addEventListener('pagehide', restoreFromPip);
+        // 小視窗自己的縮放不會經過主視窗；窗格高度要跟著重新夾（ResizeObserver 跨文件時
+        // 未必送得到，這條是明確的第二層保險）
+        w.addEventListener('resize', () => refs.paneGroup.applyAll());
         ctx.store.setPinned(true);
-        setNote(PIN_NOTE.open);
+        setNote(PIN_NOTE.open, true);
+        refs.paneGroup.applyAll();
       }).catch(() => { setNote(PIN_NOTE.blocked); });
     }
 
@@ -338,6 +405,8 @@
        時跑完，dock 才會正常回到 #app 再由 ICDRender.clear() 移除。 */
     function teardown() {
       closePip();
+      clearTimeout(noteTimer);      // 逾時若在版面換掉後才到，U.pin() 會去動已卸下的節點
+      noteTimer = null;
       alive = false;
     }
 
@@ -376,19 +445,12 @@
         && !target.closest('#settings-popover') && !target.closest('#settings-toggle')) {
         store.setSettingsOpen(false);
       }
-      if (store.getState().modeMenuOpen
-        && !target.closest('#mode-menu') && !target.closest('#mode-chip')) {
-        store.setModeMenuOpen(false);
-      }
-
       const chip = target.closest('.chip[data-code]');
       if (chip) { addFromChip(chip); return; }
-      /* 模式徽章／「全部」鈕：規則共用 interactions.js 的同一份實作（那裡的 docOf()
-         會自己認出這是 PiP 文件），這裡只負責在主文件委派搆不到時把事件轉過去。 */
-      const modeOpt = target.closest('#mode-menu [data-mode]');
-      if (modeOpt) { root.ICDInteractions.chooseMode(ctx, modeOpt.getAttribute('data-mode'), modeOpt); return; }
-      const modeChip = target.closest('#mode-chip');
-      if (modeChip) { root.ICDInteractions.toggleModeMenu(ctx, modeChip); return; }
+      /* 模式三鈕／「全部」鈕：規則共用 interactions.js 的同一份實作，這裡只負責在
+         主文件委派搆不到時把事件轉過去。模式鈕要排在下方泛用 `.seg-btn` 那條之前。 */
+      const modeBtn = target.closest('#mode-switch [data-mode]');
+      if (modeBtn) { root.ICDInteractions.chooseMode(ctx, modeBtn.getAttribute('data-mode')); return; }
       const regionAll = target.closest('.region-all-btn');
       if (regionAll) { root.ICDInteractions.chooseAllRegions(ctx); return; }
       const region = target.closest('.region-btn');
@@ -438,6 +500,7 @@
       if (!btn) return;
       if (btn.id === 'settings-toggle') store.toggleSettings();
       else if (btn.id === 'theme-toggle') store.toggleTheme();
+      else if (btn.id === 'reset-panes') root.ICDInteractions.resetPanes(ctx);
       else if (btn.id === 'clear-cart') { store.clearCart(); announce('已清空就診清單'); }
       else if (btn.id === 'copy-all') copyAll();
       else if (btn.id === 'db-retry') { announce('正在重新載入全庫…'); ctx.data.retryDb(); }
@@ -490,7 +553,7 @@
     // ── 更新器 ──────────────────────────────────────────────────────────
     const U = {};
 
-    U.header = () => R.syncModeSwitch(dock, ctx, true);
+    U.header = () => R.syncModeSwitch(dock, ctx);
 
     U.searchValue = () => {
       const s = ctx.store.getState();
@@ -586,6 +649,7 @@
       refs.pin.setAttribute('aria-pressed', s.pinned ? 'true' : 'false');
       refs.pin.classList.toggle('is-on', s.pinned);       // C1-2：不倚賴單一屬性選擇器
       refs.pinLabel.textContent = s.pinned ? '置頂中' : '置頂';
+      refs.pin.title = s.pinned ? PIN_TITLE.on : PIN_TITLE.off;
       refs.pinNote.textContent = pinNote;
       refs.pinNote.hidden = !pinNote;
     };
@@ -613,6 +677,9 @@
         names = ALL.filter((n) => set.has(n));
       }
       for (const name of names) U[name]();
+      /* 窗格高度不進 DEPS，一律在每次重繪後重跑：內容變了（換模式部位變多、相關碼出現、
+         清單展開）原本合法的高度就可能超出可用空間，得當場重新夾一次。成本是量三個元素。 */
+      refs.paneGroup.applyAll();
     }
 
     return { root: dock, refs, update, teardown };

@@ -77,6 +77,7 @@ def reset(page):
         s.setSettingsOpen(false);
         s.setCartOpen(true);
         s.setTheme('light');
+        s.resetPaneSizes();      // 窗格高度會寫 localStorage，殘留會讓別條測試量到上一條拖出來的高度
         s.setState({ favs: [], recent: [], expanded: {}, copied: false });
     }""")
     page.fill("#search", "")
@@ -424,58 +425,143 @@ def test_settings_popover_fits_and_switches_mode(pg):
 
     pg.click("#mode-er")
     expect(pg.locator("#settings-popover")).to_be_hidden()
-    expect(pg.locator("#mode-chip")).to_have_text("急診")
+    expect(pg.locator('#mode-switch [data-mode="emergency"]')).to_have_attribute("aria-pressed", "true")
     assert pg.get_attribute("body", "data-mode") == "emergency"
 
 
-def test_mode_chip_menu_switches_mode(pg):
-    """模式徽章本身可切換：點它就地展開三選一（1a／1b／1c 同一份行為）。
+def test_mode_buttons_switch_mode(pg):
+    """三顆模式鈕直接並排，一次點擊就切換（1a／1b／1c 同一份行為）。
 
-    1c 專屬的硬性條件：選單展開時 176px 下仍不得水平溢出、選項不得跑出視窗。
+    1c 專屬的硬性條件：176px 下三顆鈕全部看得見且點得到、不得水平溢出，也不得把
+    「置頂」與「設定」擠掉。三鈕與置頂／設定同列的版面性質由
+    test_header_controls_share_one_row 守，這裡只管行為。
     """
-    chip = pg.locator("#mode-chip")
-    menu = pg.locator("#mode-menu")
-    expect(chip).to_have_attribute("aria-haspopup", "menu")
-    expect(chip).to_have_attribute("aria-expanded", "false")
-    expect(menu).to_be_hidden()
-
-    chip.click()
-    expect(chip).to_have_attribute("aria-expanded", "true")
-    expect(menu).to_be_visible()
-    opts = menu.locator("[data-mode]")
-    expect(opts).to_have_count(3)
+    switch = pg.locator("#mode-switch")
+    btns = switch.locator("[data-mode]")
+    expect(btns).to_have_count(3)
+    assert pg.locator("#mode-menu").count() == 0, "已改成三鈕並排，不得再有展開的選單"
     # 176px 用短標籤，完整名稱留在 title
-    expect(menu.locator('[data-mode="outpatient"]')).to_have_text("門診")
-    expect(menu.locator('[data-mode="outpatient"]')).to_have_attribute("title", "內科門診")
-    expect(menu.locator('[data-mode="outpatient"]')).to_have_attribute("aria-checked", "true")
-    for i in range(opts.count()):
-        box = opts.nth(i).bounding_box()
-        assert box["x"] >= 0 and box["x"] + box["width"] <= DOCK["width"] + 0.5, f"選項溢出：{box}"
-    assert_no_hscroll(pg, "模式選單展開")
-    assert overflowing_elements(pg) == [], "模式選單展開時有元素破版"
+    expect(switch.locator('[data-mode="outpatient"]')).to_have_text("門診")
+    expect(switch.locator('[data-mode="outpatient"]')).to_have_attribute("title", "看診模式：內科門診")
+    expect(switch.locator('[data-mode="outpatient"]')).to_have_attribute("aria-pressed", "true")
 
-    menu.locator('[data-mode="surg"]').click()
-    expect(menu).to_be_hidden()
+    for i in range(btns.count()):
+        box = btns.nth(i).bounding_box()
+        assert box is not None and box["width"] > 0, f"第 {i} 顆模式鈕量不到（被擠掉了）：{box}"
+        assert box["x"] >= 0 and box["x"] + box["width"] <= DOCK["width"] + 0.5, f"模式鈕溢出：{box}"
+    # 三顆鈕在同一列（並排，不是堆疊）
+    tops = [btns.nth(i).bounding_box()["y"] for i in range(btns.count())]
+    assert max(tops) - min(tops) < 1, f"三顆鈕沒有並排在同一列：{tops}"
+    # 置頂與設定沒有被擠掉，且在模式列的下一列
+    for sel in ("#pin-toggle", "#settings-toggle"):
+        b = pg.locator(sel).bounding_box()
+        assert b["x"] + b["width"] <= DOCK["width"] + 0.5, f"{sel} 被擠出視窗：{b}"
+        assert b["y"] >= max(tops) - 0.5, f"{sel} 應在模式列同列或下方：{b}"
+    assert_no_hscroll(pg, "三顆模式鈕並排")
+    assert overflowing_elements(pg) == [], "模式列有元素破版"
+
+    # 一次點擊即切換（不必先展開任何東西）
+    switch.locator('[data-mode="surg"]').click()
     assert pg.get_attribute("body", "data-mode") == "surg"
-    expect(chip).to_have_text("外科")
+    expect(switch.locator('[data-mode="surg"]')).to_have_attribute("aria-pressed", "true")
+    expect(switch.locator('[data-mode="outpatient"]')).to_have_attribute("aria-pressed", "false")
+    assert "is-on" in switch.locator('[data-mode="surg"]').get_attribute("class")
+    assert_no_hscroll(pg, "切到外科")
 
     # 兩條動線同步：設定 popover 裡的 segmented 也要跟著選中
     open_settings(pg)
     expect(pg.locator("#mode-surg")).to_have_attribute("aria-pressed", "true")
     pg.keyboard.press("Escape")
+    # 反向：popover 切了，header 三鈕也要跟著變
+    set_mode(pg, "mode-op")
+    expect(switch.locator('[data-mode="outpatient"]')).to_have_attribute("aria-pressed", "true")
 
-    # Esc 關閉並把焦點還給徽章
-    chip.click()
-    expect(menu).to_be_visible()
-    pg.keyboard.press("Escape")
-    expect(menu).to_be_hidden()
-    assert pg.evaluate("() => document.activeElement.id") == "mode-chip"
 
-    # 點外面關閉
-    chip.click()
-    expect(menu).to_be_visible()
-    pg.click("#region-pills")
-    expect(menu).to_be_hidden()
+def test_header_controls_share_one_row(pg):
+    """密度原則（docs/dense-ui-principle.md）：模式三鈕＋置頂＋設定在**同一列**。
+
+    使用者原話：「我希望這些按鈕只佔一列就好　門急診外科的按鈕不用這麼寬　緊縮跟文字
+    一樣寬就好　這個介面的中心原則就是在有限的版面塞入最大量的資訊」。
+
+    這條測試守三件事，任何一件退回去都會紅：
+      1. 五個控制項在同一列（垂直中心線一致）、且都在搜尋框那一列之下；
+      2. 模式鈕是文字寬，不是等寬撐滿窄欄；
+      3. 176px 下不水平溢出，置頂與設定沒有被擠出視窗，也沒有任何一個文字被裁掉。
+    """
+    sels = ('#mode-switch [data-mode="outpatient"]', '#mode-switch [data-mode="emergency"]',
+            '#mode-switch [data-mode="surg"]', "#pin-toggle", "#settings-toggle")
+    boxes = {s: pg.locator(s).bounding_box() for s in sels}
+    assert all(b and b["width"] > 0 for b in boxes.values()), f"有控制項量不到（被擠掉了）：{boxes}"
+
+    centers = {k: round(b["y"] + b["height"] / 2, 1) for k, b in boxes.items()}
+    assert max(centers.values()) - min(centers.values()) <= 1, f"五個控制項不在同一列：{centers}"
+
+    s_box = pg.locator("#search").bounding_box()
+    for k, b in boxes.items():
+        assert b["y"] >= s_box["y"] + s_box["height"] - 0.5, f"{k} 不在搜尋框下方那一列：{b}"
+
+    # 模式鈕＝文字寬。等寬撐滿時整條 mode-switch ＝ 可用寬（164），文字寬時約 89
+    avail = DOCK["width"] - 12
+    switch = pg.locator("#mode-switch").bounding_box()
+    assert switch["width"] <= avail * 0.65, \
+        f"模式列仍在撐滿窄欄（{switch['width']} / 可用 {avail}），沒有縮成文字寬"
+    op = boxes['#mode-switch [data-mode="outpatient"]']
+    assert op["width"] <= 40, f"「門診」兩個字不該佔到 {op['width']}px"
+
+    # 置頂與設定排在模式列右側，完整落在窄欄內
+    for k in ("#pin-toggle", "#settings-toggle"):
+        b = boxes[k]
+        assert b["x"] >= 0 and b["x"] + b["width"] <= DOCK["width"] - 6 + 0.5, f"{k} 被擠出視窗：{b}"
+    assert boxes["#pin-toggle"]["x"] >= switch["x"] + switch["width"], "置頂應排在模式列右側"
+    assert boxes["#settings-toggle"]["x"] > boxes["#pin-toggle"]["x"], "設定應排在置頂右側"
+
+    # 誰的文字都不准被容器裁掉（置頂在 176px 是整顆藏起文字，不是裁一半，見下一條測試）
+    clipped = pg.evaluate("""() => ['#mode-switch', '#pin-toggle', '#settings-toggle'].filter((s) => {
+        const e = document.querySelector(s);
+        return e && e.scrollWidth > e.clientWidth + 1;
+    })""")
+    assert clipped == [], f"控制項文字被裁切：{clipped}"
+
+    # header 收在兩列（搜尋 28 ＋ 控制列 24 ＋ 內距／間距）；合併前是三列 97px
+    head = pg.locator(".dock-head").bounding_box()
+    assert head["height"] <= 72, f"header 沒有收成兩列：{head['height']}px"
+
+    assert_no_hscroll(pg, "header 併成一列")
+    assert overflowing_elements(pg) == [], "header 併列後有元素破版"
+
+
+def test_pin_label_is_the_only_text_dropped_and_only_when_narrowest(browser_ctx, page_url):
+    """置頂那兩個字是整列唯一塞不下、因此被讓掉的東西（算式見 dock.css 的 media query）。
+
+    砍文字是最後手段，所以這條測試把界線釘死：
+      * 176px：置頂只留 icon，但完整說明必須留在 title，狀態另有 aria-pressed；
+      * 模式三鈕與「設定」的文字**任何寬度都不准砍**；
+      * 使用者實際在用的 PiP 寬度（約 565px）文字必須回來。
+    """
+    page = browser_ctx.new_page()
+    page.goto(page_url)
+    page.wait_for_selector('body[data-ready="1"]')
+    page.evaluate("() => window.ICDApp.store.setLayout('dock')")
+    page.wait_for_selector('body[data-layout="dock"]')
+
+    page.set_viewport_size({"width": 176, "height": 900})
+    page.wait_for_timeout(120)
+    expect(page.locator("#pin-toggle .dock-pin-label")).to_be_hidden()
+    expect(page.locator("#pin-toggle .icn")).to_be_visible()
+    assert "置頂" in page.get_attribute("#pin-toggle", "title")
+    expect(page.locator("#pin-toggle")).to_have_attribute("aria-pressed", "false")
+    # 沒被砍的那些
+    expect(page.locator("#settings-toggle")).to_have_text("設定")
+    for key, label in (("outpatient", "門診"), ("emergency", "急診"), ("surg", "外科")):
+        expect(page.locator(f'#mode-switch [data-mode="{key}"]')).to_have_text(label)
+    assert_no_hscroll(page, "176px 置頂只留 icon")
+
+    page.set_viewport_size({"width": 565, "height": 900})
+    page.wait_for_timeout(120)
+    expect(page.locator("#pin-toggle .dock-pin-label")).to_be_visible()
+    expect(page.locator("#pin-toggle .dock-pin-label")).to_have_text("置頂")
+    assert_no_hscroll(page, "565px 置頂文字回來")
+    page.close()
 
 
 def test_region_all_button(pg):
@@ -536,6 +622,65 @@ def test_pin_unsupported_shows_note(browser_ctx, page_url):
     assert page.evaluate("() => window.ICDApp.store.getState().pinned") is False
     assert errors == [], f"置頂降級不得丟例外：{errors}"
     assert_no_hscroll(page, "置頂提示顯示後")
+    page.close()
+
+
+def test_pin_note_success_auto_dismisses_failure_stays(browser_ctx, page_url):
+    """一次性說明不得永久占版面；還沒解決的問題必須留著。
+
+    「已開啟置頂小視窗，可拖到 HIS 旁邊」是操作說明，看過就沒用，卻在 176px 下佔兩行
+    （約 27px）——密度原則要求它自己消失。「不支援／被擋下」相反：那是使用者還沒排除的
+    障礙，講的是下一步怎麼做，任何時候都不准自動消失。
+    """
+    # (a) 失敗提示：不會自己消失
+    blocked = browser_ctx.new_page()
+    blocked.add_init_script(
+        "Object.defineProperty(window, 'documentPictureInPicture',"
+        " { value: undefined, configurable: true });"
+    )
+    blocked.goto(page_url)
+    blocked.wait_for_selector('body[data-ready="1"]')
+    blocked.evaluate("() => window.ICDApp.store.setLayout('dock')")
+    blocked.wait_for_selector('body[data-layout="dock"]')
+    blocked.click("#pin-toggle")
+    expect(blocked.locator("#pin-note")).to_be_visible()
+    blocked.wait_for_timeout(8000)          # 比成功提示的存活時間長
+    expect(blocked.locator("#pin-note")).to_be_visible()
+    assert "不支援" in blocked.locator("#pin-note").inner_text()
+    blocked.close()
+
+    # (b) 成功提示：先出現、再自己消失，header 縮回兩列
+    page = browser_ctx.new_page()
+    page.goto(page_url)
+    page.wait_for_selector('body[data-ready="1"]')
+    page.evaluate("() => window.ICDApp.store.setLayout('dock')")
+    page.wait_for_selector('body[data-layout="dock"]')
+    if not page.evaluate(PIP_PROBE):
+        page.close()
+        pytest.skip("此瀏覽器沒有 Document Picture-in-Picture，降級路徑在 (a) 已驗")
+
+    before = set(browser_ctx.pages)
+    page.click("#pin-toggle")
+    page.wait_for_timeout(1500)
+    fresh = [p for p in browser_ctx.pages if p not in before]
+    assert len(fresh) == 1, "沒有開出置頂小視窗"
+    pip = fresh[0]
+
+    note = pip.locator("#pin-note")
+    expect(note).to_be_visible()            # 提示先看得到
+    assert "已開啟" in note.inner_text()
+    tall = pip.locator(".dock-head").bounding_box()["height"]
+
+    expect(note).to_be_hidden(timeout=12000)    # 逾時後自己讓出版面
+    short = pip.locator(".dock-head").bounding_box()["height"]
+    assert short < tall, f"提示消失後 header 沒有縮回去：{tall} → {short}"
+    # 消失的只有提示：小視窗還在、還是置頂狀態、側欄還在小視窗裡
+    assert pip.evaluate("() => !!document.getElementById('layout-dock')") is True
+    assert page.evaluate("() => window.ICDApp.store.getState().pinned") is True
+    expect(pip.locator("#pin-toggle")).to_have_attribute("aria-pressed", "true")
+
+    pip.close()
+    page.wait_for_timeout(600)
     page.close()
 
 
@@ -730,7 +875,7 @@ def test_pip_close_after_layout_switch_does_not_remount_dock(browser_ctx, page_u
     )
     assert layouts == ["layout-wide"], f"#app 同時掛了多套版面：{layouts}"
     assert duplicate_ids(page) == [], f"出現重複 id：{duplicate_ids(page)}"
-    assert page.locator("#mode-chip").count() == 1
+    assert page.locator("#mode-switch").count() == 1
     page.evaluate("() => window.ICDApp.store.setMode('outpatient')")
     page.wait_for_timeout(300)
     assert page.locator(".chip--warn").count() == 0, "門診模式下不得殘留可點的急診紅旗"
@@ -871,3 +1016,180 @@ def test_copy_matches_what_the_dock_shows_in_every_format(pg):
 
     open_settings(pg)
     pg.click('#seg-format [data-format="lines"]')
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 窗格高度手動調整（使用者原話：「我希望各個窗格的高度我可以手動調整」）
+# 1c 是提出需求的版面：部位區、相關疾病、清單三條分界可調；header 那條刻意不做。
+# ══════════════════════════════════════════════════════════════════════════
+def pane_h(page, selector):
+    return page.evaluate("(sel) => document.querySelector(sel).getBoundingClientRect().height", selector)
+
+
+def sep_for(page, pane_id):
+    return page.locator(f'.pane-resizer[aria-controls="{pane_id}"]')
+
+
+def drag_pane(page, pane_id, dy):
+    box = page.locator(f'.pane-resizer[aria-controls="{pane_id}"]').bounding_box()
+    x, y = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
+    page.mouse.move(x, y)
+    page.mouse.down()
+    page.mouse.move(x, y + dy, steps=6)
+    page.mouse.up()
+    page.wait_for_timeout(150)
+
+
+def with_code(page):
+    """加一個碼：相關疾病區與清單區（連同它們的分隔條）才會出現。"""
+    page.locator('#dock-panels .chip[data-code]:not(.cat)').first.click()
+    page.wait_for_timeout(250)
+
+
+def test_pane_resizers_present_with_aria(pg):
+    """三條分隔條：部位區永遠在，相關疾病與清單有內容才出現（沒東西可調就不給假的線）。"""
+    assert pg.locator(".pane-resizer").count() == 3
+    expect(sep_for(pg, "region-pills")).to_be_visible()
+    expect(sep_for(pg, "related")).to_be_hidden()
+    expect(sep_for(pg, "cart-inline")).to_be_hidden()
+
+    with_code(pg)
+    for pane_id in ("region-pills", "related", "cart-inline"):
+        sep = sep_for(pg, pane_id)
+        expect(sep).to_be_visible()
+        assert sep.get_attribute("role") == "separator"
+        assert sep.get_attribute("aria-orientation") == "horizontal"
+        assert sep.get_attribute("tabindex") == "0"
+        assert (sep.get_attribute("aria-label") or "").endswith("高度")
+        now = int(sep.get_attribute("aria-valuenow"))
+        assert int(sep.get_attribute("aria-valuemin")) <= now <= int(sep.get_attribute("aria-valuemax"))
+    # 分隔條要在它負責的窗格旁邊：部位區在上（往下拖變高）、清單在下（往上拖變高）
+    assert sep_for(pg, "region-pills").bounding_box()["y"] > pg.locator("#region-pills").bounding_box()["y"]
+    assert sep_for(pg, "cart-inline").bounding_box()["y"] < pg.locator("#cart-inline").bounding_box()["y"]
+
+
+def test_pane_drag_and_keyboard(pg):
+    with_code(pg)
+    before = pane_h(pg, "#region-pills")
+    drag_pane(pg, "region-pills", -50)
+    after = pane_h(pg, "#region-pills")
+    assert after < before - 30, f"部位區沒有被拖小：{before} → {after}"
+    assert pg.evaluate("() => window.ICDApp.store.paneSizeFor('dock', 'regions')") == round(after)
+    # 部位區讓出來的空間要真的給捲動內容區（不是留白，也不是把畫面撐出視窗）
+    assert pane_h(pg, ".dock-scroll") > 0
+    assert_no_hscroll(pg, "拖小部位區後")
+
+    cart_before = pane_h(pg, "#cart-inline")
+    drag_pane(pg, "cart-inline", -60)
+    assert pane_h(pg, "#cart-inline") > cart_before + 30, "清單區往上拖應該變高"
+    assert_no_hscroll(pg, "拉高清單區後")
+
+    sep = sep_for(pg, "region-pills")
+    sep.focus()
+    h0 = pane_h(pg, "#region-pills")
+    sep.press("ArrowDown")
+    pg.wait_for_timeout(80)
+    assert pane_h(pg, "#region-pills") == h0 + 16, "方向鍵一次調 16px"
+    sep.press("ArrowUp")
+    pg.wait_for_timeout(80)
+    assert pane_h(pg, "#region-pills") == h0
+
+
+@pytest.mark.parametrize("theme", ["light", "dark"])
+def test_pane_resize_keeps_no_horizontal_overflow(pg, theme):
+    """176px 的硬性規則：任何高度組合下都不得水平捲動（部位區長出捲軸時最容易破）。"""
+    pg.evaluate("(t) => window.ICDApp.store.setTheme(t)", theme)
+    with_code(pg)
+    search(pg, "急性")
+    for pane_id, dy in (("region-pills", -60), ("related", -80), ("cart-inline", -70), ("region-pills", 400)):
+        drag_pane(pg, pane_id, dy)
+        assert_no_hscroll(pg, f"{theme}／拖 {pane_id} {dy}")
+        bad = overflowing_elements(pg)
+        assert not bad, f"{theme}／拖 {pane_id} 後文字溢出：{bad}"
+    # 部位區被拖到長出捲軸時仍要維持兩欄（單欄＝一半的部位要捲才看得到）
+    grid = pg.evaluate("() => getComputedStyle(document.getElementById('region-pills')).gridTemplateColumns")
+    assert len(grid.split()) == 2, f"部位區長出捲軸後掉成 {grid}"
+    pg.evaluate("() => window.ICDApp.store.setTheme('light')")
+
+
+def test_pane_cannot_be_dragged_away(pg):
+    """拖到極限：窗格不得消失，捲動內容區也不得被吃光。"""
+    with_code(pg)
+    drag_pane(pg, "region-pills", -900)
+    assert pane_h(pg, "#region-pills") >= 44, "部位區被拖沒了"
+    expect(pg.locator("#region-pills .region-btn").first).to_be_visible()
+
+    drag_pane(pg, "region-pills", 2000)
+    assert pane_h(pg, ".dock-scroll") >= 80, "部位區吃光了主訴面板的空間"
+    expect(pg.locator("#copy-all")).to_be_visible()
+    expect(pg.locator("#cart li").first).to_be_visible()
+    assert_no_hscroll(pg, "極限拖曳後")
+
+    drag_pane(pg, "cart-inline", 900)
+    assert pane_h(pg, "#cart-inline") >= 48, "清單區被拖沒了"
+
+
+def test_pane_height_survives_reload(browser_ctx, page_url):
+    pg = browser_ctx.new_page()
+    pg.goto(page_url)
+    pg.wait_for_selector('body[data-ready="1"]', timeout=8000)
+    pg.evaluate("() => { window.ICDApp.store.setLayout('dock'); window.ICDApp.store.resetPaneSizes(); }")
+    pg.wait_for_selector('body[data-layout="dock"]')
+    drag_pane(pg, "region-pills", -40)
+    saved = round(pane_h(pg, "#region-pills"))
+    assert pg.evaluate("() => window.ICDApp.store.paneSizeFor('dock', 'regions')") == saved
+
+    pg.reload()
+    pg.wait_for_selector('body[data-ready="1"]', timeout=8000)
+    pg.wait_for_selector('body[data-layout="dock"]')
+    assert round(pane_h(pg, "#region-pills")) == saved, "重新整理後部位區沒有回到調好的高度"
+    assert pg.evaluate("() => JSON.stringify(window.ICDApp.store.getState().paneSizes)") \
+        == '{"dock":{"regions":%d}}' % saved, "1c 調的高度不得寫到別的版面"
+    pg.evaluate("() => window.ICDApp.store.resetPaneSizes()")
+    pg.close()
+
+
+def test_pane_reset_from_settings(pg):
+    open_settings(pg)
+    expect(pg.locator("#reset-panes")).to_be_disabled()
+    pg.click("#settings-toggle")
+
+    default_h = pane_h(pg, "#region-pills")
+    drag_pane(pg, "region-pills", -50)
+    assert pane_h(pg, "#region-pills") < default_h - 30
+
+    open_settings(pg)
+    expect(pg.locator("#reset-panes")).to_be_enabled()
+    pg.click("#reset-panes")
+    pg.wait_for_timeout(200)
+    assert pg.evaluate("() => window.ICDApp.store.paneSizeFor('dock', 'regions')") is None
+    assert abs(pane_h(pg, "#region-pills") - default_h) < 1, "回復預設後高度沒回到原樣"
+    assert pg.evaluate("() => document.getElementById('region-pills').style.height") == ""
+    assert "回復" in pg.locator("#status").inner_text()
+    expect(pg.locator("#reset-panes")).to_be_disabled()
+    pg.click("#settings-toggle")
+
+
+def test_pane_resize_works_inside_pip(browser_ctx, page_url):
+    """置頂小視窗是另一個 document：拖曳在那裡也要能用（事件全部得走小視窗自己的文件）。"""
+    page, pip = open_pinned(browser_ctx, page_url)
+    errors = []
+    pip.on("pageerror", lambda e: errors.append(str(e)))
+    page.evaluate("() => window.ICDApp.store.resetPaneSizes()")
+    pip.wait_for_timeout(200)
+
+    expect(pip.locator('.pane-resizer[aria-controls="region-pills"]')).to_be_visible()
+    before = pane_h(pip, "#region-pills")
+    drag_pane(pip, "region-pills", -40)
+    after = pane_h(pip, "#region-pills")
+    assert after < before - 20, f"小視窗裡拖不動：{before} → {after}"
+    assert page.evaluate("() => window.ICDApp.store.paneSizeFor('dock', 'regions')") == round(after)
+    assert errors == [], errors
+
+    # 小視窗高度只有 900 以下，主視窗關掉小視窗後高度要重新夾一次而不是溢出
+    pip.close()
+    page.wait_for_timeout(600)
+    assert page.evaluate("() => !!document.getElementById('layout-dock')") is True
+    assert round(pane_h(page, "#region-pills")) == round(after)
+    page.evaluate("() => window.ICDApp.store.resetPaneSizes()")
+    page.close()

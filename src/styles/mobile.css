@@ -30,19 +30,26 @@ body[data-layout="mobile"] #layout-mobile {
 body[data-layout="mobile"] .btn,
 body[data-layout="mobile"] .input { border-radius: 0; }
 
-/* ── header：模式徽章＋搜尋（44px）＋設定鈕（44×44）（L349-352） ──────── */
+/* ── header：模式三鈕一行 ＋（搜尋 44px ＋設定鈕 44×44）一行（L349-352） ────
+   390px 放不下「三顆模式鈕＋搜尋＋設定」同一列，所以 header 改成兩行的 flex column；
+   兩行都是 44px，觸控門檻不打折。 */
 body[data-layout="mobile"] .m-header {
   flex: none; position: relative;
-  display: flex; align-items: center; gap: 8px;
+  display: flex; flex-direction: column; align-items: stretch; gap: 8px;
   padding: 10px 14px; border-bottom: 1px solid var(--color-divider);
 }
-/* 徽章現在是可點的控制項，所以要守住 44px 觸控門檻（與 #search／#settings-toggle 同高） */
-body[data-layout="mobile"] #mode-chip {
-  flex: none; font-family: var(--font-heading); font-size: 12px; letter-spacing: .06em;
-  padding: 3px 7px; min-height: 44px; border: 1px solid var(--color-accent);
-  color: var(--color-accent-800); background: var(--color-accent-100); white-space: nowrap;
+body[data-layout="mobile"] .m-head-row { display: flex; align-items: center; gap: 8px; }
+/* 模式三鈕：整列三格等寬（.seg-btn 的 min-height 在下面統一提到 44px） */
+body[data-layout="mobile"] .mode-switch { display: flex; width: 100%; }
+body[data-layout="mobile"] .mode-btn {
+  flex: 1; min-width: 0; font-size: 14px; letter-spacing: .06em;
+  color: var(--color-accent-800); background: var(--color-accent-100);
 }
-body[data-layout="mobile"] .mode-opt { min-height: 44px; font-size: 15px; padding: 10px 16px; }
+body[data-layout="mobile"] .mode-btn + .mode-btn { border-left: 1px solid var(--color-accent); }
+body[data-layout="mobile"] .mode-btn.is-on,
+body[data-layout="mobile"] .mode-btn[aria-pressed="true"] {
+  background: var(--sel-bg); color: var(--sel-ink);
+}
 body[data-layout="mobile"] #search {
   flex: 1; min-width: 0; min-height: 44px;
   font-size: 16px;            /* <16px 會讓行動瀏覽器聚焦時自動放大整頁 */
@@ -52,10 +59,12 @@ body[data-layout="mobile"] #settings-toggle {
   flex: none; min-height: 44px; min-width: 44px; padding: 0 10px; font-size: 13px;
 }
 
-/* 設定 sheet：由 header 下方展開，左右各留 12px（L740-741） */
+/* 設定 sheet：由 header 下方展開，左右各留 12px（L740-741）。
+   top 用 calc(100% - 4px) 而不是寫死數字：header 現在是兩行，寫死的 60px 會讓 sheet
+   蓋住「設定」鈕本身（點一次關不掉，同 1c 那條教訓）；跟著 header 高度走就不會分歧。 */
 body[data-layout="mobile"] #settings-popover {
-  top: 60px; left: 12px; right: 12px; padding: 12px;
-  max-height: calc(100dvh - 140px); overflow-y: auto;
+  top: calc(100% - 4px); left: 12px; right: 12px; padding: 12px;
+  max-height: calc(100dvh - 190px); overflow-y: auto;
 }
 /* 「桌機版面」與「常用列」在手機沒有對應 UI，由 render-mobile.js 標上類名後藏起來 */
 body[data-layout="mobile"] .is-desktop-only { display: none; }
@@ -187,6 +196,11 @@ body[data-layout="mobile"] .cart-empty { font-size: 13px; color: var(--color-neu
 body[data-layout="mobile"] #his-preview {
   margin: 0; padding: 8px; min-height: 0; max-height: 84px; overflow-y: auto; font-size: 13px;
 }
+
+/* 分隔條：手指拖得到才有意義，加高到 16px 並把握把畫長（滑鼠版是 8px／28px）。
+   ::before 的顏色與粗細沿用 app.css，只改幾何。 */
+body[data-layout="mobile"] .pane-resizer { height: 16px; }
+body[data-layout="mobile"] .pane-resizer::before { width: 44px; height: 2px; margin-left: -22px; }
 
 /* ── 底部固定列（L417-423）：--his-* 場，不隨主題翻轉 ───────────────── */
 body[data-layout="mobile"] .m-cart-bar {

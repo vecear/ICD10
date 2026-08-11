@@ -44,8 +44,8 @@ const newStore = (extra) => S.createStore(Object.assign({ storage: fakeStorage()
 test('預設狀態涵蓋計畫 §State 列出的每個欄位', () => {
   const s = newStore().getState();
   const fields = ['mode', 'region', 'query', 'expanded', 'quickOpen', 'format', 'cart', 'recent', 'favs',
-    'relatedCode', 'copied', 'theme', 'layout', 'settingsOpen', 'modeMenuOpen', 'shelfOpen',
-    'cartOpen', 'pinned', 'dbState'];
+    'relatedCode', 'copied', 'theme', 'layout', 'settingsOpen', 'shelfOpen',
+    'cartOpen', 'pinned', 'dbState', 'paneSizes'];
   for (const f of fields) assert.ok(Object.prototype.hasOwnProperty.call(s, f), `缺少狀態欄位 ${f}`);
   assert.deepEqual(s.cart, []);
   assert.equal(s.mode, 'outpatient');
@@ -170,35 +170,30 @@ test('取消選取的狀態跨模式保留；選了部位才歸零', () => {
   assert.equal(S.PERSISTED_KEYS.indexOf('region'), -1);
 });
 
-test('模式選單：與設定 popover 互斥，選完模式一併關掉', () => {
+test('切模式一併關掉設定 popover；模式切換沒有任何浮層狀態', () => {
   const store = newStore();
-  assert.equal(store.getState().modeMenuOpen, false);
-  assert.equal(store.toggleModeMenu(), true);
-  assert.equal(store.getState().modeMenuOpen, true);
-  assert.equal(store.toggleModeMenu(), false);
+  // 使用者原話：「我不要點擊下拉 我希望三個按鈕並排」——三顆鈕直接切換，
+  // 不再有「展開的模式選單」這個狀態，也不該有開關它的 action。
+  assert.ok(!Object.prototype.hasOwnProperty.call(store.getState(), 'modeMenuOpen'),
+    '模式選單已移除，狀態不得殘留 modeMenuOpen');
+  assert.equal(typeof store.setModeMenuOpen, 'undefined');
+  assert.equal(typeof store.toggleModeMenu, 'undefined');
 
-  // 兩個浮層不得同時開著（1c 的 176px 下會直接疊在一起）
+  // 從設定 popover 的 segmented 切模式：模式換掉，popover 自己收起來
   store.setSettingsOpen(true);
-  store.setModeMenuOpen(true);
-  assert.deepEqual(
-    [store.getState().settingsOpen, store.getState().modeMenuOpen], [false, true],
-    '開模式選單要關掉設定 popover'
-  );
-  store.toggleSettings();
-  assert.deepEqual(
-    [store.getState().settingsOpen, store.getState().modeMenuOpen], [true, false],
-    '開設定 popover 要關掉模式選單'
-  );
-
-  // 從選單切模式：模式換掉，選單自己收起來
-  store.setModeMenuOpen(true);
+  assert.equal(store.getState().settingsOpen, true);
   assert.equal(store.setMode('surg'), true);
   assert.deepEqual(
-    [store.getState().mode, store.getState().modeMenuOpen, store.getState().settingsOpen],
-    ['surg', false, false]
+    [store.getState().mode, store.getState().settingsOpen], ['surg', false],
+    '切模式要關掉設定 popover，不能留一個浮層擋住剛換好的畫面'
   );
+
+  // 從 header 三鈕切模式：popover 本來就沒開，切換後仍然關著
+  assert.equal(store.setMode('emergency'), true);
+  assert.deepEqual([store.getState().mode, store.getState().settingsOpen], ['emergency', false]);
+
   // 不進持久化：浮層開合是暫態，不得跨診次殘留
-  assert.equal(S.PERSISTED_KEYS.indexOf('modeMenuOpen'), -1);
+  assert.equal(S.PERSISTED_KEYS.indexOf('settingsOpen'), -1);
 });
 
 test('加入重複碼不會重複進清單，但要重新指向相關碼', () => {
@@ -366,4 +361,97 @@ test('最近使用內容沒變時不得算成變更（不重寫 localStorage、�
   store.addCode('E11.9', '第2型糖尿病');
   assert.deepEqual(store.getState().recent, ['E11.9', 'I10']);
   assert.ok(changes.some((c) => c.indexOf('recent') >= 0), '換碼時 recent 仍要被視為變更');
+});
+
+// ---- 窗格高度（手動調整、分版面各記各的、可回復預設） ----
+test('窗格高度：分版面各存一組，跨診次保留', () => {
+  const backing = fakeStorage();
+  const a = S.createStore({ storage: backing, theme: 'light' });
+  assert.deepEqual(a.getState().paneSizes, {});
+  assert.equal(a.hasPaneSizes('dock'), false);
+
+  assert.equal(a.setPaneSize('dock', 'regions', 120), true);
+  assert.equal(a.setPaneSize('dock', 'cart', 200), true);
+  assert.equal(a.setPaneSize('wide', 'cart', 380), true);
+  assert.equal(a.setPaneSize('mobile', 'sheet', 300), true);
+
+  // 176px 側掛欄調的高度不得套到 1440 工作台（使用者要求：分版面各記各的）
+  assert.equal(a.paneSizeFor('dock', 'cart'), 200);
+  assert.equal(a.paneSizeFor('wide', 'cart'), 380);
+  assert.equal(a.paneSizeFor('wide', 'regions'), null, '沒調過的窗格要回 null（＝用預設高度）');
+
+  const b = S.createStore({ storage: backing, theme: 'light' });
+  assert.deepEqual(b.getState().paneSizes, {
+    wide: { cart: 380 }, dock: { regions: 120, cart: 200 }, mobile: { sheet: 300 },
+  });
+  assert.equal(b.hasPaneSizes('mobile'), true);
+  assert.equal(b.hasPaneSizes('wide'), true);
+});
+
+test('窗格高度：只走 action，不得就地改動 getState() 的物件', () => {
+  const store = newStore();
+  store.setPaneSize('dock', 'regions', 120);
+  const before = store.getState().paneSizes;
+  const beforeGroup = before.dock;
+  store.setPaneSize('dock', 'regions', 140);
+  const after = store.getState().paneSizes;
+  assert.notEqual(after, before, 'paneSizes 要換成新物件，否則 setState 的變更偵測會靜默失效');
+  assert.notEqual(after.dock, beforeGroup, '版面那一層也要換新物件');
+  assert.equal(beforeGroup.regions, 120, '舊物件不得被就地改動');
+
+  const changes = [];
+  store.subscribe((_s, changed) => changes.push(changed));
+  assert.equal(store.setPaneSize('dock', 'regions', 140), true);
+  assert.deepEqual(changes, [], '值沒變就不該通知重繪，也不該重寫 localStorage');
+});
+
+test('窗格高度：壞值一律拒絕或丟棄，不讓版面被撐爆', () => {
+  const store = newStore();
+  assert.equal(store.setPaneSize('tablet', 'x', 100), false, '未知版面');
+  assert.equal(store.setPaneSize('dock', '', 100), false, '沒有窗格鍵');
+  assert.equal(store.setPaneSize('dock', 'regions', NaN), false);
+  assert.equal(store.setPaneSize('dock', 'regions', 'tall'), false);
+  assert.deepEqual(store.getState().paneSizes, {});
+  // 合法但超界的值夾進上下限（實際能多高由 resize.js 依當下空間再夾一次）
+  store.setPaneSize('dock', 'regions', 99999);
+  assert.equal(store.paneSizeFor('dock', 'regions'), S.PANE_MAX);
+  store.setPaneSize('dock', 'regions', 1);
+  assert.equal(store.paneSizeFor('dock', 'regions'), S.PANE_MIN);
+
+  // 讀回時的清洗：壞掉的整組／個別壞值都不得進到狀態裡
+  assert.deepEqual(S.sanitizePaneSizes(null), null);
+  assert.deepEqual(S.sanitizePaneSizes([1, 2]), null);
+  assert.deepEqual(S.sanitizePaneSizes({
+    dock: { regions: 120, bad: 'x', huge: 99999, tiny: 2, ok: 55.6 },
+    tablet: { a: 100 },
+    wide: 'nope',
+  }), { dock: { regions: 120, ok: 56 } });
+
+  const poisoned = fakeStorage({ 'icd10.paneSizes': '{"dock":{"regions":"x"}}' });
+  assert.deepEqual(S.createStore({ storage: poisoned, theme: 'light' }).getState().paneSizes, {},
+    '壞值丟棄＝退回預設高度，不是夾出一個使用者從沒選過的數字');
+  const broken = fakeStorage({ 'icd10.paneSizes': '{oops' });
+  assert.deepEqual(S.createStore({ storage: broken, theme: 'light' }).getState().paneSizes, {});
+});
+
+test('回復預設高度：只清生效版面那一組，不給版面才全清', () => {
+  const backing = fakeStorage();
+  const store = S.createStore({ storage: backing, theme: 'light' });
+  store.setPaneSize('dock', 'regions', 120);
+  store.setPaneSize('wide', 'cart', 380);
+
+  assert.equal(store.resetPaneSizes('mobile'), false, '沒調過的版面回 false，UI 據此停用按鈕');
+  assert.equal(store.resetPaneSizes('tablet'), false);
+  assert.equal(store.resetPaneSizes('dock'), true);
+  assert.deepEqual(store.getState().paneSizes, { wide: { cart: 380 } },
+    '在窄欄按「回復預設」不該把桌機工作台調好的高度一起抹掉');
+  assert.equal(store.hasPaneSizes('dock'), false);
+  assert.equal(store.hasPaneSizes(), true, '不給版面＝問「有沒有任何一組」');
+
+  assert.equal(store.resetPaneSizes(), true);
+  assert.deepEqual(store.getState().paneSizes, {});
+  assert.equal(store.resetPaneSizes(), false, '已經沒有東西可清');
+  // 清空要落到 localStorage，否則重新整理又跑回來
+  assert.deepEqual(JSON.parse(backing.getItem('icd10.paneSizes')), {});
+  assert.ok(S.PERSISTED_KEYS.indexOf('paneSizes') >= 0, '窗格高度必須跨診次保留');
 });

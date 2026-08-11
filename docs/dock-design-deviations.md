@@ -10,15 +10,20 @@
 
 ## 刻意偏離設計稿之處（2 項）
 
-### 1. 設定 popover 定位：`top:46px` → `top:64px`
+### 1. 設定 popover 定位：`top:46px` → `top:100%`
 
 - 設計來源：L712-713 `settingsStyleDock`，`top:46px`。
-- 實作：`src/styles/dock.css` `#settings-popover { top: 64px; }`。
-- 理由：header 內距 6 ＋ 搜尋框 28 ＋ gap 5 ＝ 39，才是那排鈕（模式徽章／置頂／設定）的頂端；
-  鈕高 22 ⇒ 底端 61。用設計原值 46px 會讓 popover 蓋住「設定」鈕本身的下方 15px，使用者
-  再點一次關不掉（Playwright 實測 pointer events 被 popover 攔截）。64px 剛好貼在那排鈕
-  下方 3px，左右與內距完全照設計不變。
+- 實作：`src/styles/dock.css` `#settings-popover { top: 100%; }`（`.dock-head` 是
+  `position: relative` 的包含塊，100% 即貼著 header 下緣）。
+- 理由：用設計原值 46px 會讓 popover 蓋住「設定」鈕本身，使用者再點一次關不掉
+  （Playwright 實測 pointer events 被 popover 攔截）。左右與內距完全照設計不變。
+- 為什麼不是另一個寫死的數字：這個值前後失準過兩次（64px → 93px → 100%），
+  每次都是 header 改版害的。改成跟著 header 高度自己走之後，
+  header 少一列、或置頂提示出現讓 header 長高，都不必再回來改。1b 早就是這個寫法
+  （`mobile.css` 的 `calc(100% - 4px)`）。
 - 這是唯一的**數值**偏離；判斷是交付物原型的算術錯誤，不是刻意的設計決定。
+- 對應測試：`tests/test_e2e_dock.py::test_settings_popover_fits_and_switches_mode` 直接比對
+  popover 上緣與「設定」鈕下緣，數值再變也不會靜默失準。
 
 ### 2. 置頂失敗／不支援時，不進入「已置頂」視覺狀態
 
@@ -34,16 +39,23 @@
 
 ## 設計交付物沒有、後來新增的 1c 元素
 
-### 模式徽章的三選一選單（`#mode-menu`）
+### header 的看診模式三鈕（`#mode-switch`）
 
-- 需求來源：使用者要求「可以在圈起來的地方直接切換門急診外科」，且三套版面**功能統一**。
-  設計交付物裡 `#mode-chip` 只是靜態徽章，沒有這個控制項。
-- 1c 專屬處理：`.mode-switch` 在 1c 改成 `position: static`，選單改掛在 `.dock-head` 上，
-  用與設定 popover 同一組座標（`top:64px; left:6px`）。徽章本身只有約 34px 寬，選單若以
-  徽章為定位基準，`.mode-switch` 的 `scrollWidth` 會大於 `clientWidth`——那正是
-  `tests/test_e2e_dock.py::overflowing_elements` 判準 (b) 要抓的破版形狀，會變成一條
-  永遠亮著的假警報。1a／1b 沒有這個檢查，仍以徽章為基準。
+- 需求來源：使用者要求「我不要點擊下拉 我希望三個按鈕並排」，且三套版面**功能統一**
+  （一次點擊即切換）。設計交付物裡 `#mode-chip` 只是靜態徽章，沒有這個控制項。
+- 結構就是一組既有的 `.seg-row`／`.seg-btn`，選中表現與設定 popover 裡的模式 segmented
+  完全一致（`aria-pressed` ＋ `.is-on` 兩條途徑，不倚賴 `:has()`）；兩處狀態同源於 `store.mode`。
+- 1c 專屬處理（2026-08-11 依密度原則改版，見 `docs/dense-ui-principle.md`）：
+  三顆鈕**與置頂／設定併在同一列**，且**不等寬撐滿**、收成跟文字一樣寬
+  （整列 89.2px，原本 164px）。header 因此從三列 97px 收成兩列 67px。
+  176px 的寬度帳：模式三鈕 89.2 ＋ 3 個 3px 間距 ＋ 置頂 ＋ 設定 ≤ 164；
+  置頂帶 icon＋文字要 47px，加起來 177 > 164 塞不下，所以 ≤239px 時**只留 pin icon**
+  （完整說明改由 `title` 提供，隨 `pinned` 更新；模式鈕與「設定」的文字任何寬度都不砍）。
 - 可見標籤沿用既有的 1c 短標籤（門診／急診／外科），完整名稱留在 `title`。
+- 對應測試：`tests/test_e2e_dock.py::test_mode_buttons_switch_mode`（切換行為）、
+  `test_header_controls_share_one_row`（同列、文字寬、不溢出、不裁切）、
+  `test_pin_label_is_the_only_text_dropped_and_only_when_narrowest`（只有置頂的字可以讓）；
+  1a／1b 的等價測試在 `tests/e2e_test.py`／`tests/test_e2e_mobile.py`。
 
 ### 部位列的「全部」鈕（`.region-all-btn`）
 

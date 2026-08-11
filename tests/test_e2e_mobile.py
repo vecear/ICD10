@@ -80,6 +80,7 @@ def reset(pg):
         s.setQuery('');
         s.setFormat('lines');
         s.setSettingsOpen(false);
+        s.resetPaneSizes();      // 窗格高度會寫 localStorage，殘留會讓別條測試量到上一條拖出來的高度
         s.setState({ favs: [], recent: [], expanded: {}, copied: false });
     }""")
     pg.fill("#search", "")
@@ -247,51 +248,47 @@ def test_region_toggle_clears_selection_and_shows_all(page):
     assert page.locator("#panels .region-heading").count() == 0
 
 
-def test_mode_chip_menu_switches_mode(page):
-    """模式徽章本身可切換：點它就地展開三選一（1a／1c／1b 同一份行為）。
+def test_mode_buttons_switch_mode(page):
+    """三顆模式鈕直接並排，一次點擊就切換（1a／1c／1b 同一份行為）。
 
-    手機專屬條件：徽章與選項都是 ≥44px 的觸控目標，展開後不得撐出水平捲動。
+    手機專屬條件：三顆鈕自己佔一行、每顆都是 ≥44px 的觸控目標，且不得撐出水平捲動。
     """
     reset(page)
-    chip = page.locator("#mode-chip")
-    menu = page.locator("#mode-menu")
-    expect(chip).to_have_attribute("aria-haspopup", "menu")
-    expect(chip).to_have_attribute("aria-expanded", "false")
-    expect(menu).to_be_hidden()
-    assert box(chip)["height"] >= 43.5, f"徽章是可點的控制項，高度只有 {box(chip)['height']:.1f}px"
+    switch = page.locator("#mode-switch")
+    btns = switch.locator("[data-mode]")
+    expect(btns).to_have_count(3)
+    assert page.locator("#mode-menu").count() == 0, "已改成三鈕並排，不得再有展開的選單"
+    expect(switch.locator('[data-mode="outpatient"]')).to_have_attribute("aria-pressed", "true")
+    for label in ("內科門診", "內科急診", "外科"):
+        expect(switch.locator(f'[data-mode]:text-is("{label}")')).to_be_visible()
 
-    chip.click()
-    expect(chip).to_have_attribute("aria-expanded", "true")
-    expect(menu).to_be_visible()
-    opts = menu.locator("[data-mode]")
-    expect(opts).to_have_count(3)
-    expect(menu.locator('[data-mode="outpatient"]')).to_have_attribute("aria-checked", "true")
-    heights = page.eval_on_selector_all(
-        "#mode-menu [data-mode]", "(els) => els.map((e) => e.getBoundingClientRect().height)"
+    boxes = page.eval_on_selector_all(
+        "#mode-switch [data-mode]", "(els) => els.map((e) => e.getBoundingClientRect().toJSON())"
     )
-    assert min(heights) >= 43.5, f"選項最矮只有 {min(heights):.1f}px（觸控門檻 44）"
-    assert_no_h_scroll(page, "模式選單展開")
+    assert min(b["height"] for b in boxes) >= 43.5, \
+        f"模式鈕最矮只有 {min(b['height'] for b in boxes):.1f}px（觸控門檻 44）"
+    assert max(b["y"] for b in boxes) - min(b["y"] for b in boxes) < 1, f"三顆鈕沒有並排：{boxes}"
+    assert max(b["x"] + b["width"] for b in boxes) <= MOBILE["width"] + 0.5, f"模式鈕溢出：{boxes}"
+    # 搜尋框與設定鈕被擠到下一行，兩者都還在且維持 44px
+    assert box(page.locator("#search"))["y"] > max(b["y"] for b in boxes), "搜尋框應在模式列下方"
+    assert box(page.locator("#search"))["height"] >= 43.5
+    assert box(page.locator("#settings-toggle"))["height"] >= 43.5
+    assert_no_h_scroll(page, "三顆模式鈕並排")
 
-    menu.locator('[data-mode="emergency"]').click()
-    expect(menu).to_be_hidden()
+    # 一次點擊即切換（不必先展開任何東西）
+    switch.locator('[data-mode="emergency"]').click()
     expect(page.locator("body")).to_have_attribute("data-mode", "emergency")
-    expect(chip).to_have_text("內科急診")
+    expect(switch.locator('[data-mode="emergency"]')).to_have_attribute("aria-pressed", "true")
+    expect(switch.locator('[data-mode="outpatient"]')).to_have_attribute("aria-pressed", "false")
+    assert "is-on" in switch.locator('[data-mode="emergency"]').get_attribute("class")
+    assert_no_h_scroll(page, "切到急診")
 
     # 兩條動線同步：設定 sheet 裡的 segmented 也要跟著選中
     page.click("#settings-toggle")
     expect(page.locator("#mode-er")).to_have_attribute("aria-pressed", "true")
-    page.keyboard.press("Escape")
-
-    chip.click()
-    expect(menu).to_be_visible()
-    page.keyboard.press("Escape")
-    expect(menu).to_be_hidden()
-    assert page.evaluate("() => document.activeElement.id") == "mode-chip"
-
-    chip.click()
-    expect(menu).to_be_visible()
-    page.locator("#cart-bar").click(position={"x": 5, "y": 5})     # 外點關閉
-    expect(menu).to_be_hidden()
+    page.click("#mode-op")                                  # 反向：popover 切了，三鈕跟著變
+    expect(page.locator("#settings-popover")).to_be_hidden()
+    expect(switch.locator('[data-mode="outpatient"]')).to_have_attribute("aria-pressed", "true")
     reset(page)
 
 
@@ -524,7 +521,12 @@ def test_search_results_are_rows_and_category_not_addable(page):
 
 
 def test_settings_sheet_opens_below_header(page):
-    """設定 sheet 由 header 下方展開（top:60 / left:12 / right:12），Esc 與外點都能關。"""
+    """設定 sheet 由 header 下方展開（left:12 / right:12），Esc 與外點都能關。
+
+    上緣不寫死數字：header 現在是「模式三鈕一行 ＋ 搜尋／設定一行」，寫死的座標會在
+    header 高度一變就靜默失準。要守的是那條規則本身——sheet 不得蓋住開它的那顆鈕
+    （蓋住就再點一次關不掉，同 1c 那條教訓）。
+    """
     reset(page)
     pop = page.locator("#settings-popover")
     expect(pop).to_be_hidden()
@@ -532,18 +534,21 @@ def test_settings_sheet_opens_below_header(page):
     expect(pop).to_be_visible()
     expect(page.locator("#settings-toggle")).to_have_attribute("aria-expanded", "true")
     b = box(pop)
+    toggle = box(page.locator("#settings-toggle"))
     assert abs(b["x"] - 12) < 1, f"sheet 左緣 {b['x']}"
     assert abs(b["width"] - (MOBILE["width"] - 24)) < 1, f"sheet 寬度 {b['width']}"
-    assert 55 <= b["y"] <= 66, f"sheet 上緣 {b['y']}"
+    assert b["y"] >= toggle["y"] + toggle["height"] - 0.5, \
+        f"sheet 蓋住了開它的那顆鈕：sheet={b} toggle={toggle}"
+    assert b["y"] <= toggle["y"] + toggle["height"] + 12, f"sheet 離 header 太遠：{b}"
     # 桌機才有意義的兩項（版面切換、常用列）在手機藏起來
     expect(page.locator("#seg-layout")).to_be_hidden()
     expect(page.locator("#shelf-toggle")).to_be_hidden()
     expect(page.locator("#db-note")).to_contain_text("96,802")
 
-    # 模式切換：徽章與面板一起換
+    # 模式切換：header 三鈕與面板一起換
     page.click("#mode-er")
     expect(pop).to_be_hidden()
-    expect(page.locator("#mode-chip")).to_have_text("內科急診")
+    expect(page.locator('#mode-switch [data-mode="emergency"]')).to_have_attribute("aria-pressed", "true")
     expect(page.locator("body")).to_have_attribute("data-mode", "emergency")
 
     page.click("#settings-toggle")
@@ -764,4 +769,203 @@ def test_no_duplicate_ids(page):
     page.wait_for_selector('body[data-layout="mobile"]', timeout=3000)
     page.wait_for_timeout(200)
     snapshot("寬→窄來回切換後")
+    reset(page)
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 窗格高度手動調整（與 1a／1c 同一套機制；手機的重點是**手指**拖得動）
+# ══════════════════════════════════════════════════════════════════════════
+def pane_h(pg, selector):
+    return pg.evaluate("(sel) => document.querySelector(sel).getBoundingClientRect().height", selector)
+
+
+def sep_for(pg, pane_id):
+    return pg.locator(f'.pane-resizer[aria-controls="{pane_id}"]')
+
+
+def sep_center(pg, pane_id):
+    b = box(sep_for(pg, pane_id))
+    return b["x"] + b["width"] / 2, b["y"] + b["height"] / 2
+
+
+def touch_drag(pg, pane_id, dy):
+    """真觸控拖曳：CDP 的 Input.dispatchTouchEvent 產生 pointerType='touch' 的事件。
+
+    Playwright 的 touchscreen 只有 tap，拖曳只能走 CDP。這條是手機版存在的理由——
+    滑鼠拖得動不代表手指拖得動（少了 touch-action:none，手指一動就被判定成捲動頁面，
+    pointermove 直接被瀏覽器收走）。
+
+    ※ 用完這個函式的頁面**不要再用 Playwright 的 .tap()**：Chromium 在 CDP 觸控序列
+      之後不再把 Playwright 合成的 tap 轉成 click（實測過 id=0／touchCancel／保留
+      session 都一樣）。所以呼叫端一律另開一頁，或改用 .click()。
+    """
+    x, y = sep_center(pg, pane_id)
+    cdp = pg.context.new_cdp_session(pg)
+    cdp.send("Input.dispatchTouchEvent", {"type": "touchStart", "touchPoints": [{"x": x, "y": y, "id": 1}]})
+    for i in range(1, 7):
+        cdp.send("Input.dispatchTouchEvent",
+                 {"type": "touchMove", "touchPoints": [{"x": x, "y": y + dy * i / 6, "id": 1}]})
+    cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
+    cdp.detach()
+    pg.wait_for_timeout(200)
+
+
+def mouse_drag(pg, pane_id, dy):
+    x, y = sep_center(pg, pane_id)
+    pg.mouse.move(x, y)
+    pg.mouse.down()
+    pg.mouse.move(x, y + dy, steps=6)
+    pg.mouse.up()
+    pg.wait_for_timeout(150)
+
+
+def open_sheet(pg):
+    """加一個碼並展開清單抽屜：兩條分隔條都出現。一律用 click（見 touch_drag 的註記）。"""
+    pg.locator('#panels .chip[data-code]:not(.cat)').first.click()
+    pg.wait_for_timeout(250)
+    if pg.locator("#cart-sheet").is_hidden():
+        pg.click("#cart-toggle")
+        pg.wait_for_timeout(250)
+
+
+@pytest.fixture
+def touch_page(browser_ctx, page_url):
+    """觸控拖曳專用的拋棄式頁面：CDP 觸控會讓同一頁之後的 .tap() 失效，不能污染共用頁。"""
+    pg = browser_ctx.new_page()
+    pg.goto(page_url)
+    pg.wait_for_selector('body[data-ready="1"]', timeout=8000)
+    pg.evaluate("() => window.ICDApp.store.resetPaneSizes()")
+    yield pg
+    pg.evaluate("() => window.ICDApp.store.resetPaneSizes()")
+    pg.close()
+
+
+def test_pane_resizers_present_with_aria(page):
+    """兩條分隔條：相關碼區與清單抽屜。部位 pill 列（單行橫捲）與 header 刻意不做。"""
+    reset(page)
+    assert page.locator(".pane-resizer").count() == 2
+    for pane_id in ("related", "cart-sheet"):
+        expect(sep_for(page, pane_id)).to_be_hidden()
+
+    open_sheet(page)
+    for pane_id in ("related", "cart-sheet"):
+        sep = sep_for(page, pane_id)
+        expect(sep).to_be_visible()
+        assert sep.get_attribute("role") == "separator"
+        assert sep.get_attribute("aria-orientation") == "horizontal"
+        assert sep.get_attribute("tabindex") == "0"
+        now = int(sep.get_attribute("aria-valuenow"))
+        assert int(sep.get_attribute("aria-valuemin")) <= now <= int(sep.get_attribute("aria-valuemax"))
+        # 觸控拖曳的前提：沒有 touch-action:none，手指一動就變成捲動頁面
+        assert page.evaluate(
+            "(id) => getComputedStyle(document.querySelector('.pane-resizer[aria-controls=\"' + id + '\"]'))"
+            ".touchAction", pane_id) == "none"
+        assert box(sep)["height"] >= 14, "手機的分隔條要夠厚才抓得到"
+    reset(page)
+
+
+def test_pane_touch_drag_resizes_sheet(touch_page):
+    """手指拖清單抽屜：變高、寫進 store，底部固定列與捲動區都不能被擠爆。"""
+    pg = touch_page
+    open_sheet(pg)
+    before = pane_h(pg, "#cart-sheet")
+    touch_drag(pg, "cart-sheet", -80)
+    after = pane_h(pg, "#cart-sheet")
+    assert after > before + 40, f"手指拖不動抽屜：{before} → {after}"
+    assert pg.evaluate("() => window.ICDApp.store.paneSizeFor('mobile', 'sheet')") == round(after)
+    assert_no_h_scroll(pg, "拖高抽屜後")
+
+    bar = box(pg.locator("#cart-bar"))
+    assert bar["y"] + bar["height"] <= MOBILE["height"] + 0.5, "底部固定列被抽屜推出視窗"
+    expect(pg.locator("#copy-all")).to_be_visible()
+    assert pane_h(pg, ".m-scroll") >= 100, "主訴捲動區被壓到看不見"
+
+    # 相關碼區同樣拖得動（手指）
+    rel_before = pane_h(pg, "#related")
+    touch_drag(pg, "related", -40)
+    assert pane_h(pg, "#related") > rel_before + 20
+
+
+def test_pane_mouse_drag_and_keyboard(page):
+    """外接鍵盤／滑鼠（手機也可能接）：同一條分隔條三種操作都要成立。"""
+    reset(page)
+    open_sheet(page)
+    before = pane_h(page, "#cart-sheet")
+    mouse_drag(page, "cart-sheet", -60)
+    assert pane_h(page, "#cart-sheet") > before + 30
+    assert page.evaluate("() => window.ICDApp.store.paneSizeFor('mobile', 'sheet')") \
+        == round(pane_h(page, "#cart-sheet"))
+
+    sep = sep_for(page, "cart-sheet")
+    sep.focus()
+    h0 = pane_h(page, "#cart-sheet")
+    sep.press("ArrowUp")
+    page.wait_for_timeout(80)
+    assert pane_h(page, "#cart-sheet") == h0 + 16, "抽屜在分隔條下方，↑ 應該變高"
+    sep.press("ArrowDown")
+    page.wait_for_timeout(80)
+    assert pane_h(page, "#cart-sheet") == h0
+    assert_no_h_scroll(page, "鍵盤調整後")
+    reset(page)
+
+
+def test_pane_cannot_be_dragged_away(page):
+    """拖到極限：抽屜不得消失、主訴捲動區不得被吃光、底部固定列不得被推出視窗。"""
+    reset(page)
+    open_sheet(page)
+    mouse_drag(page, "cart-sheet", 900)
+    assert pane_h(page, "#cart-sheet") >= 120, "抽屜被拖沒了"
+    expect(page.locator("#cart li").first).to_be_visible()
+
+    mouse_drag(page, "cart-sheet", -2000)
+    assert pane_h(page, ".m-scroll") >= 100, "抽屜吃光了主訴面板的空間"
+    bar = box(page.locator("#cart-bar"))
+    assert bar["y"] + bar["height"] <= MOBILE["height"] + 0.5, "底部固定列被推出視窗"
+    expect(page.locator("#copy-all")).to_be_visible()
+    assert_no_h_scroll(page, "極限拖曳後")
+    reset(page)
+
+
+def test_pane_height_survives_reload(browser_ctx, page_url):
+    pg = browser_ctx.new_page()
+    pg.goto(page_url)
+    pg.wait_for_selector('body[data-ready="1"]', timeout=8000)
+    pg.evaluate("() => window.ICDApp.store.resetPaneSizes()")
+    open_sheet(pg)
+    mouse_drag(pg, "cart-sheet", -70)
+    saved = round(pane_h(pg, "#cart-sheet"))
+
+    pg.reload()
+    pg.wait_for_selector('body[data-ready="1"]', timeout=8000)
+    assert pg.evaluate("() => window.ICDApp.store.paneSizeFor('mobile', 'sheet')") == saved
+    assert pg.evaluate("() => JSON.stringify(window.ICDApp.store.getState().paneSizes)") \
+        == '{"mobile":{"sheet":%d}}' % saved, "1b 調的高度不得寫到別的版面"
+    open_sheet(pg)      # 清單不跨診次保留（刻意），抽屜要重新叫出來才量得到
+    assert round(pane_h(pg, "#cart-sheet")) == saved, "重新整理後抽屜沒有回到調好的高度"
+    pg.evaluate("() => window.ICDApp.store.resetPaneSizes()")
+    pg.close()
+
+
+def test_pane_reset_from_settings(page):
+    reset(page)
+    page.click("#settings-toggle")
+    page.wait_for_selector("#settings-popover:not([hidden])")
+    expect(page.locator("#reset-panes")).to_be_disabled()
+    page.click("#settings-toggle")
+
+    open_sheet(page)
+    default_h = pane_h(page, "#cart-sheet")
+    mouse_drag(page, "cart-sheet", -70)
+    assert pane_h(page, "#cart-sheet") > default_h + 40
+
+    page.click("#settings-toggle")
+    page.wait_for_selector("#settings-popover:not([hidden])")
+    expect(page.locator("#reset-panes")).to_be_enabled()
+    page.click("#reset-panes")
+    page.wait_for_timeout(200)
+    assert page.evaluate("() => window.ICDApp.store.paneSizeFor('mobile', 'sheet')") is None
+    assert abs(pane_h(page, "#cart-sheet") - default_h) < 1, "回復預設後高度沒回到原樣"
+    assert page.evaluate("() => document.getElementById('cart-sheet').style.height") == ""
+    expect(page.locator("#reset-panes")).to_be_disabled()
+    page.click("#settings-toggle")
     reset(page)

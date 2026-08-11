@@ -13,10 +13,16 @@
   border-bottom: 1px solid var(--color-divider); position: relative; flex: none;
 }
 .app-brand { font-family: var(--font-heading); font-weight: 600; font-size: 18px; letter-spacing: .02em; white-space: nowrap; }
-#mode-chip {
-  font-family: var(--font-heading); font-size: 13px; letter-spacing: .08em; padding: 3px 9px;
-  border: 1px solid var(--color-accent); color: var(--color-accent-800);
-  background: var(--color-accent-100); white-space: nowrap;
+/* 看診模式三鈕直接排在 header 這一列（1440 空間充足，用全名）；高度與搜尋框、
+   設定鈕齊平的 40px，未選中的底色沿用 accent-100，一眼就看得出這是一組控制項。 */
+#layout-wide .mode-btn {
+  font-size: 13px; letter-spacing: .08em; padding: 0 13px; min-height: 40px;
+  background: var(--color-accent-100); color: var(--color-accent-800); white-space: nowrap;
+}
+#layout-wide .mode-btn + .mode-btn { border-left: 1px solid var(--color-accent); }
+#layout-wide .mode-btn:hover { background: var(--color-accent-200); }
+#layout-wide .mode-btn.is-on, #layout-wide .mode-btn[aria-pressed="true"] {
+  background: var(--sel-bg); color: var(--sel-ink);
 }
 #layout-wide #search { flex: 1; min-width: 0; min-height: 40px; font-size: 16px; background: transparent; }
 #layout-wide #settings-toggle { min-height: 40px; font-size: 13px; letter-spacing: .05em; white-space: nowrap; }
@@ -60,6 +66,11 @@
 body[data-layout="wide"] .region-all-btn {
   margin-bottom: 4px; padding-bottom: 11px; border-bottom: 1px solid var(--color-divider);
 }
+
+/* 分隔條：中欄與右欄都是 gap:14px 的 flex column，直接插進去會變成 14+10+14＝38px 的
+   大縫。上下各 -12px 讓 10px 的分隔條剛好落在原本那 14px 的間距裡（14−12＋10−12＋14＝14），
+   視覺節奏完全不變，也不會蓋到上下元素的可點區域。 */
+body[data-layout="wide"] .pane-resizer { height: 10px; margin: -12px 0; }
 
 /* 中：主訴工作區（L112-168） */
 .worksheet { padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; }

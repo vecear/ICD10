@@ -36,9 +36,11 @@
     layout: ['settings'],
     shelfOpen: ['settings'],
     settingsOpen: ['settings'],
-    modeMenuOpen: ['header'],
     cartOpen: ['cartSheet', 'cartBar'],
     pinned: [],
+    // 高度本身由 update() 末尾的 paneGroup.applyAll() 統一處理；這裡只同步設定面板的
+    // 「回復預設高度」可按狀態（不寫這條會退回全量重繪，每拖一次整片重畫）
+    paneSizes: ['settings'],
   };
 
   function mount(host, ctx) {
@@ -51,9 +53,11 @@
     const wrap = R.el('div');
     wrap.id = 'layout-mobile';
 
-    // ── header：模式徽章＋搜尋（44px）＋設定鈕（44×44）（L349-368） ──────────
+    /* ── header：模式三鈕獨立一行 ＋ 搜尋（44px）＋設定鈕（44×44）（L349-368） ──
+       390px 塞不下「三顆模式鈕＋搜尋＋設定」同一列（搜尋會被壓到剩幾十 px），所以
+       模式列自己佔一行、三格等寬撐滿；觸控目標仍是 44px。互動與 1a／1c 完全一致
+       （一次點擊即切換），差的只是配置——那是空間限制不是功能差異。 */
     const header = R.el('header', 'm-header');
-    // 模式徽章＝可操作的三選一（與 1a／1c 同一份行為，使用者要求「功能請統一」）
     refs.modeSwitch = R.modeSwitchEl(false);
 
     const search = document.createElement('input');
@@ -81,7 +85,9 @@
     const shelfBtn = pop.querySelector('#shelf-toggle');
     if (shelfBtn) shelfBtn.classList.add('is-desktop-only');
 
-    header.append(refs.modeSwitch, search, settingsToggle, pop);
+    const headRow = R.el('div', 'm-head-row');
+    headRow.append(search, settingsToggle);
+    header.append(refs.modeSwitch, headRow, pop);
     wrap.appendChild(header);
 
     // ── 部位／情境：橫向捲動 pill 列（L370-374） ──────────────────────────
@@ -168,10 +174,34 @@
 
     host.appendChild(wrap);
 
+    /* ── 可拖曳的窗格分隔條（功能與 1a／1c 統一） ────────────────────────────
+       390×844 只有兩條分界值得可調：相關碼區（預設最高 190px，抽屜開著時被壓到 84px）
+       與清單抽屜（預設最高 46vh）。**部位 pill 列不做**：它是單行橫向捲動列，高度就是
+       一顆 44px 觸控目標，可調只會讓觸控目標變小；header 同理是固定內容。
+       .m-scroll 是彈性區，吸收其他窗格讓出／占走的空間。 */
+    refs.paneGroup = root.ICDResize.createGroup({
+      layout: 'mobile',
+      store: ctx.store,
+      container: wrap,
+      flex: scroll,
+      flexMin: 120,
+      panes: [
+        {
+          key: 'related', el: refs.related, label: '相關碼區', sign: -1, min: 56,
+          visible: () => !refs.relatedWrap.hidden,
+        },
+        {
+          // 抽屜自己是 flex column、內部由 ul#cart 捲動，不要再給它一層 overflow
+          key: 'sheet', el: refs.cartSheet, label: '清單抽屜', sign: -1, min: 120, scroll: false,
+          visible: () => !refs.cartSheet.hidden,
+        },
+      ],
+    });
+
     // ── 更新器 ──────────────────────────────────────────────────────────
     const U = {};
 
-    U.header = () => R.syncModeSwitch(wrap, ctx, false);
+    U.header = () => R.syncModeSwitch(wrap, ctx);
 
     // 只在狀態與輸入框不同時回寫（Esc 清空、Enter 加碼後清空），避免打字時游標跳位
     U.searchValue = () => {
@@ -313,6 +343,8 @@
       sheetOpen = !sheetOpen;
       U.cartSheet();
       U.cartBar();
+      // 同理：抽屜的分隔條要跟著出現／消失，也不能靠 store 的 notify
+      refs.paneGroup.applyAll();
     };
 
     const ALL = Object.keys(U);
@@ -325,6 +357,8 @@
         names = ALL.filter((n) => set.has(n));
       }
       for (const name of names) U[name]();
+      // 內容變了（相關碼出現、抽屜展開）就得重新夾一次高度，見 render-dock.js 同一段註解
+      refs.paneGroup.applyAll();
     }
 
     return { root: wrap, refs, update };

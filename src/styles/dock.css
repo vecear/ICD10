@@ -4,7 +4,7 @@
 
    三條硬性規則：
    1. **每一條規則都限定在 body[data-layout="dock"] 之下**——1a/1b 的骨架檔會同時被載入，
-      而 app.css/wide.css 有幾條沒有版面前綴的規則（`#mode-chip`、`.region-btn`、
+      而 app.css/wide.css 有幾條沒有版面前綴的規則（`.mode-switch`、`.region-btn`、
       `.panel-toggle`、`#cart li`…），這裡靠「屬性選擇器＋來源順序」壓過去。
    2. **不使用 color-mix()**（控制者裁示 C1：舊瀏覽器備援），也不使用 `:has()`。
    3. HIS 區只吃 --his-* token（不隨主題翻轉），不得用 --color-accent-800／-900：
@@ -19,35 +19,37 @@ body[data-layout="dock"] #layout-dock {
   overflow: hidden; background: var(--color-bg);
 }
 
-/* ── header（L232-262） ── */
+/* ── header（L232-262；密度原則見 docs/dense-ui-principle.md） ──
+   兩列：搜尋框一列，「模式三鈕＋置頂＋設定」一列。合併前是三列（97px），合併後 67px。 */
 body[data-layout="dock"] .dock-head {
   position: relative; flex: none;
-  display: flex; flex-direction: column; gap: 5px;
-  padding: 6px; border-bottom: 1px solid var(--color-divider);
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 5px 6px; border-bottom: 1px solid var(--color-divider);
 }
 body[data-layout="dock"] #search {
   min-height: 28px; padding: 3px 7px; font-size: 12px; background: transparent;
 }
-body[data-layout="dock"] .dock-tools { display: flex; align-items: center; gap: 5px; min-width: 0; }
+body[data-layout="dock"] .dock-tools { display: flex; align-items: center; gap: 3px; min-width: 0; }
+/* 模式三鈕與置頂／設定之間的彈性空白：模式鈕收成文字寬之後多出來的寬度全部歸它，
+   置頂與設定才會靠右對齊而不是跟著飄。 */
 body[data-layout="dock"] .dock-spacer { flex: 1; min-width: 0; }
-body[data-layout="dock"] #mode-chip {
-  font-family: var(--font-heading); font-size: 10px; letter-spacing: .06em;
-  padding: 1px 5px; min-height: 22px; border: 1px solid var(--color-accent);
-  color: var(--color-accent-800); background: var(--color-accent-100); white-space: nowrap;
+/* 模式三鈕：**不等寬撐滿**，縮成跟文字一樣寬（使用者原話「緊縮跟文字一樣寬就好」）。
+   width:auto 蓋掉沒有版面前綴的 .mode-switch，.mode-btn 的 flex:0 0 auto 蓋掉 .seg-btn 的
+   flex:1；padding 用 seg-btn--sm 的 3px 4px，letter-spacing 收到 .02em（.06em 每顆多 1.2px，
+   三顆＋間距就是 4px，那是 176px 下擠不擠得下的差別）。 */
+body[data-layout="dock"] .mode-switch { display: flex; width: auto; flex: none; }
+body[data-layout="dock"] .mode-btn {
+  flex: 0 0 auto; min-width: 0; letter-spacing: .02em;
+  color: var(--color-accent-800); background: var(--color-accent-100);
 }
-/* 模式選單：176px 下不得溢出，所以只給最小寬度、不撐滿；字級與 seg 的小號一致。
-   1c 刻意**不以徽章為定位基準**（.mode-switch 改回 static），改掛在 .dock-head 上、
-   用與設定 popover 同一組座標（top:64px／left:6px）：徽章只有約 34px 寬，選單掛在它
-   身上會讓 .mode-switch 的 scrollWidth 大於 clientWidth——那正是 1c 破版檢查
-   （overflowing_elements 的判準 b）要抓的形狀，會變成一條永遠亮著的假警報。 */
-body[data-layout="dock"] .mode-switch { position: static; }
-body[data-layout="dock"] .mode-menu {
-  top: 64px; left: 6px; right: auto; min-width: 68px; max-width: 164px;
+body[data-layout="dock"] .mode-btn + .mode-btn { border-left: 1px solid var(--color-accent); }
+body[data-layout="dock"] .mode-btn.is-on,
+body[data-layout="dock"] .mode-btn[aria-pressed="true"] {
+  background: var(--sel-bg); color: var(--sel-ink);
 }
-body[data-layout="dock"] .mode-opt { padding: 5px 9px; font-size: 11px; }
 body[data-layout="dock"] #pin-toggle {
-  display: inline-flex; align-items: center; gap: 3px; flex: none;
-  min-height: 22px; padding: 0 6px; font: inherit; font-size: 11px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 3px; flex: none;
+  min-height: 22px; min-width: 24px; padding: 0 4px; font: inherit; font-size: 11px;
   border: 1px solid var(--color-divider); border-radius: 0;
   background: transparent; color: var(--color-text); cursor: pointer; white-space: nowrap;
 }
@@ -58,9 +60,20 @@ body[data-layout="dock"] #pin-toggle[aria-pressed="true"] {
 }
 body[data-layout="dock"] #pin-toggle .icn { display: flex; }
 body[data-layout="dock"] #settings-toggle {
-  flex: none; min-height: 22px; padding: 0 6px; font-size: 11px; letter-spacing: .04em;
+  flex: none; min-height: 22px; padding: 0 4px; font-size: 11px; letter-spacing: .02em;
 }
-/* PiP 不支援／被擋下時的提示：絕不靜默失敗（設計 L240 的 10px 灰字） */
+/* 極窄（PiP 預設 200px、最小測試寬 176px）：整列的寬度帳是
+   模式三鈕 ~89 ＋ 3 個 3px 間距 ＋ 置頂 ＋ 設定 ≤ 164。
+   置頂帶 icon＋「置頂中」要 47px，加起來 177 > 164——先壓過內距（6→4）與字級
+   （seg-btn--sm 已是 10px）仍差 13px，唯一還能讓的就是置頂那兩個字。
+   所以 ≤239px 時只留 pin icon，完整說明改由 title 提供（U.pin 會隨 pinned 更新 title），
+   狀態另有 aria-pressed ＋ 反白底色兩條線索。模式鈕與「設定」的文字一律不砍。 */
+@media (max-width: 239px) {
+  body[data-layout="dock"] .dock-pin-label { display: none; }
+}
+/* PiP 不支援／被擋下時的提示：絕不靜默失敗（設計 L240 的 10px 灰字）。
+   成功那一則在 render-dock.js 設了逾時會自己消失（一次性說明不該永久占一列）；
+   失敗那兩則留著，它們是還沒解決的問題。 */
 body[data-layout="dock"] #pin-note {
   font-size: 10px; line-height: 1.35; color: var(--color-neutral-700);
 }
@@ -70,11 +83,14 @@ body[data-layout="dock"] .dock-pinned-away {
 }
 
 /* ── 設定 popover（L712-713：top:46px;left:6px;right:6px;padding:7px） ──
-   **top 從 46px 改成 64px**（唯一偏離的數值，理由是交付物原型的算術錯誤）：
-   header 內距 6 ＋ 搜尋框 28 ＋ gap 5 ＝ 39 才是那排鈕的頂端，鈕高 22 → 底端 61。
-   46px 會讓 popover 蓋住「設定」鈕本身的下 15px，使用者再點一次關不掉（Playwright 實測
-   pointer events 被 popover 攔截）。64px 剛好貼在那排鈕下方 3px，左右與內距完全照設計。 */
-body[data-layout="dock"] #settings-popover { top: 64px; left: 6px; right: 6px; padding: 7px; gap: 6px; }
+   **top 從 46px 改成 100%**（唯一偏離的數值）：設計原值 46px 會讓 popover 蓋住「設定」鈕
+   本身，使用者再點一次關不掉（Playwright 實測 pointer events 被 popover 攔截，
+   test_settings_popover_fits_and_switches_mode 守住這條）。
+   歷來換成寫死的 64px／93px 都在 header 改版時失準過一次，改用 100%（＝貼著 .dock-head
+   的下緣，它是 position:relative 的包含塊）就跟著 header 高度自動走——header 少一列、
+   或置頂提示出現讓 header 長高，都不必再回來改這個數字。1b 的 #settings-popover 早已
+   是同一招（mobile.css 的 calc(100% - 4px)）。 */
+body[data-layout="dock"] #settings-popover { top: 100%; left: 6px; right: 6px; padding: 7px; gap: 6px; }
 body[data-layout="dock"] #settings-popover .kicker { font-size: 10px; letter-spacing: .1em; }
 body[data-layout="dock"] .settings-section > .kicker { margin-bottom: 3px; }
 /* 小號 segmented：22px 高、10px 字，min-width:0＋ellipsis 讓三格擠得進 164px */
@@ -85,19 +101,27 @@ body[data-layout="dock"] #db-note { font-size: 10px; padding-top: 6px; }
 
 /* ── 部位／情境：兩欄 grid（L264、L679-681）。
    minmax(0,1fr) 不可省——預設的 1fr 最小值是 max-content，長名稱會把整欄撐出視窗。 ── */
-/* auto-fill 而不是寫死兩欄：176px 下算出來剛好是 2 欄（內容 164、gap 3 → floor(167/79)=2），
-   但 Chrome 一般視窗最小寬約 500px，使用者把側掛開在分頁裡時會被迫更寬——
-   那時自動變成 4～6 欄填滿，而不是把兩欄拉成一片空白。PiP 視窗（真正的 176）不受影響。 */
+/* auto-fill 而不是寫死兩欄：176px 下算出來剛好是 2 欄，但 Chrome 一般視窗最小寬約 500px，
+   使用者把側掛開在分頁裡時會被迫更寬——那時自動變成 4～6 欄填滿，而不是把兩欄拉成一片空白。
+   PiP 視窗（真正的 176）不受影響。
+   最小欄寬 72 而不是 76：部位區被拖小之後自己會長出垂直捲軸（約 15px），164−15＝149 的
+   可用寬度下 76×2+3=155 排不下會掉成一欄，72×2+3=147 才守得住設計要求的兩欄。 */
 body[data-layout="dock"] #region-pills {
-  flex: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 3px;
+  flex: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 3px;
   padding: 6px; border-bottom: 1px solid var(--color-divider); background: var(--color-neutral-100);
 }
+/* 176px 下分隔條縮到 7px：三條共 21px，從捲動內容區借走的高度要壓到最低 */
+body[data-layout="dock"] .pane-resizer { height: 7px; }
+body[data-layout="dock"] .pane-resizer::before { width: 24px; margin-left: -12px; }
+/* line-height 1.2 而不是繼承 body 的 1.55：這些是 nowrap 的單行按鈕，1.55 的行距在
+   單行裡不是可讀性而是純留白（每顆 3px，176px 下 6 列就是 18px）。密度原則的通則是
+   「單行不換行的 UI 骨架一律收 line-height，只有會換行的內文才保留 body 行距」。 */
 body[data-layout="dock"] .region-pill--dock,
 body[data-layout="dock"] .region-all-btn {
   display: block; width: 100%; min-width: 0; padding: 2px 4px; min-height: 20px;
   border: 1px solid var(--color-divider); border-left-width: 1px; border-radius: 0;
   background: transparent; color: var(--color-text); cursor: pointer;
-  font: inherit; font-size: 11px; letter-spacing: .02em;
+  font: inherit; font-size: 11px; line-height: 1.2; letter-spacing: .02em;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center;
 }
 body[data-layout="dock"] .region-pill--dock:hover,
@@ -114,7 +138,7 @@ body[data-layout="dock"] .region-all-btn { grid-column: 1 / -1; }
 /* 取消部位選取（顯示全部部位）時，每組面板前的部位標題。176px 下只給一行小標＋下緣線，
    長名稱 ellipsis；沒有它，全部部位的面板連在一起會分不出來自哪一區。 */
 body[data-layout="dock"] .region-heading {
-  margin: 3px 0 0; padding: 0 0 2px;
+  margin: 3px 0 0; padding: 0 0 2px; line-height: 1.25;
   font-family: var(--font-heading); font-size: 11px; letter-spacing: .08em;
   color: var(--color-accent-800); border-bottom: 1px solid var(--color-accent);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -159,6 +183,7 @@ body[data-layout="dock"] .dock-panel-head {
 }
 body[data-layout="dock"] .dock-panel-name {
   flex: 1; min-width: 0; font-family: var(--font-heading); font-size: 12px; letter-spacing: .04em;
+  line-height: 1.25;                        /* 同上：nowrap 單行標題不需要 body 的 1.55 */
   color: var(--color-accent-800); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 body[data-layout="dock"] .dock-panel .panel-toggle {
@@ -190,8 +215,10 @@ body[data-layout="dock"] #related .group-label {
 body[data-layout="dock"] .dock-cart {
   flex: none; border-top: 1px solid var(--color-divider); background: var(--color-neutral-100);
 }
+/* 內距 8/10 → 5/6：這一列在版面裡跟 header、部位區、捲動區都相鄰，它們一律 5～6px；
+   多出來的那 6px 只是讓清單摘要看起來比別區鬆，沒有分隔作用（分隔靠上緣線）。 */
 body[data-layout="dock"] #cart-toggle {
-  display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px;
+  display: flex; align-items: center; gap: 8px; width: 100%; padding: 5px 6px;
   border: 0; background: none; cursor: pointer; font: inherit; text-align: left; color: var(--color-text);
 }
 body[data-layout="dock"] .dock-cart-kicker {

@@ -10,14 +10,20 @@
   const STORAGE_PREFIX = 'icd10.';
   const RECENT_LIMIT = 8;                 // 設計交付物 L512
   const FAVS_LIMIT = 40;                  // 常用列放得下的上限；避免壞掉的寫入無限膨脹 localStorage
-  // 只有這五個欄位跨診次保留。cart 絕不持久化：跨診次殘留＝臨床事故（impl-plan R-9）。
-  const PERSISTED_KEYS = ['favs', 'theme', 'layout', 'format', 'recent'];
+  // 只有這六個欄位跨診次保留。cart 絕不持久化：跨診次殘留＝臨床事故（impl-plan R-9）。
+  const PERSISTED_KEYS = ['favs', 'theme', 'layout', 'format', 'recent', 'paneSizes'];
 
   const MODES = ['outpatient', 'emergency', 'surg'];
   const FORMATS = ['lines', 'comma', 'names'];
   const LAYOUTS = ['wide', 'dock'];
   const THEMES = ['light', 'dark'];
   const DB_STATES = ['idle', 'loading', 'ready', 'error'];
+  /* 窗格高度的分組鍵＝**生效版面**，比 LAYOUTS 多一個 mobile：mobile 不是可選的偏好
+     （視窗夠窄自動生效），但它有自己的窗格，高度必須分開記——176px 側掛欄調出來的
+     60px 部位區套到 1440 工作台毫無意義（使用者要求「分版面各記各的」）。 */
+  const PANE_LAYOUTS = ['wide', 'dock', 'mobile'];
+  const PANE_MIN = 24;      // 存得進來的最小值；各窗格自己的下限另由渲染層給（見 resize.js）
+  const PANE_MAX = 4000;    // 上限只防壞資料，實際能多高由 resize.js 依當下空間再夾一次
 
   // ---- 儲存：不可用時安靜降級成記憶體 ----
   function memoryBacking() {
@@ -106,10 +112,10 @@
       theme: THEMES.indexOf(theme) >= 0 ? theme : detectTheme(),
       layout: 'wide',            // wide | dock（持久化）；實際生效版面另由 resolveLayout 依寬度決定
       settingsOpen: false,
-      modeMenuOpen: false,       // header 模式徽章展開的三選一選單（三套版面共用）
       shelfOpen: true,           // 常用列
       cartOpen: true,            // 1c/1b 的清單摺疊
       pinned: false,             // Document PiP 置頂
+      paneSizes: {},             // { 版面: { 窗格key: 像素 } } 手動調整過的窗格高度（持久化）
       dbState: 'idle',           // idle | loading | ready | error
     };
   }
@@ -126,6 +132,25 @@
       if (!code || out.indexOf(code) >= 0) continue;
       out.push(code);
       if (limit && out.length >= limit) break;
+    }
+    return out;
+  }
+
+  /* 窗格高度：{ 版面: { key: 像素 } }。壞掉的值一律丟棄而不是夾進來——夾出來的數字
+     使用者從沒選過，看起來像「它自己記錯了」；丟掉就退回預設高度，至少是可解釋的。 */
+  function sanitizePaneSizes(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+    const out = {};
+    for (const layout of PANE_LAYOUTS) {
+      const group = value[layout];
+      if (!group || typeof group !== 'object' || Array.isArray(group)) continue;
+      const clean = {};
+      for (const key of Object.keys(group)) {
+        const px = Number(group[key]);
+        if (!Number.isFinite(px) || px < PANE_MIN || px > PANE_MAX) continue;
+        clean[key] = Math.round(px);
+      }
+      if (Object.keys(clean).length) out[layout] = clean;
     }
     return out;
   }
@@ -153,6 +178,8 @@
     if (favs) patch.favs = favs;
     const recent = sanitizeCodes(readJson(storage, 'recent'), RECENT_LIMIT);
     if (recent) patch.recent = recent;
+    const paneSizes = sanitizePaneSizes(readJson(storage, 'paneSizes'));
+    if (paneSizes) patch.paneSizes = paneSizes;
     return patch;
   }
 
@@ -278,8 +305,8 @@
     /* 切模式：相關碼是依模式產生的，**必須清空**，否則急診紅旗會洩漏到門診（C5，臨床安全）。
        部位歸零，但「沒有選取任何部位」（region === null）不是某個部位的索引，換模式後
        依然成立——強行歸零等於把醫師剛取消掉的篩選又自己裝回去。
-       兩條切模式的動線（設定 popover 的 segmented 與 header 徽章的選單）都收在這裡，
-       所以兩處的浮層一律關掉，選完不會留一個開著的選單擋住剛換好的畫面。 */
+       兩條切模式的動線（header 的三顆模式鈕與設定 popover 的 segmented）都收在這裡，
+       所以設定 popover 一律關掉，選完不會留一個開著的浮層擋住剛換好的畫面。 */
     function setMode(mode) {
       if (MODES.indexOf(mode) < 0) return false;
       setState({
@@ -287,7 +314,6 @@
         region: state.region === null ? null : 0,
         relatedCode: null,
         settingsOpen: false,
-        modeMenuOpen: false,
       });
       return true;
     }
@@ -331,6 +357,54 @@
       return true;
     }
 
+    // ---- 窗格高度 ----
+    /* 只存「使用者要多高」，不存「實際套用多高」——視窗變小時 resize.js 會把它夾小，
+       但意圖要留著，視窗放大時窗格才長得回去。整棵 paneSizes 一律換成新物件：
+       getState() 回傳的是內部物件本身，就地改動會讓 setState 的變更偵測靜默失效。 */
+    function setPaneSize(layout, key, px) {
+      if (PANE_LAYOUTS.indexOf(layout) < 0) return false;
+      if (typeof key !== 'string' || !key) return false;
+      const value = Number(px);
+      if (!Number.isFinite(value)) return false;
+      const clamped = Math.round(Math.max(PANE_MIN, Math.min(PANE_MAX, value)));
+      const group = state.paneSizes[layout] || {};
+      if (group[key] === clamped) return true;      // 沒變就不寫：拖曳結束值相同時不必多寫一次 localStorage
+      const entry = {};
+      entry[key] = clamped;
+      const next = Object.assign({}, state.paneSizes);
+      next[layout] = Object.assign({}, group, entry);
+      setState({ paneSizes: next });
+      return true;
+    }
+
+    /* 回復預設。不給版面＝全部清掉（測試與「重置一切」用）；給版面＝只清那一套，
+       在 176px 窄欄按「回復預設高度」不該把桌機工作台調好的高度一起抹掉。 */
+    function resetPaneSizes(layout) {
+      if (layout === undefined || layout === null) {
+        if (!Object.keys(state.paneSizes).length) return false;
+        setState({ paneSizes: {} });
+        return true;
+      }
+      if (PANE_LAYOUTS.indexOf(layout) < 0) return false;
+      if (!state.paneSizes[layout]) return false;
+      const next = Object.assign({}, state.paneSizes);
+      delete next[layout];
+      setState({ paneSizes: next });
+      return true;
+    }
+
+    function paneSizeFor(layout, key) {
+      const group = state.paneSizes[layout];
+      const px = group ? group[key] : undefined;
+      return typeof px === 'number' ? px : null;
+    }
+
+    const hasPaneSizes = (layout) => {
+      if (layout === undefined || layout === null) return Object.keys(state.paneSizes).length > 0;
+      const group = state.paneSizes[layout];
+      return !!group && Object.keys(group).length > 0;
+    };
+
     // ---- 最愛 ----
     function toggleFav(code) {
       if (typeof code !== 'string' || !code) return false;
@@ -365,17 +439,10 @@
     const setQuery = (query) => { setState({ query: typeof query === 'string' ? query : '' }); };
     const setRelatedCode = (code) => { setState({ relatedCode: code || null }); };
     const setCopied = (copied) => { setState({ copied: !!copied }); };
-    /* 設定 popover 與模式選單互斥：兩者在 1c 的 176px 下會直接疊在一起，
-       在 1a/1b 也沒有「同時開兩個浮層」的道理，所以開一個就關掉另一個。 */
-    const setSettingsOpen = (open) => { setState({ settingsOpen: !!open, modeMenuOpen: open ? false : state.modeMenuOpen }); };
+    const setSettingsOpen = (open) => { setState({ settingsOpen: !!open }); };
     const toggleSettings = () => {
-      setState({ settingsOpen: !state.settingsOpen, modeMenuOpen: false });
+      setState({ settingsOpen: !state.settingsOpen });
       return state.settingsOpen;
-    };
-    const setModeMenuOpen = (open) => { setState({ modeMenuOpen: !!open, settingsOpen: open ? false : state.settingsOpen }); };
-    const toggleModeMenu = () => {
-      setState({ modeMenuOpen: !state.modeMenuOpen, settingsOpen: false });
-      return state.modeMenuOpen;
     };
     const setShelfOpen = (open) => { setState({ shelfOpen: !!open }); };
     const toggleShelf = () => { setState({ shelfOpen: !state.shelfOpen }); return state.shelfOpen; };
@@ -394,17 +461,18 @@
       storage,                    // 讓渲染層／測試能問 storage.available
       addCode, removeCode, clearCart, setPrimary, reorder,
       setMode, setRegion, toggleRegion, setLayout, setTheme, toggleTheme, setFormat,
+      setPaneSize, resetPaneSizes, paneSizeFor, hasPaneSizes,
       toggleFav, isFav,
       toggleExpanded, toggleQuick, isExpanded, isQuickOpen,
       setQuery, setRelatedCode, setCopied, setDbState,
-      setSettingsOpen, toggleSettings, setModeMenuOpen, toggleModeMenu, setShelfOpen, toggleShelf,
+      setSettingsOpen, toggleSettings, setShelfOpen, toggleShelf,
       setCartOpen, toggleCart, setPinned,
     };
   }
 
   return {
-    createStore, safeStorage, loadPersisted, persist, defaultState,
+    createStore, safeStorage, loadPersisted, persist, defaultState, sanitizePaneSizes,
     STORAGE_PREFIX, PERSISTED_KEYS, RECENT_LIMIT, FAVS_LIMIT,
-    MODES, FORMATS, LAYOUTS, THEMES, DB_STATES,
+    MODES, FORMATS, LAYOUTS, THEMES, DB_STATES, PANE_LAYOUTS, PANE_MIN, PANE_MAX,
   };
 });

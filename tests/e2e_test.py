@@ -108,6 +108,7 @@ def reset(pg):
         s.setRegion(0);          // 取消選取（region=null）會跨模式保留，這裡明確歸位
         s.setQuery('');
         s.setSettingsOpen(false);
+        s.resetPaneSizes();      // 窗格高度也會寫 localStorage，殘留會讓其他測試量到別條測試拖出來的高度
         s.setState({ favs: [], recent: [], expanded: {}, quickOpen: {}, copied: false });
     }""")
     pg.fill("#search", "")
@@ -452,7 +453,7 @@ def test_mode_switch(page):
     expect(page.locator("#mode-op")).to_have_attribute("aria-pressed", "true")
     page.keyboard.press("Escape")
     expect(page.locator("#panels-title")).to_contain_text("內科門診")
-    expect(page.locator("#mode-chip")).to_have_text("內科門診")
+    expect(page.locator('#mode-switch [data-mode="outpatient"]')).to_have_attribute("aria-pressed", "true")
     expect(page.locator("#region-rail-title")).to_have_text("身體部位")
     outpatient_regions = json.loads((CURATED_DIR / "internal_outpatient.json").read_text(encoding="utf-8"))
     expect(page.locator(".region-btn")).to_have_count(len(outpatient_regions))
@@ -476,54 +477,52 @@ def test_mode_switch(page):
     expect(page.locator("#panels-title")).to_contain_text("內科門診")
 
 
-def test_mode_chip_menu_switches_mode(page):
-    """header 的模式徽章本身可切換：點它就地展開三選一（使用者原話：「我希望可以在圈起來
-    的地方直接切換門急診外科」）。設定 popover 裡原有的 segmented 保留，兩處狀態同源。
+def test_mode_buttons_switch_mode(page):
+    """header 的三顆模式鈕直接並排，一次點擊就切換（使用者原話：「我不要點擊下拉
+    我希望三個按鈕並排」）。設定 popover 裡原有的 segmented 保留，兩處狀態同源。
 
     三套版面同一份行為（1c 在 test_e2e_dock.py、1b 在 test_e2e_mobile.py）。
     """
     reset(page)
-    chip = page.locator("#mode-chip")
-    menu = page.locator("#mode-menu")
-    expect(chip).to_have_attribute("aria-haspopup", "menu")
-    expect(chip).to_have_attribute("aria-expanded", "false")
-    expect(menu).to_be_hidden()
+    switch = page.locator("#mode-switch")
+    btns = switch.locator("[data-mode]")
+    expect(btns).to_have_count(3)
+    # 沒有任何展開動作：三顆鈕一開始就全部看得見、點得到
+    for label in ("內科門診", "內科急診", "外科"):
+        expect(switch.locator(f'[data-mode]:text-is("{label}")')).to_be_visible()
+    expect(switch.locator('[data-mode="outpatient"]')).to_have_attribute("aria-pressed", "true")
+    assert page.locator("#mode-menu").count() == 0, "已改成三鈕並排，不得再有展開的選單"
 
-    chip.click()
-    expect(chip).to_have_attribute("aria-expanded", "true")
-    expect(menu).to_be_visible()
-    opts = menu.locator("[data-mode]")
-    expect(opts).to_have_count(3)
-    expect(menu.locator('[data-mode="outpatient"]')).to_have_attribute("aria-checked", "true")
-
-    # 點一個就切換並關閉
-    menu.locator('[data-mode="emergency"]').click()
-    expect(menu).to_be_hidden()
-    expect(chip).to_have_attribute("aria-expanded", "false")
+    # 一次點擊即切換（不必先展開任何東西）
+    switch.locator('[data-mode="emergency"]').click()
     assert page.get_attribute("body", "data-mode") == "emergency"
-    expect(chip).to_have_text("內科急診")
+    expect(switch.locator('[data-mode="emergency"]')).to_have_attribute("aria-pressed", "true")
+    expect(switch.locator('[data-mode="outpatient"]')).to_have_attribute("aria-pressed", "false")
     expect(page.locator("#panels-title")).to_contain_text("內科急診")
+    # 選中狀態不只靠屬性選擇器（C1-2）：class 也要掛上
+    assert "is-on" in switch.locator('[data-mode="emergency"]').get_attribute("class")
 
-    # 兩條動線的選中狀態要同步：徽章切了，設定 popover 裡也要跟著變
+    switch.locator('[data-mode="surg"]').click()
+    assert page.get_attribute("body", "data-mode") == "surg"
+    expect(page.locator("#panels-title")).to_contain_text("外科")
+
+    # 兩條動線的選中狀態要同步：header 切了，設定 popover 裡也要跟著變
     open_settings(page)
-    expect(page.locator("#mode-er")).to_have_attribute("aria-pressed", "true")
+    expect(page.locator("#mode-surg")).to_have_attribute("aria-pressed", "true")
     expect(page.locator("#mode-op")).to_have_attribute("aria-pressed", "false")
     page.keyboard.press("Escape")
-
-    # 鍵盤：Esc 關閉並把焦點還給徽章；↓ 在選項間移動
-    chip.click()
-    expect(menu).to_be_visible()
-    page.keyboard.press("ArrowDown")
-    page.keyboard.press("Escape")
-    expect(menu).to_be_hidden()
-    assert page.evaluate("() => document.activeElement.id") == "mode-chip"
-
-    # 點選單外面關閉（不吃掉那次點擊）
-    chip.click()
-    expect(menu).to_be_visible()
-    page.click("#panels-title")
-    expect(menu).to_be_hidden()
+    # 反向：popover 切了，header 三鈕也要跟著變
     set_mode(page, "mode-op")
+    expect(switch.locator('[data-mode="outpatient"]')).to_have_attribute("aria-pressed", "true")
+    expect(switch.locator('[data-mode="surg"]')).to_have_attribute("aria-pressed", "false")
+
+    # 點目前這個模式不得有副作用（setMode 會清掉 relatedCode ＝ 右欄建議整片消失）
+    quick_chip(page, "常用慢性病", "I10").click()
+    assert page.evaluate("() => window.ICDApp.store.getState().relatedCode") == "I10"
+    switch.locator('[data-mode="outpatient"]').click()
+    assert page.evaluate("() => window.ICDApp.store.getState().relatedCode") == "I10", \
+        "按下已經選中的模式不得清掉相關碼建議"
+    assert page.get_attribute("body", "data-mode") == "outpatient"
 
 
 def test_panel_expand_and_add(page):
@@ -1420,3 +1419,146 @@ def test_full_db_is_decompressed_only_once_under_concurrent_triggers(fresh_page,
     assert gunzips == 1, f"全庫被解壓了 {gunzips} 次，ensureDb 的快取守門失效"
     assert fresh_page.evaluate("() => window.ICDApp.data.isReady()") is True
     expect(fresh_page.locator("#search-results .chip").first).to_be_visible(timeout=3000)
+
+
+# ---- 窗格高度手動調整（1a：中欄搜尋結果、右欄就診清單） ----
+def pane_h(pg, selector):
+    return pg.evaluate("(sel) => document.querySelector(sel).getBoundingClientRect().height", selector)
+
+
+def drag_pane(pg, sep_selector, dy):
+    """用滑鼠拖分隔條。Chromium 的 mouse 事件同時產生 pointer 事件，走的是實作那條路。"""
+    box = pg.locator(sep_selector).bounding_box()
+    x, y = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
+    pg.mouse.move(x, y)
+    pg.mouse.down()
+    pg.mouse.move(x, y + dy, steps=6)
+    pg.mouse.up()
+    pg.wait_for_timeout(150)
+
+
+def sep_for(pg, pane_id):
+    return pg.locator(f'.pane-resizer[aria-controls="{pane_id}"]')
+
+
+def with_results_and_cart(pg):
+    """讓兩條分隔條都出現：中欄要有搜尋結果、右欄要有清單。"""
+    reset(pg)
+    pg.fill("#search", "急性")
+    pg.wait_for_timeout(300)
+    pg.locator('#panels .chip[data-code]:not(.cat)').first.click()
+    pg.wait_for_timeout(200)
+
+
+def test_pane_resizer_only_where_it_means_something(page):
+    """分隔條只出現在有東西可調的地方：沒有搜尋結果、沒有清單時不該有假的可拖線。"""
+    reset(page)
+    assert page.locator(".pane-resizer").count() == 2, "1a 只有兩條：搜尋結果與就診清單"
+    for pane_id in ("search-results", "cart-box"):
+        expect(sep_for(page, pane_id)).to_be_hidden()
+
+    with_results_and_cart(page)
+    for pane_id in ("search-results", "cart-box"):
+        sep = sep_for(page, pane_id)
+        expect(sep).to_be_visible()
+        assert sep.get_attribute("role") == "separator"
+        assert sep.get_attribute("aria-orientation") == "horizontal"
+        assert sep.get_attribute("tabindex") == "0"
+        now = int(sep.get_attribute("aria-valuenow"))
+        assert int(sep.get_attribute("aria-valuemin")) <= now <= int(sep.get_attribute("aria-valuemax"))
+    reset(page)
+
+
+def test_pane_drag_changes_height_and_keyboard_works(page):
+    with_results_and_cart(page)
+    before = pane_h(page, "#search-results")
+    drag_pane(page, '.pane-resizer[aria-controls="search-results"]', -70)
+    after = pane_h(page, "#search-results")
+    assert after < before - 40, f"拖曳沒有改變搜尋結果區高度：{before} → {after}"
+    assert page.evaluate("() => window.ICDApp.store.paneSizeFor('wide', 'results')") == round(after)
+    assert int(sep_for(page, "search-results").get_attribute("aria-valuenow")) == round(after)
+
+    # 右欄的清單區：往下拖變高
+    cart_before = pane_h(page, "#cart-box")
+    drag_pane(page, '.pane-resizer[aria-controls="cart-box"]', 90)
+    cart_after = pane_h(page, "#cart-box")
+    assert cart_after > cart_before + 40, f"清單區沒被拉高：{cart_before} → {cart_after}"
+
+    # 鍵盤：聚焦分隔條後方向鍵一次 16px（觸控／滑鼠以外的第三條路）
+    sep = sep_for(page, "search-results")
+    sep.focus()
+    h0 = pane_h(page, "#search-results")
+    sep.press("ArrowDown")
+    page.wait_for_timeout(80)
+    assert pane_h(page, "#search-results") == h0 + 16
+    sep.press("ArrowUp")
+    sep.press("ArrowUp")
+    page.wait_for_timeout(80)
+    assert pane_h(page, "#search-results") == h0 - 16
+    reset(page)
+
+
+def test_pane_height_survives_reload(browser_ctx, page_url):
+    """調過的高度要跨重新整理保留（localStorage），且只套在調過的那套版面上。"""
+    pg = browser_ctx.new_page()
+    pg.goto(page_url)
+    pg.wait_for_selector('body[data-ready="1"]', timeout=8000)
+    pg.evaluate("() => { window.ICDApp.store.resetPaneSizes(); window.ICDApp.store.clearCart(); }")
+    pg.fill("#search", "急性")
+    pg.wait_for_timeout(300)
+    drag_pane(pg, '.pane-resizer[aria-controls="search-results"]', -60)
+    saved = round(pane_h(pg, "#search-results"))
+    assert pg.evaluate("() => window.ICDApp.store.paneSizeFor('wide', 'results')") == saved
+
+    pg.reload()
+    pg.wait_for_selector('body[data-ready="1"]', timeout=8000)
+    assert pg.evaluate("() => window.ICDApp.store.paneSizeFor('wide', 'results')") == saved
+    pg.fill("#search", "急性")
+    pg.wait_for_timeout(300)
+    assert round(pane_h(pg, "#search-results")) == saved, "重新整理後高度沒有回到使用者調好的值"
+    # 分版面各記各的：1a 調的高度不得寫進其他版面
+    assert pg.evaluate("() => JSON.stringify(window.ICDApp.store.getState().paneSizes)") \
+        == '{"wide":{"results":%d}}' % saved
+
+    pg.evaluate("() => window.ICDApp.store.resetPaneSizes()")
+    pg.close()
+
+
+def test_pane_cannot_be_dragged_away(page):
+    """拖到極限不得讓窗格消失或只剩一條線，也不得把同欄其他內容擠出視野。"""
+    with_results_and_cart(page)
+    drag_pane(page, '.pane-resizer[aria-controls="search-results"]', -900)
+    assert pane_h(page, "#search-results") >= 60, "搜尋結果區被拖沒了"
+    expect(page.locator("#search-results .chip").first).to_be_visible()
+
+    drag_pane(page, '.pane-resizer[aria-controls="cart-box"]', 2000)
+    assert pane_h(page, "#cart-box") <= page.evaluate(
+        "() => document.getElementById('cart-pane').clientHeight") - 100, "清單區吃掉整欄，貼入 HIS 被擠出視野"
+    expect(page.locator("#copy-all")).to_be_visible()
+    expect(page.locator("#cart li").first).to_be_visible()
+    reset(page)
+
+
+def test_pane_reset_from_settings(page):
+    """設定面板的「回復預設高度」：沒調過時停用，調過後按一下回到預設。"""
+    reset(page)
+    open_settings(page)
+    expect(page.locator("#reset-panes")).to_be_disabled()
+    page.click("#settings-toggle")
+
+    with_results_and_cart(page)
+    default_h = pane_h(page, "#search-results")
+    drag_pane(page, '.pane-resizer[aria-controls="search-results"]', -70)
+    assert pane_h(page, "#search-results") < default_h - 40
+
+    open_settings(page)
+    expect(page.locator("#reset-panes")).to_be_enabled()
+    page.click("#reset-panes")
+    page.wait_for_timeout(200)
+    assert page.evaluate("() => window.ICDApp.store.paneSizeFor('wide', 'results')") is None
+    assert abs(pane_h(page, "#search-results") - default_h) < 1, "回復預設後高度沒有回到原本的樣子"
+    assert page.evaluate(
+        "() => document.getElementById('search-results').style.height") == "", "回復預設要把 inline 高度清乾淨"
+    expect(page.locator("#reset-panes")).to_be_disabled()
+    page.click("#settings-toggle")
+    reset(page)

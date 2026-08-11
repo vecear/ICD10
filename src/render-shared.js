@@ -371,7 +371,12 @@
     const shelf = el('button', 'btn btn-secondary', '隱藏常用列');
     shelf.type = 'button';
     shelf.id = 'shelf-toggle';
-    display.append(theme, shelf);
+    /* 拖曳分隔條調過的高度沒有其他出口：拖過頭把某一區壓到只剩下限時，光靠再拖回去
+       很難回到原本的比例。這顆鈕只清「目前生效版面」那一組（見 interactions.js）。 */
+    const panes = el('button', 'btn btn-secondary', '回復預設高度');
+    panes.type = 'button';
+    panes.id = 'reset-panes';
+    display.append(theme, shelf, panes);
     pop.appendChild(section('顯示', display));
     const note = el('div', 'settings-note', '');
     note.id = 'db-note';
@@ -416,12 +421,15 @@
 
      resolveLayout() 有兩種降級：視窗未達 LAYOUT_MIN_WIDTH 時偏好 wide 會變 mobile，
      以及偏好的版面模組不存在時退回 wide。兩種都會讓 seg-layout 顯示的選中項與眼前
-     畫面對不上，沒有說明的話使用者只會覺得設定壞了。
-     生效版面讀 body[data-layout]——app.js 掛載後一定會寫，且永遠等於實際掛載的版面，
-     這裡不重算一次寬度，免得兩邊判斷分歧。 */
+     畫面對不上，沒有說明的話使用者只會覺得設定壞了。 */
+  /* 生效版面（wide|dock|mobile）。app.js 掛載後一定會寫進 body[data-layout]，且永遠等於
+     實際掛載的版面——這裡不重算一次寬度，免得兩邊判斷分歧。1c 被搬進 PiP 小視窗時，
+     主文件的 body 仍標著 dock，取到的值依然正確。 */
+  const effectiveLayout = () => (document.body && document.body.dataset.layout) || '';
+
   function layoutNoteText(ctx, effective) {
     const pref = ctx.store.getState().layout;
-    const now = effective || (document.body && document.body.dataset.layout) || '';
+    const now = effective || effectiveLayout();
     if (!now || now === pref) return '';
     const prefLabel = LAYOUT_LABEL[pref] || pref;
     const nowLabel = LAYOUT_LABEL[now] || now;
@@ -442,6 +450,17 @@
     if (theme) theme.textContent = s.theme === 'dark' ? '日間模式' : '夜間模式';
     const shelf = root2.querySelector('#shelf-toggle');
     if (shelf) shelf.textContent = s.shelfOpen ? '隱藏常用列' : '顯示常用列';
+    /* 「回復預設高度」只對**生效版面**有意義（同 layoutNoteText：讀 body[data-layout]，
+       不自己重算寬度）。沒調過任何高度時停用並說明，免得按了沒反應像壞掉。 */
+    const panes = root2.querySelector('#reset-panes');
+    if (panes) {
+      const effective = effectiveLayout();
+      const dirty = ctx.store.hasPaneSizes(effective);
+      panes.disabled = !dirty;
+      panes.title = dirty
+        ? '把本版面各區塊的高度回復成預設'
+        : '本版面各區塊都是預設高度（拖曳區塊之間的分隔線即可調整）';
+    }
     const layoutNote = root2.querySelector('#layout-note');
     if (layoutNote) {
       const text = layoutNoteText(ctx);
@@ -469,65 +488,44 @@
     surg: '選擇傷口、外傷或術後情境',
   };
 
-  // ---- header 模式徽章＋三選一選單 ----
-  /* 使用者原話：「我希望可以在圈起來的地方直接切換門急診外科」，圈的就是 header 的
-     #mode-chip。徽章本身變成可操作的控制項：點它就地展開三選一，點一個就切換並關閉。
-     不做循環切換（點一下換下一個）——那會 overshoot，而且看不到還有哪些選項。
-     三套版面共用同一份結構與行為（使用者要求「功能請統一」），只有可見標籤在 1c 用短版。
+  // ---- header 的看診模式三鈕 ----
+  /* 使用者原話：「我不要點擊下拉 我希望三個按鈕並排」——三顆按鈕直接並排在 header，
+     一次點擊就切換，沒有任何展開動作（不做循環切換：那會 overshoot，也看不到還有哪些選項）。
+     外觀與選中表現沿用設計系統既有的 segmented（.seg-row／.seg-btn），選中狀態由
+     setPressed() 同時寫 aria-pressed 與 .is-on（C1-2：不倚賴 :has() 或單一屬性選擇器）。
+
+     三套版面共用同一份結構與行為（使用者要求「功能請統一」）；`compact` 只在 1c 的 176px
+     為真，換成短標籤＋小號尺寸——那是空間限制，不是功能差異。三顆鈕各自在哪一列由各版面
+     的 CSS 決定（1a 直接排在 header 那列，1b／1c 獨立成一行）。
 
      設定 popover 裡原有的模式 segmented 保留：兩條動線並存，狀態同源於 store.mode，
      syncModeSwitch()／syncSettings() 各自從同一份狀態算選中樣式，不會對不起來。 */
-  function modeSwitchEl(short) {
-    const wrap = el('div', 'mode-switch');
-    const chip = el('button', 'mode-chip');
-    chip.type = 'button';
-    chip.id = 'mode-chip';
-    chip.setAttribute('aria-haspopup', 'menu');
-    chip.setAttribute('aria-expanded', 'false');
-    chip.setAttribute('aria-controls', 'mode-menu');
-
-    const menu = el('div', 'mode-menu');
-    menu.id = 'mode-menu';
-    menu.hidden = true;
-    menu.setAttribute('role', 'menu');
-    menu.setAttribute('aria-label', '看診模式');
+  function modeSwitchEl(compact) {
+    const row = el('div', 'seg-row mode-switch');
+    row.id = 'mode-switch';
+    row.setAttribute('role', 'group');
+    row.setAttribute('aria-label', '看診模式');
     for (const def of MODE_DEFS) {
-      const b = el('button', 'mode-opt', short ? MODE_SHORT[def[0]] : def[1]);
+      const b = el('button', 'seg-btn mode-btn' + (compact ? ' seg-btn--sm' : ''),
+        compact ? MODE_SHORT[def[0]] : def[1]);
       b.type = 'button';
       b.dataset.mode = def[0];
-      b.setAttribute('role', 'menuitemradio');
-      b.setAttribute('aria-checked', 'false');
-      b.title = def[1];               // 短標籤時完整名稱留在 title
-      menu.appendChild(b);
+      b.setAttribute('aria-pressed', 'false');
+      b.title = '看診模式：' + def[1];        // 短標籤時完整名稱留在 title
+      row.appendChild(b);
     }
-    wrap.append(chip, menu);
-    return wrap;
+    return row;
   }
 
-  function syncModeSwitch(root2, ctx, short) {
-    const s = ctx.store.getState();
-    const chip = root2.querySelector('#mode-chip');
-    const menu = root2.querySelector('#mode-menu');
-    if (chip) {
-      chip.textContent = short ? MODE_SHORT[s.mode] : MODE_LABEL[s.mode];
-      chip.title = '看診模式：' + MODE_LABEL[s.mode] + '（點擊切換門診／急診／外科）';
-      chip.setAttribute('aria-expanded', s.modeMenuOpen ? 'true' : 'false');
-      chip.classList.toggle('is-open', s.modeMenuOpen);
-    }
-    if (!menu) return;
-    menu.hidden = !s.modeMenuOpen;
-    for (const b of menu.querySelectorAll('[data-mode]')) {
-      const on = b.getAttribute('data-mode') === s.mode;
-      b.setAttribute('aria-checked', on ? 'true' : 'false');
-      b.classList.toggle('is-on', on);        // C1-2：不倚賴屬性選擇器單一途徑
-    }
+  function syncModeSwitch(root2, ctx) {
+    setPressed(root2.querySelector('#mode-switch'), 'data-mode', ctx.store.getState().mode);
   }
 
   root.ICDRender = {
     icon, el, blueprint, clear, regionHeading, regionAllBtn, chipEl, chipWith, chipsFromPairs, emptyText,
     renderResults, relatedGroups, renderRelated,
     cartItemEl, renderCart, hisText, renderHis, renderShelf,
-    settingsPopoverEl, syncSettings, dbNoteText, layoutNoteText, setPressed,
+    settingsPopoverEl, syncSettings, dbNoteText, layoutNoteText, effectiveLayout, setPressed,
     modeSwitchEl, syncModeSwitch,
     FORMAT_LABEL, MODE_LABEL, MODE_SHORT, PANELS_TITLE, MODE_HINT, LAYOUT_LABEL, LAYOUT_MIN_WIDTH,
   };
