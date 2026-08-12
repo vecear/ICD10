@@ -8,14 +8,30 @@
 瀏覽器的沙箱不允許網頁把鍵盤輸入送進另一個進程的視窗——這是安全邊界，改用擴充功能也一樣繞不過。
 所以工具只能把代碼放進剪貼簿，最後一哩要由一支在 OS 層的小程式補上。
 
-## 安裝
+## 兩種跑法
+
+**免安裝（診間電腦建議走這條）** —— 醫院電腦通常不給裝軟體，AutoHotkey 的 zip 版
+解開只有一個 `AutoHotkey64.exe`（1.2 MB），不寫登錄檔、不需管理員權限：
+
+1. 到 [AutoHotkey v2 releases](https://github.com/AutoHotkey/AutoHotkey/releases) 下載
+   `AutoHotkey_2.0.26.zip`，解壓後把 `AutoHotkey64.exe` 放到和 `his-paste.ahk` 同一個資料夾
+2. 雙擊 `啟動熱鍵.bat`
+
+`啟動熱鍵.bat` 會優先用同資料夾的 `AutoHotkey64.exe`，找不到才退而找已安裝的 v2，
+兩種情況都跑得起來。實測（v2.0.26）：免安裝版跑自我測試 30 項全過，與安裝版沒有差別。
+
+**正式安裝** —— 自己的電腦可以直接裝，裝完就能雙擊 `.ahk` 執行：
 
 ```bash
 winget install AutoHotkey.AutoHotkey
 ```
 
-裝好後雙擊 `his-paste.ahk`，工作列右下角出現綠色 H 圖示就是在跑了。
-要開機自動啟動：`Win+R` 打 `shell:startup`，把這個檔的捷徑丟進去。
+不論哪一種，工作列右下角出現綠色 H 圖示就是在跑了。
+要開機自動啟動：`Win+R` 打 `shell:startup`，把 `啟動熱鍵.bat` 的捷徑丟進去。
+
+> AutoHotkey 的執行檔**沒有數位簽章**（官方一直如此），Windows SmartScreen 可能跳
+> 「已保護您的電腦」，點「其他資訊」→「仍要執行」。下載後可自行核對 SHA-256 與
+> GitHub release API 回報的 `digest` 是否相符。
 
 ## 用法
 

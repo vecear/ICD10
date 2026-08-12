@@ -5,3 +5,8 @@ node_modules/
 *.pyc
 .review/
 .superpowers/
+# 帶去診間用的 AutoHotkey 執行檔／安裝檔：第三方二進位，不進版控
+tools/*.exe
+tools/*.zip
+# 診間包：由 dist 與 tools 的檔案組出來的拷貝，不是原始碼
+診間包/
