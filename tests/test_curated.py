@@ -54,7 +54,7 @@ def test_internal_curated_modes_have_layered_panels():
     emergency = json.loads((CURATED_DIR / "internal_emergency.json").read_text(encoding="utf-8"))
     outpatient = json.loads((CURATED_DIR / "internal_outpatient.json").read_text(encoding="utf-8"))
     assert len(emergency) == 7
-    assert len(outpatient) == 10
+    assert len(outpatient) == 11
     assert all(region["panels"] for region in emergency + outpatient)
     assert all(
         panel.get("chief") and panel.get("diseases") and panel.get("related") is not None

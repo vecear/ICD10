@@ -910,7 +910,413 @@
 | `M86.9` | 骨髓炎 | 骨髓炎 | Osteomyelitis, unspecified |
 | `M72.6` | 壞死性筋膜炎 | 壞死性筋膜炎 | Necrotizing fasciitis |
 
-## 內科門診（10 個部位群組 / 37 張面板）
+## 內科門診（11 個部位群組 / 50 張面板）
+
+### 慢性疾病
+
+#### 高血壓／血壓管理
+
+| 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
+|---|---|---|---|
+| **主訴** | | | |
+| `I10` | 本態性高血壓 | 本態性(原發性)高血壓 | Essential (primary) hypertension |
+| `I15.9` | 續發性高血壓 | 續發性高血壓 | Secondary hypertension, unspecified |
+| `R03.0` | 血壓讀數升高（未診斷高血壓） | 血壓上升，非診斷為高血壓者 | Elevated blood-pressure reading, without diagnosis of hypertension |
+| **常見疾病** | | | |
+| `I11.9` | 高血壓性心臟病（無心臟衰竭） | 高血壓性心臟病，無心臟衰竭 | Hypertensive heart disease without heart failure |
+| `I11.0` | 高血壓性心臟病伴心衰竭 | 高血壓性心臟病伴有心臟衰竭 | Hypertensive heart disease with heart failure |
+| `I12.9` | 高血壓性慢性腎病（CKD 1-4 期） | 高血壓性慢性腎臟病伴有第一至第四期慢性腎病或未明示慢性腎病 | Hypertensive chronic kidney disease with stage 1 through stage 4 chronic kidney disease, or unspecified chronic kidney disease |
+| `I12.0` | 高血壓性慢性腎病（CKD 5 期或 ESRD） | 高血壓性慢性腎臟病伴有第五期慢性腎病或末期腎病 | Hypertensive chronic kidney disease with stage 5 chronic kidney disease or end stage renal disease |
+| `I13.0` | 高血壓性心腎病伴心衰竭（CKD 1-4 期） | 高血壓性心臟及慢性腎臟病伴有心臟衰竭及第一至第四期慢性腎病或未明示慢性腎病 | Hypertensive heart and chronic kidney disease with heart failure and stage 1 through stage 4 chronic kidney disease, or unspecified chronic kidney disease |
+| `I13.10` | 高血壓性心腎病未伴心衰竭（CKD 1-4 期） | 高血壓性心臟及慢性腎臟病未伴有心臟衰竭合併第一至第四期慢性腎病或未明示慢性腎病 | Hypertensive heart and chronic kidney disease without heart failure, with stage 1 through stage 4 chronic kidney disease, or unspecified chronic kidney disease |
+| `I13.2` | 高血壓性心腎病伴心衰竭（CKD 5 期或 ESRD） | 高血壓性心臟及慢性腎臟病伴有心臟衰竭及第五期慢性腎病或末期腎病 | Hypertensive heart and chronic kidney disease with heart failure and with stage 5 chronic kidney disease, or end stage renal disease |
+| `I15.0` | 腎血管性高血壓 | 腎血管性續發性高血壓 | Renovascular hypertension |
+| `I15.1` | 其他腎疾病續發之高血壓 | 其他腎疾患引起之續發性高血壓 | Hypertension secondary to other renal disorders |
+| `I15.2` | 內分泌疾病續發之高血壓 | 其他內分泌疾患引起之續發性高血壓 | Hypertension secondary to endocrine disorders |
+| `I16.0` | 高血壓緊急狀況（urgency） | 高血壓緊急狀況 | Hypertensive urgency |
+| `I16.1` | 高血壓急症（emergency） | 高血壓急症 | Hypertensive emergency |
+| `I27.20` | 肺高血壓 | 肺高血壓 | Pulmonary hypertension, unspecified |
+| `I70.209` | 四肢動脈粥狀硬化（未明示） | 未明示四肢動脈粥樣硬化 | Unspecified atherosclerosis of native arteries of extremities, unspecified extremity |
+| `I73.9` | 末梢血管疾病 | 末梢血管疾病 | Peripheral vascular disease, unspecified |
+| `I87.2` | 慢性靜脈功能不足 | 靜脈功能不足（慢性）（周邊） | Venous insufficiency (chronic) (peripheral) |
+| `I95.1` | 姿勢性低血壓 | 直立性低血壓 | Orthostatic hypotension |
+| `E78.5` | 高血脂症 | 高血脂症 | Hyperlipidemia, unspecified |
+| `N18.30` | 第三期慢性腎臟疾病 | 慢性腎臟疾病stage 3 | Chronic kidney disease, stage 3 unspecified |
+| `E11.9` | 第二型糖尿病（未伴併發症） | 第二型糖尿病，未伴有併發症 | Type 2 diabetes mellitus without complications |
+| `I25.10` | 冠狀動脈粥狀硬化性心臟病（未伴心絞痛） | 自體的冠狀動脈粥樣硬化心臟病未伴有心絞痛 | Atherosclerotic heart disease of native coronary artery without angina pectoris |
+| `Z79.899` | 長期藥物治療 | 長期 （現在之）藥物治療 | Other long term (current) drug therapy |
+| `Z71.3` | 飲食諮詢衛教 | 飲食諮詢與監測 | Dietary counseling and surveillance |
+
+#### 糖尿病
+
+| 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
+|---|---|---|---|
+| **主訴** | | | |
+| `E11.9` | 第二型糖尿病（未伴併發症） | 第二型糖尿病，未伴有併發症 | Type 2 diabetes mellitus without complications |
+| `E11.65` | 第二型糖尿病伴高血糖 | 第二型糖尿病，伴有高血糖 | Type 2 diabetes mellitus with hyperglycemia |
+| `E10.9` | 第一型糖尿病（未伴併發症） | 第一型糖尿病，未伴有併發症 | Type 1 diabetes mellitus without complications |
+| `R73.03` | 糖尿病前期 | 糖尿病前期 | Prediabetes |
+| **常見疾病** | | | |
+| `E11.21` | 第二型糖尿病伴糖尿病腎病變 | 第二型糖尿病，伴有糖尿病的腎臟病變 | Type 2 diabetes mellitus with diabetic nephropathy |
+| `E11.22` | 第二型糖尿病伴糖尿病慢性腎臟疾病 | 第二型糖尿病，糖尿病的慢性腎臟疾病 | Type 2 diabetes mellitus with diabetic chronic kidney disease |
+| `E11.29` | 第二型糖尿病伴其他腎併發症 | 第二型糖尿病，伴有其他糖尿病的腎臟併發症 | Type 2 diabetes mellitus with other diabetic kidney complication |
+| `E11.319` | 第二型糖尿病伴視網膜病變（未伴黃斑部水腫） | 第二型糖尿病，伴有糖尿病的視網膜病變，未伴有黃斑部水腫 | Type 2 diabetes mellitus with unspecified diabetic retinopathy without macular edema |
+| `E11.36` | 第二型糖尿病伴糖尿病白內障 | 第二型糖尿病，伴有糖尿病的白內障 | Type 2 diabetes mellitus with diabetic cataract |
+| `E11.40` | 第二型糖尿病伴神經病變 | 第二型糖尿病，伴有糖尿病的神經病變 | Type 2 diabetes mellitus with diabetic neuropathy, unspecified |
+| `E11.42` | 第二型糖尿病伴多發神經病變 | 第二型糖尿病，伴有糖尿病的多發神經病變 | Type 2 diabetes mellitus with diabetic polyneuropathy |
+| `E11.43` | 第二型糖尿病伴自主神經病變 | 第二型糖尿病，伴有糖尿病的自主(多發)神經病變 | Type 2 diabetes mellitus with diabetic autonomic (poly)neuropathy |
+| `E11.51` | 第二型糖尿病伴周邊血管病變（未伴壞疽） | 第二型糖尿病，伴有糖尿病的周邊血管病變，未伴有壞疽 | Type 2 diabetes mellitus with diabetic peripheral angiopathy without gangrene |
+| `E11.52` | 第二型糖尿病伴周邊血管病變伴壞疽 | 第二型糖尿病，伴有糖尿病的周邊血管病變，伴有壞疽 | Type 2 diabetes mellitus with diabetic peripheral angiopathy with gangrene |
+| `E11.610` | 第二型糖尿病伴神經病變性關節病變（夏柯氏足） | 第二型糖尿病，伴有糖尿病的神經病變引起之關節病變 | Type 2 diabetes mellitus with diabetic neuropathic arthropathy |
+| `E11.621` | 第二型糖尿病伴足部潰瘍 | 第二型糖尿病，伴有足部潰瘍 | Type 2 diabetes mellitus with foot ulcer |
+| `E11.622` | 第二型糖尿病伴其他皮膚潰瘍 | 第二型糖尿病，伴有其他皮膚潰瘍 | Type 2 diabetes mellitus with other skin ulcer |
+| `E11.628` | 第二型糖尿病伴其他皮膚併發症 | 第二型糖尿病，伴有其他皮膚併發症 | Type 2 diabetes mellitus with other skin complications |
+| `E11.69` | 第二型糖尿病伴其他特定併發症 | 第二型糖尿病，伴有其他特定併發症 | Type 2 diabetes mellitus with other specified complication |
+| `E11.8` | 第二型糖尿病伴未明示併發症 | 第二型糖尿病，伴有未明示之併發症 | Type 2 diabetes mellitus with unspecified complications |
+| `E11.00` | 高滲透壓高血糖狀態 HHS（第二型，未伴昏迷） | 第二型糖尿病，伴有高滲透壓，未伴有非酮病之高血糖-高滲透壓的昏迷 | Type 2 diabetes mellitus with hyperosmolarity without nonketotic hyperglycemic-hyperosmolar coma (NKHHC) |
+| `E11.10` | 糖尿病酮酸中毒 DKA（第二型，未伴昏迷） | 第二型糖尿病，伴有酮酸中毒，未伴有昏迷 | Type 2 diabetes mellitus with ketoacidosis without coma |
+| `E10.65` | 第一型糖尿病伴高血糖 | 第一型糖尿病，伴有高血糖 | Type 1 diabetes mellitus with hyperglycemia |
+| `E13.9` | 其他特定糖尿病（未伴併發症） | 其他特定糖尿病，未伴有併發症 | Other specified diabetes mellitus without complications |
+| `E16.2` | 低血糖 | 低血糖 | Hypoglycemia, unspecified |
+| `R73.09` | 其他異常血糖檢驗 | 其他葡萄糖異常 | Other abnormal glucose |
+| `R73.9` | 高血糖 | 高血糖 | Hyperglycemia, unspecified |
+| `Z79.4` | 長期使用胰島素 | 長期（現在之）服用胰島素 | Long term (current) use of insulin |
+| `Z79.84` | 長期使用口服降血糖藥 | 長期(現存)使用口服降糖藥治療 | Long term (current) use of oral hypoglycemic drugs |
+| `Z13.1` | 糖尿病篩檢 | 來院接受糖尿病篩檢 | Encounter for screening for diabetes mellitus |
+
+#### 血脂／肥胖代謝
+
+| 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
+|---|---|---|---|
+| **主訴** | | | |
+| `E78.5` | 高血脂症 | 高血脂症 | Hyperlipidemia, unspecified |
+| `E78.00` | 純高膽固醇血症 | 純高膽固醇血症 | Pure hypercholesterolemia, unspecified |
+| `E78.2` | 混合型高血脂症 | 混合型高血脂症 | Mixed hyperlipidemia |
+| **常見疾病** | | | |
+| `E78.1` | 純高三酸甘油酯血症 | 純高三酸甘油酯血症 | Pure hyperglyceridemia |
+| `E78.41` | 高脂蛋白 Lp(a) 血症 | 脂蛋白升高 | Elevated Lipoprotein(a) |
+| `E78.49` | 其他高脂血症 | 其他高血脂症 | Other hyperlipidemia |
+| `E78.6` | 脂蛋白缺乏症 | 脂蛋白缺乏 | Lipoprotein deficiency |
+| `E88.81` | 新陳代謝症候群 | 新陳代謝症候群 | Metabolic syndrome |
+| `E66.9` | 肥胖 | 肥胖 | Obesity, unspecified |
+| `E66.01` | 病態性肥胖（熱量過多） | 起因於熱量過多的病態性(重度)肥胖 | Morbid (severe) obesity due to excess calories |
+| `E66.3` | 過重 | 體重過重 | Overweight |
+| `E79.0` | 高尿酸血症（未伴發炎性關節炎及痛風石） | 高尿酸血症未伴有關節炎及痛風石 | Hyperuricemia without signs of inflammatory arthritis and tophaceous disease |
+| `K76.0` | 脂肪肝 | 脂肪肝(變化)，他處未歸類者 | Fatty (change of) liver, not elsewhere classified |
+| `E11.9` | 第二型糖尿病（未伴併發症） | 第二型糖尿病，未伴有併發症 | Type 2 diabetes mellitus without complications |
+| `I10` | 本態性高血壓 | 本態性(原發性)高血壓 | Essential (primary) hypertension |
+| `R73.03` | 糖尿病前期 | 糖尿病前期 | Prediabetes |
+| `Z68.30` | BMI 30.0-30.9 | 成人身體質量指數(BMI) 介於30.0-30.9 | Body mass index [BMI] 30.0-30.9, adult |
+| `Z68.35` | BMI 35.0-35.9 | 成人身體質量指數(BMI) 介於35.0-35.9 | Body mass index [BMI] 35.0-35.9, adult |
+| `Z68.41` | BMI 40.0-44.9 | 成人身體質量指數(BMI) 介於40.0-44.9 | Body mass index [BMI] 40.0-44.9, adult |
+| `Z71.3` | 飲食諮詢衛教 | 飲食諮詢與監測 | Dietary counseling and surveillance |
+| `Z79.899` | 長期藥物治療 | 長期 （現在之）藥物治療 | Other long term (current) drug therapy |
+| `R74.01` | 肝指數上升（轉胺酶） | 轉胺基脢含量上升 | Elevation of levels of liver transaminase levels |
+| `E88.89` | 其他特定代謝疾患 | 其他特定新陳代謝疾患 | Other specified metabolic disorders |
+
+#### 慢性腎臟病／透析
+
+| 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
+|---|---|---|---|
+| **主訴** | | | |
+| `N18.30` | 第三期慢性腎臟疾病 | 慢性腎臟疾病stage 3 | Chronic kidney disease, stage 3 unspecified |
+| `N18.4` | 第四期慢性腎臟疾病（重度） | 第四期慢性腎臟疾病(重度) | Chronic kidney disease, stage 4 (severe) |
+| `N18.6` | 末期腎病 ESRD | 末期腎疾病 | End stage renal disease |
+| **常見疾病** | | | |
+| `N18.1` | CKD 第1期 | 第一期慢性腎臟疾病 | Chronic kidney disease, stage 1 |
+| `N18.2` | CKD 第2期 | 第二期慢性腎臟疾病(輕度) | Chronic kidney disease, stage 2 (mild) |
+| `N18.31` | 第三a期慢性腎臟疾病 | 慢性腎臟疾病stage 3a | Chronic kidney disease, stage 3a |
+| `N18.32` | 第三b期慢性腎臟疾病 | 慢性腎臟疾病stage 3b | Chronic kidney disease, stage 3b |
+| `N18.5` | 第五期慢性腎臟疾病 | 第五期慢性腎臟疾病 | Chronic kidney disease, stage 5 |
+| `N18.9` | 慢性腎臟疾病 CKD | 慢性腎臟疾病 | Chronic kidney disease, unspecified |
+| `Z99.2` | 依賴腎透析 | 腎（臟）透析依賴 | Dependence on renal dialysis |
+| `Z49.31` | 血液透析照護 | 血液透析之充分性檢驗 | Encounter for adequacy testing for hemodialysis |
+| `Z49.32` | 腹膜透析照護 | 腹膜透析之充分性檢驗 | Encounter for adequacy testing for peritoneal dialysis |
+| `Z94.0` | 腎臟移植狀態 | 腎臟移植狀態 | Kidney transplant status |
+| `D63.1` | 慢性腎臟疾病導致的貧血（附加碼） | 慢性腎臟疾病導致的貧血 | Anemia in chronic kidney disease |
+| `N25.81` | 續發性副甲狀腺功能亢進（腎源性） | 腎源性續發性副甲狀腺機能亢進症 | Secondary hyperparathyroidism of renal origin |
+| `E87.5` | 高血鉀症 | 高血鉀症 | Hyperkalemia |
+| `E87.6` | 低血鉀症 | 低血鉀症 | Hypokalemia |
+| `E87.22` | 慢性代謝性酸中毒 | 慢性代謝性酸中毒 | Chronic metabolic acidosis |
+| `N04.9` | 腎病症候群 | 腎病症候群伴有非特異性的組織形態改變 | Nephrotic syndrome with unspecified morphologic changes |
+| `N05.9` | 腎炎症候群（未特異性組織形態改變） | 非特異性的腎炎症候群伴有非特異性的組織形態改變 | Unspecified nephritic syndrome with unspecified morphologic changes |
+| `N26.9` | 腎臟萎縮（未明示） | 腎硬化 | Renal sclerosis, unspecified |
+| `Q61.3` | 多囊腎 | 多囊腎 | Polycystic kidney, unspecified |
+| `N20.0` | 腎結石 | 腎結石 | Calculus of kidney |
+| `R80.9` | 蛋白尿 | 蛋白尿 | Proteinuria, unspecified |
+| `I12.9` | 高血壓性慢性腎病（CKD 1-4 期） | 高血壓性慢性腎臟病伴有第一至第四期慢性腎病或未明示慢性腎病 | Hypertensive chronic kidney disease with stage 1 through stage 4 chronic kidney disease, or unspecified chronic kidney disease |
+| `E11.22` | 第二型糖尿病伴糖尿病慢性腎臟疾病 | 第二型糖尿病，糖尿病的慢性腎臟疾病 | Type 2 diabetes mellitus with diabetic chronic kidney disease |
+
+#### 冠心病／心衰竭／心律不整
+
+| 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
+|---|---|---|---|
+| **主訴** | | | |
+| `I25.10` | 冠狀動脈粥狀硬化性心臟病（未伴心絞痛） | 自體的冠狀動脈粥樣硬化心臟病未伴有心絞痛 | Atherosclerotic heart disease of native coronary artery without angina pectoris |
+| `I50.9` | 心臟衰竭 HF | 心臟衰竭 | Heart failure, unspecified |
+| `I48.91` | 心房顫動 | 心房顫動 | Unspecified atrial fibrillation |
+| **常見疾病** | | | |
+| `I25.2` | 陳舊性心肌梗塞 | 陳舊性心肌梗塞 | Old myocardial infarction |
+| `I25.5` | 缺血性心肌病變 | 缺血性心肌病變 | Ischemic cardiomyopathy |
+| `I25.9` | 慢性缺血性心臟病（未明示） | 慢性缺血性心臟病 | Chronic ischemic heart disease, unspecified |
+| `I50.22` | 慢性收縮性心臟衰竭 | 慢性收縮性(充血性)心臟衰竭 | Chronic systolic (congestive) heart failure |
+| `I50.32` | 慢性舒張性心臟衰竭 | 慢性舒張性(充血性)心臟衰竭 | Chronic diastolic (congestive) heart failure |
+| `I50.42` | 慢性收縮併舒張性心衰竭 | 慢性收縮性併舒張性(充血性)心臟衰竭 | Chronic combined systolic (congestive) and diastolic (congestive) heart failure |
+| `I48.0` | 陣發性心房顫動 | 陣發性心房顫動 | Paroxysmal atrial fibrillation |
+| `I48.20` | 慢性心房顫動（未明示） | 慢性心房顫動 | Chronic atrial fibrillation, unspecified |
+| `I48.92` | 心房撲動（未明示） | 心房撲動 | Unspecified atrial flutter |
+| `I44.2` | 完全房室傳導阻斷 | 完全性房室傳導阻滯 | Atrioventricular block, complete |
+| `I49.9` | 心律不整 | 心臟節律不整 | Cardiac arrhythmia, unspecified |
+| `I34.0` | 非風濕性二尖瓣閉鎖不全 | 非風濕性二尖瓣閉鎖不全 | Nonrheumatic mitral (valve) insufficiency |
+| `I35.0` | 非風濕性主動脈瓣狹窄 | 非風濕性主動脈瓣狹窄 | Nonrheumatic aortic (valve) stenosis |
+| `I35.1` | 主動脈瓣逆流 | 非風濕主動脈瓣閉鎖不全 | Nonrheumatic aortic (valve) insufficiency |
+| `I42.0` | 擴張性心肌病變 | 擴張性心肌病變 | Dilated cardiomyopathy |
+| `I42.2` | 其他肥厚性心肌病變 | 其他肥厚性心肌病變 | Other hypertrophic cardiomyopathy |
+| `Z95.1` | 冠狀動脈繞道手術狀態 | 存有主動脈冠狀動脈繞道移植物 | Presence of aortocoronary bypass graft |
+| `Z95.5` | 冠狀動脈支架植入狀態 | 存有冠狀動脈血管成形術植入物及移植物 | Presence of coronary angioplasty implant and graft |
+| `Z95.0` | 心臟節律器植入狀態 | 存有心臟節律器 | Presence of cardiac pacemaker |
+| `Z79.01` | 長期服用抗凝血劑 | 長期（現在之）服用抗凝血劑 | Long term (current) use of anticoagulants |
+| `Z79.02` | 長期使用抗血小板藥 | 長期（現在之）服用抗血栓劑/抗血小板劑 | Long term (current) use of antithrombotics/antiplatelets |
+| `I73.9` | 末梢血管疾病 | 末梢血管疾病 | Peripheral vascular disease, unspecified |
+| `I10` | 本態性高血壓 | 本態性(原發性)高血壓 | Essential (primary) hypertension |
+| `E78.5` | 高血脂症 | 高血脂症 | Hyperlipidemia, unspecified |
+
+#### 腦中風後／神經退化
+
+| 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
+|---|---|---|---|
+| **主訴** | | | |
+| `I69.30` | 腦中風後遺症 | 腦梗塞後遺症 | Unspecified sequelae of cerebral infarction |
+| `G20` | 巴金森氏症 | 巴金森氏症 | Parkinson's disease |
+| `F03.90` | 失智症（未明示嚴重度、無行為障礙） | 非特定的失智症，未明示嚴重度，無行為、精神病症、情緒困擾及焦慮症狀 | Unspecified dementia, unspecified severity, without behavioral disturbance, psychotic disturbance, mood disturbance, and anxiety |
+| **常見疾病** | | | |
+| `Z86.73` | 中風病史（無後遺症） | 短暫性腦缺血發作 （TIA）與無殘餘缺損之腦梗塞之個人史 | Personal history of transient ischemic attack (TIA), and cerebral infarction without residual deficits |
+| `I69.351` | 腦梗塞後右側偏癱 | 右側優勢側偏癱/輕偏癱，腦梗塞後遺症 | Hemiplegia and hemiparesis following cerebral infarction affecting right dominant side |
+| `I69.354` | 腦梗塞後左側偏癱 | 左側非優勢側偏癱/輕偏癱，腦梗塞後遺症 | Hemiplegia and hemiparesis following cerebral infarction affecting left non-dominant side |
+| `I69.391` | 腦梗塞後吞嚥困難 | 吞嚥困難，腦梗塞後遺症 | Dysphagia following cerebral infarction |
+| `G30.9` | 阿茲海默氏病 | 非特定的阿茲海默氏病 | Alzheimer's disease, unspecified |
+| `G31.84` | 輕度認知障礙 | 病因不明之輕型認知障礙 | Mild cognitive impairment of uncertain or unknown etiology |
+| `G45.9` | 短暫性腦缺血發作 TIA | 短暫性大腦缺血發作 | Transient cerebral ischemic attack, unspecified |
+| `I65.29` | 頸動脈狹窄（未明示側） | 未明示側性頸動脈阻塞及狹窄 | Occlusion and stenosis of unspecified carotid artery |
+| `I67.9` | 腦血管疾病（未明示） | 診斷欠明之腦血管疾病 | Cerebrovascular disease, unspecified |
+| `G40.909` | 癲癇（非難治，未伴重積） | 癲癇，非難治之癲癇，未伴有癲癇重積狀態 | Epilepsy, unspecified, not intractable, without status epilepticus |
+| `G43.909` | 偏頭痛 | 偏頭痛，未明確定義型態，非頑固性，未伴有偏頭痛重積狀態 | Migraine, unspecified, not intractable, without status migrainosus |
+| `G47.00` | 失眠 | 非特定的失眠症 | Insomnia, unspecified |
+| `G47.33` | 阻塞型睡眠呼吸中止 OSA | 阻塞性睡眠呼吸中止 (成人) (小兒) | Obstructive sleep apnea (adult) (pediatric) |
+| `G62.9` | 多發神經病變 | 多發神經病變 | Polyneuropathy, unspecified |
+| `G35` | 多發性硬化症 | 多發性硬化症 | Multiple sclerosis |
+| `R27.0` | 運動失調 | 共濟失調 | Ataxia, unspecified |
+| `R26.81` | 站立不穩 | 站立不穩 | Unsteadiness on feet |
+| `R13.10` | 吞嚥困難 | 吞嚥困難 | Dysphagia, unspecified |
+| `Z79.02` | 長期使用抗血小板藥 | 長期（現在之）服用抗血栓劑/抗血小板劑 | Long term (current) use of antithrombotics/antiplatelets |
+| `Z79.01` | 長期服用抗凝血劑 | 長期（現在之）服用抗凝血劑 | Long term (current) use of anticoagulants |
+| `I10` | 本態性高血壓 | 本態性(原發性)高血壓 | Essential (primary) hypertension |
+
+#### 氣喘／COPD
+
+| 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
+|---|---|---|---|
+| **主訴** | | | |
+| `J44.9` | 慢性阻塞性肺病 COPD | 慢性阻塞性肺病 | Chronic obstructive pulmonary disease, unspecified |
+| `J45.909` | 氣喘（無併發症） | 氣喘,無併發症 | Unspecified asthma, uncomplicated |
+| **常見疾病** | | | |
+| `J44.0` | COPD 伴急性下呼吸道感染 | 慢性阻塞性肺病伴有急性下呼吸道感染 | Chronic obstructive pulmonary disease with (acute) lower respiratory infection |
+| `J44.1` | COPD 急性惡化 | 慢性阻塞性肺病伴有(急性)發作 | Chronic obstructive pulmonary disease with (acute) exacerbation |
+| `J42` | 慢性支氣管炎 | 慢性支氣管炎 | Unspecified chronic bronchitis |
+| `J43.9` | 肺氣腫 | 肺氣腫 | Emphysema, unspecified |
+| `J45.20` | 間歇性氣喘（未併發症） | 輕度間歇性氣喘,無併發症 | Mild intermittent asthma, uncomplicated |
+| `J45.30` | 輕度持續性氣喘（未併發症） | 輕度持續性氣喘,無併發症 | Mild persistent asthma, uncomplicated |
+| `J45.40` | 中度持續性氣喘（無併發症） | 中度持續性氣喘，無併發症 | Moderate persistent asthma, uncomplicated |
+| `J45.50` | 重度持續性氣喘（未併發症） | 重度持續發作性氣喘，無併發症 | Severe persistent asthma, uncomplicated |
+| `J45.901` | 氣喘急性發作 | 氣喘併(急性)發作 | Unspecified asthma with (acute) exacerbation |
+| `J47.9` | 支氣管擴張症（未併發） | 支氣管擴張症 | Bronchiectasis, uncomplicated |
+| `J96.10` | 慢性呼吸衰竭（未明示缺氧或高碳酸） | 慢性呼吸衰竭，未明示是否伴有缺氧或高碳酸血症 | Chronic respiratory failure, unspecified whether with hypoxia or hypercapnia |
+| `J84.10` | 肺部纖維化 | 肺部纖維化 | Pulmonary fibrosis, unspecified |
+| `G47.33` | 阻塞型睡眠呼吸中止 OSA | 阻塞性睡眠呼吸中止 (成人) (小兒) | Obstructive sleep apnea (adult) (pediatric) |
+| `J30.9` | 過敏性鼻炎 | 過敏性鼻炎 | Allergic rhinitis, unspecified |
+| `J31.0` | 慢性鼻炎 | 慢性鼻炎 | Chronic rhinitis |
+| `R05.3` | 慢性咳嗽 | 慢性咳嗽 | Chronic cough |
+| `R06.02` | 呼吸短促 | 呼吸短促 | Shortness of breath |
+| `Z99.81` | 依賴補充氧氣 | 補充氧氣之依賴 | Dependence on supplemental oxygen |
+| `F17.210` | 尼古丁依賴（香菸、未併發症） | 尼古丁依賴，香菸，無併發症 | Nicotine dependence, cigarettes, uncomplicated |
+| `Z87.891` | 尼古丁依賴病史 | 尼古丁依賴之個人史 | Personal history of nicotine dependence |
+| `Z23` | 預防接種 | 來院接受疫苗接種 | Encounter for immunization |
+
+#### 慢性肝膽腸胃
+
+| 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
+|---|---|---|---|
+| **主訴** | | | |
+| `K21.9` | 胃食道逆流 GERD（未伴食道炎） | 胃食道逆性疾病未伴有食道炎 | Gastro-esophageal reflux disease without esophagitis |
+| `K29.50` | 慢性胃炎 | 慢性胃炎未伴有出血 | Unspecified chronic gastritis without bleeding |
+| `B18.2` | 慢性 C 型肝炎 | 慢性病毒性C型肝炎 | Chronic viral hepatitis C |
+| **常見疾病** | | | |
+| `K21.00` | 胃食道逆流伴食道炎（未伴出血） | 胃食道逆流性疾病伴有食道炎未伴有出血 | Gastro-esophageal reflux disease with esophagitis, without bleeding |
+| `K25.9` | 胃潰瘍（未明示急慢性、未伴出血或穿孔） | 胃潰瘍，未明示急性或慢性，未伴有出血或穿孔 | Gastric ulcer, unspecified as acute or chronic, without hemorrhage or perforation |
+| `K26.9` | 十二指腸潰瘍（未明示急慢性、未伴出血或穿孔） | 十二指腸潰瘍，未明示急性或慢性，未伴有出血或穿孔 | Duodenal ulcer, unspecified as acute or chronic, without hemorrhage or perforation |
+| `K29.70` | 胃炎（未伴出血） | 胃炎未伴有出血 | Gastritis, unspecified, without bleeding |
+| `K58.9` | 腸躁症（未伴腹瀉） | 激躁性腸症候群未伴有腹瀉 | Irritable bowel syndrome without diarrhea |
+| `K59.00` | 便秘 | 便秘 | Constipation, unspecified |
+| `K64.9` | 痔瘡 | 痔瘡 | Unspecified hemorrhoids |
+| `K57.30` | 大腸憩室（未伴穿孔或膿瘍、無出血） | 大腸憩室未伴有穿孔或膿瘍無出血 | Diverticulosis of large intestine without perforation or abscess without bleeding |
+| `K51.90` | 潰瘍性結腸炎（未伴併發症） | 潰瘍性結腸炎未伴有併發症 | Ulcerative colitis, unspecified, without complications |
+| `K50.90` | 克隆氏病（未伴併發症） | 克隆氏病未伴有併發症 | Crohn's disease, unspecified, without complications |
+| `B18.1` | 慢性 B 型肝炎（未伴 D 型） | 慢性病毒性B型肝炎未伴有D 型肝炎病毒 | Chronic viral hepatitis B without delta-agent |
+| `K74.60` | 肝硬化 | 肝硬化 | Unspecified cirrhosis of liver |
+| `K76.0` | 脂肪肝 | 脂肪肝(變化)，他處未歸類者 | Fatty (change of) liver, not elsewhere classified |
+| `K70.30` | 酒精性肝硬化（未伴腹水） | 酒精性肝硬化未伴有腹水 | Alcoholic cirrhosis of liver without ascites |
+| `K86.1` | 其他慢性胰臟炎 | 其他慢性胰臟炎 | Other chronic pancreatitis |
+| `K80.20` | 膽囊結石（未伴膽囊炎、未伴阻塞） | 膽囊結石未伴有膽囊炎未伴有阻塞 | Calculus of gallbladder without cholecystitis without obstruction |
+| `K90.0` | 乳糜瀉 | 乳糜瀉 | Celiac disease |
+| `R74.01` | 肝指數上升（轉胺酶） | 轉胺基脢含量上升 | Elevation of levels of liver transaminase levels |
+| `Z86.010` | 大腸息肉病史 | 結腸息肉之個人史 | Personal history of colonic polyps |
+| `Z79.899` | 長期藥物治療 | 長期 （現在之）藥物治療 | Other long term (current) drug therapy |
+
+#### 甲狀腺／內分泌
+
+| 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
+|---|---|---|---|
+| **主訴** | | | |
+| `E03.9` | 甲狀腺功能低下 | 甲狀腺低下 | Hypothyroidism, unspecified |
+| `E05.90` | 甲狀腺毒症／甲亢（未伴危象或風暴） | 未明示之甲狀腺毒症，未伴有甲狀腺毒性危象或風暴 | Thyrotoxicosis, unspecified without thyrotoxic crisis or storm |
+| **常見疾病** | | | |
+| `E03.8` | 其他特定甲狀腺功能低下 | 其他特定甲狀腺低下 | Other specified hypothyroidism |
+| `E02` | 亞臨床碘缺乏性甲狀腺功能低下 | 臨床無症狀的缺碘性甲狀腺低下 | Subclinical iodine-deficiency hypothyroidism |
+| `E06.3` | 自體免疫甲狀腺炎 | 自體免疫的甲狀腺炎 | Autoimmune thyroiditis |
+| `E04.1` | 非毒性單一甲狀腺結節 | 非毒性單一甲狀腺結節 | Nontoxic single thyroid nodule |
+| `E04.2` | 非毒性多結節性甲狀腺腫 | 非毒性多結節性甲狀腺腫 | Nontoxic multinodular goiter |
+| `E05.00` | 毒性瀰漫性甲狀腺腫（未伴危象或風暴） | 毒性瀰漫性甲狀腺腫，未伴有甲狀腺毒性危象或風暴 | Thyrotoxicosis with diffuse goiter without thyrotoxic crisis or storm |
+| `E89.0` | 術後甲狀腺功能低下 | 手術後甲狀腺低下 | Postprocedural hypothyroidism |
+| `E21.0` | 原發性副甲狀腺功能亢進 | 原發性副甲狀腺亢進 | Primary hyperparathyroidism |
+| `E20.9` | 副甲狀腺功能低下（未明示） | 副甲狀腺低下 | Hypoparathyroidism, unspecified |
+| `E27.40` | 腎上腺皮質功能不足 | 腎上腺皮質功能不足 | Unspecified adrenocortical insufficiency |
+| `E24.9` | 庫欣氏症候群（未明示） | 庫欣氏症候群 | Cushing's syndrome, unspecified |
+| `E28.2` | 多囊卵巢症候群 | 多囊性卵巢症候群 | Polycystic ovarian syndrome |
+| `E23.0` | 腦下垂體功能低下 | 腦下腺功能低下 | Hypopituitarism |
+| `E22.1` | 高泌乳素血症 | 高泌乳素血症 | Hyperprolactinemia |
+| `E29.1` | 睪丸功能低下 | 睪丸功能低下 | Testicular hypofunction |
+| `E55.9` | 維生素 D 缺乏 | 維生素D缺乏 | Vitamin D deficiency, unspecified |
+| `E88.81` | 新陳代謝症候群 | 新陳代謝症候群 | Metabolic syndrome |
+| `R94.6` | 甲狀腺功能檢查結果異常 | 甲狀腺功能檢查結果異常 | Abnormal results of thyroid function studies |
+| `Z79.899` | 長期藥物治療 | 長期 （現在之）藥物治療 | Other long term (current) drug therapy |
+
+#### 骨關節／骨鬆／慢性疼痛
+
+| 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
+|---|---|---|---|
+| **主訴** | | | |
+| `M10.9` | 痛風 | 痛風 | Gout, unspecified |
+| `M81.0` | 老年性骨質疏鬆（未伴病理性骨折） | 老年性骨質疏鬆症未伴有病理性骨折 | Age-related osteoporosis without current pathological fracture |
+| `M54.50` | 下背痛 | 下背痛 | Low back pain, unspecified |
+| **常見疾病** | | | |
+| `E79.0` | 高尿酸血症（未伴發炎性關節炎及痛風石） | 高尿酸血症未伴有關節炎及痛風石 | Hyperuricemia without signs of inflammatory arthritis and tophaceous disease |
+| `M15.0` | 原發性廣泛性骨關節炎 | 原發性廣泛性(骨)關節炎 | Primary generalized (osteo)arthritis |
+| `M16.0` | 雙側原發性髖關節炎 | 髖部原發性骨關節炎，雙側性 | Bilateral primary osteoarthritis of hip |
+| `M17.0` | 雙側膝部原發性骨關節炎 | 膝部原發性骨關節炎，雙側性 | Bilateral primary osteoarthritis of knee |
+| `M17.11` | 右膝原發性骨關節炎（單側） | 右側膝部原發性骨關節炎，單側性 | Unilateral primary osteoarthritis, right knee |
+| `M17.12` | 左膝原發性骨關節炎（單側） | 左側膝部原發性骨關節炎，單側性 | Unilateral primary osteoarthritis, left knee |
+| `M19.90` | 骨關節炎（未明示部位） | 未明示部位骨關節炎 | Unspecified osteoarthritis, unspecified site |
+| `M06.9` | 類風濕性關節炎 RA | 類風濕性關節炎 | Rheumatoid arthritis, unspecified |
+| `M32.9` | 全身性紅斑性狼瘡 SLE | 全身性紅斑性狼瘡 | Systemic lupus erythematosus, unspecified |
+| `M35.00` | 修格蘭氏症候群（乾燥症） | sjogren's症候群 | Sjogren syndrome, unspecified |
+| `M79.7` | 纖維肌痛 | 纖維肌痛 | Fibromyalgia |
+| `M54.2` | 頸椎痛 | 頸椎痛 | Cervicalgia |
+| `M54.51` | 椎體性下背痛 | 椎體性下背痛 | Vertebrogenic low back pain |
+| `M54.59` | 其他下背痛 | 其他下背痛 | Other low back pain |
+| `M47.816` | 腰椎退化性脊椎炎（未伴脊髓或神經根病變） | 腰椎退化性脊椎炎未伴有脊髓病變或神經根病變 | Spondylosis without myelopathy or radiculopathy, lumbar region |
+| `M48.061` | 腰椎脊椎狹窄（未伴神經性跛行） | 腰椎脊椎狹窄症未伴有神經源性跛行 | Spinal stenosis, lumbar region without neurogenic claudication |
+| `M25.561` | 右膝痛 | 右側膝部關節痛 | Pain in right knee |
+| `M25.562` | 左膝痛 | 左側膝部關節痛 | Pain in left knee |
+| `M75.100` | 肩部旋轉肌袖撕裂（未明示側、非創傷性） | 未明示側性肩部旋轉環帶撕裂或破裂，未明示為創傷性 | Unspecified rotator cuff tear or rupture of unspecified shoulder, not specified as traumatic |
+| `M77.10` | 肘外側上髁炎（網球肘、未明示側） | 未明示側性肘外側上髁炎 | Lateral epicondylitis, unspecified elbow |
+| `G89.29` | 其他慢性疼痛 | 其他慢性疼痛 | Other chronic pain |
+| `M85.80` | 其他特定骨密度及結構異常（未明示部位） | 未明示部位其他特定骨密度及構造疾患 | Other specified disorders of bone density and structure, unspecified site |
+| `Z79.899` | 長期藥物治療 | 長期 （現在之）藥物治療 | Other long term (current) drug therapy |
+
+#### 情緒／睡眠／成癮
+
+| 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
+|---|---|---|---|
+| **主訴** | | | |
+| `F41.9` | 焦慮症 | 非特定的焦慮症 | Anxiety disorder, unspecified |
+| `F32.A` | 憂鬱症 | 非特定性的鬱症 | Depression, unspecified |
+| `G47.00` | 失眠 | 非特定的失眠症 | Insomnia, unspecified |
+| **常見疾病** | | | |
+| `F33.9` | 鬱症（復發型） | 非特定的鬱症，復發 | Major depressive disorder, recurrent, unspecified |
+| `F31.9` | 雙相情緒障礙症 | 非特定的雙相情緒障礙症 | Bipolar disorder, unspecified |
+| `F41.1` | 廣泛性焦慮症 | 廣泛性焦慮症 | Generalized anxiety disorder |
+| `F40.10` | 社交焦慮症（未明示） | 非特定的社交畏懼症 | Social phobia, unspecified |
+| `F42.9` | 強迫症（未明示） | 強迫症 | Obsessive-compulsive disorder, unspecified |
+| `F43.10` | 創傷後壓力症 PTSD | 創傷後壓力症，非特定 | Post-traumatic stress disorder, unspecified |
+| `F43.21` | 適應障礙伴憂鬱情緒 | 有憂鬱情緒的適應障礙症 | Adjustment disorder with depressed mood |
+| `F45.9` | 擬身體障礙症 | 非特定的擬身體障礙症 | Somatoform disorder, unspecified |
+| `F51.01` | 原發性失眠 | 原發性失眠症 | Primary insomnia |
+| `G47.33` | 阻塞型睡眠呼吸中止 OSA | 阻塞性睡眠呼吸中止 (成人) (小兒) | Obstructive sleep apnea (adult) (pediatric) |
+| `G47.10` | 多眠症 | 非特定的多眠症 | Hypersomnia, unspecified |
+| `F10.20` | 酒精依賴（無併發症） | 酒精依賴，無併發症 | Alcohol dependence, uncomplicated |
+| `F17.210` | 尼古丁依賴（香菸、未併發症） | 尼古丁依賴，香菸，無併發症 | Nicotine dependence, cigarettes, uncomplicated |
+| `F03.90` | 失智症（未明示嚴重度、無行為障礙） | 非特定的失智症，未明示嚴重度，無行為、精神病症、情緒困擾及焦慮症狀 | Unspecified dementia, unspecified severity, without behavioral disturbance, psychotic disturbance, mood disturbance, and anxiety |
+| `F90.9` | 注意力不足過動症（未明示） | 注意力不足過動症，非特定型 | Attention-deficit hyperactivity disorder, unspecified type |
+| `R45.851` | 自殺意念 | 自殺意念 | Suicidal ideations |
+| `R41.3` | 其他失憶症 | 其他失憶症 | Other amnesia |
+| `Z79.899` | 長期藥物治療 | 長期 （現在之）藥物治療 | Other long term (current) drug therapy |
+| `Z91.148` | 未遵醫囑用藥（其他理由） | 由於其他理由，病人對其他用藥療程不順從 | Patient's other noncompliance with medication regimen for other reason |
+
+#### 貧血／營養缺乏
+
+| 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
+|---|---|---|---|
+| **主訴** | | | |
+| `D64.9` | 貧血 | 貧血 | Anemia, unspecified |
+| `D50.9` | 缺鐵性貧血 | 缺鐵性貧血 | Iron deficiency anemia, unspecified |
+| **常見疾病** | | | |
+| `D50.0` | 慢性失血導致之缺鐵性貧血 | (慢性)血液流失引起之續發缺鐵性貧血 | Iron deficiency anemia secondary to blood loss (chronic) |
+| `D51.0` | 維生素 B12 缺乏性貧血（惡性貧血） | 內因子缺乏所致的維生素Ｂ12缺乏性貧血 | Vitamin B12 deficiency anemia due to intrinsic factor deficiency |
+| `D52.9` | 葉酸缺乏性貧血 | 葉酸缺乏性貧血 | Folate deficiency anemia, unspecified |
+| `D53.9` | 營養性貧血（未明示） | 營養性貧血 | Nutritional anemia, unspecified |
+| `D63.1` | 慢性腎臟疾病導致的貧血（附加碼） | 慢性腎臟疾病導致的貧血 | Anemia in chronic kidney disease |
+| `D63.0` | 腫瘤疾病導致之貧血 | 腫瘤疾病導致的貧血 | Anemia in neoplastic disease |
+| `D46.9` | 骨髓化生不良症候群 MDS（未明示） | 骨髓分化不良症候群 | Myelodysplastic syndrome, unspecified |
+| `D69.6` | 血小板缺乏症 | 血小板缺乏症 | Thrombocytopenia, unspecified |
+| `D70.9` | 嗜中性球低下 | 嗜中性白血球缺乏症 | Neutropenia, unspecified |
+| `D75.9` | 血液及造血器官疾病（未明示） | 血液與造血器官疾病 | Disease of blood and blood-forming organs, unspecified |
+| `E55.9` | 維生素 D 缺乏 | 維生素D缺乏 | Vitamin D deficiency, unspecified |
+| `E53.8` | 其他特定維生素 B 群缺乏症 | 其他特定維生素B群缺乏症 | Deficiency of other specified B group vitamins |
+| `E61.1` | 鐵缺乏 | 缺鐵 | Iron deficiency |
+| `E43` | 未明示重度蛋白質熱量營養不良 | 重度蛋白質-熱量營養不良症 | Unspecified severe protein-calorie malnutrition |
+| `E44.0` | 中度蛋白質熱量營養不良 | 中度蛋白質-熱量營養不良症 | Moderate protein-calorie malnutrition |
+| `R53.83` | 疲倦 | 其他疲勞 | Other fatigue |
+| `R71.8` | 其他紅血球異常 | 其他紅血球異常 | Other abnormality of red blood cells |
+| `Z79.899` | 長期藥物治療 | 長期 （現在之）藥物治療 | Other long term (current) drug therapy |
+
+#### 長期用藥／照護狀態
+
+| 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
+|---|---|---|---|
+| **主訴** | | | |
+| `Z79.899` | 長期藥物治療 | 長期 （現在之）藥物治療 | Other long term (current) drug therapy |
+| `Z09` | 治療後追蹤檢查 | 來院接受惡性腫瘤以外病況完整治療後之追蹤檢查 | Encounter for follow-up examination after completed treatment for conditions other than malignant neoplasm |
+| **常見疾病** | | | |
+| `Z79.4` | 長期使用胰島素 | 長期（現在之）服用胰島素 | Long term (current) use of insulin |
+| `Z79.84` | 長期使用口服降血糖藥 | 長期(現存)使用口服降糖藥治療 | Long term (current) use of oral hypoglycemic drugs |
+| `Z79.01` | 長期服用抗凝血劑 | 長期（現在之）服用抗凝血劑 | Long term (current) use of anticoagulants |
+| `Z79.02` | 長期使用抗血小板藥 | 長期（現在之）服用抗血栓劑/抗血小板劑 | Long term (current) use of antithrombotics/antiplatelets |
+| `Z79.52` | 長期使用全身性類固醇 | 長期（現在之）全身性類固醇 | Long term (current) use of systemic steroids |
+| `Z79.891` | 長期使用鴉片類止痛劑 | 長期 （現在之）之鴉片類之鎮痛劑 | Long term (current) use of opiate analgesic |
+| `Z79.83` | 長期使用骨質疏鬆藥物 | 長期（現在之）服用雙磷酸鹽類藥物 | Long term (current) use of bisphosphonates |
+| `Z79.1` | 長期使用非類固醇消炎止痛藥 NSAID | 長期（現在之）服用非類固醇類消炎藥 | Long term (current) use of non-steroidal anti-inflammatories (NSAID) |
+| `Z95.0` | 心臟節律器植入狀態 | 存有心臟節律器 | Presence of cardiac pacemaker |
+| `Z95.1` | 冠狀動脈繞道手術狀態 | 存有主動脈冠狀動脈繞道移植物 | Presence of aortocoronary bypass graft |
+| `Z95.5` | 冠狀動脈支架植入狀態 | 存有冠狀動脈血管成形術植入物及移植物 | Presence of coronary angioplasty implant and graft |
+| `Z99.2` | 依賴腎透析 | 腎（臟）透析依賴 | Dependence on renal dialysis |
+| `Z99.81` | 依賴補充氧氣 | 補充氧氣之依賴 | Dependence on supplemental oxygen |
+| `Z94.0` | 腎臟移植狀態 | 腎臟移植狀態 | Kidney transplant status |
+| `Z86.73` | 中風病史（無後遺症） | 短暫性腦缺血發作 （TIA）與無殘餘缺損之腦梗塞之個人史 | Personal history of transient ischemic attack (TIA), and cerebral infarction without residual deficits |
+| `Z87.891` | 尼古丁依賴病史 | 尼古丁依賴之個人史 | Personal history of nicotine dependence |
+| `Z91.148` | 未遵醫囑用藥（其他理由） | 由於其他理由，病人對其他用藥療程不順從 | Patient's other noncompliance with medication regimen for other reason |
+| `Z71.3` | 飲食諮詢衛教 | 飲食諮詢與監測 | Dietary counseling and surveillance |
+| `Z13.1` | 糖尿病篩檢 | 來院接受糖尿病篩檢 | Encounter for screening for diabetes mellitus |
+| `Z23` | 預防接種 | 來院接受疫苗接種 | Encounter for immunization |
 
 ### 全身／感染
 
@@ -2952,4 +3358,4 @@
 
 ---
 
-面板與快選代碼位置合計 2203 筆。
+面板與快選代碼位置合計 2516 筆。
