@@ -31,6 +31,12 @@ SEND_ENTER := true      ; 每個代碼之後是否按 Enter（HIS 要 Enter 才�
 CODE_DELAY := 250       ; 代碼之間的等待毫秒數；HIS 反應慢就調大
 KEY_DELAY  := 25        ; 每個按鍵之間的毫秒數；舊系統漏字就調大
 
+; 有些碼（例如 I10）在 2014→2023 版是一對多，送出後 HIS 會跳出「ICD10 2014延伸2023
+; 醫令說明」要醫師用滑鼠雙擊選一個。那個視窗一出現，後面的碼就會打到它上面。
+; 選哪個 2023 碼是臨床判斷，不可以自動代選——所以改成「偵測到就停下來等你選完」。
+DIALOG_PROBE := 600     ; 送出一個碼後，觀察這麼久確認有沒有跳出視窗（毫秒）
+DIALOG_WAIT  := 90      ; 跳出視窗後最多等你處理幾秒；超過就停下，剩下的碼不送
+
 ; 舊型 Windows 應用（Delphi／PowerBuilder 這類）常常吃不下 SendInput 的高速輸入，
 ; 用 Event 模式逐鍵送比較不會漏字。
 SendMode "Event"
@@ -51,7 +57,7 @@ F10::PreviewCodes()
 
 ; ── 主要動作 ────────────────────────────────────────────────────────────────
 SendCodes(onlyFirst) {
-    global CHECK_WINDOW, TARGET_WIN, SEND_ENTER, CODE_DELAY
+    global CHECK_WINDOW, TARGET_WIN, SEND_ENTER, CODE_DELAY, DIALOG_PROBE, DIALOG_WAIT
 
     codes := ExtractCodes(A_Clipboard)
     if (codes.Length = 0) {
@@ -76,14 +82,50 @@ SendCodes(onlyFirst) {
     ; 整批可能被吞掉；手動點進欄位再按 F9 通常不會遇到，但這 60ms 是免費的保險。
     Sleep 60
 
+    sent := 0
     for index, code in codes {
         SendText code
         if (SEND_ENTER)
             Send "{Enter}"
-        if (index < codes.Length)
-            Sleep CODE_DELAY
+        sent += 1
+        if (index >= codes.Length)
+            break
+        Sleep CODE_DELAY
+        if (!WaitForDialog(codes.Length - index))
+            return                      ; 等太久，剩下的碼不送（訊息已在 WaitForDialog 裡給了）
     }
-    Notify("已送出 " codes.Length " 碼：" Join(codes, "  "))
+    Notify("已送出 " sent " 碼：" Join(codes, "  "))
+}
+
+; 送出一個碼之後，HIS 可能跳出版本對照視窗要人工選取。
+; 回傳 true ＝ 可以繼續送下一個碼；false ＝ 等太久，呼叫端應該停止。
+; 判斷方式是「前景視窗還是不是 HIS 主視窗」，不綁定特定對話框標題——
+; 這樣其他會跳窗的情況（重複碼提醒、確認框）也一樣擋得住。
+WaitForDialog(remaining) {
+    global TARGET_WIN, DIALOG_PROBE, DIALOG_WAIT
+
+    if (TARGET_WIN = "")
+        return true
+
+    ; 對話框不一定馬上跳出來，觀察一小段時間再決定要不要等
+    waited := 0
+    while (waited < DIALOG_PROBE) {
+        if (!WinActive(TARGET_WIN))
+            break
+        Sleep 100
+        waited += 100
+    }
+    if (WinActive(TARGET_WIN))
+        return true                     ; 沒跳窗，直接繼續
+
+    Notify("HIS 跳出視窗了，請用滑鼠選好`n選完我會自動送剩下的 " remaining " 碼", 5000)
+    if (!WinWaitActive(TARGET_WIN, , DIALOG_WAIT)) {
+        Notify("等超過 " DIALOG_WAIT " 秒，剩下的 " remaining " 碼沒有送出`n"
+             . "處理完視窗後再按一次 F9，或用 Shift+F9 一次送一碼", 6000)
+        return false
+    }
+    Sleep 300                           ; 讓 HIS 的焦點回到疾病碼欄位再繼續
+    return true
 }
 
 PreviewCodes() {
