@@ -26,6 +26,8 @@ CHECK_WINDOW := true
 TARGET_WIN   := "OpoC200"
 
 SEND_ENTER := true      ; 每個代碼之後是否按 Enter（HIS 要 Enter 才帶出病名時保持 true）
+; 漏字在這裡特別危險：E11.9 掉一個字元變成 E1.9，那是另一個「合法但錯誤」的代碼，
+; HIS 照樣帶得出病名、不會報錯。真的遇到漏字就把這兩個值調大，不要將就。
 CODE_DELAY := 250       ; 代碼之間的等待毫秒數；HIS 反應慢就調大
 KEY_DELAY  := 25        ; 每個按鍵之間的毫秒數；舊系統漏字就調大
 
