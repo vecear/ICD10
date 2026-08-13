@@ -167,7 +167,7 @@ def test_touch_targets_are_at_least_44px(page):
     checks = [
         ("#search", 44),
         ("#settings-toggle", 44),
-        ("#copy-all", 48),
+        ("#copy-date", 44),
         ("#cart-toggle", 48),
         (".region-pill", 44),
         ("#panels .chip--row", 48),
@@ -283,49 +283,37 @@ def test_mode_buttons_switch_mode(page):
     assert "is-on" in switch.locator('[data-mode="emergency"]').get_attribute("class")
     assert_no_h_scroll(page, "切到急診")
 
-    # 兩條動線同步：設定 sheet 裡的 segmented 也要跟著選中
+    # 看診模式已移出設定 sheet：header 三鈕是唯一入口
     page.click("#settings-toggle")
-    expect(page.locator("#mode-er")).to_have_attribute("aria-pressed", "true")
-    page.click("#mode-op")                                  # 反向：popover 切了，三鈕跟著變
-    expect(page.locator("#settings-popover")).to_be_hidden()
+    assert page.locator("#seg-mode").count() == 0, "設定 sheet 不該再有看診模式 segmented"
+    page.keyboard.press("Escape")
+    switch.locator('[data-mode="outpatient"]').click()
     expect(switch.locator('[data-mode="outpatient"]')).to_have_attribute("aria-pressed", "true")
     reset(page)
 
 
-def test_region_all_button(page):
-    """橫捲部位列最前面的「全部」鈕：未選部位時＝選中，點它＝取消部位篩選。
+def test_region_pills_short_labels_without_all_button(page):
+    """部位鈕：兩字短名（橫捲列一屏看得到更多），且沒有「全部」鈕。
 
-    手機專屬條件：它黏在最左邊（sticky），捲到最右邊也按得到，且高度守住 44px。
+    取消篩選改回「再點一次已選的部位」那條快捷（由
+    test_region_toggle_clears_selection_and_shows_all 覆蓋）；全名留在 title。
     """
     reset(page)
-    all_btn = page.locator(".region-all-btn")
+    assert page.locator(".region-all-btn").count() == 0, "「全部」鈕應已移除"
     pills = page.locator(".region-pill")
-    expect(all_btn).to_have_count(1)
-    region_count = pills.count()
-    assert box(all_btn)["height"] >= 43.5, f"「全部」高度只有 {box(all_btn)['height']:.1f}px"
-    assert box(all_btn)["x"] < box(pills.nth(0))["x"], "「全部」不在部位列最前面"
+    n = pills.count()
+    assert n >= 4
 
-    expect(all_btn).to_have_attribute("aria-pressed", "false")
-    all_btn.click()
-    expect(all_btn).to_have_attribute("aria-pressed", "true")
-    assert page.evaluate("() => window.ICDApp.store.getState().region") is None
-    assert page.locator('.region-pill[aria-pressed="true"]').count() == 0
-    expect(page.locator("#panels .region-heading")).to_have_count(region_count)
-    assert_no_h_scroll(page, "「全部」選中")
+    texts = [pills.nth(i).locator("span").first.inner_text().strip() for i in range(n)]
+    too_long = [t for t in texts if len(t) > 2]
+    assert not too_long, f"部位鈕不是兩個字：{too_long}"
 
-    # 橫捲到最右邊仍然按得到（sticky 黏在左緣）：第一顆部位已被捲出視窗，「全部」沒有
-    page.eval_on_selector("#region-pills", "(el) => { el.scrollLeft = el.scrollWidth; }")
-    page.wait_for_timeout(60)
-    assert box(pills.nth(0))["x"] < 0, "部位列沒有真的捲動，測不到 sticky"
-    assert box(all_btn)["x"] >= -0.5, f"捲到最右邊後「全部」被捲走了（x={box(all_btn)['x']:.0f}）"
+    for i in range(n):
+        title = pills.nth(i).get_attribute("title") or ""
+        assert len(title) > 2, f"第 {i} 顆部位鈕沒有把全名留在 title：{title!r}"
 
-    page.eval_on_selector("#region-pills", "(el) => { el.scrollLeft = 0; }")
-    pills.nth(1).click()
-    expect(all_btn).to_have_attribute("aria-pressed", "false")
-    assert page.locator("#panels .region-heading").count() == 0
-    # 既有的「再點一次取消」快捷保留，結果與按「全部」一致
-    pills.nth(1).click()
-    expect(all_btn).to_have_attribute("aria-pressed", "true")
+    assert box(pills.nth(0))["height"] >= 43.5, "部位鈕高度不足 44px 觸控門檻"
+    assert_no_h_scroll(page, "部位短名列")
 
 
 def test_panel_cards_and_48px_code_rows(page):
@@ -414,26 +402,29 @@ def test_cart_bar_does_not_cover_content(page):
 
 
 def test_copy_matches_preview_and_format(page):
-    """複製鈕內容 === 抽屜裡的 #his-preview（看到的＝貼出去的），且吃設定的格式。"""
+    """剪貼簿 === 抽屜裡的 #his-preview（看到的＝貼出去的），且吃設定的格式。
+
+    複製鈕已移除：點診斷當下就自動同步，不需要任何額外動作。
+    """
     reset(page)
+    assert page.locator("#copy-all").count() == 0, "複製鈕應已移除"
     page.locator('#panels .chip--row').first.click()
     page.locator("#related .chip--row").first.click()
     codes = page.evaluate("() => window.ICDApp.store.getState().cart.map((x) => x.code)")
 
     page.click("#cart-toggle")
     expect(page.locator("#cart-sheet")).to_be_visible()
-    page.click("#copy-all")
+    page.wait_for_timeout(200)
     clip = page.evaluate("navigator.clipboard.readText()").replace("\r\n", "\n")
     assert clip == "\n".join(codes)
     assert clip == page.locator("#his-preview").text_content()
-    expect(page.locator("#copy-all")).to_contain_text("已複製")
 
     # 換成逗號分隔（設定 popover 內），預覽與剪貼簿同步改變
     page.click("#settings-toggle")
     page.click('#seg-format button[data-format="comma"]')
     page.keyboard.press("Escape")
     expect(page.locator("#his-format-label")).to_have_text("逗號分隔")
-    page.click("#copy-all")
+    page.wait_for_timeout(200)
     clip = page.evaluate("navigator.clipboard.readText()").replace("\r\n", "\n")
     assert clip == ",".join(codes)
     assert clip == page.locator("#his-preview").text_content()
@@ -545,9 +536,10 @@ def test_settings_sheet_opens_below_header(page):
     expect(page.locator("#shelf-toggle")).to_be_hidden()
     expect(page.locator("#db-note")).to_contain_text("96,802")
 
-    # 模式切換：header 三鈕與面板一起換
-    page.click("#mode-er")
+    # 模式切換：header 三鈕與面板一起換（設定 sheet 裡已無第二份模式選單）
+    page.keyboard.press("Escape")
     expect(pop).to_be_hidden()
+    page.click('#mode-switch [data-mode="emergency"]')
     expect(page.locator('#mode-switch [data-mode="emergency"]')).to_have_attribute("aria-pressed", "true")
     expect(page.locator("body")).to_have_attribute("data-mode", "emergency")
 
@@ -609,11 +601,12 @@ def test_no_page_errors_during_main_flow(browser_ctx, page_url):
         pg.click("#cart-toggle")
         pg.click("#cart-toggle")
         pg.click("#settings-toggle")
-        pg.click("#mode-surg")
+        pg.keyboard.press("Escape")
+        pg.click('#mode-switch [data-mode="surg"]')
         pg.locator(".region-pill").last.click()
         pg.fill("#search", "L03")
         pg.wait_for_timeout(400)
-        pg.click("#copy-all")
+        pg.click("#copy-date")
         pg.wait_for_timeout(200)
         assert errors == [], f"主要動線丟出例外：{errors}"
     finally:
@@ -877,7 +870,7 @@ def test_pane_touch_drag_resizes_sheet(touch_page):
 
     bar = box(pg.locator("#cart-bar"))
     assert bar["y"] + bar["height"] <= MOBILE["height"] + 0.5, "底部固定列被抽屜推出視窗"
-    expect(pg.locator("#copy-all")).to_be_visible()
+    expect(pg.locator("#cart-toggle")).to_be_visible()
     assert pane_h(pg, ".m-scroll") >= 100, "主訴捲動區被壓到看不見"
 
     # 相關碼區同樣拖得動（手指）
@@ -921,7 +914,7 @@ def test_pane_cannot_be_dragged_away(page):
     assert pane_h(page, ".m-scroll") >= 100, "抽屜吃光了主訴面板的空間"
     bar = box(page.locator("#cart-bar"))
     assert bar["y"] + bar["height"] <= MOBILE["height"] + 0.5, "底部固定列被推出視窗"
-    expect(page.locator("#copy-all")).to_be_visible()
+    expect(page.locator("#cart-toggle")).to_be_visible()
     assert_no_h_scroll(page, "極限拖曳後")
     reset(page)
 
@@ -1032,11 +1025,11 @@ def test_a11y_region_pills_are_toggle_buttons_not_fake_tabs(page):
     second = page.locator("#region-pills .region-pill").nth(1)
     second.click()
     expect(second).to_have_attribute("aria-pressed", "true")
-    expect(page.locator(".region-all-btn")).to_have_attribute("aria-pressed", "false")
     assert page.locator('#region-pills .region-pill[aria-pressed="true"]').count() == 1
 
-    page.click(".region-all-btn")
-    expect(page.locator(".region-all-btn")).to_have_attribute("aria-pressed", "true")
+    # 「全部」鈕已移除；取消篩選＝再點一次已選的那顆
+    second.click()
+    expect(second).to_have_attribute("aria-pressed", "false")
     assert page.locator('#region-pills .region-pill[aria-pressed="true"]').count() == 0
     reset(page)
 
@@ -1076,14 +1069,12 @@ def test_a11y_cart_code_is_keyboard_reachable_and_copies(page):
 
 
 def test_clear_cart_disabled_when_empty(page):
-    """清單為空時「清空」要與 #copy-all 一樣停用（v1 §3）。"""
+    """清單為空時「清空」要停用——按了什麼都不會發生的鈕，看起來像壞掉。"""
     reset(page)
     expect(page.locator("#clear-cart")).to_be_disabled()
-    expect(page.locator("#copy-all")).to_be_disabled()
 
     page.evaluate("() => window.ICDApp.store.addCode('I10', '本態性高血壓')")
     expect(page.locator("#clear-cart")).to_be_enabled()
-    expect(page.locator("#copy-all")).to_be_enabled()
 
     page.click("#cart-toggle")
     expect(page.locator("#cart-sheet")).to_be_visible()

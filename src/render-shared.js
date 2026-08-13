@@ -101,19 +101,26 @@
     return box;
   }
 
-  /* 部位列最前面的「全部」鈕（三套版面共用）。
-     「點已選的部位再點一次取消」三套版面本來就都能用，但沒有任何視覺提示——使用者因此
-     以為只有窄欄有這個功能（原話：「已選取再按一下清除也要在其他介面出現」）。這顆鈕把
-     「目前沒有篩選」變成一個看得見、按得到的狀態；再點一次取消保留為快捷，不移除。
-     刻意**不掛 .region-btn／.region-pill**：那些類名是「一個部位」的意思，事件委派與
-     既有測試都靠它們數部位數量，混進來會讓部位數與部位標題數對不起來。 */
-  function regionAllBtn(active) {
-    const b = el('button', 'region-all-btn', '全部');
-    b.type = 'button';
-    b.dataset.regionAll = '1';
-    markRegionSelected(b, active);
-    b.title = active ? '目前顯示全部部位' : '顯示全部部位（取消部位篩選）';
-    return b;
+  /* 部位鈕上的兩字短名（三套版面共用）。長名（「皮膚／軟組織」）在 340px 的窄欄裡
+     會把按鈕撐成兩行，一排部位就吃掉半個畫面；縮到兩字才排得進兩列。
+     **只改可見文字**——資料檔的分類名維持原樣，因為「顯示全部部位」時的分組標題、
+     E2E 的 data-region 定位、臨床內容清單都靠它。全名一律留在 title。
+     外科的九個是情境不是部位，同樣縮成兩字（滑鼠停留看得到全名）。 */
+  const REGION_SHORT = {
+    慢性疾病: '慢性', '全身／感染': '全身', 感染科追蹤: '感染',
+    '神經／精神': '神經', '神經／頭頸': '頭頸', 眼耳鼻喉: '頭頸',
+    '胸肺／心臟': '心肺', '腹部／消化': '腹部', '泌尿／生殖': '泌尿',
+    '皮膚／軟組織': '皮膚', 肌肉骨骼: '骨骼', '代謝／檢驗': '代謝',
+    撕裂傷: '撕裂', '挫傷／擦傷': '挫傷', '傷口處置／術後': '傷口',
+    '後續照護（癒合期）': '癒合', 燒燙傷: '燒燙', '膿瘍／皮膚病灶': '膿瘍',
+    肛門疾患: '肛門', '疝氣／腹部': '疝氣', '扭傷／拉傷': '扭傷',
+  };
+
+  /* 沒收錄的分類（將來新增內容時）退回「取斜線前的前兩字」，不會變成空按鈕。 */
+  function regionShort(name) {
+    const key = String(name || '');
+    if (REGION_SHORT[key]) return REGION_SHORT[key];
+    return key.split('／')[0].slice(0, 2) || key.slice(0, 2);
   }
 
   // ---- chip ----
@@ -325,7 +332,7 @@
     else delete ul.dataset.primaryAdjunct;
   }
 
-  /* 「清空」鈕：清單為空時停用。旁邊的 #copy-all 早就這樣做了（renderHis），只有這一顆
+  /* 「清空」鈕：清單為空時停用。以前旁邊的複製鈕就這樣做（現已移除），只有這一顆
      永遠可按，同一列兩顆鈕兩套規則（v1 §3）。停用時 title 要說明原因，否則按不動像壞掉
      ——與設定面板的 #reset-panes 同一個作法。三套版面共用，各自在 U.cart 裡呼叫。 */
   function syncClearBtn(btn, ctx) {
@@ -415,10 +422,11 @@
     const layoutNote = el('div', 'settings-alert', '');
     layoutNote.id = 'layout-note';
     layoutNote.hidden = true;
+    /* 看診模式不放進設定：header 的三顆鈕已經是一次點擊就切換的主動線，
+       設定裡再放一份 segmented 只是同一件事的第二個入口，兩處都要維護狀態同步。 */
     pop.append(
       section('桌機版面', segRow('seg-layout', LAYOUT_DEFS, 'data-layout-opt', small)),
       layoutNote,
-      section('看診模式', segRow('seg-mode', MODE_DEFS, 'data-mode', small)),
       section('複製格式', segRow('seg-format', FORMAT_DEFS, 'data-format', small))
     );
     const display = el('div', 'settings-row');
@@ -555,8 +563,8 @@
      為真，換成短標籤＋小號尺寸——那是空間限制，不是功能差異。三顆鈕各自在哪一列由各版面
      的 CSS 決定（1a 直接排在 header 那列，1b／1c 獨立成一行）。
 
-     設定 popover 裡原有的模式 segmented 保留：兩條動線並存，狀態同源於 store.mode，
-     syncModeSwitch()／syncSettings() 各自從同一份狀態算選中樣式，不會對不起來。 */
+     設定 popover 裡原本還有一份模式 segmented，已移除：同一件事兩個入口，
+     兩處都要維護狀態同步，而 header 這條動線本來就更快。 */
   function modeSwitchEl(compact) {
     const row = el('div', 'seg-row mode-switch');
     row.id = 'mode-switch';
@@ -578,8 +586,21 @@
     setPressed(root2.querySelector('#mode-switch'), 'data-mode', ctx.store.getState().mode);
   }
 
+  /* 「日期」鈕：HIS 的就診日期欄位吃民國格式（115-08-13），手打容易錯年份。
+     點一下把今天的日期放進剪貼簿，接著在 HIS 欄位 Ctrl+V（或用 F9 熱鍵）。
+     排在模式三鈕左邊——它是「開始看這一診」的第一個動作。
+     title 不寫死日期：按鈕是開機時建立的，跨過午夜就會與實際複製的值不一致。 */
+  function dateBtnEl(compact) {
+    const b = el('button', 'btn btn-secondary date-btn' + (compact ? ' seg-btn--sm' : ''), '日期');
+    b.type = 'button';
+    b.id = 'copy-date';
+    b.title = '複製今天的日期（民國格式，例 115-08-13）到剪貼簿';
+    return b;
+  }
+
   root.ICDRender = {
-    icon, el, blueprint, clear, regionHeading, srHeading, regionAllBtn, markRegionSelected, regionGroupEl,
+    icon, el, blueprint, clear, regionHeading, srHeading, markRegionSelected, regionGroupEl,
+    regionShort, dateBtnEl,
     chipEl, chipWith, chipsFromPairs, emptyText,
     renderResults, relatedGroups, renderRelated,
     cartItemEl, renderCart, syncClearBtn, hisText, renderHis, renderShelf,

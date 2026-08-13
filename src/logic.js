@@ -91,5 +91,14 @@
     return out;
   }
 
-  return { buildIndex, search, family, formatCart, mergeRelated };
+  /* HIS 的民國日期（115-08-13）。民國元年＝西元 1912 年，所以減 1911。
+     月日補零：HIS 欄位是定長格式，8 月寫成 8 會對不齊。
+     參數只為了測試能餵固定日期；平常不傳，用當下時間。 */
+  function rocDate(date) {
+    const d = date || new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    return (d.getFullYear() - 1911) + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  }
+
+  return { buildIndex, search, family, formatCart, mergeRelated, rocDate };
 });

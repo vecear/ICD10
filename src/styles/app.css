@@ -313,12 +313,13 @@ b.cart-code {
   white-space: pre-wrap; word-break: break-all; min-height: 64px; color: var(--his-ink);
   font-variant-numeric: tabular-nums;      /* 要貼進 HIS 的代碼串，數字等寬才對得齊 */
 }
-#copy-all {
-  width: 100%; min-height: 44px; font-size: 15px; letter-spacing: .04em;
+/* 「日期」鈕：與 HIS 區同一組 token（--his-*，不隨主題翻轉），因為它產出的東西
+   跟代碼一樣是要貼進 HIS 的。放在模式三鈕左邊，高度與它們對齊。 */
+#copy-date {
+  flex: 0 0 auto; letter-spacing: .04em;
   background: var(--his-btn); color: var(--his-btn-ink); border: 1px solid var(--his-btn);
 }
-#copy-all:hover { background: var(--his-btn-hover); }
-#copy-all:disabled { opacity: .5; cursor: not-allowed; }
+#copy-date:hover { background: var(--his-btn-hover); }
 
 /* ── header 的看診模式三鈕（共同部分；三套版面只調尺寸與所在列） ──
    結構就是一組 .seg-row／.seg-btn，選中表現（--sel-bg／--sel-ink）與設定 popover 裡的

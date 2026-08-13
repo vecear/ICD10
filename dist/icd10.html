@@ -648,12 +648,13 @@ b.cart-code {
   white-space: pre-wrap; word-break: break-all; min-height: 64px; color: var(--his-ink);
   font-variant-numeric: tabular-nums;      /* 要貼進 HIS 的代碼串，數字等寬才對得齊 */
 }
-#copy-all {
-  width: 100%; min-height: 44px; font-size: 15px; letter-spacing: .04em;
+/* 「日期」鈕：與 HIS 區同一組 token（--his-*，不隨主題翻轉），因為它產出的東西
+   跟代碼一樣是要貼進 HIS 的。放在模式三鈕左邊，高度與它們對齊。 */
+#copy-date {
+  flex: 0 0 auto; letter-spacing: .04em;
   background: var(--his-btn); color: var(--his-btn-ink); border: 1px solid var(--his-btn);
 }
-#copy-all:hover { background: var(--his-btn-hover); }
-#copy-all:disabled { opacity: .5; cursor: not-allowed; }
+#copy-date:hover { background: var(--his-btn-hover); }
 
 /* ── header 的看診模式三鈕（共同部分；三套版面只調尺寸與所在列） ──
    結構就是一組 .seg-row／.seg-btn，選中表現（--sel-bg／--sel-ink）與設定 popover 裡的
@@ -781,32 +782,22 @@ b.cart-code {
 /* 左：部位／情境 rail（L105-110） */
 #region-rail { border-right: 1px solid var(--color-divider); padding: 12px 0; background: var(--color-neutral-100); }
 #region-rail-title { font-size: 12px; padding: 0 16px 8px; }
-/* 「全部」鈕與部位鈕外觀一致（它就是「不篩選」那一個選項），只差沒有右側計數。
-   規則寫在同一組選擇器裡，日後改樣式不會只改到一半。
-
-   一律掛 body[data-layout="wide"]（v5）：`.region-btn` 這個類名三個版面共用
+/* 一律掛 body[data-layout="wide"]（v5）：`.region-btn` 這個類名三個版面共用
    （1c 是 `.region-btn.region-pill--dock`、1b 是 `.region-btn.region-pill`，
    事件委派認的就是 `.region-btn`），本檔早於 dock/mobile 寫成，當時沒有隔離需求，
    結果這組裸類名一路洩漏到另外兩個版面，逼它們用 body[data-layout] 前綴整組蓋回去。
    已知洩漏的實例：1c 的部位鈕 hover 底色其實來自本檔而不是 dock.css。 */
-body[data-layout="wide"] .region-btn,
-body[data-layout="wide"] .region-all-btn {
+body[data-layout="wide"] .region-btn {
   display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%;
   padding: 9px 16px; border: 0; border-left: 3px solid transparent; cursor: pointer;
   font: inherit; font-size: 14px; text-align: left; background: transparent; color: var(--color-text);
 }
-body[data-layout="wide"] .region-btn:hover,
-body[data-layout="wide"] .region-all-btn:hover { background: var(--color-accent-100); }
-body[data-layout="wide"] .region-btn.is-on,
-body[data-layout="wide"] .region-all-btn.is-on {
+body[data-layout="wide"] .region-btn:hover { background: var(--color-accent-100); }
+body[data-layout="wide"] .region-btn.is-on {
   border-left-color: var(--color-accent); background: var(--color-accent-100);
   color: var(--color-accent-800); font-weight: 600;
 }
 .region-count { font-size: 12px; color: var(--color-neutral-700); }
-/* rail 的「全部」與其下的部位之間留一條分隔，讀起來是「全部 ／ 或選一個部位」 */
-body[data-layout="wide"] .region-all-btn {
-  margin-bottom: 4px; padding-bottom: 11px; border-bottom: 1px solid var(--color-divider);
-}
 
 /* 分隔條：中欄與右欄都是 gap:14px 的 flex column，直接插進去會變成 14+10+14＝38px 的
    大縫。上下各 -12px 讓 10px 的分隔條剛好落在原本那 14px 的間距裡（14−12＋10−12＋14＝14），
@@ -885,17 +876,13 @@ body[data-layout="wide"] .panel-toggle[aria-expanded="true"] .marker { transform
   #region-rail-title { padding: 0 6px 0 0; }
   .worksheet { grid-area: sheet; }
   #cart-pane { grid-area: cart; }
-  body[data-layout="wide"] .region-btn,
-  body[data-layout="wide"] .region-all-btn {
+  body[data-layout="wide"] .region-btn {
     width: auto; flex: 0 0 auto; padding: 6px 11px;
     border: 1px solid var(--color-divider); border-left-width: 1px;
   }
-  body[data-layout="wide"] .region-btn.is-on,
-  body[data-layout="wide"] .region-all-btn.is-on {
+  body[data-layout="wide"] .region-btn.is-on {
     border-color: var(--color-accent); border-left-color: var(--color-accent);
   }
-  /* 橫排 pill 列裡不需要那條分隔線（它是為了直向 rail 才存在的） */
-  body[data-layout="wide"] .region-all-btn { margin-bottom: 0; padding-bottom: 6px; border-bottom-width: 1px; }
 }
 
 
@@ -931,7 +918,12 @@ body[data-layout="dock"] .dock-head {
 body[data-layout="dock"] #search {
   min-height: 28px; padding: 3px 7px; font-size: 12px; background: transparent;
 }
-body[data-layout="dock"] .dock-tools { display: flex; align-items: center; gap: 3px; min-width: 0; }
+/* 允許換行：這一列現在有六個控制項（日期＋模式三鈕＋置頂＋設定），176px 排不下，
+   不換行的話設定鈕會被擠出視窗右緣（實測 x+width=186 > 可用的 170）。
+   340px 以上（Ctrl+Alt+D 貼齊的寬度）空間充足，仍然是一列。 */
+body[data-layout="dock"] .dock-tools {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 3px; row-gap: 3px; min-width: 0;
+}
 /* 模式三鈕與置頂／設定之間的彈性空白：模式鈕收成文字寬之後多出來的寬度全部歸它，
    置頂與設定才會靠右對齊而不是跟著飄。 */
 body[data-layout="dock"] .dock-spacer { flex: 1; min-width: 0; }
@@ -999,15 +991,12 @@ body[data-layout="dock"] #theme-toggle { width: 100%; min-height: 26px; font-siz
 body[data-layout="dock"] #shelf-toggle { display: none; }     /* 1c 沒有常用列 */
 body[data-layout="dock"] #db-note { font-size: 10px; padding-top: 6px; }
 
-/* ── 部位／情境：兩欄 grid（L264、L679-681）。
-   minmax(0,1fr) 不可省——預設的 1fr 最小值是 max-content，長名稱會把整欄撐出視窗。 ── */
-/* auto-fill 而不是寫死兩欄：176px 下算出來剛好是 2 欄，但 Chrome 一般視窗最小寬約 500px，
-   使用者把側掛開在分頁裡時會被迫更寬——那時自動變成 4～6 欄填滿，而不是把兩欄拉成一片空白。
-   PiP 視窗（真正的 176）不受影響。
-   最小欄寬 72 而不是 76：部位區被拖小之後自己會長出垂直捲軸（約 15px），164−15＝149 的
-   可用寬度下 76×2+3=155 排不下會掉成一欄，72×2+3=147 才守得住設計要求的兩欄。 */
+/* ── 部位／情境：依文字寬自動換行（使用者要求「按鈕縮小、擠成一起」）。
+   原本是 minmax(72px,1fr) 的等分 grid：每顆一樣寬、一列固定欄數，11 個分類要 6 列。
+   名稱縮成兩字之後改成 flex wrap，按鈕收到文字寬就好，340px 下 11 顆約 2 列。
+   等分 grid 在這裡沒有好處——欄寬由最長的名稱決定，短名一律陪著變寬。 */
 body[data-layout="dock"] #region-pills {
-  flex: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 3px;
+  flex: none; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 3px;
   padding: 6px; border-bottom: 1px solid var(--color-divider); background: var(--color-neutral-100);
 }
 /* 176px 下分隔條縮到 7px：三條共 21px，從捲動內容區借走的高度要壓到最低 */
@@ -1016,24 +1005,18 @@ body[data-layout="dock"] .pane-resizer::before { width: 24px; margin-left: -12px
 /* line-height 1.2 而不是繼承 body 的 1.55：這些是 nowrap 的單行按鈕，1.55 的行距在
    單行裡不是可讀性而是純留白（每顆 3px，176px 下 6 列就是 18px）。密度原則的通則是
    「單行不換行的 UI 骨架一律收 line-height，只有會換行的內文才保留 body 行距」。 */
-body[data-layout="dock"] .region-pill--dock,
-body[data-layout="dock"] .region-all-btn {
-  display: block; width: 100%; min-width: 0; padding: 2px 4px; min-height: 20px;
+body[data-layout="dock"] .region-pill--dock {
+  flex: 0 0 auto; min-width: 0; padding: 2px 6px; min-height: 20px;
   border: 1px solid var(--color-divider); border-left-width: 1px; border-radius: 0;
   background: transparent; color: var(--color-text); cursor: pointer;
   font: inherit; font-size: 11px; line-height: 1.2; letter-spacing: .02em;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center;
 }
-body[data-layout="dock"] .region-pill--dock:hover,
-body[data-layout="dock"] .region-all-btn:hover { border-color: var(--color-accent); }
-body[data-layout="dock"] .region-pill--dock.is-on,
-body[data-layout="dock"] .region-all-btn.is-on {
+body[data-layout="dock"] .region-pill--dock:hover { border-color: var(--color-accent); }
+body[data-layout="dock"] .region-pill--dock.is-on {
   border-color: var(--color-accent); background: var(--color-accent-100);
   color: var(--color-accent-800); font-weight: 600;
 }
-/* 「全部」橫跨整列：它不是「第 0 個部位」，跟部位並排會被當成其中一區；
-   而且部位數為奇數時它會替兩欄 grid 製造一格空白。 */
-body[data-layout="dock"] .region-all-btn { grid-column: 1 / -1; }
 
 /* 取消部位選取（顯示全部部位）時，每組面板前的部位標題。176px 下只給一行小標＋下緣線，
    長名稱 ellipsis；沒有它，全部部位的面板連在一起會分不出來自哪一區。 */
@@ -1125,20 +1108,22 @@ body[data-layout="dock"] .dock-cart {
 /* 內距 8/10 → 5/6：這一列在版面裡跟 header、部位區、捲動區都相鄰，它們一律 5～6px；
    多出來的那 6px 只是讓清單摘要看起來比別區鬆，沒有分隔作用（分隔靠上緣線）。 */
 body[data-layout="dock"] #cart-toggle {
-  display: flex; align-items: center; gap: 8px; width: 100%; padding: 5px 6px;
-  border: 0; background: none; cursor: pointer; font: inherit; text-align: left; color: var(--color-text);
+  display: flex; align-items: center; gap: 8px; width: 100%; padding: 3px 4px;
+  border: 0; background: none; cursor: pointer; font: inherit; text-align: left;
+  color: var(--his-ink);      /* 與同一列的「清空」同底色，用 HIS 那組墨色才讀得清楚 */
 }
+/* 這一列改成 HIS 深底之後，原本的 neutral／accent 墨色對比不夠，改用 --his-* 那組 */
 body[data-layout="dock"] .dock-cart-kicker {
   flex: none; font-family: var(--font-heading); font-size: 12px; letter-spacing: .06em;
-  color: var(--color-neutral-700); white-space: nowrap;
+  color: var(--his-dim); white-space: nowrap;
 }
-body[data-layout="dock"] #cart-count { color: var(--color-accent-700); }
+body[data-layout="dock"] #cart-count { color: var(--his-ink); font-weight: 600; }
 body[data-layout="dock"] .dock-cart-codes {
   flex: 1; min-width: 0; font-family: var(--font-heading); font-size: 13px; letter-spacing: .03em;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 body[data-layout="dock"] #cart-toggle .marker {
-  flex: none; display: flex; color: var(--color-accent-700); transition: transform .12s ease;
+  flex: none; display: flex; color: var(--his-dim); transition: transform .12s ease;
 }
 body[data-layout="dock"] #cart-toggle[aria-expanded="true"] .marker { transform: rotate(90deg); }
 body[data-layout="dock"] #cart-inline { max-height: 210px; overflow-y: auto; }
@@ -1172,18 +1157,21 @@ body[data-layout="dock"] .chip-tag { font-size: 10px; padding: 0 2px; letter-spa
 /* 1c 的清單列是兩行（中文另起一行，order:5），附加碼標記排在中文之後 */
 body[data-layout="dock"] #cart li .chip-tag { order: 6; }
 
-/* 貼入 HIS 的行動列：深底不隨主題翻轉（--his-*），與 1a 的 HIS 卡片同一組 token */
-body[data-layout="dock"] .dock-his {
-  display: flex; gap: 4px; padding: 6px;
+/* 「清空」與「清單」同一列：清空收成文字寬靠左，清單摘要吃掉剩下的寬度。
+   深底不隨主題翻轉（--his-*），與 1a 的 HIS 卡片同一組 token。
+   原本清空自己佔一整列，在 176px 下那是純粹為一顆很少按的鈕付出的高度。 */
+body[data-layout="dock"] .dock-cart-head {
+  display: flex; align-items: stretch; gap: 4px; padding: 4px 6px;
   background: var(--his-surface); border-top: 1px solid var(--his-line);
 }
-/* .btn 的 12px 內距會讓「複製並貼入 HIS」在 176px 下換行，縮到 4px 才排得成一行 */
-body[data-layout="dock"] #copy-all {
-  flex: 1; width: auto; min-height: 30px; padding: 2px 4px; font-size: 12px; letter-spacing: .04em;
-}
+body[data-layout="dock"] .dock-cart-head #cart-toggle { flex: 1; min-width: 0; }
 body[data-layout="dock"] #clear-cart {
-  flex: none; min-height: 30px; padding: 0 6px; font-size: 11px;
+  flex: none; min-height: 26px; padding: 0 8px; font-size: 11px;
   border: 1px solid var(--his-btn); color: var(--his-btn); background: transparent;
+}
+/* 「日期」鈕在 176px 下與模式鈕同高，內距收到 6px 才不會把三顆模式鈕擠掉 */
+body[data-layout="dock"] #copy-date {
+  min-height: 22px; padding: 0 6px; font-size: 11px; letter-spacing: .02em;
 }
 body[data-layout="dock"] #clear-cart:hover { background: var(--his-card); }
 
@@ -1230,8 +1218,11 @@ body[data-layout="mobile"] .m-header {
   padding: 10px 14px; border-bottom: 1px solid var(--color-divider);
 }
 body[data-layout="mobile"] .m-head-row { display: flex; align-items: center; gap: 8px; }
+/* 「日期」＋模式三鈕同一列：日期鈕收成文字寬，剩下的寬度全歸三格等寬的模式鈕 */
+body[data-layout="mobile"] .m-mode-row { display: flex; align-items: stretch; gap: 8px; }
+body[data-layout="mobile"] #copy-date { flex: 0 0 auto; min-height: 44px; padding: 0 14px; font-size: 14px; }
 /* 模式三鈕：整列三格等寬（.seg-btn 的 min-height 在下面統一提到 44px） */
-body[data-layout="mobile"] .mode-switch { display: flex; width: 100%; }
+body[data-layout="mobile"] .mode-switch { display: flex; flex: 1; min-width: 0; }
 /* 底色、選中態、格間分隔線由 app.css 的 .mode-btn 共用區塊提供（v5 收斂）；
    這裡只留 1b 真正不同的等寬 flex 與字級。 */
 body[data-layout="mobile"] .mode-btn {
@@ -1264,24 +1255,17 @@ body[data-layout="mobile"] #region-pills {
   background: var(--color-neutral-100); min-height: 40px;
   -webkit-overflow-scrolling: touch;
 }
-body[data-layout="mobile"] .region-pill,
-body[data-layout="mobile"] .region-all-btn {
+body[data-layout="mobile"] .region-pill {
   flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px;
   padding: 8px 12px; min-height: 44px;   /* 設計為 40px，補到 44px 觸控門檻 */
   border: 1px solid var(--color-divider); background: transparent;
   cursor: pointer; font: inherit; font-size: 14px; color: var(--color-text);
   white-space: nowrap; border-radius: 0;
 }
-body[data-layout="mobile"] .region-pill.is-on,
-body[data-layout="mobile"] .region-all-btn.is-on {
+body[data-layout="mobile"] .region-pill.is-on {
   border-color: var(--color-accent); background: var(--color-accent-100);
   color: var(--color-accent-800); font-weight: 600;
 }
-/* 橫捲列會把「全部」捲出視野；黏在最左邊，任何捲動位置都按得到 */
-body[data-layout="mobile"] .region-all-btn {
-  position: sticky; left: 0; z-index: 2; background: var(--color-neutral-100);
-}
-body[data-layout="mobile"] .region-all-btn.is-on { background: var(--color-accent-100); }
 body[data-layout="mobile"] .region-pill .region-count { font-size: 12px; color: var(--color-neutral-700); }
 body[data-layout="mobile"] .region-pill.is-on .region-count { color: var(--color-accent-800); }
 
@@ -1416,12 +1400,6 @@ body[data-layout="mobile"] #cart-inline {
   font-family: var(--font-heading); font-size: 15px; letter-spacing: .04em; color: var(--his-ink);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-body[data-layout="mobile"] #copy-all {
-  flex: none; width: auto; min-height: 48px; padding: 0 16px;
-  font-size: 15px; letter-spacing: .04em; white-space: nowrap;
-}
-/* 登記標記預設用 --color-text 畫，在深色底的複製鈕旁會糊掉 */
-body[data-layout="mobile"] #copy-all > .corner { color: var(--his-dim); }
 
 </style>
 </head>
@@ -1542,7 +1520,16 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     return out;
   }
 
-  return { buildIndex, search, family, formatCart, mergeRelated };
+  /* HIS 的民國日期（115-08-13）。民國元年＝西元 1912 年，所以減 1911。
+     月日補零：HIS 欄位是定長格式，8 月寫成 8 會對不齊。
+     參數只為了測試能餵固定日期；平常不傳，用當下時間。 */
+  function rocDate(date) {
+    const d = date || new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    return (d.getFullYear() - 1911) + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  }
+
+  return { buildIndex, search, family, formatCart, mergeRelated, rocDate };
 });
 
 </script>
@@ -2708,19 +2695,26 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     return box;
   }
 
-  /* 部位列最前面的「全部」鈕（三套版面共用）。
-     「點已選的部位再點一次取消」三套版面本來就都能用，但沒有任何視覺提示——使用者因此
-     以為只有窄欄有這個功能（原話：「已選取再按一下清除也要在其他介面出現」）。這顆鈕把
-     「目前沒有篩選」變成一個看得見、按得到的狀態；再點一次取消保留為快捷，不移除。
-     刻意**不掛 .region-btn／.region-pill**：那些類名是「一個部位」的意思，事件委派與
-     既有測試都靠它們數部位數量，混進來會讓部位數與部位標題數對不起來。 */
-  function regionAllBtn(active) {
-    const b = el('button', 'region-all-btn', '全部');
-    b.type = 'button';
-    b.dataset.regionAll = '1';
-    markRegionSelected(b, active);
-    b.title = active ? '目前顯示全部部位' : '顯示全部部位（取消部位篩選）';
-    return b;
+  /* 部位鈕上的兩字短名（三套版面共用）。長名（「皮膚／軟組織」）在 340px 的窄欄裡
+     會把按鈕撐成兩行，一排部位就吃掉半個畫面；縮到兩字才排得進兩列。
+     **只改可見文字**——資料檔的分類名維持原樣，因為「顯示全部部位」時的分組標題、
+     E2E 的 data-region 定位、臨床內容清單都靠它。全名一律留在 title。
+     外科的九個是情境不是部位，同樣縮成兩字（滑鼠停留看得到全名）。 */
+  const REGION_SHORT = {
+    慢性疾病: '慢性', '全身／感染': '全身', 感染科追蹤: '感染',
+    '神經／精神': '神經', '神經／頭頸': '頭頸', 眼耳鼻喉: '頭頸',
+    '胸肺／心臟': '心肺', '腹部／消化': '腹部', '泌尿／生殖': '泌尿',
+    '皮膚／軟組織': '皮膚', 肌肉骨骼: '骨骼', '代謝／檢驗': '代謝',
+    撕裂傷: '撕裂', '挫傷／擦傷': '挫傷', '傷口處置／術後': '傷口',
+    '後續照護（癒合期）': '癒合', 燒燙傷: '燒燙', '膿瘍／皮膚病灶': '膿瘍',
+    肛門疾患: '肛門', '疝氣／腹部': '疝氣', '扭傷／拉傷': '扭傷',
+  };
+
+  /* 沒收錄的分類（將來新增內容時）退回「取斜線前的前兩字」，不會變成空按鈕。 */
+  function regionShort(name) {
+    const key = String(name || '');
+    if (REGION_SHORT[key]) return REGION_SHORT[key];
+    return key.split('／')[0].slice(0, 2) || key.slice(0, 2);
   }
 
   // ---- chip ----
@@ -2932,7 +2926,7 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     else delete ul.dataset.primaryAdjunct;
   }
 
-  /* 「清空」鈕：清單為空時停用。旁邊的 #copy-all 早就這樣做了（renderHis），只有這一顆
+  /* 「清空」鈕：清單為空時停用。以前旁邊的複製鈕就這樣做（現已移除），只有這一顆
      永遠可按，同一列兩顆鈕兩套規則（v1 §3）。停用時 title 要說明原因，否則按不動像壞掉
      ——與設定面板的 #reset-panes 同一個作法。三套版面共用，各自在 U.cart 裡呼叫。 */
   function syncClearBtn(btn, ctx) {
@@ -3022,10 +3016,11 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     const layoutNote = el('div', 'settings-alert', '');
     layoutNote.id = 'layout-note';
     layoutNote.hidden = true;
+    /* 看診模式不放進設定：header 的三顆鈕已經是一次點擊就切換的主動線，
+       設定裡再放一份 segmented 只是同一件事的第二個入口，兩處都要維護狀態同步。 */
     pop.append(
       section('桌機版面', segRow('seg-layout', LAYOUT_DEFS, 'data-layout-opt', small)),
       layoutNote,
-      section('看診模式', segRow('seg-mode', MODE_DEFS, 'data-mode', small)),
       section('複製格式', segRow('seg-format', FORMAT_DEFS, 'data-format', small))
     );
     const display = el('div', 'settings-row');
@@ -3162,8 +3157,8 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
      為真，換成短標籤＋小號尺寸——那是空間限制，不是功能差異。三顆鈕各自在哪一列由各版面
      的 CSS 決定（1a 直接排在 header 那列，1b／1c 獨立成一行）。
 
-     設定 popover 裡原有的模式 segmented 保留：兩條動線並存，狀態同源於 store.mode，
-     syncModeSwitch()／syncSettings() 各自從同一份狀態算選中樣式，不會對不起來。 */
+     設定 popover 裡原本還有一份模式 segmented，已移除：同一件事兩個入口，
+     兩處都要維護狀態同步，而 header 這條動線本來就更快。 */
   function modeSwitchEl(compact) {
     const row = el('div', 'seg-row mode-switch');
     row.id = 'mode-switch';
@@ -3185,8 +3180,21 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     setPressed(root2.querySelector('#mode-switch'), 'data-mode', ctx.store.getState().mode);
   }
 
+  /* 「日期」鈕：HIS 的就診日期欄位吃民國格式（115-08-13），手打容易錯年份。
+     點一下把今天的日期放進剪貼簿，接著在 HIS 欄位 Ctrl+V（或用 F9 熱鍵）。
+     排在模式三鈕左邊——它是「開始看這一診」的第一個動作。
+     title 不寫死日期：按鈕是開機時建立的，跨過午夜就會與實際複製的值不一致。 */
+  function dateBtnEl(compact) {
+    const b = el('button', 'btn btn-secondary date-btn' + (compact ? ' seg-btn--sm' : ''), '日期');
+    b.type = 'button';
+    b.id = 'copy-date';
+    b.title = '複製今天的日期（民國格式，例 115-08-13）到剪貼簿';
+    return b;
+  }
+
   root.ICDRender = {
-    icon, el, blueprint, clear, regionHeading, srHeading, regionAllBtn, markRegionSelected, regionGroupEl,
+    icon, el, blueprint, clear, regionHeading, srHeading, markRegionSelected, regionGroupEl,
+    regionShort, dateBtnEl,
     chipEl, chipWith, chipsFromPairs, emptyText,
     renderResults, relatedGroups, renderRelated,
     cartItemEl, renderCart, syncClearBtn, hisText, renderHis, renderShelf,
@@ -3243,9 +3251,10 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     // 頁面唯一的 H1（sr-only）。可見的 .app-brand 只有「ICD-10」，改成 <h1> 會被
     // industry.css 的 h* 邊界值擠動版面，所以用視覺隱藏的標題補階層（見 srHeading）。
     header.append(R.srHeading(1, 'ICD-10 門診導引'), R.el('div', 'app-brand', 'ICD-10'));
-    // 看診模式三鈕直接並排在 header（1440 空間充足，用全名、不壓縮）
+    // 「日期」＋看診模式三鈕並排在 header（1440 空間充足，用全名、不壓縮）
+    refs.dateBtn = R.dateBtnEl(false);
     refs.modeSwitch = R.modeSwitchEl(false);
-    header.appendChild(refs.modeSwitch);
+    header.append(refs.dateBtn, refs.modeSwitch);
 
     const search = document.createElement('input');
     search.id = 'search';
@@ -3359,10 +3368,9 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     hisHead.append(R.el('span', 'kicker', '貼入 HIS'), refs.hisFormat);
     refs.hisPreview = R.el('pre', null, '（清單為空）');
     refs.hisPreview.id = 'his-preview';
-    refs.copyAll = R.el('button', 'btn btn-primary blueprint', '複製並貼入 HIS');
-    refs.copyAll.type = 'button';
-    refs.copyAll.id = 'copy-all';
-    his.append(hisHead, refs.hisPreview, refs.copyAll);
+    /* 沒有複製鈕：清單一變就自動同步到剪貼簿（interactions.js 的 syncClipboard）。
+       預覽區留著——它顯示的就是剪貼簿內容，貼進 HIS 前可以先核對。 */
+    his.append(hisHead, refs.hisPreview);
     aside.appendChild(his);
 
     const relatedWrap = R.el('div', 'related-wrap');
@@ -3428,10 +3436,10 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
       const surg = s.mode === 'surg';
       refs.railTitle.textContent = surg ? '情境' : '身體部位';
       refs.rail.setAttribute('aria-label', surg ? '手術情境' : '身體部位');
-      for (const old of Array.from(refs.rail.querySelectorAll('.region-btn, .region-all-btn'))) old.remove();
+      for (const old of Array.from(refs.rail.querySelectorAll('.region-btn'))) old.remove();
       const regions = ctx.data.regionsFor(s.mode);
       const active = ctx.data.clampRegion(s.mode, s.region);     // null ＝ 沒有選取任何部位
-      refs.rail.appendChild(R.regionAllBtn(active === null));    // 「全部」永遠排在最前面
+      // 1a 的側欄有空間，用全名＋面板數；縮成兩字是 1c／手機的空間妥協，這裡不需要
       regions.forEach((region, i) => {
         const b = R.el('button', 'region-btn');
         b.type = 'button';
@@ -3520,7 +3528,7 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
       R.renderCart(refs.cart, refs.cartEmpty, refs.cartCount, ctx);
       R.syncClearBtn(refs.clearCart, ctx);
     };
-    U.his = () => R.renderHis(refs.hisPreview, refs.hisFormat, refs.copyAll, ctx);
+    U.his = () => R.renderHis(refs.hisPreview, refs.hisFormat, null, ctx);
     U.shelf = () => {
       const s = ctx.store.getState();
       refs.shelf.hidden = !s.shelfOpen;
@@ -3702,8 +3710,9 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
        模式鈕在 1c 是 fit-content（dock.css 的 .mode-btn），空出來的寬度全部給右側的
        spacer 吸收，置頂與設定仍靠右對齊。 */
     const tools = R.el('div', 'dock-tools');
+    refs.dateBtn = R.dateBtnEl(true);        // 「日期」排在模式三鈕左邊
     refs.modeSwitch = R.modeSwitchEl(true);
-    tools.appendChild(refs.modeSwitch);
+    tools.append(refs.dateBtn, refs.modeSwitch);
 
     const pin = R.el('button', 'dock-pin');
     pin.type = 'button';
@@ -3792,21 +3801,24 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     refs.cart.id = 'cart';
     refs.cartInline.appendChild(refs.cart);
 
-    const bar = R.el('div', 'dock-his');
-    refs.copyAll = R.el('button', 'btn', '複製並貼入 HIS');
-    refs.copyAll.type = 'button';
-    refs.copyAll.id = 'copy-all';
+    /* 沒有「複製並貼入 HIS」鈕：清單一變就自動同步到剪貼簿（interactions.js 的
+       syncClipboard），少一個必按的步驟。
+       「清空」改放在「清單」那一列的左邊（使用者要求）：原本它自己佔一列，
+       在 176px 下那是一整條高度只為一顆很少按的鈕。註意不能塞進 #cart-toggle 裡面
+       ——那是個 <button>，巢狀按鈕無效；改用一個 flex 列把兩者並排。 */
     const clearBtn = R.el('button', 'btn dock-clear', '清空');
     clearBtn.type = 'button';
     clearBtn.id = 'clear-cart';
     refs.clearCart = clearBtn;
-    bar.append(refs.copyAll, clearBtn);
 
-    cartBox.append(cartToggle, refs.cartInline, bar);
+    const cartHead = R.el('div', 'dock-cart-head');
+    cartHead.append(clearBtn, cartToggle);
+
+    cartBox.append(cartHead, refs.cartInline);
     dock.appendChild(cartBox);
 
-    /* 複製鈕的文案／停用狀態與 1a 同源（renderHis 一併寫預覽 <pre>，1c 沒有預覽區，
-       所以給它一個不掛進 DOM 的 <pre>——寧可多一個節點，也不要複製一份文案邏輯。 */
+    /* renderHis 會把 HIS 文字寫進一個 <pre>；1c 沒有預覽區，給它一個不掛進 DOM 的，
+       讓三套版面共用同一份文字產生邏輯。 */
     refs.hisScratch = document.createElement('pre');
 
     refs.placeholder = R.el('div', 'dock-pinned-away', '已移到置頂小視窗；關閉小視窗即可回到這裡。');
@@ -3993,15 +4005,12 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     // 同一份實作，這裡不再抄一份——抄的那份正是 R2 M1／I3 兩條缺陷的來源。
     const addFromChip = (chip) => root.ICDInteractions.activateChip(ctx, chip);
 
-    function copyAll() {
-      const text = R.hisText(ctx);
-      if (!text) { announce('清單是空的'); return; }
+    /* 置頂進 PiP 小視窗後，主文件的委派搆不到那棵 DOM，這裡代打。
+       規則與 interactions.js 同源，只是那邊的 copyText 要用在這個文件上。 */
+    function copyDate() {
+      const text = ctx.logic.rocDate();
       root.ICDInteractions.copyText(text).then((ok) => {
-        if (!ok) return;
-        ctx.store.setCopied(true);
-        announce('已複製 ' + ctx.store.getState().cart.length + ' 個代碼，可貼入 HIS');
-        clearTimeout(copiedTimer);
-        copiedTimer = setTimeout(() => ctx.store.setCopied(false), 2000);
+        if (ok) announce('已複製日期 ' + text);
       });
     }
 
@@ -4017,8 +4026,6 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
          主文件委派搆不到時把事件轉過去。模式鈕要排在下方泛用 `.seg-btn` 那條之前。 */
       const modeBtn = target.closest('#mode-switch [data-mode]');
       if (modeBtn) { root.ICDInteractions.chooseMode(ctx, modeBtn.getAttribute('data-mode')); return; }
-      const regionAll = target.closest('.region-all-btn');
-      if (regionAll) { root.ICDInteractions.chooseAllRegions(ctx); return; }
       const region = target.closest('.region-btn');
       if (region) {
         store.toggleRegion(Number(region.dataset.regionIndex));
@@ -4064,7 +4071,7 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
       else if (btn.id === 'theme-toggle') store.toggleTheme();
       else if (btn.id === 'reset-panes') root.ICDInteractions.resetPanes(ctx);
       else if (btn.id === 'clear-cart') { store.clearCart(); announce('已清空就診清單'); }
-      else if (btn.id === 'copy-all') copyAll();
+      else if (btn.id === 'copy-date') copyDate();
       else if (btn.id === 'db-retry') { announce('正在重新載入全庫…'); ctx.data.retryDb(); }
     }
 
@@ -4140,16 +4147,14 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
       R.clear(refs.pills);
       const regions = ctx.data.regionsFor(s.mode);
       const active = ctx.data.clampRegion(s.mode, s.region);     // null ＝ 沒有選取任何部位
-      refs.pills.appendChild(R.regionAllBtn(active === null));   // 「全部」橫跨兩欄，排在最前面
       regions.forEach((region, i) => {
-        const b = R.el('button', 'region-btn region-pill--dock', region.name);
+        // 鈕上只放兩字短名，全名留在 title；data-region 仍是完整名稱（E2E 與分組標題靠它）
+        const b = R.el('button', 'region-btn region-pill--dock', R.regionShort(region.name));
         b.type = 'button';
         b.dataset.region = region.name;
         b.dataset.regionIndex = String(i);
         const on = i === active;
         R.markRegionSelected(b, on);
-        // 176px 兩欄下較長的名稱會 ellipsis（設計如此），title 保住完整名稱與面板數；
-        // 選取中的那顆順便說明「再點一次取消」，否則滑鼠使用者看不出來
         b.title = region.name + '（' + region.count + '）'
           + (on ? '，再點一次取消選取，顯示全部部位' : '');
         refs.pills.appendChild(b);
@@ -4213,7 +4218,7 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
       refs.cartToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
     };
 
-    U.his = () => R.renderHis(refs.hisScratch, null, refs.copyAll, ctx);
+    U.his = () => R.renderHis(refs.hisScratch, null, null, ctx);
 
     U.settings = () => R.syncSettings(dock, ctx);
 
@@ -4325,6 +4330,7 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     const header = R.el('header', 'm-header');
     // 頁面唯一的 H1（sr-only）：手機版 header 沒有可見的品牌字，階層仍要有起點
     header.append(R.srHeading(1, 'ICD-10 門診導引'));
+    refs.dateBtn = R.dateBtnEl(false);       // 「日期」排在模式三鈕左邊（模式列自己一行）
     refs.modeSwitch = R.modeSwitchEl(false);
 
     const search = document.createElement('input');
@@ -4352,9 +4358,13 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     const shelfBtn = pop.querySelector('#shelf-toggle');
     if (shelfBtn) shelfBtn.classList.add('is-desktop-only');
 
+    /* 「日期」與模式三鈕同一列：模式列本來就獨佔一行，左邊塞得下一顆小鈕。 */
+    const modeRow = R.el('div', 'm-mode-row');
+    modeRow.append(refs.dateBtn, refs.modeSwitch);
+
     const headRow = R.el('div', 'm-head-row');
     headRow.append(search, settingsToggle);
-    header.append(refs.modeSwitch, headRow, pop);
+    header.append(modeRow, headRow, pop);
     wrap.appendChild(header);
 
     // ── 部位／情境：橫向捲動 pill 列（L370-374） ──────────────────────────
@@ -4439,10 +4449,8 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     refs.cartInline.id = 'cart-inline';
     refs.cartToggle.append(label, refs.cartInline);
 
-    refs.copyAll = R.el('button', 'btn btn-primary blueprint', '複製並貼入 HIS');
-    refs.copyAll.type = 'button';
-    refs.copyAll.id = 'copy-all';
-    bar.append(refs.cartToggle, refs.copyAll);
+    // 沒有複製鈕：清單一變就自動同步到剪貼簿（interactions.js 的 syncClipboard）
+    bar.append(refs.cartToggle);
     wrap.appendChild(bar);
 
     host.appendChild(wrap);
@@ -4491,7 +4499,6 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
       refs.pills.setAttribute('aria-label', surg ? '手術情境' : '身體部位');
       R.clear(refs.pills);
       const active = ctx.data.clampRegion(s.mode, s.region);     // null ＝ 沒有選取任何部位
-      refs.pills.appendChild(R.regionAllBtn(active === null));   // 「全部」固定在橫捲列最前面
       ctx.data.regionsFor(s.mode).forEach((region, i) => {
         // 事件委派認的是 .region-btn＋data-region-index；.region-pill 是 1b 的樣式與測試鉤子
         const b = R.el('button', 'region-btn region-pill');
@@ -4500,8 +4507,10 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
         b.dataset.regionIndex = String(i);
         const on = i === active;
         R.markRegionSelected(b, on);
-        if (on) b.title = region.name + '（再點一次取消選取，顯示全部部位）';
-        b.append(R.el('span', null, region.name), R.el('span', 'region-count', String(region.count)));
+        // 橫捲列上兩字短名一屏看得到更多；全名留在 title
+        b.title = region.name + (on ? '（再點一次取消選取，顯示全部部位）' : '');
+        b.append(R.el('span', null, R.regionShort(region.name)),
+                 R.el('span', 'region-count', String(region.count)));
         refs.pills.appendChild(b);
       });
     };
@@ -4607,7 +4616,7 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
         : '尚未選碼';
     };
 
-    U.his = () => R.renderHis(refs.hisPreview, refs.hisFormat, refs.copyAll, ctx);
+    U.his = () => R.renderHis(refs.hisPreview, refs.hisFormat, null, ctx);
     U.settings = () => R.syncSettings(wrap, ctx);
 
     /* #cart-toggle 的事件委派本身在 interactions.js（共用），但「切換的是什麼」是 1b 專屬語意：
@@ -4652,7 +4661,7 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
      .panel-toggle[data-panel-toggle] 展開常見疾病
      .quick-toggle[data-quick-toggle] 展開快選分組
      #cart li 內：b.cart-code 複製單碼、.cart-primary 設為主診斷、.cart-fav ★、.cart-remove ✕
-     #copy-all / #clear-cart / #settings-toggle / #theme-toggle / #shelf-toggle
+     #copy-date / #clear-cart / #settings-toggle / #theme-toggle / #shelf-toggle
      #mode-switch 內的 .mode-btn[data-mode]  header 的看診模式三鈕（一次點擊即切換）
      #seg-mode|#seg-format|#seg-layout 內的 .seg-btn
      #cart-toggle              點擊時呼叫 ctx.onCartToggle()——「切換清單面板」這個動作本身
@@ -4708,7 +4717,9 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     return !!box && !box.hidden;
   }
 
-  async function copyText(text) {
+  /* silent＝失敗時不跳手動複製視窗。自動同步剪貼簿（每加一個代碼就跑一次）走這條：
+     那個視窗一秒跳一次比沒複製到還糟；失敗改用播報告知，使用者仍有機會發現。 */
+  async function copyText(text, silent) {
     // 焦點在 PiP 小視窗時，主文件的 clipboard 會以「document is not focused」被拒；
     // 用目前有焦點的那個文件自己的 clipboard 才會成功。
     const doc = feedbackDoc();
@@ -4731,7 +4742,7 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
         ta.remove();
         if (ok) return true;
       } catch (e2) { /* fall through */ }
-      openFallbackCopy(text);
+      if (!silent) openFallbackCopy(text);
       return false;
     }
   }
@@ -4805,14 +4816,6 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     announce('已切換為' + ((root.ICDRender && root.ICDRender.MODE_LABEL[mode]) || mode));
   }
 
-  /* 部位列的「全部」鈕：等於取消部位篩選。與「點已選部位再點一次」同一個結果，
-     差別只在它是看得見、按得到的入口（三套版面一致）。 */
-  function chooseAllRegions(ctx) {
-    const was = ctx.store.getState().region;
-    ctx.store.setRegion(null);
-    announce(was === null ? '目前已顯示全部部位' : '已取消部位篩選，顯示全部部位');
-  }
-
   /* 設定面板的「回復預設高度」（三套版面共用）。只清**生效版面**那一組：在 176px 窄欄
      按下它，不該把桌機工作台調好的高度一起抹掉（分版面各記各的）。 */
   function resetPanes(ctx) {
@@ -4844,15 +4847,31 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     // isAddable 自己決定權威來源（全庫 index > 建置期白名單），繞不過。
     const addFromChip = (chip) => activateChip(ctx, chip);
 
-    async function copyAll() {
+    /* 清單一有變動就把「目前全部代碼」同步到剪貼簿（使用者要求：點診斷即複製，
+       不必再按「複製並貼入 HIS」）。改複製格式時也要重跑，否則剪貼簿停在舊格式。
+
+       清空時**不動剪貼簿**：使用者剛把碼貼進 HIS 才按清空，這時把剪貼簿洗成空字串
+       等於毀掉他手上唯一那份；留著上一組沒有壞處。
+
+       靜默失敗但要播報——剪貼簿沒同步到卻無聲無息，下一次按 F9 會把舊清單再貼一次。 */
+    function syncClipboard() {
       const text = root.ICDRender.hisText(ctx);
-      if (!text) { announce('清單是空的'); return; }
-      if (await copyText(text)) {
-        store.setCopied(true);
-        announce('已複製 ' + store.getState().cart.length + ' 個代碼，可貼入 HIS');
-        clearTimeout(copiedTimer);
-        copiedTimer = setTimeout(() => store.setCopied(false), 2000);
-      }
+      if (!text) return;
+      copyText(text, true).then((ok) => {
+        if (!ok) announce('自動複製失敗，請點清單裡的代碼逐一複製');
+      });
+    }
+
+    store.subscribe((state, changed) => {
+      if (changed.indexOf('cart') < 0 && changed.indexOf('format') < 0) return;
+      syncClipboard();
+    });
+
+    /* 「日期」鈕：HIS 就診日期欄位吃民國格式。這是使用者主動按的，失敗要跳手動複製
+       視窗（不像自動同步那樣靜默），否則他會以為複製成功而貼到舊內容。 */
+    async function copyDate() {
+      const text = ctx.logic.rocDate();
+      if (await copyText(text)) announce('已複製日期 ' + text);
     }
 
     // ---- 點擊委派 ----
@@ -4872,9 +4891,6 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
          就不動」的守門，也不播報。設定 popover 的 #seg-mode 仍走泛用那條。 */
       const modeBtn = target.closest('#mode-switch [data-mode]');
       if (modeBtn) { chooseMode(ctx, modeBtn.getAttribute('data-mode')); return; }
-
-      const regionAll = target.closest('.region-all-btn');
-      if (regionAll) { chooseAllRegions(ctx); return; }
 
       const region = target.closest('.region-btn');
       if (region) {
@@ -4930,7 +4946,7 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
       if (btn.id === 'reset-panes') { resetPanes(ctx); return; }
       if (btn.id === 'cart-toggle') { if (typeof ctx.onCartToggle === 'function') ctx.onCartToggle(); return; }
       if (btn.id === 'clear-cart') { store.clearCart(); announce('已清空就診清單'); return; }
-      if (btn.id === 'copy-all') { copyAll(); return; }
+      if (btn.id === 'copy-date') { copyDate(); return; }
       if (btn.id === 'fallback-close') { closeFallbackCopy(); return; }
       // 全庫載入失敗後的重試入口（R2 I2）；ensureDb() 會回傳快取的失敗 Promise，只能走 retryDb()
       if (btn.id === 'db-retry') { announce('正在重新載入全庫…'); data.retryDb(); return; }
@@ -5046,7 +5062,7 @@ window.CURATED_LABELS = {"A01.00":"傷寒","A01.4":"副傷寒","A02.0":"沙門�
     wire, copyText, openFallbackCopy, closeFallbackCopy, isFallbackOpen, announce,
     activateChip, copyCartCode, setFeedbackDocument,
     // 1c 置頂時 main document 的委派搆不到側欄，render-dock.js 要用同一份實作代打
-    chooseMode, chooseAllRegions, resetPanes,
+    chooseMode, resetPanes,
   };
 })(typeof self !== 'undefined' ? self : this);
 

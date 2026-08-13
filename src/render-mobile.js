@@ -60,6 +60,7 @@
     const header = R.el('header', 'm-header');
     // 頁面唯一的 H1（sr-only）：手機版 header 沒有可見的品牌字，階層仍要有起點
     header.append(R.srHeading(1, 'ICD-10 門診導引'));
+    refs.dateBtn = R.dateBtnEl(false);       // 「日期」排在模式三鈕左邊（模式列自己一行）
     refs.modeSwitch = R.modeSwitchEl(false);
 
     const search = document.createElement('input');
@@ -87,9 +88,13 @@
     const shelfBtn = pop.querySelector('#shelf-toggle');
     if (shelfBtn) shelfBtn.classList.add('is-desktop-only');
 
+    /* 「日期」與模式三鈕同一列：模式列本來就獨佔一行，左邊塞得下一顆小鈕。 */
+    const modeRow = R.el('div', 'm-mode-row');
+    modeRow.append(refs.dateBtn, refs.modeSwitch);
+
     const headRow = R.el('div', 'm-head-row');
     headRow.append(search, settingsToggle);
-    header.append(refs.modeSwitch, headRow, pop);
+    header.append(modeRow, headRow, pop);
     wrap.appendChild(header);
 
     // ── 部位／情境：橫向捲動 pill 列（L370-374） ──────────────────────────
@@ -174,10 +179,8 @@
     refs.cartInline.id = 'cart-inline';
     refs.cartToggle.append(label, refs.cartInline);
 
-    refs.copyAll = R.el('button', 'btn btn-primary blueprint', '複製並貼入 HIS');
-    refs.copyAll.type = 'button';
-    refs.copyAll.id = 'copy-all';
-    bar.append(refs.cartToggle, refs.copyAll);
+    // 沒有複製鈕：清單一變就自動同步到剪貼簿（interactions.js 的 syncClipboard）
+    bar.append(refs.cartToggle);
     wrap.appendChild(bar);
 
     host.appendChild(wrap);
@@ -226,7 +229,6 @@
       refs.pills.setAttribute('aria-label', surg ? '手術情境' : '身體部位');
       R.clear(refs.pills);
       const active = ctx.data.clampRegion(s.mode, s.region);     // null ＝ 沒有選取任何部位
-      refs.pills.appendChild(R.regionAllBtn(active === null));   // 「全部」固定在橫捲列最前面
       ctx.data.regionsFor(s.mode).forEach((region, i) => {
         // 事件委派認的是 .region-btn＋data-region-index；.region-pill 是 1b 的樣式與測試鉤子
         const b = R.el('button', 'region-btn region-pill');
@@ -235,8 +237,10 @@
         b.dataset.regionIndex = String(i);
         const on = i === active;
         R.markRegionSelected(b, on);
-        if (on) b.title = region.name + '（再點一次取消選取，顯示全部部位）';
-        b.append(R.el('span', null, region.name), R.el('span', 'region-count', String(region.count)));
+        // 橫捲列上兩字短名一屏看得到更多；全名留在 title
+        b.title = region.name + (on ? '（再點一次取消選取，顯示全部部位）' : '');
+        b.append(R.el('span', null, R.regionShort(region.name)),
+                 R.el('span', 'region-count', String(region.count)));
         refs.pills.appendChild(b);
       });
     };
@@ -342,7 +346,7 @@
         : '尚未選碼';
     };
 
-    U.his = () => R.renderHis(refs.hisPreview, refs.hisFormat, refs.copyAll, ctx);
+    U.his = () => R.renderHis(refs.hisPreview, refs.hisFormat, null, ctx);
     U.settings = () => R.syncSettings(wrap, ctx);
 
     /* #cart-toggle 的事件委派本身在 interactions.js（共用），但「切換的是什麼」是 1b 專屬語意：

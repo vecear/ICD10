@@ -29,7 +29,12 @@ body[data-layout="dock"] .dock-head {
 body[data-layout="dock"] #search {
   min-height: 28px; padding: 3px 7px; font-size: 12px; background: transparent;
 }
-body[data-layout="dock"] .dock-tools { display: flex; align-items: center; gap: 3px; min-width: 0; }
+/* 允許換行：這一列現在有六個控制項（日期＋模式三鈕＋置頂＋設定），176px 排不下，
+   不換行的話設定鈕會被擠出視窗右緣（實測 x+width=186 > 可用的 170）。
+   340px 以上（Ctrl+Alt+D 貼齊的寬度）空間充足，仍然是一列。 */
+body[data-layout="dock"] .dock-tools {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 3px; row-gap: 3px; min-width: 0;
+}
 /* 模式三鈕與置頂／設定之間的彈性空白：模式鈕收成文字寬之後多出來的寬度全部歸它，
    置頂與設定才會靠右對齊而不是跟著飄。 */
 body[data-layout="dock"] .dock-spacer { flex: 1; min-width: 0; }
@@ -97,15 +102,12 @@ body[data-layout="dock"] #theme-toggle { width: 100%; min-height: 26px; font-siz
 body[data-layout="dock"] #shelf-toggle { display: none; }     /* 1c 沒有常用列 */
 body[data-layout="dock"] #db-note { font-size: 10px; padding-top: 6px; }
 
-/* ── 部位／情境：兩欄 grid（L264、L679-681）。
-   minmax(0,1fr) 不可省——預設的 1fr 最小值是 max-content，長名稱會把整欄撐出視窗。 ── */
-/* auto-fill 而不是寫死兩欄：176px 下算出來剛好是 2 欄，但 Chrome 一般視窗最小寬約 500px，
-   使用者把側掛開在分頁裡時會被迫更寬——那時自動變成 4～6 欄填滿，而不是把兩欄拉成一片空白。
-   PiP 視窗（真正的 176）不受影響。
-   最小欄寬 72 而不是 76：部位區被拖小之後自己會長出垂直捲軸（約 15px），164−15＝149 的
-   可用寬度下 76×2+3=155 排不下會掉成一欄，72×2+3=147 才守得住設計要求的兩欄。 */
+/* ── 部位／情境：依文字寬自動換行（使用者要求「按鈕縮小、擠成一起」）。
+   原本是 minmax(72px,1fr) 的等分 grid：每顆一樣寬、一列固定欄數，11 個分類要 6 列。
+   名稱縮成兩字之後改成 flex wrap，按鈕收到文字寬就好，340px 下 11 顆約 2 列。
+   等分 grid 在這裡沒有好處——欄寬由最長的名稱決定，短名一律陪著變寬。 */
 body[data-layout="dock"] #region-pills {
-  flex: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 3px;
+  flex: none; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 3px;
   padding: 6px; border-bottom: 1px solid var(--color-divider); background: var(--color-neutral-100);
 }
 /* 176px 下分隔條縮到 7px：三條共 21px，從捲動內容區借走的高度要壓到最低 */
@@ -114,24 +116,18 @@ body[data-layout="dock"] .pane-resizer::before { width: 24px; margin-left: -12px
 /* line-height 1.2 而不是繼承 body 的 1.55：這些是 nowrap 的單行按鈕，1.55 的行距在
    單行裡不是可讀性而是純留白（每顆 3px，176px 下 6 列就是 18px）。密度原則的通則是
    「單行不換行的 UI 骨架一律收 line-height，只有會換行的內文才保留 body 行距」。 */
-body[data-layout="dock"] .region-pill--dock,
-body[data-layout="dock"] .region-all-btn {
-  display: block; width: 100%; min-width: 0; padding: 2px 4px; min-height: 20px;
+body[data-layout="dock"] .region-pill--dock {
+  flex: 0 0 auto; min-width: 0; padding: 2px 6px; min-height: 20px;
   border: 1px solid var(--color-divider); border-left-width: 1px; border-radius: 0;
   background: transparent; color: var(--color-text); cursor: pointer;
   font: inherit; font-size: 11px; line-height: 1.2; letter-spacing: .02em;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center;
 }
-body[data-layout="dock"] .region-pill--dock:hover,
-body[data-layout="dock"] .region-all-btn:hover { border-color: var(--color-accent); }
-body[data-layout="dock"] .region-pill--dock.is-on,
-body[data-layout="dock"] .region-all-btn.is-on {
+body[data-layout="dock"] .region-pill--dock:hover { border-color: var(--color-accent); }
+body[data-layout="dock"] .region-pill--dock.is-on {
   border-color: var(--color-accent); background: var(--color-accent-100);
   color: var(--color-accent-800); font-weight: 600;
 }
-/* 「全部」橫跨整列：它不是「第 0 個部位」，跟部位並排會被當成其中一區；
-   而且部位數為奇數時它會替兩欄 grid 製造一格空白。 */
-body[data-layout="dock"] .region-all-btn { grid-column: 1 / -1; }
 
 /* 取消部位選取（顯示全部部位）時，每組面板前的部位標題。176px 下只給一行小標＋下緣線，
    長名稱 ellipsis；沒有它，全部部位的面板連在一起會分不出來自哪一區。 */
@@ -223,20 +219,22 @@ body[data-layout="dock"] .dock-cart {
 /* 內距 8/10 → 5/6：這一列在版面裡跟 header、部位區、捲動區都相鄰，它們一律 5～6px；
    多出來的那 6px 只是讓清單摘要看起來比別區鬆，沒有分隔作用（分隔靠上緣線）。 */
 body[data-layout="dock"] #cart-toggle {
-  display: flex; align-items: center; gap: 8px; width: 100%; padding: 5px 6px;
-  border: 0; background: none; cursor: pointer; font: inherit; text-align: left; color: var(--color-text);
+  display: flex; align-items: center; gap: 8px; width: 100%; padding: 3px 4px;
+  border: 0; background: none; cursor: pointer; font: inherit; text-align: left;
+  color: var(--his-ink);      /* 與同一列的「清空」同底色，用 HIS 那組墨色才讀得清楚 */
 }
+/* 這一列改成 HIS 深底之後，原本的 neutral／accent 墨色對比不夠，改用 --his-* 那組 */
 body[data-layout="dock"] .dock-cart-kicker {
   flex: none; font-family: var(--font-heading); font-size: 12px; letter-spacing: .06em;
-  color: var(--color-neutral-700); white-space: nowrap;
+  color: var(--his-dim); white-space: nowrap;
 }
-body[data-layout="dock"] #cart-count { color: var(--color-accent-700); }
+body[data-layout="dock"] #cart-count { color: var(--his-ink); font-weight: 600; }
 body[data-layout="dock"] .dock-cart-codes {
   flex: 1; min-width: 0; font-family: var(--font-heading); font-size: 13px; letter-spacing: .03em;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 body[data-layout="dock"] #cart-toggle .marker {
-  flex: none; display: flex; color: var(--color-accent-700); transition: transform .12s ease;
+  flex: none; display: flex; color: var(--his-dim); transition: transform .12s ease;
 }
 body[data-layout="dock"] #cart-toggle[aria-expanded="true"] .marker { transform: rotate(90deg); }
 body[data-layout="dock"] #cart-inline { max-height: 210px; overflow-y: auto; }
@@ -270,17 +268,20 @@ body[data-layout="dock"] .chip-tag { font-size: 10px; padding: 0 2px; letter-spa
 /* 1c 的清單列是兩行（中文另起一行，order:5），附加碼標記排在中文之後 */
 body[data-layout="dock"] #cart li .chip-tag { order: 6; }
 
-/* 貼入 HIS 的行動列：深底不隨主題翻轉（--his-*），與 1a 的 HIS 卡片同一組 token */
-body[data-layout="dock"] .dock-his {
-  display: flex; gap: 4px; padding: 6px;
+/* 「清空」與「清單」同一列：清空收成文字寬靠左，清單摘要吃掉剩下的寬度。
+   深底不隨主題翻轉（--his-*），與 1a 的 HIS 卡片同一組 token。
+   原本清空自己佔一整列，在 176px 下那是純粹為一顆很少按的鈕付出的高度。 */
+body[data-layout="dock"] .dock-cart-head {
+  display: flex; align-items: stretch; gap: 4px; padding: 4px 6px;
   background: var(--his-surface); border-top: 1px solid var(--his-line);
 }
-/* .btn 的 12px 內距會讓「複製並貼入 HIS」在 176px 下換行，縮到 4px 才排得成一行 */
-body[data-layout="dock"] #copy-all {
-  flex: 1; width: auto; min-height: 30px; padding: 2px 4px; font-size: 12px; letter-spacing: .04em;
-}
+body[data-layout="dock"] .dock-cart-head #cart-toggle { flex: 1; min-width: 0; }
 body[data-layout="dock"] #clear-cart {
-  flex: none; min-height: 30px; padding: 0 6px; font-size: 11px;
+  flex: none; min-height: 26px; padding: 0 8px; font-size: 11px;
   border: 1px solid var(--his-btn); color: var(--his-btn); background: transparent;
+}
+/* 「日期」鈕在 176px 下與模式鈕同高，內距收到 6px 才不會把三顆模式鈕擠掉 */
+body[data-layout="dock"] #copy-date {
+  min-height: 22px; padding: 0 6px; font-size: 11px; letter-spacing: .02em;
 }
 body[data-layout="dock"] #clear-cart:hover { background: var(--his-card); }

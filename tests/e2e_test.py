@@ -3,6 +3,7 @@
 DOM 契約見 .review/design-ref/impl-plan.md §4。1c 側掛窄欄與 1b 手機的測試由後續階段
 放在各自的檔案（tests/e2e_dock_test.py／e2e_mobile_test.py），本檔只涵蓋 wide 版面。
 """
+import datetime
 import http.server, json, threading
 from functools import partial
 from pathlib import Path
@@ -120,11 +121,17 @@ def open_settings(pg):
     pg.wait_for_selector("#settings-popover:not([hidden])")
 
 
+MODE_OF_BUTTON_ID = {"mode-op": "outpatient", "mode-er": "emergency", "mode-surg": "surg"}
+
+
 def set_mode(pg, button_id):
-    """模式鈕已移進設定 popover（設計 L65-72），改走「開 popover → 點鈕」。"""
-    open_settings(pg)
-    pg.click("#" + button_id)
-    expect(pg.locator("#settings-popover")).to_be_hidden()
+    """看診模式已從設定 popover 移除，只剩 header 的三顆鈕。
+
+    參數仍收舊的 button_id，呼叫端一個都不用改；對照表集中在這裡。
+    """
+    mode = MODE_OF_BUTTON_ID[button_id]
+    pg.click(f'#mode-switch [data-mode="{mode}"]')
+    expect(pg.locator(f'#mode-switch [data-mode="{mode}"]')).to_have_attribute("aria-pressed", "true")
 
 
 def ensure_expanded(toggle):
@@ -447,10 +454,10 @@ def test_cart_single_code_copy(page):
 # B. 重寫（行為在新設計已改變）
 # ══════════════════════════════════════════════════════════════════════════
 def test_mode_switch(page):
-    """三顆模式鈕移進設定 popover；外科不再隱藏部位導覽，改用 rail 顯示「情境」。"""
+    """三顆模式鈕在 header（設定裡那份已移除）；外科不再隱藏部位導覽，改用 rail 顯示「情境」。"""
     reset(page)
     open_settings(page)
-    expect(page.locator("#mode-op")).to_have_attribute("aria-pressed", "true")
+    assert page.locator("#seg-mode").count() == 0, "設定面板不該再有看診模式 segmented"
     page.keyboard.press("Escape")
     expect(page.locator("#panels-title")).to_contain_text("內科門診")
     expect(page.locator('#mode-switch [data-mode="outpatient"]')).to_have_attribute("aria-pressed", "true")
@@ -506,14 +513,14 @@ def test_mode_buttons_switch_mode(page):
     assert page.get_attribute("body", "data-mode") == "surg"
     expect(page.locator("#panels-title")).to_contain_text("外科")
 
-    # 兩條動線的選中狀態要同步：header 切了，設定 popover 裡也要跟著變
+    # 設定面板不再有第二份模式選單（只剩 header 這一條動線）
     open_settings(page)
-    expect(page.locator("#mode-surg")).to_have_attribute("aria-pressed", "true")
-    expect(page.locator("#mode-op")).to_have_attribute("aria-pressed", "false")
+    assert page.locator("#seg-mode").count() == 0
     page.keyboard.press("Escape")
-    # 反向：popover 切了，header 三鈕也要跟著變
+
     set_mode(page, "mode-op")
     expect(switch.locator('[data-mode="outpatient"]')).to_have_attribute("aria-pressed", "true")
+    assert page.get_attribute("body", "data-mode") == "outpatient"
     expect(switch.locator('[data-mode="surg"]')).to_have_attribute("aria-pressed", "false")
 
     # 點目前這個模式不得有副作用（setMode 會清掉 relatedCode ＝ 右欄建議整片消失）
@@ -572,8 +579,6 @@ def test_region_toggle_clears_selection_and_shows_all(page):
     expect(second).to_have_attribute("aria-pressed", "true")
     one_region_cards = page.locator("#panels .symptom-card").count()
     assert page.locator("#panels .region-heading").count() == 0, "選了部位時不該出現部位標題"
-    # 選了部位時「全部」鈕不得標為選中（原 #region-all-note 的說明文字已由這顆鈕取代）
-    expect(page.locator(".region-all-btn")).to_have_attribute("aria-pressed", "false")
 
     # 再點同一顆 → 取消選取，沒有任何一個部位是 selected
     second.click()
@@ -589,75 +594,52 @@ def test_region_toggle_clears_selection_and_shows_all(page):
     )
     expect(page.locator("#panels .symptom-card")).to_have_count(total)
     assert total > one_region_cards, f"顯示全部（{total}）沒有比單一部位（{one_region_cards}）多"
-    # 每個部位一條標題，順序與 rail 一致；rail 上的「全部」也要跟著標為選中
+    # 每個部位一條標題，順序與 rail 一致
     expect(page.locator("#panels .region-heading")).to_have_count(region_count)
     assert page.locator("#panels .region-heading").first.inner_text() == rail.first.get_attribute("data-region")
-    expect(page.locator(".region-all-btn")).to_have_attribute("aria-pressed", "true")
     sw, cw = page.evaluate("() => [document.documentElement.scrollWidth, document.documentElement.clientWidth]")
     assert sw <= cw, f"顯示全部時水平溢出：{sw} > {cw}"
 
-    # 點別的部位是換過去、不是取消；標題收起，「全部」也退選
+    # 點別的部位是換過去、不是取消；標題收起
     rail.nth(0).click()
     expect(rail.nth(0)).to_have_attribute("aria-pressed", "true")
     assert page.locator("#panels .region-heading").count() == 0
-    expect(page.locator(".region-all-btn")).to_have_attribute("aria-pressed", "false")
 
 
-def test_region_all_button(page):
-    """部位列最前面的「全部」鈕：未選任何部位時＝選中，點它＝取消部位篩選。
+def test_no_region_all_button_full_names_kept(page):
+    """「全部」鈕已移除（使用者要求）；取消篩選的入口是「再點一次已選的部位」，
+    那條路徑由 test_region_toggle_clears_selection_and_shows_all 覆蓋。
 
-    「點已選部位再點一次取消」三套版面本來就都能用，但沒有視覺提示，使用者以為只有窄欄
-    有（原話：「已選取再按一下清除也要在其他介面出現而不是只在窄欄」）。這顆鈕把那個狀態
-    變成看得見、按得到的入口；再點一次取消保留為快捷。
+    1a 的側欄空間充足，部位鈕維持**全名＋面板數**——兩字短名是 1c／手機的空間妥協，
+    在 1440px 下只會讓資訊變少。
     """
     reset(page)
-    all_btn = page.locator(".region-all-btn")
+    assert page.locator(".region-all-btn").count() == 0, "「全部」鈕應已移除"
+
     rail = page.locator(".region-btn")
-    expect(all_btn).to_have_count(1)
-    # 「全部」不算一個部位：部位鈕數量與部位標題數量不得被它影響
     outpatient_regions = json.loads((CURATED_DIR / "internal_outpatient.json").read_text(encoding="utf-8"))
     expect(rail).to_have_count(len(outpatient_regions))
-    # 「全部」排在所有部位之前
-    assert page.evaluate(
-        """() => {
-            const nodes = [...document.querySelectorAll('#region-rail .region-all-btn, #region-rail .region-btn')];
-            return nodes.length > 1 && nodes[0].classList.contains('region-all-btn');
-        }"""
-    ), "「全部」鈕不在部位列最前面"
 
-    expect(all_btn).to_have_attribute("aria-pressed", "false")
-    all_btn.click()
-    expect(all_btn).to_have_attribute("aria-pressed", "true")
-    assert page.evaluate("() => window.ICDApp.store.getState().region") is None
-    assert page.locator('.region-btn[aria-pressed="true"]').count() == 0
-    expect(page.locator("#panels .region-heading")).to_have_count(len(outpatient_regions))
+    names = [r["name"] for r in outpatient_regions]
+    shown = [rail.nth(i).locator("span").first.inner_text().strip() for i in range(rail.count())]
+    assert shown == names, f"1a 的部位鈕應顯示全名：{shown}"
 
-    # 已是「全部」時再點一次仍是全部（它是狀態，不是切換鈕）
-    all_btn.click()
-    expect(all_btn).to_have_attribute("aria-pressed", "true")
-    assert page.evaluate("() => window.ICDApp.store.getState().region") is None
-
-    # 選一個部位 → 「全部」退選；再點該部位一次（既有快捷）→ 「全部」自己亮回來
-    rail.nth(1).click()
-    expect(all_btn).to_have_attribute("aria-pressed", "false")
-    assert page.locator("#panels .region-heading").count() == 0
-    rail.nth(1).click()
-    expect(all_btn).to_have_attribute("aria-pressed", "true")
     sw, cw = page.evaluate("() => [document.documentElement.scrollWidth, document.documentElement.clientWidth]")
-    assert sw <= cw, f"「全部」選中時水平溢出：{sw} > {cw}"
+    assert sw <= cw, f"部位列水平溢出：{sw} > {cw}"
 
 
 def test_copy_formats(page):
-    """三顆複製鈕改成「設定裡選格式 ＋ 單一 #copy-all」；字串仍由 logic.formatCart 決定。"""
+    """複製鈕已移除：設定裡選格式，清單一變就自動同步；字串仍由 logic.formatCart 決定。"""
     reset(page)
     quick_chip(page, "常用慢性病", "I10").click()
     quick_chip(page, "常用慢性病", "E11.9").click()
 
     def copy_with(fmt):
+        # 沒有複製鈕了：換格式當下就自動同步到剪貼簿
         open_settings(page)
         page.click(f'#seg-format button[data-format="{fmt}"]')
         page.keyboard.press("Escape")
-        page.click("#copy-all")
+        page.wait_for_timeout(200)
         # Windows 剪貼簿會把 \n 正規化成 \r\n（OS/瀏覽器行為），比對前先還原
         return page.evaluate("navigator.clipboard.readText()").replace("\r\n", "\n")
 
@@ -734,12 +716,12 @@ def test_cart_pane_stays_in_view_while_scrolling(page):
         return {
             hidden: c.bottom <= 0 || c.top >= innerHeight,
             overlap: !(c.bottom <= h.top || c.top >= h.bottom),
-            copyVisible: document.querySelector('#copy-all').getBoundingClientRect().top < innerHeight,
+            hisVisible: document.querySelector('#his-preview').getBoundingClientRect().top < innerHeight,
         };
     }""")
     assert not overlap["hidden"], "捲動後清單欄離開視野"
     assert not overlap["overlap"], "清單欄與 header 重疊"
-    assert overlap["copyVisible"], "複製鈕被推出視野"
+    assert overlap["hisVisible"], "貼入 HIS 的預覽被推出視野"
 
 
 def test_primary_copy_button_has_visible_contrast(page):
@@ -748,13 +730,13 @@ def test_primary_copy_button_has_visible_contrast(page):
     quick_chip(page, "常用慢性病", "I10").click()
     for theme in ("light", "dark"):
         page.evaluate("(t) => window.ICDApp.store.setTheme(t)", theme)
-        styles = page.locator("#copy-all").evaluate(
+        styles = page.locator("#copy-date").evaluate(
             "(el) => ({background: getComputedStyle(el).backgroundColor, color: getComputedStyle(el).color})"
         )
         assert styles["background"] != "rgb(255, 255, 255)"
         assert styles["color"] != styles["background"]
-        ratio = contrast(page, "#copy-all")
-        assert ratio >= 4.5, f"{theme} 主題下 #copy-all 對比只有 {ratio:.2f}:1"
+        ratio = contrast(page, "#copy-date")
+        assert ratio >= 4.5, f"{theme} 主題下 #copy-date 對比只有 {ratio:.2f}:1"
     page.evaluate("() => window.ICDApp.store.setTheme('light')")
 
 
@@ -893,7 +875,7 @@ def test_his_preview_matches_clipboard(page):
         open_settings(page)
         page.click(f'#seg-format button[data-format="{fmt}"]')
         page.keyboard.press("Escape")
-        page.click("#copy-all")
+        page.wait_for_timeout(200)
         clip = page.evaluate("navigator.clipboard.readText()").replace("\r\n", "\n")
         assert page.text_content("#his-preview") == clip, f"{fmt}：預覽與剪貼簿不一致"
     open_settings(page)
@@ -936,7 +918,7 @@ def test_theme_toggle_contrast(page):
         assert page.get_attribute("html", "data-theme") == "dark"
         page.keyboard.press("Escape")
         assert contrast(page, "#his-preview") >= 4.5
-        assert contrast(page, "#copy-all") >= 4.5
+        assert contrast(page, "#copy-date") >= 4.5
         assert contrast(page, "#search-results .chip.cat") >= 4.5
         assert contrast(page, ".redflag-group .chip--warn b") >= 4.5
         # R-7：warn token 若掉回 :root 之外的選擇器，框線會靜默消失
@@ -965,7 +947,7 @@ def test_storage_unavailable_degrades(fresh_page, page_url):
     quick_chip(fresh_page, "常用慢性病", "I10").click()
     expect(fresh_page.locator('#cart li[data-code="I10"]')).to_have_count(1)
     fresh_page.locator('#cart li[data-code="I10"] .cart-fav').click()
-    fresh_page.click("#copy-all")
+    fresh_page.wait_for_timeout(200)
     clip = fresh_page.evaluate("navigator.clipboard.readText()").replace("\r\n", "\n")
     assert clip == "I10"
     assert fresh_page.evaluate("() => window.ICDApp.store.storage.available") is False
@@ -986,13 +968,18 @@ def test_clipboard_fallback_dialog(fresh_page, page_url):
     fresh_page.goto(page_url)
     fresh_page.wait_for_selector('body[data-ready="1"]', timeout=8000)
     quick_chip(fresh_page, "常用慢性病", "I10").click()
+    # 清單的自動同步刻意靜默：每點一個代碼就彈一次對話框比沒複製到更糟
     expect(fresh_page.locator("#fallback-copy")).to_be_hidden()
-    fresh_page.click("#copy-all")
+
+    # 使用者**主動按**的複製（日期）失敗時，仍必須跳後備視窗
+    today = datetime.date.today()
+    want_date = f"{today.year - 1911}-{today.month:02d}-{today.day:02d}"
+    fresh_page.click("#copy-date")
     expect(fresh_page.locator("#fallback-copy")).to_be_visible()
-    assert fresh_page.input_value("#fallback-copy textarea") == "I10"
+    assert fresh_page.input_value("#fallback-copy textarea") == want_date
     fresh_page.keyboard.press("Escape")
     expect(fresh_page.locator("#fallback-copy")).to_be_hidden()
-    fresh_page.click("#copy-all")
+    fresh_page.click("#copy-date")
     expect(fresh_page.locator("#fallback-copy")).to_be_visible()
     fresh_page.click("#fallback-close")
     expect(fresh_page.locator("#fallback-copy")).to_be_hidden()
@@ -1534,7 +1521,7 @@ def test_pane_cannot_be_dragged_away(page):
     drag_pane(page, '.pane-resizer[aria-controls="cart-box"]', 2000)
     assert pane_h(page, "#cart-box") <= page.evaluate(
         "() => document.getElementById('cart-pane').clientHeight") - 100, "清單區吃掉整欄，貼入 HIS 被擠出視野"
-    expect(page.locator("#copy-all")).to_be_visible()
+    expect(page.locator("#his-preview")).to_be_visible()
     expect(page.locator("#cart li").first).to_be_visible()
     reset(page)
 
@@ -1627,11 +1614,11 @@ def test_a11y_region_buttons_are_toggle_buttons_not_fake_tabs(page):
     second = page.locator("#region-rail .region-btn").nth(1)
     second.click()
     expect(second).to_have_attribute("aria-pressed", "true")
-    expect(page.locator(".region-all-btn")).to_have_attribute("aria-pressed", "false")
     assert page.locator('#region-rail .region-btn[aria-pressed="true"]').count() == 1
 
-    page.click(".region-all-btn")
-    expect(page.locator(".region-all-btn")).to_have_attribute("aria-pressed", "true")
+    # 「全部」鈕已移除；取消篩選＝再點一次已選的那顆
+    second.click()
+    expect(second).to_have_attribute("aria-pressed", "false")
     assert page.locator('#region-rail .region-btn[aria-pressed="true"]').count() == 0
     reset(page)
 
@@ -1677,14 +1664,12 @@ def test_a11y_cart_code_is_keyboard_reachable_and_copies(page):
 
 
 def test_clear_cart_disabled_when_empty(page):
-    """清單為空時「清空」要與旁邊的「複製並貼入 HIS」一樣停用（v1 §3：同一列兩套規則）。"""
+    """清單為空時「清空」要停用——按了什麼都不會發生的鈕，看起來像壞掉。"""
     reset(page)
     expect(page.locator("#clear-cart")).to_be_disabled()
-    expect(page.locator("#copy-all")).to_be_disabled()
 
     page.evaluate("() => window.ICDApp.store.addCode('I10', '本態性高血壓')")
     expect(page.locator("#clear-cart")).to_be_enabled()
-    expect(page.locator("#copy-all")).to_be_enabled()
 
     page.click("#clear-cart")
     expect(page.locator("#cart li")).to_have_count(0)

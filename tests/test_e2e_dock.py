@@ -7,6 +7,7 @@ DOM 契約見 .review/design-ref/impl-plan.md §4.2／§4.4。本檔只涵蓋 do
   * 176px 下**不得水平捲動**、文字不得溢出——貼在 HIS 旁邊的窄欄，一捲動就沒法用。
   * 置頂（Document Picture-in-Picture）**不支援時要顯示提示、不得靜默失敗**。
 """
+import datetime
 import http.server
 import threading
 from functools import partial
@@ -89,10 +90,18 @@ def open_settings(page):
     page.wait_for_selector("#settings-popover:not([hidden])")
 
 
+MODE_OF_BUTTON_ID = {"mode-op": "outpatient", "mode-er": "emergency", "mode-surg": "surg"}
+
+
 def set_mode(page, button_id):
-    open_settings(page)
-    page.click("#" + button_id)
-    expect(page.locator("#settings-popover")).to_be_hidden()
+    """看診模式已移出設定面板，改點 header 的三鈕。
+
+    參數仍收舊的 button_id（設定 popover 裡那三顆的 id），呼叫端一個都不用改；
+    對照表擺在這裡，之後真要換選擇器也只改這一處。
+    """
+    mode = MODE_OF_BUTTON_ID[button_id]
+    page.click(f'#mode-switch [data-mode="{mode}"]')
+    expect(page.locator(f'#mode-switch [data-mode="{mode}"]')).to_have_attribute("aria-pressed", "true")
 
 
 def search(page, text):
@@ -173,16 +182,20 @@ def test_switch_layout_from_settings(browser_ctx, page_url):
     page.close()
 
 
-# ---- 部位兩欄 ----
-def test_region_pills_two_columns_no_hscroll(pg):
+# ---- 部位列（兩字短名、自動換行） ----
+def test_region_pills_wrap_without_hscroll(pg):
+    """名稱縮成兩字之後，部位列從等分兩欄 grid 改成依文字寬換行的 flex。
+
+    原本斷言「剛好兩欄」；現在按鈕收成文字寬，176px 下一列排得下 4 顆——
+    欄數不再是固定值，能守的是「不橫向捲動、不超出視窗、列數比原本少」。
+    """
     pills = pg.locator("#region-pills .region-btn")
     assert pills.count() >= 4, "門診至少要有 4 個部位"
     boxes = [pills.nth(i).bounding_box() for i in range(pills.count())]
 
-    columns = sorted({round(b["x"]) for b in boxes})
-    assert len(columns) == 2, f"部位必須排成兩欄，實得 {len(columns)} 欄：{columns}"
     rows = sorted({round(b["y"]) for b in boxes})
-    assert len(rows) >= 2, "兩欄 grid 應該有多列"
+    assert len(rows) <= 4, f"{DOCK['width']}px 下部位列排了 {len(rows)} 列（縮短名稱前是 6 列）：{rows}"
+    assert len({round(b["x"]) for b in boxes}) >= 2, "同一列應該擺得下多顆按鈕"
 
     for box in boxes:
         assert box["x"] >= 0 and box["x"] + box["width"] <= DOCK["width"] + 0.5, f"部位鈕超出視窗：{box}"
@@ -312,31 +325,73 @@ def test_cart_primary_and_clear(pg):
 
 
 # ---- 複製 ----
-def test_copy_all_matches_selected_format(pg):
+def test_clipboard_syncs_on_every_cart_change(pg):
+    """沒有「複製並貼入 HIS」鈕了：點一個診斷就把**目前全部代碼**寫進剪貼簿。
+
+    醫師的動線是選碼→在 HIS 按 Ctrl+V（或 F9 熱鍵），中間那一次「按複製」是純粹的
+    多餘步驟。移除按鈕之後，剪貼簿與清單必須永遠一致——不一致就會把上一位病人的
+    代碼貼進這一位的病歷，所以加、減、換格式三條路徑都要驗。
+    """
+    assert pg.locator("#copy-all").count() == 0, "複製鈕應已移除"
+
     chips = pg.locator('#dock-panels .chip[data-code]:not(.cat)')
     codes = [chips.nth(i).get_attribute("data-code") for i in range(2)]
+
     chips.nth(0).click()
+    expect(pg.locator("#cart li")).to_have_count(1)
+    assert clipboard(pg) == codes[0], "點第一個診斷後剪貼簿就該是那個碼"
+
     chips.nth(1).click()
+    expect(pg.locator("#cart li")).to_have_count(2)
+    assert clipboard(pg) == "\n".join(codes), "剪貼簿要是目前全部代碼，不是最後點的那個"
 
-    pg.click("#copy-all")
-    expect(pg.locator("#copy-all")).to_contain_text("已複製")
-    assert clipboard(pg) == "\n".join(codes)
-
+    # 換格式：剪貼簿要跟著換，否則貼出去的是舊格式
     open_settings(pg)
     pg.click('#seg-format [data-format="comma"]')
-    pg.click("#copy-all")
+    pg.click("#settings-toggle")
     assert clipboard(pg) == ",".join(codes)
 
     open_settings(pg)
     pg.click('#seg-format [data-format="names"]')
-    pg.click("#copy-all")
+    pg.click("#settings-toggle")
     named = clipboard(pg)
     assert named.startswith(codes[0] + "\t") and (codes[1] + "\t") in named
 
     open_settings(pg)
     pg.click('#seg-format [data-format="lines"]')
-    expect(pg.locator('#seg-format [data-format="lines"]')).to_have_attribute("aria-pressed", "true")
     pg.click("#settings-toggle")
+
+    # 移除一個：剪貼簿要縮短，不能留著已經拿掉的碼
+    pg.locator(f'#cart li[data-code="{codes[0]}"] .cart-remove').click()
+    expect(pg.locator("#cart li")).to_have_count(1)
+    assert clipboard(pg) == codes[1]
+
+
+def test_clear_cart_keeps_clipboard(pg):
+    """清空清單**不清剪貼簿**：醫師常常是貼進 HIS 之後才按清空，
+    這時把剪貼簿洗掉等於毀了他手上唯一那份。"""
+    chip = first_panel_chip(pg)
+    code = chip.get_attribute("data-code")
+    chip.click()
+    assert clipboard(pg) == code
+
+    pg.click("#clear-cart")
+    expect(pg.locator("#cart li")).to_have_count(0)
+    assert clipboard(pg) == code, "清空清單不應把剪貼簿一起清掉"
+
+
+def test_copy_date_button(pg):
+    """「日期」鈕：HIS 的就診日期欄位吃民國格式，手打容易寫錯年份。"""
+    btn = pg.locator("#copy-date")
+    expect(btn).to_have_count(1)
+
+    mode_x = pg.locator("#mode-switch").bounding_box()["x"]
+    assert btn.bounding_box()["x"] < mode_x, "「日期」要排在看診模式三鈕左邊"
+
+    btn.click()
+    today = datetime.date.today()
+    want = f"{today.year - 1911}-{today.month:02d}-{today.day:02d}"
+    assert clipboard(pg) == want, f"剪貼簿[{clipboard(pg)}] 期望[{want}]"
 
 
 # ---- 相關碼 ----
@@ -415,7 +470,7 @@ def test_settings_popover_fits_and_switches_mode(pg):
         f"popover 蓋住了開它的那顆鈕：popover={pop} toggle={toggle_box}"
 
     segs = pg.locator("#settings-popover .seg-btn")
-    assert segs.count() == 8            # 版面 2 ＋ 模式 3 ＋ 格式 3
+    assert segs.count() == 5            # 版面 2 ＋ 格式 3（看診模式已移出設定，只留 header 三鈕）
     for i in range(segs.count()):
         box = segs.nth(i).bounding_box()
         assert box["x"] >= 0 and box["x"] + box["width"] <= DOCK["width"] + 0.5, f"segmented 溢出：{box}"
@@ -423,10 +478,10 @@ def test_settings_popover_fits_and_switches_mode(pg):
     assert_no_hscroll(pg, "設定開啟")
     assert not overflowing_elements(pg), overflowing_elements(pg)
 
-    pg.click("#mode-er")
+    # 看診模式已移出設定面板：header 三鈕是唯一入口，設定裡不該再有第二份
+    assert pg.locator("#seg-mode").count() == 0, "設定面板不該再有看診模式 segmented"
+    pg.click("#settings-toggle")
     expect(pg.locator("#settings-popover")).to_be_hidden()
-    expect(pg.locator('#mode-switch [data-mode="emergency"]')).to_have_attribute("aria-pressed", "true")
-    assert pg.get_attribute("body", "data-mode") == "emergency"
 
 
 def test_mode_buttons_switch_mode(pg):
@@ -468,13 +523,14 @@ def test_mode_buttons_switch_mode(pg):
     assert "is-on" in switch.locator('[data-mode="surg"]').get_attribute("class")
     assert_no_hscroll(pg, "切到外科")
 
-    # 兩條動線同步：設定 popover 裡的 segmented 也要跟著選中
+    # 設定面板不再有第二份模式選單（只剩 header 這一條動線）
     open_settings(pg)
-    expect(pg.locator("#mode-surg")).to_have_attribute("aria-pressed", "true")
+    assert pg.locator("#seg-mode").count() == 0
     pg.keyboard.press("Escape")
-    # 反向：popover 切了，header 三鈕也要跟著變
+
     set_mode(pg, "mode-op")
     expect(switch.locator('[data-mode="outpatient"]')).to_have_attribute("aria-pressed", "true")
+    assert pg.get_attribute("body", "data-mode") == "outpatient"
 
 
 def test_header_controls_share_one_row(pg):
@@ -484,17 +540,23 @@ def test_header_controls_share_one_row(pg):
     一樣寬就好　這個介面的中心原則就是在有限的版面塞入最大量的資訊」。
 
     這條測試守三件事，任何一件退回去都會紅：
-      1. 五個控制項在同一列（垂直中心線一致）、且都在搜尋框那一列之下；
+      1. 模式三鈕彼此同列、且所有控制項都在搜尋框那一列之下；
       2. 模式鈕是文字寬，不是等寬撐滿窄欄；
       3. 176px 下不水平溢出，置頂與設定沒有被擠出視窗，也沒有任何一個文字被裁掉。
+
+    後來多了「日期」鈕（六個控制項），176px 排不下就會換行——原本「五個全部同列」
+    的斷言在那個寬度下與「不得溢出」直接衝突，而不溢出才是硬性規則。所以同列只要求
+    模式三鈕自己，其餘改為「都在視窗內、都量得到」。
     """
     sels = ('#mode-switch [data-mode="outpatient"]', '#mode-switch [data-mode="emergency"]',
-            '#mode-switch [data-mode="surg"]', "#pin-toggle", "#settings-toggle")
+            '#mode-switch [data-mode="surg"]', "#pin-toggle", "#settings-toggle", "#copy-date")
     boxes = {s: pg.locator(s).bounding_box() for s in sels}
     assert all(b and b["width"] > 0 for b in boxes.values()), f"有控制項量不到（被擠掉了）：{boxes}"
 
-    centers = {k: round(b["y"] + b["height"] / 2, 1) for k, b in boxes.items()}
-    assert max(centers.values()) - min(centers.values()) <= 1, f"五個控制項不在同一列：{centers}"
+    mode_centers = {k: round(b["y"] + b["height"] / 2, 1)
+                    for k, b in boxes.items() if k.startswith("#mode-switch")}
+    assert max(mode_centers.values()) - min(mode_centers.values()) <= 1, \
+        f"模式三鈕不在同一列：{mode_centers}"
 
     s_box = pg.locator("#search").bounding_box()
     for k, b in boxes.items():
@@ -508,12 +570,18 @@ def test_header_controls_share_one_row(pg):
     op = boxes['#mode-switch [data-mode="outpatient"]']
     assert op["width"] <= 40, f"「門診」兩個字不該佔到 {op['width']}px"
 
-    # 置頂與設定排在模式列右側，完整落在窄欄內
-    for k in ("#pin-toggle", "#settings-toggle"):
-        b = boxes[k]
+    # 每一個控制項都要完整落在窄欄內（這條是硬性規則，換不換行都不能違反）
+    for k, b in boxes.items():
         assert b["x"] >= 0 and b["x"] + b["width"] <= DOCK["width"] - 6 + 0.5, f"{k} 被擠出視窗：{b}"
-    assert boxes["#pin-toggle"]["x"] >= switch["x"] + switch["width"], "置頂應排在模式列右側"
-    assert boxes["#settings-toggle"]["x"] > boxes["#pin-toggle"]["x"], "設定應排在置頂右側"
+    # 設定排在置頂之後（176px 下這一列會換行，所以「之後」可能是下一列的開頭）
+    pin_b, set_b = boxes["#pin-toggle"], boxes["#settings-toggle"]
+    assert set_b["y"] > pin_b["y"] + 1 or set_b["x"] > pin_b["x"], \
+        f"設定應排在置頂之後：pin={pin_b} settings={set_b}"
+    # 「日期」在模式三鈕左邊（同列時看 x；換行時它在上一列，y 更小也算左前方）
+    op_box = boxes['#mode-switch [data-mode="outpatient"]']
+    assert (boxes["#copy-date"]["y"] < op_box["y"] - 1
+            or boxes["#copy-date"]["x"] < op_box["x"]), \
+        f"「日期」應排在看診模式三鈕之前：{boxes['#copy-date']} vs {op_box}"
 
     # 誰的文字都不准被容器裁掉（置頂在 176px 是整顆藏起文字，不是裁一半，見下一條測試）
     clipped = pg.evaluate("""() => ['#mode-switch', '#pin-toggle', '#settings-toggle'].filter((s) => {
@@ -522,12 +590,34 @@ def test_header_controls_share_one_row(pg):
     })""")
     assert clipped == [], f"控制項文字被裁切：{clipped}"
 
-    # header 收在兩列（搜尋 28 ＋ 控制列 24 ＋ 內距／間距）；合併前是三列 97px
+    # header 高度上限：搜尋 28 ＋ 控制列 24 ＋ 內距／間距。
+    # 多了「日期」鈕之後 176px 排不下六個控制項，控制列會換行成兩列（+22px）——
+    # 這是空間的物理限制，不換行就得把設定鈕擠出視窗，而不溢出是硬性規則。
+    # 340px（Ctrl+Alt+D 貼齊的寬度）仍是一列，由 test_header_one_row_at_340 守。
     head = pg.locator(".dock-head").bounding_box()
-    assert head["height"] <= 72, f"header 沒有收成兩列：{head['height']}px"
-
+    assert head["height"] <= 96, f"header 超過三列：{head['height']}px"
     assert_no_hscroll(pg, "header 併成一列")
     assert overflowing_elements(pg) == [], "header 併列後有元素破版"
+
+
+def test_header_one_row_at_340(browser_ctx, page_url):
+    """340px（實際貼在 HIS 旁邊的寬度）下，六個控制項要回到同一列。
+
+    176px 換行是不得已；真正天天用的寬度不該為了那個極端情境多付一列高度。
+    """
+    page = browser_ctx.new_page()
+    page.set_viewport_size({"width": 340, "height": 900})
+    page.goto(page_url)
+    page.wait_for_selector('body[data-ready="1"]', timeout=8000)
+    page.evaluate("() => window.ICDApp.store.setLayout('dock')")
+    page.wait_for_selector('body[data-layout="dock"]')
+
+    sels = ("#copy-date", '#mode-switch [data-mode="outpatient"]', "#pin-toggle", "#settings-toggle")
+    centers = {s: round(page.locator(s).bounding_box()["y"]
+                        + page.locator(s).bounding_box()["height"] / 2, 1) for s in sels}
+    assert max(centers.values()) - min(centers.values()) <= 1, f"340px 下沒有排成一列：{centers}"
+    assert_no_hscroll(page, "340px header")
+    page.close()
 
 
 def test_pin_label_is_the_only_text_dropped_and_only_when_narrowest(browser_ctx, page_url):
@@ -564,37 +654,30 @@ def test_pin_label_is_the_only_text_dropped_and_only_when_narrowest(browser_ctx,
     page.close()
 
 
-def test_region_all_button(pg):
-    """部位兩欄 grid 最前面的「全部」鈕：未選部位時＝選中，點它＝取消部位篩選。
+def test_region_pills_are_short_labels_without_all_button(pg):
+    """部位鈕：兩字短名、擠成不超過兩列，且沒有「全部」鈕（使用者要求）。
 
-    「全部」橫跨兩欄（它不是某一區），且不得被算成一個部位——部位數與部位標題數
-    必須仍然對得上。
+    取消篩選的入口改回「再點一次已選的部位」那一條（由
+    test_region_toggle_clears_selection_and_shows_all 覆蓋）；這裡只守住
+    「全部」不會被加回來、以及短名不會又長回去——長名會把按鈕撐成六列，
+    那正是這次要解決的問題。全名必須留在 title，否則兩個字看不出是哪一區。
     """
-    all_btn = pg.locator("#region-pills .region-all-btn")
+    assert pg.locator(".region-all-btn").count() == 0, "「全部」鈕應已移除"
     pills = pg.locator("#region-pills .region-btn")
-    expect(all_btn).to_have_count(1)
-    region_count = pills.count()
-    assert region_count >= 4
+    n = pills.count()
+    assert n >= 4
 
-    box = all_btn.bounding_box()
-    first_pill = pills.nth(0).bounding_box()
-    assert box["y"] < first_pill["y"], "「全部」鈕不在部位列最前面"
-    assert box["width"] > first_pill["width"] * 1.5, "「全部」應橫跨兩欄"
-    assert box["x"] >= 0 and box["x"] + box["width"] <= DOCK["width"] + 0.5, f"「全部」溢出：{box}"
+    texts = [pills.nth(i).inner_text().strip() for i in range(n)]
+    too_long = [t for t in texts if len(t) > 2]
+    assert not too_long, f"部位鈕不是兩個字：{too_long}"
 
-    expect(all_btn).to_have_attribute("aria-pressed", "false")
-    all_btn.click()
-    expect(all_btn).to_have_attribute("aria-pressed", "true")
-    assert pg.evaluate("() => window.ICDApp.store.getState().region") is None
-    assert pg.locator('#region-pills .region-btn[aria-pressed="true"]').count() == 0
-    expect(pg.locator("#dock-panels .region-heading")).to_have_count(region_count)
-    assert_no_hscroll(pg, "「全部」選中")
+    for i in range(n):
+        title = pills.nth(i).get_attribute("title") or ""
+        assert len(title) > 2, f"第 {i} 顆部位鈕沒有把全名留在 title：{title!r}"
 
-    # 選一個部位 → 「全部」退選；既有的「再點一次取消」快捷仍然把它亮回來
-    pills.nth(1).click()
-    expect(all_btn).to_have_attribute("aria-pressed", "false")
-    pills.nth(1).click()
-    expect(all_btn).to_have_attribute("aria-pressed", "true")
+    rows = sorted({round(pills.nth(i).bounding_box()["y"]) for i in range(n)})
+    assert len(rows) <= 3, f"{DOCK['width']}px 下部位鈕排了 {len(rows)} 列：{rows}"
+    assert_no_hscroll(pg, "部位短名列")
 
 
 # ---- 置頂（Document PiP） ----
@@ -710,10 +793,15 @@ def test_pin_opens_pip_with_styles(browser_ctx, page_url):
     # CSS 全部限定在 body[data-layout="dock"]，小視窗沒補上就會變裸 HTML
     assert pip.evaluate("() => document.body.dataset.layout") == "dock"
     assert pip.evaluate("() => document.querySelectorAll('style').length") >= 1
-    grid = pip.evaluate("() => getComputedStyle(document.getElementById('region-pills')).gridTemplateColumns")
-    assert len(grid.split()) == 2, f"小視窗裡沒吃到樣式（部位不是兩欄）：{grid}"
+    # 部位列是換行的 flex（原本是兩欄 grid）——確認樣式真的跟著複製進小視窗
+    pills_style = pip.evaluate("""() => {
+        const s = getComputedStyle(document.getElementById('region-pills'));
+        return { display: s.display, wrap: s.flexWrap };
+    }""")
+    assert pills_style == {"display": "flex", "wrap": "wrap"}, \
+        f"小視窗裡沒吃到樣式（部位列不是換行 flex）：{pills_style}"
     assert pip.evaluate(
-        "() => getComputedStyle(document.getElementById('copy-all')).backgroundColor"
+        "() => getComputedStyle(document.getElementById('clear-cart')).color"
     ) == "rgb(181, 217, 253)"
 
     # 小視窗裡點得動（interactions.js 的委派在另一個 document 失效，1c 有自己的備援）
@@ -797,7 +885,11 @@ def pip_click_settings(pip, selector):
 
 
 def pip_set_mode(pip, button_id):
-    pip_click_settings(pip, "#" + button_id)
+    """小視窗裡切看診模式。模式已移出設定面板，改點 header 三鈕
+    （走的仍是 render-dock.js 的 pipDelegate 代打，不是主文件的委派）。"""
+    mode = MODE_OF_BUTTON_ID[button_id]
+    pip.click(f'#mode-switch [data-mode="{mode}"]')
+    pip.wait_for_timeout(300)
 
 
 def duplicate_ids(page):
@@ -885,8 +977,11 @@ def test_pip_close_after_layout_switch_does_not_remount_dock(browser_ctx, page_u
 def test_pip_copy_failure_shows_fallback_inside_pip(browser_ctx, page_url):
     """R2 I5：在置頂小視窗裡複製失敗時，後備視窗與播報都要在**小視窗**裡。
 
-    #status 與 #fallback-copy 原本寫死主文件，醫師在小視窗按「複製並貼入 HIS」會完全
-    沒有回饋、剪貼簿也是空的——對話框開在被小視窗擋住、根本看不到的主視窗。
+    #status 與 #fallback-copy 原本寫死主文件，醫師在小視窗按複製會完全沒有回饋、
+    剪貼簿也是空的——對話框開在被小視窗擋住、根本看不到的主視窗。
+
+    改用「日期」鈕觸發：清單的自動同步刻意是靜默的（每點一個代碼就彈一次對話框
+    比沒複製到更糟），而使用者**主動按**的複製失敗時仍必須跳後備視窗。
     """
     page, pip = open_pinned(browser_ctx, page_url)
     # 小視窗自己要有這兩個節點
@@ -905,7 +1000,8 @@ def test_pip_copy_failure_shows_fallback_inside_pip(browser_ctx, page_url):
     )
     pip.locator("#dock-panels .chip[data-code]:not(.cat)").first.click()
     pip.wait_for_timeout(200)
-    pip.click("#copy-all")
+    assert pip.locator("#fallback-copy").is_hidden(), "清單自動同步失敗時不該跳對話框"
+    pip.click("#copy-date")
     pip.wait_for_timeout(500)
 
     expect(pip.locator("#fallback-copy")).to_be_visible()
@@ -1008,8 +1104,8 @@ def test_copy_matches_what_the_dock_shows_in_every_format(pg):
         else:
             expected = joiner.join(r["code"] for r in shown)
 
-        pg.click("#copy-all")
-        expect(pg.locator("#copy-all")).to_contain_text("已複製")
+        # 沒有複製鈕了：改格式當下就自動同步，剪貼簿必須立刻與畫面一致
+        pg.wait_for_timeout(200)
         assert clipboard(pg) == expected, f"{fmt}：剪貼簿與畫面上的清單不一致"
         # 摘要列（醫師收合清單時唯一看得到的東西）也必須是同一組碼、同一個順序
         expect(pg.locator(".dock-cart-codes")).to_have_text("、".join(r["code"] for r in shown))
@@ -1106,9 +1202,13 @@ def test_pane_resize_keeps_no_horizontal_overflow(pg, theme):
         assert_no_hscroll(pg, f"{theme}／拖 {pane_id} {dy}")
         bad = overflowing_elements(pg)
         assert not bad, f"{theme}／拖 {pane_id} 後文字溢出：{bad}"
-    # 部位區被拖到長出捲軸時仍要維持兩欄（單欄＝一半的部位要捲才看得到）
-    grid = pg.evaluate("() => getComputedStyle(document.getElementById('region-pills')).gridTemplateColumns")
-    assert len(grid.split()) == 2, f"部位區長出捲軸後掉成 {grid}"
+    # 部位區被拖到長出捲軸時，一列仍要擺得下多顆（掉成一顆一列＝大半部位要捲才看得到）
+    per_row = pg.evaluate("""() => {
+        const pills = [...document.querySelectorAll('#region-pills .region-btn')];
+        const first = pills[0].getBoundingClientRect().top;
+        return pills.filter((p) => Math.abs(p.getBoundingClientRect().top - first) < 1).length;
+    }""")
+    assert per_row >= 2, f"部位區長出捲軸後一列只剩 {per_row} 顆"
     pg.evaluate("() => window.ICDApp.store.setTheme('light')")
 
 
@@ -1121,7 +1221,7 @@ def test_pane_cannot_be_dragged_away(pg):
 
     drag_pane(pg, "region-pills", 2000)
     assert pane_h(pg, ".dock-scroll") >= 80, "部位區吃光了主訴面板的空間"
-    expect(pg.locator("#copy-all")).to_be_visible()
+    expect(pg.locator("#clear-cart")).to_be_visible()
     expect(pg.locator("#cart li").first).to_be_visible()
     assert_no_hscroll(pg, "極限拖曳後")
 
@@ -1250,11 +1350,11 @@ def test_a11y_region_buttons_are_toggle_buttons_not_fake_tabs(pg):
     second = pg.locator("#region-pills .region-btn").nth(1)
     second.click()
     expect(second).to_have_attribute("aria-pressed", "true")
-    expect(pg.locator(".region-all-btn")).to_have_attribute("aria-pressed", "false")
     assert pg.locator('#region-pills .region-btn[aria-pressed="true"]').count() == 1
 
-    pg.click(".region-all-btn")
-    expect(pg.locator(".region-all-btn")).to_have_attribute("aria-pressed", "true")
+    # 「全部」鈕已移除；取消篩選＝再點一次已選的那顆
+    second.click()
+    expect(second).to_have_attribute("aria-pressed", "false")
     assert pg.locator('#region-pills .region-btn[aria-pressed="true"]').count() == 0
 
 
@@ -1288,13 +1388,11 @@ def test_a11y_cart_code_is_keyboard_reachable_and_copies(pg):
 
 
 def test_clear_cart_disabled_when_empty(pg):
-    """清單為空時「清空」要與同一列的 #copy-all 一樣停用（v1 §3）。"""
+    """清單為空時「清空」要停用——按了什麼都不會發生的鈕，看起來像壞掉。"""
     expect(pg.locator("#clear-cart")).to_be_disabled()
-    expect(pg.locator("#copy-all")).to_be_disabled()
 
     pg.evaluate("() => window.ICDApp.store.addCode('I10', '本態性高血壓')")
     expect(pg.locator("#clear-cart")).to_be_enabled()
-    expect(pg.locator("#copy-all")).to_be_enabled()
 
     pg.click("#clear-cart")
     expect(pg.locator("#cart li")).to_have_count(0)

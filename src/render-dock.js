@@ -150,8 +150,9 @@
        模式鈕在 1c 是 fit-content（dock.css 的 .mode-btn），空出來的寬度全部給右側的
        spacer 吸收，置頂與設定仍靠右對齊。 */
     const tools = R.el('div', 'dock-tools');
+    refs.dateBtn = R.dateBtnEl(true);        // 「日期」排在模式三鈕左邊
     refs.modeSwitch = R.modeSwitchEl(true);
-    tools.appendChild(refs.modeSwitch);
+    tools.append(refs.dateBtn, refs.modeSwitch);
 
     const pin = R.el('button', 'dock-pin');
     pin.type = 'button';
@@ -240,21 +241,24 @@
     refs.cart.id = 'cart';
     refs.cartInline.appendChild(refs.cart);
 
-    const bar = R.el('div', 'dock-his');
-    refs.copyAll = R.el('button', 'btn', '複製並貼入 HIS');
-    refs.copyAll.type = 'button';
-    refs.copyAll.id = 'copy-all';
+    /* 沒有「複製並貼入 HIS」鈕：清單一變就自動同步到剪貼簿（interactions.js 的
+       syncClipboard），少一個必按的步驟。
+       「清空」改放在「清單」那一列的左邊（使用者要求）：原本它自己佔一列，
+       在 176px 下那是一整條高度只為一顆很少按的鈕。註意不能塞進 #cart-toggle 裡面
+       ——那是個 <button>，巢狀按鈕無效；改用一個 flex 列把兩者並排。 */
     const clearBtn = R.el('button', 'btn dock-clear', '清空');
     clearBtn.type = 'button';
     clearBtn.id = 'clear-cart';
     refs.clearCart = clearBtn;
-    bar.append(refs.copyAll, clearBtn);
 
-    cartBox.append(cartToggle, refs.cartInline, bar);
+    const cartHead = R.el('div', 'dock-cart-head');
+    cartHead.append(clearBtn, cartToggle);
+
+    cartBox.append(cartHead, refs.cartInline);
     dock.appendChild(cartBox);
 
-    /* 複製鈕的文案／停用狀態與 1a 同源（renderHis 一併寫預覽 <pre>，1c 沒有預覽區，
-       所以給它一個不掛進 DOM 的 <pre>——寧可多一個節點，也不要複製一份文案邏輯。 */
+    /* renderHis 會把 HIS 文字寫進一個 <pre>；1c 沒有預覽區，給它一個不掛進 DOM 的，
+       讓三套版面共用同一份文字產生邏輯。 */
     refs.hisScratch = document.createElement('pre');
 
     refs.placeholder = R.el('div', 'dock-pinned-away', '已移到置頂小視窗；關閉小視窗即可回到這裡。');
@@ -441,15 +445,12 @@
     // 同一份實作，這裡不再抄一份——抄的那份正是 R2 M1／I3 兩條缺陷的來源。
     const addFromChip = (chip) => root.ICDInteractions.activateChip(ctx, chip);
 
-    function copyAll() {
-      const text = R.hisText(ctx);
-      if (!text) { announce('清單是空的'); return; }
+    /* 置頂進 PiP 小視窗後，主文件的委派搆不到那棵 DOM，這裡代打。
+       規則與 interactions.js 同源，只是那邊的 copyText 要用在這個文件上。 */
+    function copyDate() {
+      const text = ctx.logic.rocDate();
       root.ICDInteractions.copyText(text).then((ok) => {
-        if (!ok) return;
-        ctx.store.setCopied(true);
-        announce('已複製 ' + ctx.store.getState().cart.length + ' 個代碼，可貼入 HIS');
-        clearTimeout(copiedTimer);
-        copiedTimer = setTimeout(() => ctx.store.setCopied(false), 2000);
+        if (ok) announce('已複製日期 ' + text);
       });
     }
 
@@ -465,8 +466,6 @@
          主文件委派搆不到時把事件轉過去。模式鈕要排在下方泛用 `.seg-btn` 那條之前。 */
       const modeBtn = target.closest('#mode-switch [data-mode]');
       if (modeBtn) { root.ICDInteractions.chooseMode(ctx, modeBtn.getAttribute('data-mode')); return; }
-      const regionAll = target.closest('.region-all-btn');
-      if (regionAll) { root.ICDInteractions.chooseAllRegions(ctx); return; }
       const region = target.closest('.region-btn');
       if (region) {
         store.toggleRegion(Number(region.dataset.regionIndex));
@@ -512,7 +511,7 @@
       else if (btn.id === 'theme-toggle') store.toggleTheme();
       else if (btn.id === 'reset-panes') root.ICDInteractions.resetPanes(ctx);
       else if (btn.id === 'clear-cart') { store.clearCart(); announce('已清空就診清單'); }
-      else if (btn.id === 'copy-all') copyAll();
+      else if (btn.id === 'copy-date') copyDate();
       else if (btn.id === 'db-retry') { announce('正在重新載入全庫…'); ctx.data.retryDb(); }
     }
 
@@ -588,16 +587,14 @@
       R.clear(refs.pills);
       const regions = ctx.data.regionsFor(s.mode);
       const active = ctx.data.clampRegion(s.mode, s.region);     // null ＝ 沒有選取任何部位
-      refs.pills.appendChild(R.regionAllBtn(active === null));   // 「全部」橫跨兩欄，排在最前面
       regions.forEach((region, i) => {
-        const b = R.el('button', 'region-btn region-pill--dock', region.name);
+        // 鈕上只放兩字短名，全名留在 title；data-region 仍是完整名稱（E2E 與分組標題靠它）
+        const b = R.el('button', 'region-btn region-pill--dock', R.regionShort(region.name));
         b.type = 'button';
         b.dataset.region = region.name;
         b.dataset.regionIndex = String(i);
         const on = i === active;
         R.markRegionSelected(b, on);
-        // 176px 兩欄下較長的名稱會 ellipsis（設計如此），title 保住完整名稱與面板數；
-        // 選取中的那顆順便說明「再點一次取消」，否則滑鼠使用者看不出來
         b.title = region.name + '（' + region.count + '）'
           + (on ? '，再點一次取消選取，顯示全部部位' : '');
         refs.pills.appendChild(b);
@@ -661,7 +658,7 @@
       refs.cartToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
     };
 
-    U.his = () => R.renderHis(refs.hisScratch, null, refs.copyAll, ctx);
+    U.his = () => R.renderHis(refs.hisScratch, null, null, ctx);
 
     U.settings = () => R.syncSettings(dock, ctx);
 

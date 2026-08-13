@@ -43,9 +43,10 @@
     // 頁面唯一的 H1（sr-only）。可見的 .app-brand 只有「ICD-10」，改成 <h1> 會被
     // industry.css 的 h* 邊界值擠動版面，所以用視覺隱藏的標題補階層（見 srHeading）。
     header.append(R.srHeading(1, 'ICD-10 門診導引'), R.el('div', 'app-brand', 'ICD-10'));
-    // 看診模式三鈕直接並排在 header（1440 空間充足，用全名、不壓縮）
+    // 「日期」＋看診模式三鈕並排在 header（1440 空間充足，用全名、不壓縮）
+    refs.dateBtn = R.dateBtnEl(false);
     refs.modeSwitch = R.modeSwitchEl(false);
-    header.appendChild(refs.modeSwitch);
+    header.append(refs.dateBtn, refs.modeSwitch);
 
     const search = document.createElement('input');
     search.id = 'search';
@@ -159,10 +160,9 @@
     hisHead.append(R.el('span', 'kicker', '貼入 HIS'), refs.hisFormat);
     refs.hisPreview = R.el('pre', null, '（清單為空）');
     refs.hisPreview.id = 'his-preview';
-    refs.copyAll = R.el('button', 'btn btn-primary blueprint', '複製並貼入 HIS');
-    refs.copyAll.type = 'button';
-    refs.copyAll.id = 'copy-all';
-    his.append(hisHead, refs.hisPreview, refs.copyAll);
+    /* 沒有複製鈕：清單一變就自動同步到剪貼簿（interactions.js 的 syncClipboard）。
+       預覽區留著——它顯示的就是剪貼簿內容，貼進 HIS 前可以先核對。 */
+    his.append(hisHead, refs.hisPreview);
     aside.appendChild(his);
 
     const relatedWrap = R.el('div', 'related-wrap');
@@ -228,10 +228,10 @@
       const surg = s.mode === 'surg';
       refs.railTitle.textContent = surg ? '情境' : '身體部位';
       refs.rail.setAttribute('aria-label', surg ? '手術情境' : '身體部位');
-      for (const old of Array.from(refs.rail.querySelectorAll('.region-btn, .region-all-btn'))) old.remove();
+      for (const old of Array.from(refs.rail.querySelectorAll('.region-btn'))) old.remove();
       const regions = ctx.data.regionsFor(s.mode);
       const active = ctx.data.clampRegion(s.mode, s.region);     // null ＝ 沒有選取任何部位
-      refs.rail.appendChild(R.regionAllBtn(active === null));    // 「全部」永遠排在最前面
+      // 1a 的側欄有空間，用全名＋面板數；縮成兩字是 1c／手機的空間妥協，這裡不需要
       regions.forEach((region, i) => {
         const b = R.el('button', 'region-btn');
         b.type = 'button';
@@ -320,7 +320,7 @@
       R.renderCart(refs.cart, refs.cartEmpty, refs.cartCount, ctx);
       R.syncClearBtn(refs.clearCart, ctx);
     };
-    U.his = () => R.renderHis(refs.hisPreview, refs.hisFormat, refs.copyAll, ctx);
+    U.his = () => R.renderHis(refs.hisPreview, refs.hisFormat, null, ctx);
     U.shelf = () => {
       const s = ctx.store.getState();
       refs.shelf.hidden = !s.shelfOpen;

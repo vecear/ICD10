@@ -5,7 +5,7 @@
      .panel-toggle[data-panel-toggle] 展開常見疾病
      .quick-toggle[data-quick-toggle] 展開快選分組
      #cart li 內：b.cart-code 複製單碼、.cart-primary 設為主診斷、.cart-fav ★、.cart-remove ✕
-     #copy-all / #clear-cart / #settings-toggle / #theme-toggle / #shelf-toggle
+     #copy-date / #clear-cart / #settings-toggle / #theme-toggle / #shelf-toggle
      #mode-switch 內的 .mode-btn[data-mode]  header 的看診模式三鈕（一次點擊即切換）
      #seg-mode|#seg-format|#seg-layout 內的 .seg-btn
      #cart-toggle              點擊時呼叫 ctx.onCartToggle()——「切換清單面板」這個動作本身
@@ -61,7 +61,9 @@
     return !!box && !box.hidden;
   }
 
-  async function copyText(text) {
+  /* silent＝失敗時不跳手動複製視窗。自動同步剪貼簿（每加一個代碼就跑一次）走這條：
+     那個視窗一秒跳一次比沒複製到還糟；失敗改用播報告知，使用者仍有機會發現。 */
+  async function copyText(text, silent) {
     // 焦點在 PiP 小視窗時，主文件的 clipboard 會以「document is not focused」被拒；
     // 用目前有焦點的那個文件自己的 clipboard 才會成功。
     const doc = feedbackDoc();
@@ -84,7 +86,7 @@
         ta.remove();
         if (ok) return true;
       } catch (e2) { /* fall through */ }
-      openFallbackCopy(text);
+      if (!silent) openFallbackCopy(text);
       return false;
     }
   }
@@ -158,14 +160,6 @@
     announce('已切換為' + ((root.ICDRender && root.ICDRender.MODE_LABEL[mode]) || mode));
   }
 
-  /* 部位列的「全部」鈕：等於取消部位篩選。與「點已選部位再點一次」同一個結果，
-     差別只在它是看得見、按得到的入口（三套版面一致）。 */
-  function chooseAllRegions(ctx) {
-    const was = ctx.store.getState().region;
-    ctx.store.setRegion(null);
-    announce(was === null ? '目前已顯示全部部位' : '已取消部位篩選，顯示全部部位');
-  }
-
   /* 設定面板的「回復預設高度」（三套版面共用）。只清**生效版面**那一組：在 176px 窄欄
      按下它，不該把桌機工作台調好的高度一起抹掉（分版面各記各的）。 */
   function resetPanes(ctx) {
@@ -197,15 +191,31 @@
     // isAddable 自己決定權威來源（全庫 index > 建置期白名單），繞不過。
     const addFromChip = (chip) => activateChip(ctx, chip);
 
-    async function copyAll() {
+    /* 清單一有變動就把「目前全部代碼」同步到剪貼簿（使用者要求：點診斷即複製，
+       不必再按「複製並貼入 HIS」）。改複製格式時也要重跑，否則剪貼簿停在舊格式。
+
+       清空時**不動剪貼簿**：使用者剛把碼貼進 HIS 才按清空，這時把剪貼簿洗成空字串
+       等於毀掉他手上唯一那份；留著上一組沒有壞處。
+
+       靜默失敗但要播報——剪貼簿沒同步到卻無聲無息，下一次按 F9 會把舊清單再貼一次。 */
+    function syncClipboard() {
       const text = root.ICDRender.hisText(ctx);
-      if (!text) { announce('清單是空的'); return; }
-      if (await copyText(text)) {
-        store.setCopied(true);
-        announce('已複製 ' + store.getState().cart.length + ' 個代碼，可貼入 HIS');
-        clearTimeout(copiedTimer);
-        copiedTimer = setTimeout(() => store.setCopied(false), 2000);
-      }
+      if (!text) return;
+      copyText(text, true).then((ok) => {
+        if (!ok) announce('自動複製失敗，請點清單裡的代碼逐一複製');
+      });
+    }
+
+    store.subscribe((state, changed) => {
+      if (changed.indexOf('cart') < 0 && changed.indexOf('format') < 0) return;
+      syncClipboard();
+    });
+
+    /* 「日期」鈕：HIS 就診日期欄位吃民國格式。這是使用者主動按的，失敗要跳手動複製
+       視窗（不像自動同步那樣靜默），否則他會以為複製成功而貼到舊內容。 */
+    async function copyDate() {
+      const text = ctx.logic.rocDate();
+      if (await copyText(text)) announce('已複製日期 ' + text);
     }
 
     // ---- 點擊委派 ----
@@ -225,9 +235,6 @@
          就不動」的守門，也不播報。設定 popover 的 #seg-mode 仍走泛用那條。 */
       const modeBtn = target.closest('#mode-switch [data-mode]');
       if (modeBtn) { chooseMode(ctx, modeBtn.getAttribute('data-mode')); return; }
-
-      const regionAll = target.closest('.region-all-btn');
-      if (regionAll) { chooseAllRegions(ctx); return; }
 
       const region = target.closest('.region-btn');
       if (region) {
@@ -283,7 +290,7 @@
       if (btn.id === 'reset-panes') { resetPanes(ctx); return; }
       if (btn.id === 'cart-toggle') { if (typeof ctx.onCartToggle === 'function') ctx.onCartToggle(); return; }
       if (btn.id === 'clear-cart') { store.clearCart(); announce('已清空就診清單'); return; }
-      if (btn.id === 'copy-all') { copyAll(); return; }
+      if (btn.id === 'copy-date') { copyDate(); return; }
       if (btn.id === 'fallback-close') { closeFallbackCopy(); return; }
       // 全庫載入失敗後的重試入口（R2 I2）；ensureDb() 會回傳快取的失敗 Promise，只能走 retryDb()
       if (btn.id === 'db-retry') { announce('正在重新載入全庫…'); data.retryDb(); return; }
@@ -399,6 +406,6 @@
     wire, copyText, openFallbackCopy, closeFallbackCopy, isFallbackOpen, announce,
     activateChip, copyCartCode, setFeedbackDocument,
     // 1c 置頂時 main document 的委派搆不到側欄，render-dock.js 要用同一份實作代打
-    chooseMode, chooseAllRegions, resetPanes,
+    chooseMode, resetPanes,
   };
 })(typeof self !== 'undefined' ? self : this);

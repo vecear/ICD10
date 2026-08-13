@@ -83,3 +83,17 @@ test('mergeRelated 合併人工與症狀推薦並去重', () => {
   );
   assert.deepEqual(L.mergeRelated(undefined, ['A41.9']), ['A41.9']);
 });
+
+test('rocDate：民國年＝西元−1911，月日補零（HIS 欄位是定長格式）', () => {
+  assert.equal(L.rocDate(new Date(2026, 7, 13)), '115-08-13');
+  assert.equal(L.rocDate(new Date(2026, 0, 5)), '115-01-05');   // 個位數月日一定要補零
+  assert.equal(L.rocDate(new Date(2025, 11, 31)), '114-12-31');
+  assert.equal(L.rocDate(new Date(1912, 0, 1)), '1-01-01');     // 民國元年
+});
+
+test('rocDate：不給參數就用今天，格式一律 民國年-月-日', () => {
+  const today = L.rocDate();
+  assert.match(today, /^\d{1,3}-\d{2}-\d{2}$/);
+  const now = new Date();
+  assert.equal(today, L.rocDate(now));
+});
