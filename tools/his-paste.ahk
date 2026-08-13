@@ -37,6 +37,14 @@ KEY_DELAY  := 25        ; 每個按鍵之間的毫秒數；舊系統漏字就調
 DIALOG_PROBE := 600     ; 送出一個碼後，觀察這麼久確認有沒有跳出視窗（毫秒）
 DIALOG_WAIT  := 90      ; 跳出視窗後最多等你處理幾秒；超過就停下，剩下的碼不送
 
+; 工具視窗貼齊（Ctrl+Alt+D）。用來取代瀏覽器的「置頂」——Chrome／Edge 把
+; Document Picture-in-Picture 視窗的尺寸限制在螢幕的 80%，那是防止網頁用永遠置頂的
+; 視窗蓋滿螢幕的安全設計，網頁端改不掉。改成讓一般 Edge 視窗貼在螢幕邊緣並由這裡
+; 設為永遠置頂，高度就不受那個上限約束。
+ICD_WIN    := "ICD-10 門診導引"   ; 工具的網頁標題，用來認出那個 Edge 視窗
+DOCK_WIDTH := 340                 ; 貼齊時的寬度（側掛窄欄的設計範圍是 176–565px）
+ICD_FILE   := A_ScriptDir "\icd10.html"   ; 找不到視窗時要開哪個檔（預設與本腳本同資料夾）
+
 ; 舊型 Windows 應用（Delphi／PowerBuilder 這類）常常吃不下 SendInput 的高速輸入，
 ; 用 Event 模式逐鍵送比較不會漏字。
 SendMode "Event"
@@ -52,6 +60,8 @@ CODE_PATTERN := "(?:[A-Z]\d\d|C4A|C7A|C7B|D3A|I5A|M1A|O9A|Z3A)(?:\.[A-Z0-9]{1,4}
 F9::SendCodes(false)
 +F9::SendCodes(true)
 F10::PreviewCodes()
+^!d::DockIcdWindow()
+^!t::ToggleTopmost()
 ^!F9::ToggleSuspend()
 ^!x::ExitApp()
 
@@ -140,6 +150,71 @@ PreviewCodes() {
 ToggleSuspend() {
     Suspend -1
     Notify(A_IsSuspended ? "已暫停（F9 交還給原程式）" : "已恢復")
+}
+
+; 把工具視窗貼到螢幕右緣、拉到工作區全高，並設為永遠置頂。
+; 這是瀏覽器「置頂」（Document PiP）的替代品：PiP 視窗被瀏覽器限制在螢幕 80% 以內，
+; 一般視窗沒有這個限制，高度可以拉滿。工作列的高度由 MonitorGetWorkArea 自動避開。
+DockIcdWindow() {
+    global ICD_WIN, DOCK_WIDTH, ICD_FILE
+
+    hwnd := WinExist(ICD_WIN)
+    if (!hwnd)
+        hwnd := OpenIcdAppWindow()
+    if (!hwnd) {
+        Notify("找不到也開不了工具視窗`n請確認 icd10.html 與本檔在同一個資料夾", 4000)
+        return
+    }
+
+    MonitorGetWorkArea(, &left, &top, &right, &bottom)
+    h := bottom - top
+
+    if (WinGetMinMax(hwnd) != 0)        ; 最大化／最小化狀態下 WinMove 不會生效
+        WinRestore hwnd
+
+    ; 先套寬度、讀回實際值，再據此貼齊右緣。直接拿要求的寬度去算 x 會出事：
+    ; Edge 一般視窗有最小寬度（實測 772px），視窗會有一半被推到螢幕外面。
+    WinMove left, top, DOCK_WIDTH, h, hwnd
+    Sleep 150
+    WinGetPos(, , &gw, , hwnd)
+    WinMove right - gw, top, gw, h, hwnd
+    WinSetAlwaysOnTop 1, hwnd
+    WinActivate hwnd
+
+    WinGetPos(&x2, &y2, &w2, &h2, hwnd)
+    note := "已貼到螢幕右側並置頂`n" w2 "×" h2
+    if (w2 > DOCK_WIDTH + 2)
+        note .= "`n這個視窗縮不到 " DOCK_WIDTH "px（Edge 一般視窗的最小寬度）`n"
+              . "關掉它再按一次 Ctrl+Alt+D，我會用應用程式模式重開"
+    Notify(note, 4000)
+}
+
+; 用 Edge 的應用程式模式開啟工具：沒有網址列與分頁列，而且縮得比一般視窗窄得多
+; （實測最窄 267px，一般視窗是 772px）。側掛窄欄的設計範圍是 176–565px，
+; 一般視窗根本進不去，所以這裡刻意走 --app。
+OpenIcdAppWindow() {
+    global ICD_WIN, ICD_FILE
+
+    if (!FileExist(ICD_FILE))
+        return 0
+    url := "file:///" StrReplace(ICD_FILE, "\", "/")
+    try Run 'msedge.exe --app="' url '"'
+    catch
+        return 0
+    hwnd := WinWait(ICD_WIN, , 20)
+    if (hwnd)
+        Sleep 1200                      ; 等頁面把版面畫出來再動它
+    return hwnd
+}
+
+; 切換目前視窗的永遠置頂。想貼在別的位置、或想暫時取消置頂時用。
+ToggleTopmost() {
+    hwnd := WinExist("A")
+    if (!hwnd)
+        return
+    WinSetAlwaysOnTop -1, hwnd
+    isTop := (WinGetExStyle(hwnd) & 0x8) != 0      ; WS_EX_TOPMOST
+    Notify(isTop ? "已設為永遠置頂" : "已取消置頂")
 }
 
 ; ── 工具函式 ────────────────────────────────────────────────────────────────
