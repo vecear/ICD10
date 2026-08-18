@@ -285,3 +285,42 @@ body[data-layout="dock"] #copy-date {
   min-height: 22px; padding: 0 6px; font-size: 11px; letter-spacing: .02em;
 }
 body[data-layout="dock"] #clear-cart:hover { background: var(--his-card); }
+
+/* ── 慢病速查（DM／HTN／LIPID）──
+   三顆鈕放在**捲動內容區的最上面**，不是 header。理由是寬度帳與密度帳兩筆：
+   (1) .dock-tools 那列在 176px 已經滿了（模式三鈕 ~89 ＋ 3 個間距 ＋ 置頂 ~24 ＋ 設定 ~40
+       ≈ 157／可用 164），塞不進第四組控制項；
+   (2) 另闢一列固定 chrome 要付約 27px 的永久成本，而 header 剛從三列壓成兩列
+       （docs/dense-ui-principle.md），不能反手加回去。這是偶爾查閱的參考功能，
+       依密度原則「它每一次看診都被用到嗎」的判準，不該佔固定高度。
+   放進捲動區頂端：開機就看得到，往下選碼時讓開，永久成本 0px。
+   三顆鈕的寬度帳（176px 可用 164）：DM ~26 ＋ HTN ~31 ＋ LIPID ~40 ＋ 2 個 3px 間距 ≈ 103。 */
+body[data-layout="dock"] .chronic-switch {
+  gap: 3px; padding: 5px 6px; border-bottom: 1px solid var(--color-divider);
+}
+body[data-layout="dock"] .chronic-btn {
+  min-height: 20px; padding: 1px 5px; font-size: 11px; letter-spacing: .02em;
+}
+/* 浮層在 164px 的可用寬度下沒有「留白襯托」的餘裕：邊距壓到 3px，其餘全部給內容。
+   字級下限依密度原則——主要內容（規定本文）≥11px，次要 chrome（出處／日期）≥10px。 */
+body[data-layout="dock"] .chronic-overlay { padding: 3px; }
+body[data-layout="dock"] .chronic-panel { width: 100%; padding: 6px 7px; }
+body[data-layout="dock"] .chronic-title { font-size: 14px; }
+body[data-layout="dock"] .chronic-close { min-height: 22px; padding: 0 6px; font-size: 11px; }
+body[data-layout="dock"] .chronic-disclaimer { margin-top: 5px; padding: 4px 6px; font-size: 11px; }
+body[data-layout="dock"] .chronic-body { margin-top: 6px; }
+body[data-layout="dock"] .chronic-section { margin-bottom: 9px; }
+body[data-layout="dock"] .chronic-section-title { font-size: 12px; }
+body[data-layout="dock"] .chronic-kind { font-size: 10px; }
+body[data-layout="dock"] .chronic-item { padding: 5px 0; }
+body[data-layout="dock"] .chronic-item.is-upcoming { padding: 5px 5px; }
+body[data-layout="dock"] .chronic-text { font-size: 12px; line-height: 1.45; }
+body[data-layout="dock"] .chronic-more-toggle { font-size: 11px; }
+body[data-layout="dock"] .chronic-detail { font-size: 11px; padding-left: 6px; }
+body[data-layout="dock"] .chronic-meta { font-size: 10px; gap: 1px 6px; }
+body[data-layout="dock"] .chronic-soon { font-size: 10px; }
+body[data-layout="dock"] .chronic-foot { font-size: 10px; margin-top: 8px; }
+body[data-layout="dock"] .chronic-tabs { gap: 3px; margin-top: 5px; }
+body[data-layout="dock"] .chronic-tab {
+  min-height: 20px; padding: 1px 6px; font-size: 11px; letter-spacing: .02em;
+}

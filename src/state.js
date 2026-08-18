@@ -15,6 +15,10 @@
 
   const MODES = ['outpatient', 'emergency', 'surg'];
   const FORMATS = ['lines', 'comma', 'names'];
+  /* 慢病速查的三個主題。與 src/curated/chronic_care.json 的 topics[].key 是同一組值，
+     build.py 會比對兩邊不一致就印警告——狀態層不得依賴資料層（零 DOM、零 window），
+     所以這裡只能留一份鏡像，靠建置期守門避免慢慢分歧。 */
+  const CHRONIC_TOPICS = ['dm', 'htn', 'lipid'];
   const LAYOUTS = ['wide', 'dock'];
   const THEMES = ['light', 'dark'];
   const DB_STATES = ['idle', 'loading', 'ready', 'error'];
@@ -112,6 +116,9 @@
       theme: THEMES.indexOf(theme) >= 0 ? theme : detectTheme(),
       layout: 'wide',            // wide | dock（持久化）；實際生效版面另由 resolveLayout 依寬度決定
       settingsOpen: false,
+      /* 慢病速查目前開著的主題（null ＝ 關閉）。刻意**不持久化**：它是「現在正在查」的
+         暫態，跨診次留著只會讓下一位病人開機就看到上一位的降血脂給付表擋住畫面。 */
+      chronicTopic: null,
       shelfOpen: true,           // 常用列
       cartOpen: true,            // 1c/1b 的清單摺疊
       pinned: false,             // Document PiP 置頂
@@ -444,6 +451,20 @@
       setState({ settingsOpen: !state.settingsOpen });
       return state.settingsOpen;
     };
+    /* 慢病速查：null ＝ 關閉，否則是 CHRONIC_TOPICS 之一。開啟時順手關掉設定 popover
+       ——兩個浮層同時開著會互相遮蔽，而設定是「設定完就走」的動線，沒有並存的理由。
+       不認得的 key 一律回 false 而不是靜默存進去：真的存進去只會畫出一個空面板，
+       看起來像「這個主題沒有規定」，那是最糟的失敗方式。 */
+    function setChronicTopic(key) {
+      if (key === null || key === undefined || key === false) {
+        setState({ chronicTopic: null });
+        return true;
+      }
+      if (CHRONIC_TOPICS.indexOf(key) < 0) return false;
+      setState({ chronicTopic: key, settingsOpen: false });
+      return true;
+    }
+
     const setShelfOpen = (open) => { setState({ shelfOpen: !!open }); };
     const toggleShelf = () => { setState({ shelfOpen: !state.shelfOpen }); return state.shelfOpen; };
     const setCartOpen = (open) => { setState({ cartOpen: !!open }); };
@@ -467,6 +488,7 @@
       setQuery, setRelatedCode, setCopied, setDbState,
       setSettingsOpen, toggleSettings, setShelfOpen, toggleShelf,
       setCartOpen, toggleCart, setPinned,
+      setChronicTopic,
     };
   }
 
@@ -474,5 +496,6 @@
     createStore, safeStorage, loadPersisted, persist, defaultState, sanitizePaneSizes,
     STORAGE_PREFIX, PERSISTED_KEYS, RECENT_LIMIT, FAVS_LIMIT,
     MODES, FORMATS, LAYOUTS, THEMES, DB_STATES, PANE_LAYOUTS, PANE_MIN, PANE_MAX,
+    CHRONIC_TOPICS,
   };
 });

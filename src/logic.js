@@ -100,5 +100,34 @@
     return (d.getFullYear() - 1911) + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
   }
 
-  return { buildIndex, search, family, formatCart, mergeRelated, rocDate };
+  /* ── 慢病速查的時效篩選（純函式，node 可直接測） ─────────────────────────
+     給付規定與 ICD 代碼最大的不同：代碼可以逐碼比對官方全庫、錯了就建置失敗；
+     給付規定沒有這種驗證，只能靠資料自帶的生效日決定「今天該顯示哪一版」。
+
+     一條的適用區間是 [effectiveFrom, effectiveTo]，兩端都**含當日**，兩個欄位都可省略
+     （省略＝該端無限）。日期一律 YYYY-MM-DD，字串字典序即時間序，不必解析成 Date
+     （少一層時區坑：`new Date('2026-09-01')` 是 UTC 午夜，台北時間會早一天翻版）。
+
+     回傳三分：
+       current   今天適用，正常顯示
+       upcoming  已公告、尚未生效（from > today）——**必須讓醫師看得到**「新版將於 X 日生效」，
+                 這是換版前後兩週最容易開錯單的時間點，藏起來等於製造一個定時陷阱
+       expired   已過期（to < today），不顯示（只回傳供測試與除錯確認確實被濾掉） */
+  function splitByEffective(items, today) {
+    const current = [];
+    const upcoming = [];
+    const expired = [];
+    const day = typeof today === 'string' ? today : '';
+    for (const item of items || []) {
+      if (!item || typeof item !== 'object') continue;
+      const from = typeof item.effectiveFrom === 'string' ? item.effectiveFrom : '';
+      const to = typeof item.effectiveTo === 'string' ? item.effectiveTo : '';
+      if (day && to && to < day) expired.push(item);
+      else if (day && from && from > day) upcoming.push(item);
+      else current.push(item);
+    }
+    return { current, upcoming, expired };
+  }
+
+  return { buildIndex, search, family, formatCart, mergeRelated, rocDate, splitByEffective };
 });

@@ -162,3 +162,12 @@ body[data-layout="wide"] .panel-toggle[aria-expanded="true"] .marker { transform
     border-color: var(--color-accent); border-left-color: var(--color-accent);
   }
 }
+
+/* ── 慢病速查（DM／HTN／LIPID）──
+   三顆鈕常駐在 header 那一列。1a 是三套版面裡唯一這樣做的：1440 下搜尋框是 flex:1，
+   讓出約 130px 之後仍有近 900px，密度預算在這個寬度不是稀缺資源（1c／1b 的帳完全不同，
+   見那兩個檔）。高度刻意做成 28px 而不是跟模式鈕一樣的 40px——它是偶爾查閱的次要控制項，
+   小一點才不會被誤認成第四種看診模式。 */
+#layout-wide .chronic-switch { gap: 5px; }
+#layout-wide .chronic-kicker { font-size: 10px; }
+#layout-wide .chronic-btn { min-height: 28px; padding: 0 10px; font-size: 12px; }

@@ -197,6 +197,13 @@ def test_build_rejects_non_leaf_curated_code(tmp_path, monkeypatch):
     (curated_dir / "chronic.json").write_text(
         '[["A00","錯誤類目"],["NOPE","不存在代碼"]]', encoding="utf-8"
     )
+    # 慢病速查在 main() 裡是另一次檔案讀取（不走代碼驗證）。validate_curated() 目前排在它
+    # 之前所以先炸，但沙箱少了這個檔就會在重排順序時變成看不懂的 FileNotFoundError。
+    (curated_dir / build_module.CHRONIC_CARE_FILE).write_text(
+        '{"topics":[{"key":"dm","sections":[]},{"key":"htn","sections":[]},'
+        '{"key":"lipid","sections":[]}]}',
+        encoding="utf-8",
+    )
 
     monkeypatch.setattr(build_module, "DATA", data_dir)
     monkeypatch.setattr(build_module, "SRC", tmp_path / "src")

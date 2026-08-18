@@ -7,6 +7,8 @@
      #cart li 內：b.cart-code 複製單碼、.cart-primary 設為主診斷、.cart-fav ★、.cart-remove ✕
      #copy-date / #clear-cart / #settings-toggle / #theme-toggle / #shelf-toggle
      #mode-switch 內的 .mode-btn[data-mode]  header 的看診模式三鈕（一次點擊即切換）
+     [data-chronic]            慢病速查：顯示該主題（入口三鈕與浮層內的分頁共用同一個契約）
+     #chronic-close / #chronic-overlay 本身  關閉慢病速查（關閉鈕／點面板以外；Esc 見下方）
      #seg-mode|#seg-format|#seg-layout 內的 .seg-btn
      #cart-toggle              點擊時呼叫 ctx.onCartToggle()——「切換清單面板」這個動作本身
                                 共用，但「切換的是什麼」由各版面自己決定（1c 是 store 的
@@ -160,6 +162,61 @@
     announce('已切換為' + ((root.ICDRender && root.ICDRender.MODE_LABEL[mode]) || mode));
   }
 
+  /* 部位列的「全部」鈕：等於取消部位篩選。與「點已選部位再點一次」同一個結果，
+     差別只在它是看得見、按得到的入口（三套版面一致）。 */
+  function chooseAllRegions(ctx) {
+    const was = ctx.store.getState().region;
+    ctx.store.setRegion(null);
+    announce(was === null ? '目前已顯示全部部位' : '已取消部位篩選，顯示全部部位');
+  }
+
+  /* ── 慢病速查（三套版面 ＋ PiP 代打共用同一份實作） ────────────────────────
+     浮層蓋住整個工作區，所以焦點必須跟著走：開啟時移到關閉鈕，關閉時還給原來那顆主題鈕。
+     沒有這一步，鍵盤使用者按 Tab 會走進被蓋住、看不見的東西。
+
+     一律從 `node.ownerDocument` 找節點，不寫死 `document`：1c 置頂時整棵側欄在 Document
+     PiP 小視窗那個**另一個文件**裡，主文件的 getElementById 會回 null（同 feedbackDoc 的教訓）。
+
+     store 的通知是同步的——setChronicTopic() 回來時 controller.update() 已經跑完、DOM 也
+     重畫好了，所以可以緊接著聚焦，不需要 setTimeout。 */
+  const chronicDoc = (node) => (node && node.ownerDocument) || document;
+
+  function chronicLabelOf(key) {
+    const topics = (root.ICDRender && root.ICDRender.chronicTopics()) || [];
+    const hit = topics.filter((t) => t.key === key)[0];
+    return (hit && hit.label) || key;
+  }
+
+  function focusChronicButton(doc, key) {
+    const btn = doc.getElementById('chronic-btn-' + key);
+    if (btn) btn.focus();
+  }
+
+  /* 三顆入口鈕與浮層內的分頁走同一條路：**只負責「顯示這個主題」，不負責關閉。**
+     關閉有三個明確出口（關閉鈕、Esc、點面板外）。曾經寫成「再點一次關閉」，但浮層是
+     modal——開著的時候外面那三顆鈕被遮罩蓋住，那條路徑根本按不到，是死碼。 */
+  function chooseChronic(ctx, key, node) {
+    const doc = chronicDoc(node);
+    const was = ctx.store.getState().chronicTopic;
+    if (was === key) return;
+    if (!ctx.store.setChronicTopic(key)) return;
+    if (!was) {
+      // 從無到有：焦點進浮層。換主題時不動焦點——使用者正站在剛按的那顆分頁鈕上。
+      const close = doc.getElementById('chronic-close');
+      if (close) close.focus();
+    }
+    announce('慢病速查：' + chronicLabelOf(key) + '；內容以健保署當期公告為準');
+  }
+
+  function closeChronic(ctx, node) {
+    const was = ctx.store.getState().chronicTopic;
+    if (!was) return false;
+    ctx.store.setChronicTopic(null);
+    focusChronicButton(chronicDoc(node), was);
+    announce('已關閉慢病速查');
+    return true;
+  }
+
   /* 設定面板的「回復預設高度」（三套版面共用）。只清**生效版面**那一組：在 176px 窄欄
      按下它，不該把桌機工作台調好的高度一起抹掉（分版面各記各的）。 */
   function resetPanes(ctx) {
@@ -228,6 +285,15 @@
         && !target.closest('#settings-popover') && !target.closest('#settings-toggle')) {
         store.setSettingsOpen(false);
       }
+      /* 慢病速查：入口三鈕與浮層內分頁（同一個 [data-chronic] 契約）、關閉鈕、以及點浮層
+         背景（`target.id` 恰為 overlay 本身＝點在面板以外）。要排在泛用 `button` 那條之前。 */
+      const chronicBtn = target.closest('[data-chronic]');
+      if (chronicBtn) { chooseChronic(ctx, chronicBtn.getAttribute('data-chronic'), chronicBtn); return; }
+      if (target.closest('#chronic-close') || target.id === 'chronic-overlay') {
+        closeChronic(ctx, target);
+        return;
+      }
+
       const chip = target.closest('.chip[data-code]');
       if (chip) { activateChip(ctx, chip); return; }
 
@@ -318,6 +384,7 @@
           store.setQuery('');
           // Esc 在其他情境都會關掉開著的浮層，搜尋框裡也要一致（R2 M3）
           if (isFallbackOpen()) closeFallbackCopy();
+          else if (store.getState().chronicTopic) closeChronic(ctx, ev.target);
           else if (store.getState().settingsOpen) store.setSettingsOpen(false);
           return;
         }
@@ -345,6 +412,8 @@
       }
       if (ev.key === 'Escape') {
         if (isFallbackOpen()) { closeFallbackCopy(); return; }
+        // 慢病速查排在設定之前：它是最上層的浮層（開它時 setChronicTopic 已把設定關掉）
+        if (store.getState().chronicTopic) { closeChronic(ctx, ev.target); return; }
         if (store.getState().settingsOpen) store.setSettingsOpen(false);
         return;
       }
@@ -407,5 +476,6 @@
     activateChip, copyCartCode, setFeedbackDocument,
     // 1c 置頂時 main document 的委派搆不到側欄，render-dock.js 要用同一份實作代打
     chooseMode, resetPanes,
+    chooseMode, chooseAllRegions, resetPanes, chooseChronic, closeChronic,
   };
 })(typeof self !== 'undefined' ? self : this);

@@ -17,6 +17,8 @@ from pathlib import Path
 import pytest
 from playwright.sync_api import expect, sync_playwright
 
+import chronic_fixtures as cf
+
 ROOT = Path(__file__).resolve().parent.parent
 CURATED_DIR = ROOT / "src" / "curated"
 PORT = 18596
@@ -80,6 +82,7 @@ def reset(pg):
         s.setQuery('');
         s.setFormat('lines');
         s.setSettingsOpen(false);
+        s.setChronicTopic(null); // 慢病速查浮層是整屏的；殘留會讓後面所有點擊被它攔截
         s.resetPaneSizes();      // 窗格高度會寫 localStorage，殘留會讓別條測試量到上一條拖出來的高度
         s.setState({ favs: [], recent: [], expanded: {}, copied: false });
     }""")
@@ -1083,3 +1086,169 @@ def test_clear_cart_disabled_when_empty(page):
     expect(page.locator("#clear-cart")).to_be_disabled()
     assert "空" in page.get_attribute("#clear-cart", "title")
     reset(page)
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 慢病速查（DM／HTN／LIPID；1b 放在捲動區頂端）
+# ══════════════════════════════════════════════════════════════════════════
+# 擺放位置是密度決定：44px 觸控目標是硬性邊界，一列常駐就是 844px 螢幕的 5%，
+# 而這是偶爾查閱的功能。放進捲動區＝永久成本 0px，按鈕本身仍是 44px。
+def open_chronic(pg, key):
+    pg.click(f"#chronic-btn-{key}")
+    expect(pg.locator("#chronic-overlay")).to_be_visible()
+
+
+def chronic_snapshot(pg):
+    """浮層內容抓成純資料再比對（條文含括號與全形符號，塞進 :has-text 選擇器會爆）。"""
+    return pg.evaluate("""() => ({
+        current: Array.from(document.querySelectorAll('.chronic-item:not(.is-upcoming) .chronic-text')).map((n) => n.textContent),
+        upcoming: Array.from(document.querySelectorAll('.chronic-item.is-upcoming .chronic-text')).map((n) => n.textContent),
+        soon: Array.from(document.querySelectorAll('.chronic-soon')).map((n) => n.textContent),
+        foot: (document.querySelector('.chronic-foot') || {}).textContent || '',
+    })""")
+
+
+def chronic_page(browser_ctx, page_url, today):
+    """注入當天日期的新分頁（ICD_TODAY 必須在 app 起來之前設好；390px 自動採用手機版面）。"""
+    pg = browser_ctx.new_page()
+    pg.add_init_script(f"window.ICD_TODAY = '{today}';")
+    pg.goto(page_url)
+    pg.wait_for_selector('body[data-ready="1"]', timeout=8000)
+    pg.wait_for_selector('body[data-layout="mobile"]')
+    return pg
+
+
+def test_chronic_buttons_sit_in_the_scroll_area_with_44px_targets(page):
+    reset(page)
+    btns = page.locator("#chronic-switch .chronic-btn")
+    expect(btns).to_have_count(3)
+    assert btns.all_text_contents() == [short for _k, short, _l in cf.buttons()]
+    placement = page.evaluate("""() => {
+        const row = document.getElementById('chronic-switch');
+        return { inHeader: !!row.closest('.m-header'), inScroll: !!row.closest('.m-scroll') };
+    }""")
+    assert placement["inScroll"] and not placement["inHeader"], placement
+    for key, _short, label in cf.buttons():
+        b = page.locator(f"#chronic-btn-{key}")
+        expect(b).to_be_visible()
+        assert label in (b.get_attribute("title") or "")
+        rect = box(b)
+        assert rect["height"] >= 43.5, f"{key} 只有 {rect['height']:.1f}px（觸控門檻 44）"
+    expect(page.locator("#chronic-overlay")).to_be_hidden()
+    assert_no_h_scroll(page, "慢病速查按鈕列")
+
+
+@pytest.mark.parametrize("how", ["close-button", "escape"])
+def test_chronic_panel_opens_and_closes(page, how):
+    """1b 的面板佔滿整屏，沒有「點外面」可用（那是 1a 才有的關法），靠關閉鈕與 Esc。"""
+    reset(page)
+    key, _short, label = cf.buttons()[0]
+    open_chronic(page, key)
+    expect(page.locator("#chronic-title")).to_contain_text(label)
+    expect(page.locator(".chronic-disclaimer")).to_contain_text("健保署當期公告")
+    assert box(page.locator("#chronic-close"))["height"] >= 43.5
+    assert box(page.locator("#chronic-close"))["width"] >= 43.5
+    assert box(page.locator("#chronic-tab-" + key))["height"] >= 43.5
+    if how == "close-button":
+        page.click("#chronic-close")
+    else:
+        page.keyboard.press("Escape")
+    expect(page.locator("#chronic-overlay")).to_be_hidden()
+    expect(page.locator(f"#chronic-btn-{key}")).to_have_attribute("aria-expanded", "false")
+
+
+def test_chronic_tabs_switch_topic_without_closing(page):
+    reset(page)
+    first, last = cf.buttons()[0], cf.buttons()[-1]
+    open_chronic(page, first[0])
+    page.click(f"#chronic-tab-{last[0]}")
+    expect(page.locator("#chronic-overlay")).to_be_visible()         # 負面：換主題不得關掉面板
+    expect(page.locator("#chronic-title")).to_contain_text(last[2])
+    expect(page.locator(f"#chronic-tab-{last[0]}")).to_have_attribute("aria-pressed", "true")
+    expect(page.locator(f"#chronic-tab-{first[0]}")).to_have_attribute("aria-pressed", "false")
+    reset(page)
+
+
+def test_chronic_shows_source_and_checked_date_as_visible_text(page):
+    reset(page)
+    picked = cf.undated_topic()
+    assert picked, "至少要有一個沒有生效日的主題，否則條數期望值會隨日期漂"
+    key, count = picked
+    open_chronic(page, key)
+    expect(page.locator(".chronic-item")).to_have_count(count)
+    expect(page.locator(".chronic-source")).to_have_count(count)
+    expect(page.locator(".chronic-checked")).to_have_count(count)
+    _kind, item = next(cf.items(key))
+    src, checked = page.locator(".chronic-source").first, page.locator(".chronic-checked").first
+    expect(src).to_be_visible()
+    expect(checked).to_be_visible()
+    assert item["source"] in src.inner_text()
+    assert checked.inner_text() == "查證 " + item["checked"]
+    assert src.get_attribute("title") is None                        # 負面：不是靠 title 混過去
+    reset(page)
+
+
+def test_chronic_detail_is_advertised_and_expandable(page):
+    reset(page)
+    key = cf.buttons()[0][0]
+    found = cf.first_item_with_detail(key)
+    assert found, f"{key} 應至少有一條帶 detail"
+    _text, detail = found
+    open_chronic(page, key)
+    toggle = page.locator(".chronic-more-toggle").first
+    expect(toggle).to_be_visible()
+    assert box(toggle)["height"] >= 43.5, "展開補充說明也是觸控目標"
+    body = page.locator(".chronic-more").first.locator(".chronic-detail")
+    expect(body).to_be_hidden()                                      # 負面：預設收合
+    toggle.click()
+    expect(body).to_be_visible()
+    assert detail[:20] in body.inner_text()
+    reset(page)
+
+
+@pytest.mark.parametrize("theme", ["light", "dark"])
+def test_chronic_panel_never_overflows_at_390(page, theme):
+    reset(page)
+    page.evaluate("(t) => window.ICDApp.store.setTheme(t)", theme)
+    for key, _short, _label in cf.buttons():
+        open_chronic(page, key)
+        page.wait_for_timeout(80)
+        assert_no_h_scroll(page, f"{theme}／{key} 慢病速查")
+        page.locator(".chronic-more-toggle").first.click()
+        page.wait_for_timeout(80)
+        assert_no_h_scroll(page, f"{theme}／{key} 展開補充說明")
+        page.keyboard.press("Escape")
+        expect(page.locator("#chronic-overlay")).to_be_hidden()
+    page.evaluate("() => window.ICDApp.store.setTheme('light')")
+    reset(page)
+
+
+def test_chronic_effective_window_follows_the_injected_today(browser_ctx, page_url):
+    case = cf.cutover_case()
+    if not case:
+        pytest.skip("chronic_care.json 目前沒有換版中的條目（同時帶 effectiveTo 與 effectiveFrom）")
+    old, new = set(case["old_texts"]), set(case["new_texts"])
+
+    before = chronic_page(browser_ctx, page_url, case["before"])
+    try:
+        open_chronic(before, case["key"])
+        snap = chronic_snapshot(before)
+        assert old <= set(snap["current"])
+        assert new == set(snap["upcoming"])
+        assert not (new & set(snap["current"]))                      # 負面：新表不得混進現行
+        assert snap["soon"] and all(case["cutover"] in s for s in snap["soon"])
+        assert case["before"] in snap["foot"]
+        assert_no_h_scroll(before, "換版前一天的慢病速查")
+    finally:
+        before.close()
+
+    after = chronic_page(browser_ctx, page_url, case["cutover"])
+    try:
+        open_chronic(after, case["key"])
+        snap = chronic_snapshot(after)
+        assert new <= set(snap["current"])
+        assert not (old & set(snap["current"]))                      # 負面：舊表當天下架
+        assert not (new & set(snap["upcoming"]))
+        assert case["cutover"] in snap["foot"]
+    finally:
+        after.close()

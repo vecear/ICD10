@@ -10,6 +10,8 @@ from pathlib import Path
 import pytest
 from playwright.sync_api import sync_playwright, expect
 
+import chronic_fixtures as cf
+
 ROOT = Path(__file__).resolve().parent.parent
 CURATED_DIR = ROOT / "src" / "curated"
 PORT = 18493
@@ -109,6 +111,7 @@ def reset(pg):
         s.setRegion(0);          // 取消選取（region=null）會跨模式保留，這裡明確歸位
         s.setQuery('');
         s.setSettingsOpen(false);
+        s.setChronicTopic(null); // 慢病速查浮層蓋住整個工作區；殘留會讓後面所有點擊被它攔截
         s.resetPaneSizes();      // 窗格高度也會寫 localStorage，殘留會讓其他測試量到別條測試拖出來的高度
         s.setState({ favs: [], recent: [], expanded: {}, quickOpen: {}, copied: false });
     }""")
@@ -1675,3 +1678,186 @@ def test_clear_cart_disabled_when_empty(page):
     expect(page.locator("#cart li")).to_have_count(0)
     expect(page.locator("#clear-cart")).to_be_disabled()
     assert "空" in page.get_attribute("#clear-cart", "title"), "停用時要說明原因，否則按不動像壞掉"
+
+
+# ---- 慢病速查（DM／HTN／LIPID；1a 常駐在 header） -----------------------------
+# 這個功能與工具其他部分有一個本質差異，測試全部從它推出來：ICD 代碼可以逐碼比對官方全庫、
+# 錯了建置就失敗；健保給付規定沒有這種驗證。所以「出處與查證日期看得見」「換版當天顯示對的
+# 版本」不是加分項，是這個功能能不能用的前提。
+def open_chronic(pg, key):
+    pg.click(f"#chronic-btn-{key}")
+    expect(pg.locator("#chronic-overlay")).to_be_visible()
+
+
+def chronic_snapshot(pg):
+    """把浮層內容抓成純資料再比對。
+
+    不用 `:has-text("…")` 定位子：條文本身含括號、引號、全形符號與換行，塞進選擇器
+    很容易變成語法錯誤或部分比對，出事時看起來像功能壞掉。
+    """
+    return pg.evaluate("""() => ({
+        current: Array.from(document.querySelectorAll('.chronic-item:not(.is-upcoming) .chronic-text')).map((n) => n.textContent),
+        upcoming: Array.from(document.querySelectorAll('.chronic-item.is-upcoming .chronic-text')).map((n) => n.textContent),
+        soon: Array.from(document.querySelectorAll('.chronic-soon')).map((n) => n.textContent),
+        foot: (document.querySelector('.chronic-foot') || {}).textContent || '',
+    })""")
+
+
+def chronic_page(browser_ctx, page_url, today):
+    """注入當天日期的新分頁。ICD_TODAY 必須在 app 起來之前設好，所以走 add_init_script。"""
+    pg = browser_ctx.new_page()
+    pg.add_init_script(f"window.ICD_TODAY = '{today}';")
+    pg.goto(page_url)
+    pg.wait_for_selector('body[data-ready="1"]', timeout=8000)
+    # 前面的測試可能把偏好版面留在 dock（會寫進 localStorage），明確歸位才量得準
+    pg.evaluate("() => window.ICDApp.store.setLayout('wide')")
+    pg.wait_for_selector('body[data-layout="wide"]')
+    return pg
+
+
+def test_chronic_three_buttons_sit_in_the_header_and_start_closed(page):
+    reset(page)
+    btns = page.locator(".app-header #chronic-switch .chronic-btn")
+    expect(btns).to_have_count(3)
+    assert btns.all_text_contents() == [short for _k, short, _l in cf.buttons()]
+    for key, _short, label in cf.buttons():
+        b = page.locator(f"#chronic-btn-{key}")
+        expect(b).to_be_visible()
+        assert label in (b.get_attribute("title") or ""), "短標籤塞不下全名時，完整名稱要在 title"
+        expect(b).to_have_attribute("aria-expanded", "false")
+    expect(page.locator("#chronic-overlay")).to_be_hidden()      # 負面：預設不擋住工作區
+
+
+def test_chronic_each_button_opens_its_own_topic_and_only_that_one(page):
+    keys = [k for k, _s, _l in cf.buttons()]
+    for key, _short, label in cf.buttons():
+        reset(page)                       # 浮層是 modal：要從關閉狀態出發才點得到入口鈕
+        open_chronic(page, key)
+        expect(page.locator("#chronic-title")).to_contain_text(label)
+        expect(page.locator(f"#chronic-btn-{key}")).to_have_attribute("aria-expanded", "true")
+        for other in keys:
+            if other != key:
+                expect(page.locator(f"#chronic-btn-{other}")).to_have_attribute("aria-expanded", "false")
+    reset(page)
+
+
+@pytest.mark.parametrize("how", ["close-button", "escape", "click-outside"])
+def test_chronic_panel_closes_three_ways(page, how):
+    reset(page)
+    key = cf.buttons()[0][0]
+    open_chronic(page, key)
+    if how == "close-button":
+        page.click("#chronic-close")
+    elif how == "escape":
+        page.keyboard.press("Escape")
+    else:
+        # 1a 的浮層置中，左右兩側是可點的背景。
+        # 1b／1c 沒有這一條：面板佔滿整屏，根本不存在「外面」（那兩個版面靠關閉鈕與 Esc）。
+        box = page.locator("#chronic-panel").bounding_box()
+        page.mouse.click(box["x"] / 2, box["y"] + 200)
+    expect(page.locator("#chronic-overlay")).to_be_hidden()
+    expect(page.locator(f"#chronic-btn-{key}")).to_have_attribute("aria-expanded", "false")
+
+
+def test_chronic_tabs_switch_topic_without_closing_the_panel(page):
+    """浮層是 modal，外面的入口鈕被遮罩蓋住——沒有面板內的分頁就換不了主題，
+    而「比對兩個主題的目標值」（例：DAROC 的血壓目標 vs 高血壓指引的血壓目標）正是最常見的用法。"""
+    reset(page)
+    first, last = cf.buttons()[0], cf.buttons()[-1]
+    open_chronic(page, first[0])
+    expect(page.locator(f"#chronic-tab-{first[0]}")).to_have_attribute("aria-pressed", "true")
+    page.click(f"#chronic-tab-{last[0]}")
+    expect(page.locator("#chronic-overlay")).to_be_visible()          # 負面：換主題不得把面板關掉
+    expect(page.locator("#chronic-title")).to_contain_text(last[2])
+    expect(page.locator(f"#chronic-tab-{last[0]}")).to_have_attribute("aria-pressed", "true")
+    expect(page.locator(f"#chronic-tab-{first[0]}")).to_have_attribute("aria-pressed", "false")
+    # 外面的入口鈕也要跟著走（關掉之後不能留著「展開中」的樣子）
+    expect(page.locator(f"#chronic-btn-{last[0]}")).to_have_attribute("aria-expanded", "true")
+    expect(page.locator(f"#chronic-btn-{first[0]}")).to_have_attribute("aria-expanded", "false")
+    reset(page)
+
+
+def test_chronic_focus_moves_into_the_panel_and_returns_to_the_opener(page):
+    """浮層蓋住整個工作區：焦點沒跟過去的話，Tab 會走進看不見的東西。"""
+    reset(page)
+    key = cf.buttons()[0][0]
+    open_chronic(page, key)
+    assert page.evaluate("() => document.activeElement.id") == "chronic-close"
+    page.keyboard.press("Escape")
+    expect(page.locator("#chronic-overlay")).to_be_hidden()
+    assert page.evaluate("() => document.activeElement.id") == f"chronic-btn-{key}"
+
+
+def test_chronic_shows_source_and_checked_date_as_visible_text(page):
+    """出處與查證日期必須是**畫面上的文字**——這是整個功能唯一的可信度來源。"""
+    reset(page)
+    picked = cf.undated_topic()
+    assert picked, "至少要有一個沒有生效日的主題，否則條數期望值會隨日期漂"
+    key, count = picked
+    open_chronic(page, key)
+    expect(page.locator(".chronic-item")).to_have_count(count)
+    expect(page.locator(".chronic-source")).to_have_count(count)
+    expect(page.locator(".chronic-checked")).to_have_count(count)
+    first_source = page.locator(".chronic-source").first
+    first_checked = page.locator(".chronic-checked").first
+    expect(first_source).to_be_visible()
+    expect(first_checked).to_be_visible()
+    _kind, item = next(cf.items(key))
+    assert item["source"] in first_source.inner_text()
+    assert first_checked.inner_text() == "查證 " + item["checked"]
+    # 負面：不是靠 title 或註腳混過去
+    assert first_source.get_attribute("title") is None
+    assert first_checked.get_attribute("title") is None
+    expect(page.locator(".chronic-disclaimer")).to_be_visible()
+    expect(page.locator(".chronic-disclaimer")).to_contain_text("健保署當期公告")
+    reset(page)
+
+
+def test_chronic_detail_is_advertised_and_expandable(page):
+    """detail 是消歧義那一層（例：DAROC 的血壓 <140/90 與高血壓指引的 <130/80 兩者都對，
+    差在量測基準）。收合可以，但控制項要看得見、而且展得開。"""
+    reset(page)
+    key = cf.buttons()[0][0]
+    found = cf.first_item_with_detail(key)
+    assert found, f"{key} 應至少有一條帶 detail"
+    _text, detail = found
+    open_chronic(page, key)
+    toggle = page.locator(".chronic-more-toggle").first
+    expect(toggle).to_be_visible()                                    # 看得出「這條有補充說明」
+    body = page.locator(".chronic-more").first.locator(".chronic-detail")
+    expect(body).to_be_hidden()                                       # 負面：預設收合
+    toggle.click()
+    expect(body).to_be_visible()
+    assert detail[:20] in body.inner_text()
+    reset(page)
+
+
+def test_chronic_effective_window_follows_the_injected_today(browser_ctx, page_url):
+    """換版當天顯示錯版本是這個功能最大的臨床風險，所以測兩個時間點而不是只測今天。"""
+    case = cf.cutover_case()
+    if not case:
+        pytest.skip("chronic_care.json 目前沒有換版中的條目（同時帶 effectiveTo 與 effectiveFrom）")
+    old, new = set(case["old_texts"]), set(case["new_texts"])
+
+    before = chronic_page(browser_ctx, page_url, case["before"])
+    try:
+        open_chronic(before, case["key"])
+        snap = chronic_snapshot(before)
+        assert old <= set(snap["current"]), "換版前一天：舊表必須是現行版本"
+        assert new == set(snap["upcoming"]), "換版前一天：新表必須以『即將生效』出現"
+        assert not (new & set(snap["current"])), "負面：新表不得混進現行條目"
+        assert snap["soon"] and all(case["cutover"] in s for s in snap["soon"])
+        assert case["before"] in snap["foot"], "頁尾要說明是依哪一天判定的"
+    finally:
+        before.close()
+
+    after = chronic_page(browser_ctx, page_url, case["cutover"])
+    try:
+        open_chronic(after, case["key"])
+        snap = chronic_snapshot(after)
+        assert new <= set(snap["current"]), "生效當天：新表必須變成現行版本"
+        assert not (old & set(snap["current"])), "負面：舊表當天就要下架"
+        assert not (new & set(snap["upcoming"])), "負面：已生效的不該還掛著『即將生效』"
+        assert case["cutover"] in snap["foot"]
+    finally:
+        after.close()

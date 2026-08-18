@@ -453,6 +453,17 @@
     retry.id = 'db-retry';
     retry.hidden = true;
     pop.appendChild(retry);
+    /* 免責。放在設定 popover 是因為它是三套版面唯一都有、且隨時叫得出來的「關於」面。
+       加入慢病速查之前，這個工具從不告訴醫師該做什麼——它只把已經做好的診斷決定轉成代碼，
+       所以介面上不需要臨床免責。現在它會顯示治療目標與給付門檻，已經跨進臨床參考的範疇，
+       這句話必須在介面上（而不只是 README）講清楚。
+       浮層裡另有一句更貼近內容的但書（CHRONIC_DISCLAIMER），兩者刻意不合併：
+       這一句講的是整個工具的性質，那一句講的是眼前那幾條規定能信到什麼程度。 */
+    const about = el('div', 'settings-note settings-disclaimer',
+      '本工具輔助選碼，不做診斷。慢病速查列出的給付規定與治療目標僅為查閱起點，'
+      + '以健保署當期公告與醫師臨床判斷為準。');
+    about.id = 'about-note';
+    pop.appendChild(about);
     return pop;
   }
 
@@ -598,6 +609,225 @@
     return b;
   }
 
+  // ---- 慢病速查（DM／HTN／LIPID） ----
+  /* 使用者原話：「上面有三個按鈕 分成 DM, HTN, LIPID 然後我點這三個按鈕分別跳出你整理過的
+     健保用藥規定 跟 國際指引建議目標」。內容量大（每主題 15–20 條）且是**偶爾查閱**的參考，
+     所以走浮層而不是佔版面：三套版面共用同一個 #chronic-overlay 與同一份渲染，
+     差別只有各版面 CSS 的尺寸與按鈕擺放位置（見各 render-*.js 的註解）。
+
+     這一塊與工具其他部分有一個本質差異，決定了所有設計選擇：**ICD 代碼可以逐碼比對
+     官方全庫、錯了建置就失敗；給付規定沒有這種驗證。** 因此時效性是一等公民：
+       1. 每條的 source 與 checked 直接印在畫面上（不是 title、不是註腳）
+       2. effectiveFrom／effectiveTo 依當天日期自動只留現行版（logic.splitByEffective）
+       3. 已公告未生效的版本另外標「新版將於 X 日生效」，不藏起來
+       4. 面板上永遠有一句但書：這是查閱起點，以健保署當期公告為準 */
+  /* 三種 kind 的中文（與 chronic_care.json 的 _schema 同一組說法）。資料的 section 只帶
+     kind、不帶標題，標題由這裡映射——不是可有可無的裝飾：「臨床治療目標」與「健保給付規定」
+     正是這份速查最需要被分清楚的兩件事（能不能開 ≠ 該開到什麼程度）。 */
+  const CHRONIC_KIND = { target: '臨床治療目標', coverage: '健保給付規定', caution: '實務提醒' };
+  const CHRONIC_DISCLAIMER = '此為查閱起點，不是給付判定或治療處方：'
+    + '實際給付以健保署當期公告為準，治療目標須依個別病人狀況調整。';
+
+  /* 判定「現行版本」用的當天日期（本地時區，不是 UTC——`new Date('2026-09-01')` 是 UTC 午夜，
+     台北會早一天翻版）。`window.ICD_TODAY`（YYYY-MM-DD）可覆寫，讓 E2E 能驗證換版前後
+     兩個時間點；格式不符一律忽略，不讓壞值變成看起來合理的錯誤日期。 */
+  function chronicToday() {
+    const forced = root.ICD_TODAY;
+    if (typeof forced === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(forced)) return forced;
+    const d = new Date();
+    const pad = (n) => (n < 10 ? '0' : '') + n;
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  }
+
+  /* 資料由 build.py 內嵌成 window.CHRONIC_CARE（與 window.ICD_META 同一個作法）。
+     開發期 sections 是空的，全部路徑都必須吃得下空值而不壞。 */
+  function chronicTopics() {
+    const src = root.CHRONIC_CARE;
+    return src && Array.isArray(src.topics) ? src.topics.filter((t) => t && t.key) : [];
+  }
+
+  const chronicTopicOf = (key) => chronicTopics().filter((t) => t.key === key)[0] || null;
+
+  /* 三顆入口鈕。**刻意不用 .seg-row／.seg-btn**：那組視覺在本產品的語意是「選一個狀態」
+     （看診模式、複製格式），而這三顆是「開一個查閱浮層」，共用外觀會讓人以為點下去
+     會切換整個工具的模式。compact＝1c／1b，省掉可見的「慢病速查」小標（空間不足），
+     可讀名稱改由 group 的 aria-label 與每顆的 title 提供。 */
+  function chronicSwitchEl(compact) {
+    const row = el('div', 'chronic-switch' + (compact ? ' chronic-switch--compact' : ''));
+    row.id = 'chronic-switch';
+    row.setAttribute('role', 'group');
+    row.setAttribute('aria-label', '慢病速查：健保給付規定與治療目標');
+    if (!compact) row.appendChild(el('span', 'kicker chronic-kicker', '慢病速查'));
+    for (const topic of chronicTopics()) {
+      const b = el('button', 'chronic-btn', topic.short || topic.key.toUpperCase());
+      b.type = 'button';
+      b.id = 'chronic-btn-' + topic.key;
+      b.dataset.chronic = topic.key;
+      b.setAttribute('aria-haspopup', 'dialog');
+      b.setAttribute('aria-expanded', 'false');
+      b.setAttribute('aria-controls', 'chronic-panel');
+      b.title = '慢病速查：' + (topic.label || topic.key) + '　健保給付規定與治療目標';
+      row.appendChild(b);
+    }
+    return row;
+  }
+
+  /* 浮層內的主題分頁。**沒有這一排，這個功能是半殘的**：浮層是 modal，開著的時候外面
+     那三顆入口鈕被遮罩蓋住，醫師想從 DM 換看 LIPID 得先關掉再開一次——而「比對兩個
+     主題的目標值」正是最常見的用法（例：DAROC 的血壓目標 vs 高血壓指引的血壓目標）。
+     用 aria-pressed 的一組切換鈕，不用 WAI-ARIA Tabs：那個 pattern 要求實作方向鍵的
+     roving tabindex，本專案沒有，宣告了不履行比不宣告更糟（同 markRegionSelected 的理由）。 */
+  function chronicTabsEl() {
+    const row = el('div', 'chronic-tabs');
+    row.id = 'chronic-tabs';
+    row.setAttribute('role', 'group');
+    row.setAttribute('aria-label', '切換慢病速查主題');
+    for (const topic of chronicTopics()) {
+      const b = el('button', 'chronic-tab', topic.short || topic.key.toUpperCase());
+      b.type = 'button';
+      b.id = 'chronic-tab-' + topic.key;
+      b.dataset.chronic = topic.key;
+      b.setAttribute('aria-pressed', 'false');
+      b.title = topic.label || topic.key;
+      row.appendChild(b);
+    }
+    return row;
+  }
+
+  /* 入口鈕與浮層內分頁同源於 store.chronicTopic，一次同步兩邊（兩處都要，否則關掉浮層後
+     入口鈕會留著「展開中」的樣子）。 */
+  function syncChronicSwitch(root2, ctx) {
+    const open = ctx.store.getState().chronicTopic;
+    for (const b of root2.querySelectorAll('#chronic-switch .chronic-btn')) {
+      const on = b.dataset.chronic === open;
+      b.setAttribute('aria-expanded', on ? 'true' : 'false');
+      b.classList.toggle('is-on', on);        // C1-2：不倚賴單一屬性選擇器
+    }
+    for (const b of root2.querySelectorAll('#chronic-tabs .chronic-tab')) {
+      const on = b.dataset.chronic === open;
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      b.classList.toggle('is-on', on);
+    }
+  }
+
+  /* 浮層骨架。掛在**各版面的根節點底下**（不是 template.html）：1c 置頂時整棵 dock 會被
+     搬進 Document PiP 小視窗，掛在主文件的浮層會留在看不見的主視窗裡。 */
+  function chronicOverlayEl() {
+    const overlay = el('div', 'chronic-overlay');
+    overlay.id = 'chronic-overlay';
+    overlay.hidden = true;
+    const panel = el('div', 'chronic-panel');
+    panel.id = 'chronic-panel';
+    panel.setAttribute('role', 'dialog');
+    panel.setAttribute('aria-modal', 'true');
+    panel.setAttribute('aria-labelledby', 'chronic-title');
+    const head = el('div', 'chronic-head');
+    const title = el('h2', 'chronic-title', '');
+    title.id = 'chronic-title';
+    const close = el('button', 'chronic-close', '關閉');
+    close.type = 'button';
+    close.id = 'chronic-close';
+    close.title = '關閉（Esc，或點面板以外任一處）';
+    head.append(title, close);
+    const note = el('p', 'chronic-disclaimer', CHRONIC_DISCLAIMER);
+    const body = el('div', 'chronic-body');
+    body.id = 'chronic-body';
+    /* 分頁列刻意排在標題之後、但書之前：換主題是浮層內最高頻的動作，而但書必須緊貼內容
+       （它講的是下面那些條文能信到什麼程度，不是整個工具的一般免責）。 */
+    panel.append(head, chronicTabsEl(), note, body);
+    overlay.appendChild(panel);
+    return overlay;
+  }
+
+  /* 一條規定。出處與查證日期是**可見文字**，不是 title——這是本功能與其他區塊最大的差別。 */
+  function chronicItemEl(item, upcoming) {
+    const li = el('li', 'chronic-item' + (upcoming ? ' is-upcoming' : ''));
+    if (upcoming) li.appendChild(el('p', 'chronic-soon', '新版將於 ' + item.effectiveFrom + ' 生效'));
+    li.appendChild(el('p', 'chronic-text', String(item.text || '')));
+    /* detail 收在原生 <details> 裡，預設收合但**控制項本身永遠看得見**。
+       兩邊都不能選：全部攤開的話 64 條加起來是一面文字牆，176px 窄欄要捲十幾屏，
+       違背「看診當下瞄一眼」；藏進 title 則等於沒有——而 detail 正是消歧義的那一層。
+       實例：DAROC 的血壓目標 <140/90 與高血壓指引的 <130/80 兩者都對（後者是 722 法則的
+       居家血壓），醫師看到 text 一定會懷疑寫錯，答案就在 detail 裡。
+       用原生 <details> 而不是自建 toggle：鍵盤操作、展開狀態、可存取性都由瀏覽器負責，
+       也不必為一個純檢視的暫態多開一個 store 欄位。 */
+    if (item.detail) {
+      const more = el('details', 'chronic-more');
+      const summary = document.createElement('summary');
+      summary.className = 'chronic-more-toggle';
+      summary.textContent = '補充說明';
+      more.append(summary, el('div', 'chronic-detail', String(item.detail)));
+      li.appendChild(more);
+    }
+    const meta = el('p', 'chronic-meta');
+    /* 缺漏一律顯示「未註明」而不是留白：留白看起來像「沒有這個欄位」，
+       「未註明」看起來像「這條沒人查證過」——後者才是事實。 */
+    meta.append(
+      el('span', 'chronic-source', '出處 ' + (item.source || '未註明')),
+      el('span', 'chronic-checked', '查證 ' + (item.checked || '未註明'))
+    );
+    const from = item.effectiveFrom || '';
+    const to = item.effectiveTo || '';
+    if (from || to) {
+      const window_ = from && to ? '適用 ' + from + '～' + to
+        : (from ? '適用 ' + from + ' 起' : '適用至 ' + to);
+      meta.appendChild(el('span', 'chronic-window', window_));
+    }
+    li.appendChild(meta);
+    return li;
+  }
+
+  function chronicSectionEl(section, today) {
+    const parts = root.ICDLogic.splitByEffective(section && section.items, today);
+    if (!parts.current.length && !parts.upcoming.length) return null;
+    const box = el('section', 'chronic-section');
+    const head = el('div', 'chronic-section-head');
+    const kind = section && section.kind;
+    /* title 是選填的（現行資料只給 kind）。沒有標題就拿 kind 的中文當標題——標題留白會讓
+       整段內容失去脈絡，而「治療目標」與「健保給付」對醫師來說正是最需要分清楚的兩件事。 */
+    const heading = (section && section.title) || CHRONIC_KIND[kind] || '其他';
+    head.appendChild(el('h3', 'chronic-section-title', heading));
+    if (CHRONIC_KIND[kind] && CHRONIC_KIND[kind] !== heading) {
+      const tag = el('span', 'chronic-kind', CHRONIC_KIND[kind]);
+      tag.dataset.kind = kind;
+      head.appendChild(tag);
+    }
+    box.dataset.kind = kind || '';
+    const list = el('ul', 'chronic-items');
+    for (const item of parts.current) list.appendChild(chronicItemEl(item, false));
+    for (const item of parts.upcoming) list.appendChild(chronicItemEl(item, true));
+    box.append(head, list);
+    return box;
+  }
+
+  function renderChronic(overlay, ctx) {
+    const key = ctx.store.getState().chronicTopic;
+    const title = overlay.querySelector('#chronic-title');
+    const body = overlay.querySelector('#chronic-body');
+    clear(body);
+    overlay.hidden = !key;
+    if (!key) { title.textContent = ''; return; }
+    const topic = chronicTopicOf(key);
+    const label = (topic && topic.label) || key;
+    const short = (topic && topic.short) || key.toUpperCase();
+    title.textContent = label + '（' + short + '）';
+    const today = chronicToday();
+    let sections = 0;
+    for (const section of (topic && topic.sections) || []) {
+      const node = chronicSectionEl(section, today);
+      if (!node) continue;
+      body.appendChild(node);
+      sections += 1;
+    }
+    /* 空狀態要講實話：沒有內容不是「沒有規定」，是這份速查還沒整理到。 */
+    if (!sections) {
+      body.appendChild(el('p', 'chronic-empty',
+        '「' + label + '」的內容尚未整理完成，請直接查健保署當期公告與現行指引。'));
+    }
+    body.appendChild(el('p', 'chronic-foot',
+      '依當天日期（' + today + '）只顯示現行版本；每條的出處與查證日期就列在該條下方。'));
+  }
+
   root.ICDRender = {
     icon, el, blueprint, clear, regionHeading, srHeading, markRegionSelected, regionGroupEl,
     regionShort, dateBtnEl,
@@ -606,6 +836,9 @@
     cartItemEl, renderCart, syncClearBtn, hisText, renderHis, renderShelf,
     settingsPopoverEl, syncSettings, dbNoteText, layoutNoteText, effectiveLayout, setPressed,
     modeSwitchEl, syncModeSwitch,
+    chronicSwitchEl, chronicTabsEl, syncChronicSwitch, chronicOverlayEl, renderChronic,
+    chronicToday, chronicTopics,
     FORMAT_LABEL, MODE_LABEL, MODE_SHORT, PANELS_TITLE, MODE_HINT, LAYOUT_LABEL, LAYOUT_MIN_WIDTH,
+    CHRONIC_KIND, CHRONIC_DISCLAIMER,
   };
 })(typeof self !== 'undefined' ? self : this);

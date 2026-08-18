@@ -113,6 +113,7 @@
     layout: ['settings'],
     shelfOpen: [],
     settingsOpen: ['settings'],
+    chronicTopic: ['chronic'],
     cartOpen: ['cart'],
     pinned: ['pin'],
     // 窗格高度本身由 update() 末尾的 paneGroup.applyAll() 統一處理，這裡只需同步
@@ -192,6 +193,17 @@
        的 H3 銜接 H2 與 .region-heading，內容與 1a 同源於 R.PANELS_TITLE，由 U.header 更新。 */
     refs.panelsTitle = R.srHeading(3, '', 'panels-title');
     body.appendChild(refs.panelsTitle);
+
+    /* 慢病速查（DM／HTN／LIPID）擺在**捲動內容區的最上面**，不是 header。
+       密度原則（docs/dense-ui-principle.md）：header 剛從三列壓成兩列，而 .dock-tools 那列
+       在 176px 的寬度帳已經滿了（模式三鈕 ~89 ＋ 3 個間距 ＋ 置頂 ~24 ＋ 設定 ~40 ≈ 157／164），
+       塞不進第四組控制項；另闢一列固定 chrome 則要付 ~27px 的永久成本，而這功能的
+       使用頻率是「偶爾查一下」——密度原則對固定高度的要求正是「它每一次看診都被用到嗎」。
+       放在捲動區頂端：開機就看得到（使用者要的「上面三個按鈕」），往下選碼時它讓開，
+       永久成本 0px。1b 同理，1a 因為 header 有大量留白才常駐（見 render-wide.js）。 */
+    refs.chronicSwitch = R.chronicSwitchEl(true);
+    body.appendChild(refs.chronicSwitch);
+
     const resultsCard = R.el('div');
     resultsCard.id = 'results-card';
     resultsCard.hidden = true;
@@ -262,6 +274,10 @@
     refs.hisScratch = document.createElement('pre');
 
     refs.placeholder = R.el('div', 'dock-pinned-away', '已移到置頂小視窗；關閉小視窗即可回到這裡。');
+
+    // 慢病速查浮層：掛在 dock 根節點底下，置頂時會跟著整棵樹被 adopt 進 PiP 小視窗
+    refs.chronicOverlay = R.chronicOverlayEl();
+    dock.appendChild(refs.chronicOverlay);
 
     host.appendChild(dock);
 
@@ -354,6 +370,8 @@
     function onPipDocKeyDown(ev) {
       if (ev.key !== 'Escape') return;
       if (root.ICDInteractions.isFallbackOpen()) { root.ICDInteractions.closeFallbackCopy(); return; }
+      // 順序與 interactions.js 的 Esc 鏈一致：最上層的浮層先關
+      if (ctx.store.getState().chronicTopic) { root.ICDInteractions.closeChronic(ctx, ev.target); return; }
       if (ctx.store.getState().settingsOpen) ctx.store.setSettingsOpen(false);
     }
 
@@ -459,6 +477,17 @@
       if (store.getState().settingsOpen
         && !target.closest('#settings-popover') && !target.closest('#settings-toggle')) {
         store.setSettingsOpen(false);
+      }
+      /* 慢病速查：三顆按鈕與浮層的關閉（關閉鈕／點面板外）。規則同樣共用
+         interactions.js，這裡只是 PiP 期間的轉送。要排在泛用 `button` 那條之前。 */
+      const chronicBtn = target.closest('[data-chronic]');
+      if (chronicBtn) {
+        root.ICDInteractions.chooseChronic(ctx, chronicBtn.getAttribute('data-chronic'), chronicBtn);
+        return;
+      }
+      if (target.closest('#chronic-close') || target.id === 'chronic-overlay') {
+        root.ICDInteractions.closeChronic(ctx, target);
+        return;
       }
       const chip = target.closest('.chip[data-code]');
       if (chip) { addFromChip(chip); return; }
@@ -661,6 +690,11 @@
     U.his = () => R.renderHis(refs.hisScratch, null, null, ctx);
 
     U.settings = () => R.syncSettings(dock, ctx);
+
+    U.chronic = () => {
+      R.syncChronicSwitch(dock, ctx);
+      R.renderChronic(refs.chronicOverlay, ctx);
+    };
 
     U.pin = () => {
       const s = ctx.store.getState();

@@ -16,6 +16,8 @@ from pathlib import Path
 import pytest
 from playwright.sync_api import expect, sync_playwright
 
+import chronic_fixtures as cf
+
 ROOT = Path(__file__).resolve().parent.parent
 PORT = 18497                       # 與 e2e_test.py（18493）錯開，避免同時起服務時撞埠
 DOCK = {"width": 176, "height": 900}
@@ -76,6 +78,7 @@ def reset(page):
         s.setRegion(0);          // 取消選取（region=null）會跨模式保留，這裡明確歸位
         s.setQuery('');
         s.setSettingsOpen(false);
+        s.setChronicTopic(null); // 慢病速查浮層蓋住整個側欄；殘留會讓後面所有點擊被它攔截
         s.setCartOpen(true);
         s.setTheme('light');
         s.resetPaneSizes();      // 窗格高度會寫 localStorage，殘留會讓別條測試量到上一條拖出來的高度
@@ -1431,3 +1434,179 @@ def test_pip_requests_width_above_two_column_threshold(browser_ctx, page_url):
     assert opts is not None, "沒有呼叫 requestWindow"
     assert opts["width"] >= 327, f"請求寬度 {opts['width']}px 仍落在單欄那一側（門檻 327px）"
     page.close()
+
+
+# ---- 慢病速查（DM／HTN／LIPID；1c 放在捲動區頂端） ----------------------------
+# 擺放位置是密度決定（docs/dense-ui-principle.md）：header 剛從三列壓成兩列，
+# .dock-tools 那列在 176px 的寬度帳也已經滿了，而這是偶爾查閱的功能——不該佔固定高度。
+# 這裡把「它不在 header」與「176px 開著浮層仍不得水平溢出」兩件事都釘住。
+def open_chronic(page, key):
+    page.click(f"#chronic-btn-{key}")
+    expect(page.locator("#chronic-overlay")).to_be_visible()
+
+
+def chronic_snapshot(page):
+    """浮層內容抓成純資料再比對（條文含括號與全形符號，塞進 :has-text 選擇器會爆）。"""
+    return page.evaluate("""() => ({
+        current: Array.from(document.querySelectorAll('.chronic-item:not(.is-upcoming) .chronic-text')).map((n) => n.textContent),
+        upcoming: Array.from(document.querySelectorAll('.chronic-item.is-upcoming .chronic-text')).map((n) => n.textContent),
+        soon: Array.from(document.querySelectorAll('.chronic-soon')).map((n) => n.textContent),
+        foot: (document.querySelector('.chronic-foot') || {}).textContent || '',
+    })""")
+
+
+def chronic_page(browser_ctx, page_url, today):
+    """注入當天日期、已切到 1c 的新分頁（ICD_TODAY 必須在 app 起來之前設好）。"""
+    pg = browser_ctx.new_page()
+    pg.add_init_script(f"window.ICD_TODAY = '{today}';")
+    pg.goto(page_url)
+    pg.wait_for_selector('body[data-ready="1"]', timeout=8000)
+    pg.evaluate("() => window.ICDApp.store.setLayout('dock')")
+    pg.wait_for_selector('body[data-layout="dock"]')
+    return pg
+
+
+def test_chronic_buttons_live_in_the_scroll_area_not_the_header(pg):
+    """密度決定的守門：這三顆鈕不得把 header 撐回三列，也不得另闢一列固定 chrome。"""
+    btns = pg.locator("#chronic-switch .chronic-btn")
+    expect(btns).to_have_count(3)
+    assert btns.all_text_contents() == [short for _k, short, _l in cf.buttons()]
+    placement = pg.evaluate("""() => {
+        const row = document.getElementById('chronic-switch');
+        return {
+            inHead: !!row.closest('.dock-head'),
+            inScroll: !!row.closest('.dock-scroll'),
+            scrollable: (() => { const s = document.querySelector('.dock-scroll');
+                                 return s.scrollHeight > s.clientHeight + 40; })(),
+        };
+    }""")
+    assert placement["inScroll"] and not placement["inHead"], placement
+
+    # 「不得另闢一列固定 chrome」用捲動驗證，不量 header 高度：
+    # header 會因為別的功能（日期鈕）合理地變高，把它寫成數字等於釘死
+    # 「當初的 header 長怎樣」，換一個無關的功能進來就變成假警報（見本檔首的原則）。
+    # 真正要守的意圖是「這三顆鈕的常駐版面成本是 0」——它跟著內容捲走就成立。
+    assert placement["scrollable"], "捲動區沒有可捲內容，下面那條斷言會變成空跑"
+    top_before = pg.evaluate("() => document.getElementById('chronic-switch')"
+                             ".getBoundingClientRect().top")
+    pg.evaluate("() => { const s = document.querySelector('.dock-scroll');"
+                " s.scrollTop = s.scrollHeight; }")
+    pg.wait_for_timeout(150)
+    top_after = pg.evaluate("() => document.getElementById('chronic-switch')"
+                            ".getBoundingClientRect().top")
+    assert top_after < top_before - 20, (
+        f"慢病三鈕沒有跟著內容捲走（{top_before}→{top_after}），"
+        "等於在版面上常駐")
+    pg.evaluate("() => { document.querySelector('.dock-scroll').scrollTop = 0; }")
+    for key, _short, label in cf.buttons():
+        b = pg.locator(f"#chronic-btn-{key}")
+        expect(b).to_be_visible()
+        assert label in (b.get_attribute("title") or ""), "176px 只塞得下短標籤，全名要在 title"
+        # 側掛是滑鼠操作，密度原則的下限是 20px（不是手機的 44px）
+        assert b.bounding_box()["height"] >= 20
+    expect(pg.locator("#chronic-overlay")).to_be_hidden()
+
+
+@pytest.mark.parametrize("how", ["close-button", "escape"])
+def test_chronic_panel_opens_and_closes(pg, how):
+    key, _short, label = cf.buttons()[0]
+    open_chronic(pg, key)
+    expect(pg.locator("#chronic-title")).to_contain_text(label)
+    expect(pg.locator(".chronic-disclaimer")).to_contain_text("健保署當期公告")
+    if how == "close-button":
+        pg.click("#chronic-close")
+    else:
+        pg.keyboard.press("Escape")
+    expect(pg.locator("#chronic-overlay")).to_be_hidden()
+    expect(pg.locator(f"#chronic-btn-{key}")).to_have_attribute("aria-expanded", "false")
+
+
+def test_chronic_tabs_switch_topic_without_closing(pg):
+    first, last = cf.buttons()[0], cf.buttons()[-1]
+    open_chronic(pg, first[0])
+    pg.click(f"#chronic-tab-{last[0]}")
+    expect(pg.locator("#chronic-overlay")).to_be_visible()          # 負面：換主題不得關掉面板
+    expect(pg.locator("#chronic-title")).to_contain_text(last[2])
+    expect(pg.locator(f"#chronic-tab-{last[0]}")).to_have_attribute("aria-pressed", "true")
+    expect(pg.locator(f"#chronic-tab-{first[0]}")).to_have_attribute("aria-pressed", "false")
+
+
+def test_chronic_shows_source_and_checked_date_as_visible_text(pg):
+    picked = cf.undated_topic()
+    assert picked, "至少要有一個沒有生效日的主題，否則條數期望值會隨日期漂"
+    key, count = picked
+    open_chronic(pg, key)
+    expect(pg.locator(".chronic-item")).to_have_count(count)
+    expect(pg.locator(".chronic-source")).to_have_count(count)
+    expect(pg.locator(".chronic-checked")).to_have_count(count)
+    _kind, item = next(cf.items(key))
+    src, checked = pg.locator(".chronic-source").first, pg.locator(".chronic-checked").first
+    expect(src).to_be_visible()
+    expect(checked).to_be_visible()
+    assert item["source"] in src.inner_text()
+    assert checked.inner_text() == "查證 " + item["checked"]
+    assert src.get_attribute("title") is None                        # 負面：不是靠 title 混過去
+
+
+def test_chronic_detail_is_advertised_and_expandable(pg):
+    key = cf.buttons()[0][0]
+    found = cf.first_item_with_detail(key)
+    assert found, f"{key} 應至少有一條帶 detail"
+    _text, detail = found
+    open_chronic(pg, key)
+    toggle = pg.locator(".chronic-more-toggle").first
+    expect(toggle).to_be_visible()
+    body = pg.locator(".chronic-more").first.locator(".chronic-detail")
+    expect(body).to_be_hidden()                                      # 負面：預設收合
+    toggle.click()
+    expect(body).to_be_visible()
+    assert detail[:20] in body.inner_text()
+
+
+@pytest.mark.parametrize("theme", ["light", "dark"])
+def test_chronic_panel_never_overflows_at_176(pg, theme):
+    """176px 一旦水平溢出，貼在 HIS 旁邊的窄欄就沒法用。三個主題與展開的補充說明都要驗。"""
+    pg.evaluate("(t) => window.ICDApp.store.setTheme(t)", theme)
+    for key, _short, _label in cf.buttons():
+        open_chronic(pg, key)
+        pg.wait_for_timeout(80)
+        assert_no_hscroll(pg, f"{theme}／{key} 慢病速查")
+        assert overflowing_elements(pg) == [], f"{theme}／{key}：元素溢出"
+        pg.locator(".chronic-more-toggle").first.click()             # 最長的那段文字攤開
+        pg.wait_for_timeout(80)
+        assert_no_hscroll(pg, f"{theme}／{key} 展開補充說明")
+        assert overflowing_elements(pg) == [], f"{theme}／{key} 展開後：元素溢出"
+        pg.keyboard.press("Escape")
+        expect(pg.locator("#chronic-overlay")).to_be_hidden()
+    pg.evaluate("() => window.ICDApp.store.setTheme('light')")
+
+
+def test_chronic_effective_window_follows_the_injected_today(browser_ctx, page_url):
+    case = cf.cutover_case()
+    if not case:
+        pytest.skip("chronic_care.json 目前沒有換版中的條目（同時帶 effectiveTo 與 effectiveFrom）")
+    old, new = set(case["old_texts"]), set(case["new_texts"])
+
+    before = chronic_page(browser_ctx, page_url, case["before"])
+    try:
+        open_chronic(before, case["key"])
+        snap = chronic_snapshot(before)
+        assert old <= set(snap["current"])
+        assert new == set(snap["upcoming"])
+        assert not (new & set(snap["current"]))                      # 負面：新表不得混進現行
+        assert snap["soon"] and all(case["cutover"] in s for s in snap["soon"])
+        assert case["before"] in snap["foot"]
+        assert_no_hscroll(before, "換版前一天的慢病速查")
+    finally:
+        before.close()
+
+    after = chronic_page(browser_ctx, page_url, case["cutover"])
+    try:
+        open_chronic(after, case["key"])
+        snap = chronic_snapshot(after)
+        assert new <= set(snap["current"])
+        assert not (old & set(snap["current"]))                      # 負面：舊表當天下架
+        assert not (new & set(snap["upcoming"]))
+        assert case["cutover"] in snap["foot"]
+    finally:
+        after.close()

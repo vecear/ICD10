@@ -97,3 +97,50 @@ test('rocDate：不給參數就用今天，格式一律 民國年-月-日', () =
   const now = new Date();
   assert.equal(today, L.rocDate(now));
 });
+
+/* ── 慢病速查的時效篩選（splitByEffective） ──
+   給付規定沒有「逐條比對官方全庫」這種驗證手段，換版當天顯示錯版本是這個功能最大的
+   臨床風險，所以邊界（含當日）逐一釘死，不能只測「大致對」。 */
+const WINDOW_ITEMS = [
+  { text: '永遠適用（沒有生效日）' },
+  { text: '舊表', effectiveTo: '2026-08-31' },
+  { text: '新表', effectiveFrom: '2026-09-01' },
+  { text: '早就結束', effectiveTo: '2025-12-31' },
+  { text: '限定區間', effectiveFrom: '2026-01-01', effectiveTo: '2026-12-31' },
+];
+const texts = (list) => list.map((x) => x.text);
+
+test('splitByEffective: 換版前一天顯示舊表，新表列為即將生效', () => {
+  const r = L.splitByEffective(WINDOW_ITEMS, '2026-08-31');
+  assert.deepEqual(texts(r.current), ['永遠適用（沒有生效日）', '舊表', '限定區間']);
+  assert.deepEqual(texts(r.upcoming), ['新表']);
+  assert.deepEqual(texts(r.expired), ['早就結束']);
+});
+test('splitByEffective: 生效當天換成新表，舊表退場（effectiveTo 含當日、effectiveFrom 含當日）', () => {
+  const r = L.splitByEffective(WINDOW_ITEMS, '2026-09-01');
+  assert.deepEqual(texts(r.current), ['永遠適用（沒有生效日）', '新表', '限定區間']);
+  assert.deepEqual(r.upcoming, []);
+  assert.deepEqual(texts(r.expired), ['舊表', '早就結束']);   // 維持輸入順序
+});
+test('splitByEffective: effectiveTo 當天仍算現行（不是提前一天下架）', () => {
+  const r = L.splitByEffective([{ text: 'x', effectiveTo: '2026-08-31' }], '2026-08-31');
+  assert.equal(r.current.length, 1);
+  assert.equal(r.expired.length, 0);
+});
+test('splitByEffective: effectiveFrom 的前一天還不算現行', () => {
+  const r = L.splitByEffective([{ text: 'x', effectiveFrom: '2026-09-01' }], '2026-08-31');
+  assert.equal(r.current.length, 0);
+  assert.equal(r.upcoming.length, 1);
+});
+test('splitByEffective: 空／壞資料一律吃得下，不丟例外', () => {
+  assert.deepEqual(L.splitByEffective(undefined, '2026-08-19'), { current: [], upcoming: [], expired: [] });
+  assert.deepEqual(L.splitByEffective([], '2026-08-19').current, []);
+  const r = L.splitByEffective([null, 'x', 42, { text: 'ok' }], '2026-08-19');
+  assert.deepEqual(texts(r.current), ['ok']);
+});
+test('splitByEffective: 沒給 today 就不篩掉任何東西（寧可全顯示，不要靜默藏起規定）', () => {
+  const r = L.splitByEffective(WINDOW_ITEMS, undefined);
+  assert.equal(r.current.length, WINDOW_ITEMS.length);
+  assert.equal(r.upcoming.length, 0);
+  assert.equal(r.expired.length, 0);
+});

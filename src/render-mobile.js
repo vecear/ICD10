@@ -36,6 +36,7 @@
     layout: ['settings'],
     shelfOpen: ['settings'],
     settingsOpen: ['settings'],
+    chronicTopic: ['chronic'],
     cartOpen: ['cartSheet', 'cartBar'],
     pinned: [],
     // 高度本身由 update() 末尾的 paneGroup.applyAll() 統一處理；這裡只同步設定面板的
@@ -113,6 +114,14 @@
     refs.panelsTitle = R.srHeading(3, '', 'panels-title');
     scroll.appendChild(refs.panelsTitle);
 
+    /* 慢病速查（DM／HTN／LIPID）擺在**捲動內容區的最上面**，不是 header。
+       手機的觸控目標下限是 44px（硬性邊界，不可打折），所以一列常駐的慢病鈕就是
+       844px 螢幕的 5%＋分隔線；而這是偶爾查閱的參考功能，不是每次看診都用。
+       放進捲動區：開機第一眼就看得到，往下選碼時讓開，永久成本 0px（1c 同理）。
+       按鈕本身仍是 44px 高——讓位讓的是版面，不是觸控目標。 */
+    refs.chronicSwitch = R.chronicSwitchEl(true);
+    scroll.appendChild(refs.chronicSwitch);
+
     const resultsCard = R.el('div');
     resultsCard.id = 'results-card';
     resultsCard.hidden = true;
@@ -182,6 +191,10 @@
     // 沒有複製鈕：清單一變就自動同步到剪貼簿（interactions.js 的 syncClipboard）
     bar.append(refs.cartToggle);
     wrap.appendChild(bar);
+
+    // 慢病速查浮層：掛在版面根節點底下（三套版面一致）
+    refs.chronicOverlay = R.chronicOverlayEl();
+    wrap.appendChild(refs.chronicOverlay);
 
     host.appendChild(wrap);
 
@@ -348,6 +361,10 @@
 
     U.his = () => R.renderHis(refs.hisPreview, refs.hisFormat, null, ctx);
     U.settings = () => R.syncSettings(wrap, ctx);
+    U.chronic = () => {
+      R.syncChronicSwitch(wrap, ctx);
+      R.renderChronic(refs.chronicOverlay, ctx);
+    };
 
     /* #cart-toggle 的事件委派本身在 interactions.js（共用），但「切換的是什麼」是 1b 專屬語意：
        版面本地、預設收合的 sheetOpen（見檔頭註解——刻意不用 store 的 cartOpen，否則它預設

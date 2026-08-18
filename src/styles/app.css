@@ -382,3 +382,123 @@ b.cart-code {
 #fatal-error { margin: 24px; padding: 16px 18px; border: 1px solid var(--fatal-line); background: var(--color-bg); }
 #fatal-error h2 { color: var(--fatal-line); font-size: 20px; }
 #fatal-error p { font-size: 14px; line-height: 1.6; }
+
+/* ── 慢病速查（DM／HTN／LIPID）：三顆按鈕 ＋ 覆蓋式浮層 ──────────────────────
+   三套版面共用同一份結構與行為，各版面檔只調尺寸與按鈕擺放位置。
+   本區塊**不使用 color-mix() 與 :has()**（C1 相容備援），遮罩用單一靜態 rgba。
+
+   顏色語意：
+     * 三顆按鈕刻意**不長得像 .seg-btn**——那組視覺在本產品的意思是「選一個狀態」
+       （看診模式、複製格式），慢病鈕點下去是開一個查閱浮層，不改變工具的任何狀態。
+     * 但書與「新版將於 X 日生效」走 --warn-* 系列：這兩件事都是「注意，這裡會咬人」，
+       與紅旗同一個語意層級，不另立第三套顏色。
+     * 出處／查證日期用 --color-neutral-700（深淺兩套都定義過，對比皆達正文門檻）。 */
+.chronic-switch { display: flex; align-items: center; gap: 4px; flex: none; min-width: 0; }
+.chronic-kicker { white-space: nowrap; }
+.chronic-btn {
+  flex: 0 0 auto; min-height: 24px; padding: 2px 8px;
+  border: 1px solid var(--color-divider); background: transparent; color: var(--color-text);
+  font-family: var(--font-heading); font-size: 12px; letter-spacing: .06em; line-height: 1.2;
+  border-radius: 0; cursor: pointer; white-space: nowrap;
+}
+.chronic-btn:hover { border-color: var(--color-accent); background: var(--color-accent-100); }
+/* 開著的那一顆要看得出來（浮層可能被醫師拖到旁邊看，兩者要對得起來）。
+   同時吃 .is-on 與 aria-expanded（C1-2：不倚賴單一屬性選擇器）。 */
+.chronic-btn.is-on, .chronic-btn[aria-expanded="true"] {
+  border-color: var(--sel-bg); background: var(--sel-bg); color: var(--sel-ink);
+}
+.chronic-btn:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+
+/* position:fixed 而不是 absolute：1c 置頂時整棵側欄被 adopt 進 Document PiP 小視窗，
+   fixed 貼的是**那個視窗**的視埠，浮層才不會跑到看不見的地方或被 overflow:hidden 裁掉。 */
+.chronic-overlay {
+  position: fixed; inset: 0; z-index: 30;
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+  background: rgba(43, 43, 45, .5);
+}
+.chronic-panel {
+  display: flex; flex-direction: column; min-height: 0;
+  width: min(720px, 100%); max-height: 100%; padding: 14px 16px;
+  background: var(--color-bg); border: 1px solid var(--color-accent); box-shadow: var(--shadow-lg);
+}
+/* 浮層內的主題分頁：外面那三顆入口鈕在浮層開著時被遮罩蓋住，沒有這一排就換不了主題
+   （而「比對兩個主題的目標值」正是最常見的用法）。與入口鈕同外觀、不同語意，
+   所以狀態走 aria-pressed 而不是 aria-expanded。 */
+.chronic-tabs { display: flex; gap: 4px; flex: none; margin-top: 8px; }
+.chronic-tab {
+  flex: 0 0 auto; min-height: 24px; padding: 2px 10px;
+  border: 1px solid var(--color-divider); background: transparent; color: var(--color-text);
+  font-family: var(--font-heading); font-size: 12px; letter-spacing: .06em; line-height: 1.2;
+  border-radius: 0; cursor: pointer; white-space: nowrap;
+}
+.chronic-tab:hover { border-color: var(--color-accent); background: var(--color-accent-100); }
+.chronic-tab.is-on, .chronic-tab[aria-pressed="true"] {
+  border-color: var(--sel-bg); background: var(--sel-bg); color: var(--sel-ink);
+}
+.chronic-tab:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+.chronic-head { display: flex; align-items: baseline; gap: 10px; flex: none; }
+.chronic-title {
+  flex: 1; min-width: 0; margin: 0; font-size: 19px; line-height: 1.2; letter-spacing: -.01em;
+}
+.chronic-close {
+  flex: none; min-height: 28px; padding: 0 10px; font: inherit; font-size: 13px;
+  border: 1px solid var(--color-divider); background: transparent; color: var(--color-text);
+  border-radius: 0; cursor: pointer; white-space: nowrap;
+}
+.chronic-close:hover { border-color: var(--color-accent); background: var(--color-accent-100); }
+/* 但書永遠在最上面、永遠不捲走：它講的是「這份東西能信到什麼程度」，
+   不是看過就沒用的一次性提示（對比密度原則第 4 點的「一次性提示要自己消失」）。 */
+.chronic-disclaimer {
+  flex: none; margin: 8px 0 0; padding: 6px 9px; font-size: 12px; line-height: 1.5;
+  border-left: 2px solid var(--warn-line); background: var(--warn-bg); color: var(--warn-ink);
+}
+.chronic-body { flex: 1; min-height: 0; overflow-y: auto; margin-top: 10px; }
+.chronic-section { margin: 0 0 14px; }
+.chronic-section:last-of-type { margin-bottom: 0; }
+.chronic-section-head {
+  display: flex; align-items: baseline; gap: 6px;
+  padding-bottom: 3px; border-bottom: 1px solid var(--color-divider);
+}
+.chronic-section-title { margin: 0; font-size: 14px; line-height: 1.2; letter-spacing: .02em; }
+.chronic-kind {
+  font-family: var(--font-heading); font-size: 10px; letter-spacing: .1em;
+  color: var(--color-neutral-700);
+}
+.chronic-items { list-style: none; margin: 0; padding: 0; }
+.chronic-item { padding: 7px 0; border-bottom: 1px solid var(--color-divider); }
+.chronic-item:last-child { border-bottom: 0; }
+.chronic-text {
+  margin: 0; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere;
+}
+/* 補充說明：收合但控制項永遠看得見（原生 <details>，鍵盤與可存取性交給瀏覽器）。
+   保留原生的展開三角形——那是使用者已經認得的可供性，自己畫一個只會少一半人看懂。 */
+.chronic-more { margin: 3px 0 0; }
+.chronic-more-toggle {
+  font-size: 11.5px; line-height: 1.4; color: var(--color-accent-700); cursor: pointer;
+  letter-spacing: .02em;
+}
+.chronic-more-toggle:hover { text-decoration: underline; }
+.chronic-more-toggle:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+.chronic-detail {
+  margin: 4px 0 0; padding-left: 9px; border-left: 1px solid var(--color-divider);
+  font-size: 12.5px; line-height: 1.55; color: var(--color-neutral-700);
+  overflow-wrap: anywhere;
+}
+/* 出處與查證日期是**可見文字**，不是 title 也不是註腳（本功能與 ICD 代碼最大的差別：
+   代碼錯了建置會失敗，給付規定沒有這種驗證，只能靠醫師自己看得到它有多舊）。 */
+.chronic-meta {
+  display: flex; flex-wrap: wrap; gap: 2px 10px; margin: 4px 0 0;
+  font-size: 11px; line-height: 1.4; color: var(--color-neutral-700); overflow-wrap: anywhere;
+}
+.chronic-checked, .chronic-window { font-variant-numeric: tabular-nums; }
+/* 已公告、尚未生效的版本。整條套 warn 底，換版前後兩週一眼就分得出「這條還不能用」。 */
+.chronic-item.is-upcoming { background: var(--warn-surface); padding: 7px 8px; }
+.chronic-soon {
+  margin: 0 0 3px; font-family: var(--font-heading); font-size: 11px; letter-spacing: .06em;
+  color: var(--warn-ink);
+}
+.chronic-empty { margin: 0; font-size: 13px; line-height: 1.55; color: var(--color-neutral-700); }
+.chronic-foot {
+  margin: 12px 0 0; padding-top: 7px; border-top: 1px solid var(--color-divider);
+  font-size: 11px; line-height: 1.45; color: var(--color-neutral-700);
+}
