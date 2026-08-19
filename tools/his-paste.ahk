@@ -19,10 +19,10 @@
 #SingleInstance Force
 
 ; ── 可調設定 ────────────────────────────────────────────────────────────────
-; 視窗守門：只有前景視窗標題含 TARGET_WIN 時才送出，免得打到別的程式。
-; 你的 HIS 標題是「診間批價修改作業 [OpoC200]」，所以預設比對 OpoC200。
-; 換了作業畫面（標題不同）就把這裡改成共同的字串，或設 CHECK_WINDOW := false 關掉檢查。
-CHECK_WINDOW := true
+; 視窗守門：**預設關閉**。HIS 各作業畫面的標題差異很大，綁標題會讓熱鍵在部分畫面
+; 直接不動作，而診間當下看不出原因。要擋「不小心在別的程式按 F9」再設 true。
+; 跳窗偵測不看這兩個值——它認的是按下 F9 當下的那個視窗，換畫面不受影響。
+CHECK_WINDOW := false
 TARGET_WIN   := "OpoC200"
 
 SEND_ENTER := true      ; 每個代碼之後是否按 Enter（HIS 要 Enter 才帶出病名時保持 true）
@@ -88,6 +88,10 @@ SendCodes(onlyFirst) {
     if (onlyFirst)
         codes := [codes[1]]
 
+    ; 跳窗偵測的基準：按下 F9 當下的前景視窗。用 hwnd 而不是標題，
+    ; 才不必事先知道每個 HIS 作業畫面叫什麼名字（這正是綁 TARGET_WIN 的老問題）。
+    baseHwnd := WinExist("A")
+
     ; 讓目標欄位的鍵盤焦點穩定下來。實測（tools 的自我測試）：視窗剛取得焦點就立刻送字，
     ; 整批可能被吞掉；手動點進欄位再按 F9 通常不會遇到，但這 60ms 是免費的保險。
     Sleep 60
@@ -101,7 +105,7 @@ SendCodes(onlyFirst) {
         if (index >= codes.Length)
             break
         Sleep CODE_DELAY
-        if (!WaitForDialog(codes.Length - index))
+        if (!WaitForDialog(codes.Length - index, baseHwnd))
             return                      ; 等太久，剩下的碼不送（訊息已在 WaitForDialog 裡給了）
     }
     Notify("已送出 " sent " 碼：" Join(codes, "  "))
@@ -109,27 +113,36 @@ SendCodes(onlyFirst) {
 
 ; 送出一個碼之後，HIS 可能跳出版本對照視窗要人工選取。
 ; 回傳 true ＝ 可以繼續送下一個碼；false ＝ 等太久，呼叫端應該停止。
-; 判斷方式是「前景視窗還是不是 HIS 主視窗」，不綁定特定對話框標題——
-; 這樣其他會跳窗的情況（重複碼提醒、確認框）也一樣擋得住。
-WaitForDialog(remaining) {
-    global TARGET_WIN, DIALOG_PROBE, DIALOG_WAIT
+; 判斷方式是「焦點還在不在按 F9 時的那個視窗」，既不綁對話框標題、也不綁 HIS 標題——
+; 這樣任何會跳窗的情況（版本對照、重複碼提醒、確認框）都擋得住，而且換作業畫面照樣有效。
+WaitForDialog(remaining, baseHwnd) {
+    global DIALOG_PROBE, DIALOG_WAIT
 
-    if (TARGET_WIN = "")
+    if (!baseHwnd)
         return true
+    target := "ahk_id " baseHwnd
 
     ; 對話框不一定馬上跳出來，觀察一小段時間再決定要不要等
     waited := 0
     while (waited < DIALOG_PROBE) {
-        if (!WinActive(TARGET_WIN))
+        if (!WinActive(target))
             break
         Sleep 100
         waited += 100
     }
-    if (WinActive(TARGET_WIN))
+    if (WinActive(target))
         return true                     ; 沒跳窗，直接繼續
 
+    ; 原視窗整個不見了（畫面被關掉／換掉）不是跳窗：再送下去會打進不知道哪個程式，
+    ; 所以停下來講清楚，而不是傻等一個回不來的視窗。
+    if (!WinExist(target)) {
+        Notify("原本的視窗不見了，剩下的 " remaining " 碼沒有送出`n"
+             . "點回疾病碼欄位後再按一次 F9", 6000)
+        return false
+    }
+
     Notify("HIS 跳出視窗了，請用滑鼠選好`n選完我會自動送剩下的 " remaining " 碼", 5000)
-    if (!WinWaitActive(TARGET_WIN, , DIALOG_WAIT)) {
+    if (!WinWaitActive(target, , DIALOG_WAIT)) {
         Notify("等超過 " DIALOG_WAIT " 秒，剩下的 " remaining " 碼沒有送出`n"
              . "處理完視窗後再按一次 F9，或用 Shift+F9 一次送一碼", 6000)
         return false
