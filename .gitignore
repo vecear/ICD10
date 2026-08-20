@@ -14,3 +14,6 @@ tools/*.zip
 # 為了繞過 Gmail 封鎖執行檔而做的打包嘗試（改副檔名／分割壓縮）。
 # 都是產物不是原始碼；正式做法是 tools/README.md 寫的 certutil base64。
 tools/Au.*
+# 你自己壓的診間包（rar／7z 等），與 診間包.zip 同理不進版控
+診間包*.rar
+診間包*.7z
