@@ -144,3 +144,88 @@ test('splitByEffective: 沒給 today 就不篩掉任何東西（寧可全顯示�
   assert.equal(r.upcoming.length, 0);
   assert.equal(r.expired.length, 0);
 });
+
+// ── Cockcroft-Gault CCr（抗生素劑量會用到，數字錯了會直接影響給藥）──
+test('CCr：公式本身（男女、四捨五入到小數一位）', () => {
+  // 60 歲、70 kg、Cr 1.0 → (140-60)*70/(72*1) = 77.8
+  const m = L.creatinineClearance({ sex: 'male', age: 60, weightKg: 70, creatinine: 1.0 });
+  assert.equal(m.crcl, 77.8);
+  // 女性乘 0.85 → 77.777*0.85 = 66.1
+  const f = L.creatinineClearance({ sex: 'female', age: 60, weightKg: 70, creatinine: 1.0 });
+  assert.equal(f.crcl, 66.1);
+});
+
+test('CCr：沒有身高就退回實際體重，並標明 basis', () => {
+  const r = L.creatinineClearance({ sex: 'male', age: 60, weightKg: 70, creatinine: 1.0 });
+  assert.equal(r.basis, 'actual');
+  assert.equal(r.hasHeight, false);
+  assert.equal(r.ibw, null);
+  assert.equal(r.bmi, null);
+  assert.equal(r.range, null);
+});
+
+test('CCr：IBW 用 Devine（身高 cm 換算成吋）', () => {
+  // 175 cm = 68.898 吋；男 50 + 2.3*(68.898-60) = 70.5
+  const m = L.creatinineClearance({ sex: 'male', age: 50, weightKg: 70, heightCm: 175, creatinine: 1 });
+  assert.equal(m.ibw, 70.5);
+  // 160 cm = 62.992 吋；女 45.5 + 2.3*(62.992-60) = 52.4
+  const f = L.creatinineClearance({ sex: 'female', age: 50, weightKg: 60, heightCm: 160, creatinine: 1 });
+  assert.equal(f.ibw, 52.4);
+});
+
+test('CCr：依 BMI 選體重（MDCalc／Brown et al 的規則）', () => {
+  // BMI 18.5-24.9 → 用理想體重，範圍另一端是實際體重
+  const normal = L.creatinineClearance({ sex: 'male', age: 60, weightKg: 70, heightCm: 175, creatinine: 1 });
+  assert.equal(Math.round(normal.bmi), 23);
+  assert.equal(normal.basis, 'ideal');
+  assert.equal(normal.rangeBasis, 'actual');
+  assert.equal(normal.crcl, normal.ideal);
+  assert.equal(normal.range, normal.actual);
+
+  // BMI < 18.5 → 用實際體重，不做調整、沒有範圍
+  const thin = L.creatinineClearance({ sex: 'male', age: 60, weightKg: 50, heightCm: 175, creatinine: 1 });
+  assert.ok(thin.bmi < 18.5);
+  assert.equal(thin.basis, 'actual');
+  assert.equal(thin.rangeBasis, null);
+  assert.equal(thin.crcl, thin.actual);
+
+  // BMI ≥ 25 → 用調整體重，範圍另一端是理想體重
+  const obese = L.creatinineClearance({ sex: 'male', age: 60, weightKg: 100, heightCm: 175, creatinine: 1 });
+  assert.ok(obese.bmi >= 25);
+  assert.equal(obese.basis, 'adjusted');
+  assert.equal(obese.rangeBasis, 'ideal');
+  assert.equal(obese.crcl, obese.adjusted);
+  assert.equal(obese.range, obese.ideal);
+});
+
+test('CCr：調整體重＝IBW + 0.4×(實際 − IBW)', () => {
+  const r = L.creatinineClearance({ sex: 'male', age: 60, weightKg: 100, heightCm: 175, creatinine: 1 });
+  // IBW 70.5 → 70.5 + 0.4*(100-70.5) = 82.3
+  assert.equal(r.ibw, 70.5);
+  assert.equal(r.adjbw, 82.3);
+  assert.equal(r.weightUsed, 82.3);
+});
+
+test('CCr：缺欄位或不合理的值一律回 ok:false，不回 NaN', () => {
+  const cases = [
+    {},
+    { age: 60, weightKg: 70 },                                   // 缺 Cr
+    { age: 0, weightKg: 70, creatinine: 1 },                     // 年齡 0
+    { age: 200, weightKg: 70, creatinine: 1 },                   // 年齡超出範圍
+    { age: 60, weightKg: 0, creatinine: 1 },                     // 體重 0
+    { age: 60, weightKg: 70, creatinine: 0 },                    // Cr 0（會除以 0）
+    { age: 60, weightKg: 70, creatinine: -1 },
+    { age: 'abc', weightKg: 70, creatinine: 1 },
+  ];
+  for (const c of cases) {
+    const r = L.creatinineClearance(c);
+    assert.equal(r.ok, false, `應該擋下：${JSON.stringify(c)}`);
+    assert.ok(Array.isArray(r.missing) && r.missing.length > 0);
+  }
+});
+
+test('CCr：身高極端時不產生負的理想體重', () => {
+  const r = L.creatinineClearance({ sex: 'female', age: 60, weightKg: 40, heightCm: 90, creatinine: 1 });
+  assert.equal(r.ibw, null, '算出負值就不該當成體重用');
+  assert.equal(r.basis, 'actual');
+});

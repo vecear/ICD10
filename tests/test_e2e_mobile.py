@@ -36,11 +36,13 @@ def region_for_panel(filename, panel_name):
 
 @pytest.fixture(scope="module")
 def page_url():
-    handler = partial(http.server.SimpleHTTPRequestHandler, directory=str(ROOT / "dist"))
-    srv = http.server.ThreadingHTTPServer(("127.0.0.1", PORT), handler)
-    threading.Thread(target=srv.serve_forever, daemon=True).start()
-    yield f"http://127.0.0.1:{PORT}/icd10.html"
-    srv.shutdown()
+    """用 file:// 而不是本機 HTTP server。
+
+    這台機器上的安全軟體會掃描 loopback 傳輸，dist 這個 2.2MB 單檔傳到約 248KB 就被
+    連線重設（WinError 10054），整批 E2E 會在 Page.goto 逾時 —— 而那與被測程式碼無關。
+    file:// 沒有網路層，Chromium 又視它為 secure context，clipboard 與 Document PiP
+    都照常可用（已實測），順帶省掉每個測試的傳輸時間。"""
+    yield (ROOT / "dist" / "icd10.html").as_uri()
 
 
 @pytest.fixture(scope="module")

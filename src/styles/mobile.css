@@ -254,3 +254,12 @@ body[data-layout="mobile"] .chronic-tabs { gap: 6px; }
 body[data-layout="mobile"] .chronic-tab {
   flex: 1; min-width: 0; min-height: 44px; padding: 0 8px; font-size: 14px;
 }
+
+/* CCr：手機一律 44px 觸控門檻（輸入框、按鈕都是），浮層貼齊底部留白 */
+body[data-layout="mobile"] #ccr-btn { flex: 0 0 auto; min-height: 44px; padding: 0 14px; font-size: 14px; }
+body[data-layout="mobile"] .ccr-panel { width: 100%; }
+body[data-layout="mobile"] .ccr-input { min-height: 44px; font-size: 16px; }  /* 16px 避免 iOS 自動放大 */
+body[data-layout="mobile"] .ccr-sex .seg-btn { min-height: 44px; }
+body[data-layout="mobile"] .ccr-copy,
+body[data-layout="mobile"] .ccr-reset,
+body[data-layout="mobile"] .ccr-close { min-height: 44px; }

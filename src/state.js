@@ -119,6 +119,9 @@
       /* 慢病速查目前開著的主題（null ＝ 關閉）。刻意**不持久化**：它是「現在正在查」的
          暫態，跨診次留著只會讓下一位病人開機就看到上一位的降血脂給付表擋住畫面。 */
       chronicTopic: null,
+      /* CCr 計算機是否開著。同樣不持久化——裡面是上一位病人的年齡體重肌酸酐，
+         跨診次留著比沒有還危險（會被誤當成這一位的數字）。 */
+      ccrOpen: false,
       shelfOpen: true,           // 常用列
       cartOpen: true,            // 1c/1b 的清單摺疊
       pinned: false,             // Document PiP 置頂
@@ -461,8 +464,18 @@
         return true;
       }
       if (CHRONIC_TOPICS.indexOf(key) < 0) return false;
-      setState({ chronicTopic: key, settingsOpen: false });
+      setState({ chronicTopic: key, settingsOpen: false, ccrOpen: false });
       return true;
+    }
+
+    /* CCr 計算機。與慢病速查、設定同為浮層，一次只開一個。
+       輸入值不進 store：那是「這一位病人」的資料，留在 DOM 裡隨面板關閉一起消失，
+       不會被持久化、也不會被別的版面撿去用。 */
+    function setCcrOpen(open) {
+      const next = !!open;
+      if (next) setState({ ccrOpen: true, settingsOpen: false, chronicTopic: null });
+      else setState({ ccrOpen: false });
+      return next;
     }
 
     const setShelfOpen = (open) => { setState({ shelfOpen: !!open }); };
@@ -488,7 +501,7 @@
       setQuery, setRelatedCode, setCopied, setDbState,
       setSettingsOpen, toggleSettings, setShelfOpen, toggleShelf,
       setCartOpen, toggleCart, setPinned,
-      setChronicTopic,
+      setChronicTopic, setCcrOpen,
     };
   }
 

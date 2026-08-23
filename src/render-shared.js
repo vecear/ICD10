@@ -828,6 +828,179 @@
       '依當天日期（' + today + '）只顯示現行版本；每條的出處與查證日期就列在該條下方。'));
   }
 
+  // ---- CCr 計算機（Cockcroft-Gault） ----
+  /* 為什麼三種體重要並列：這個數字是拿來調抗生素劑量的，而 Cockcroft-Gault 在體重
+     極端時最不準——同一位病人用實際／理想／調整體重可以差到將近兩倍。主值只是
+     「依 BMI 的一般建議」（MDCalc／Brown et al 的規則），選哪個仍然是醫師的判斷，
+     所以畫面一定要標明「這個數字是用什麼體重算出來的」，而不是只丟一個數字。 */
+  const CCR_BASIS_LABEL = { actual: '實際體重', ideal: '理想體重', adjusted: '調整體重' };
+  const CCR_DISCLAIMER = 'Cockcroft-Gault 估計值，僅適用腎功能穩定者。'
+    + '可能高估 GFR 10–20%，體重過輕或肥胖時更不準；實際劑量請依藥品仿單與臨床判斷。';
+
+  function ccrButtonEl(compact) {
+    const b = el('button', 'btn btn-secondary ccr-btn' + (compact ? ' seg-btn--sm' : ''), 'CCr');
+    b.type = 'button';
+    b.id = 'ccr-btn';
+    b.setAttribute('aria-haspopup', 'dialog');
+    b.setAttribute('aria-expanded', 'false');
+    b.setAttribute('aria-controls', 'ccr-panel');
+    b.title = '肌酸酐廓清率（Cockcroft-Gault）：抗生素劑量調整用';
+    return b;
+  }
+
+  function ccrFieldEl(id, label, unit, opts) {
+    const wrap = el('label', 'ccr-field');
+    wrap.append(el('span', 'ccr-label', label));
+    const input = document.createElement('input');
+    input.id = id;
+    input.className = 'input ccr-input';
+    input.type = 'number';
+    input.inputMode = 'decimal';
+    input.autocomplete = 'off';
+    input.step = (opts && opts.step) || '1';
+    if (opts && opts.placeholder) input.placeholder = opts.placeholder;
+    wrap.append(input, el('span', 'ccr-unit', unit));
+    return wrap;
+  }
+
+  function ccrOverlayEl() {
+    const overlay = el('div', 'ccr-overlay');
+    overlay.id = 'ccr-overlay';
+    overlay.hidden = true;
+    const panel = el('div', 'ccr-panel');
+    panel.id = 'ccr-panel';
+    panel.setAttribute('role', 'dialog');
+    panel.setAttribute('aria-modal', 'true');
+    panel.setAttribute('aria-labelledby', 'ccr-title');
+
+    const head = el('div', 'ccr-head');
+    const title = el('h2', 'ccr-title', 'CCr　肌酸酐廓清率');
+    title.id = 'ccr-title';
+    const close = el('button', 'ccr-close', '關閉');
+    close.type = 'button';
+    close.id = 'ccr-close';
+    close.title = '關閉（Esc，或點面板以外任一處）';
+    head.append(title, close);
+
+    const form = el('div', 'ccr-form');
+    const sexRow = el('div', 'seg-row ccr-sex');
+    sexRow.id = 'ccr-sex';
+    sexRow.setAttribute('role', 'group');
+    sexRow.setAttribute('aria-label', '性別');
+    for (const pair of [['male', '男'], ['female', '女']]) {
+      const b = el('button', 'seg-btn ccr-sex-btn', pair[1]);
+      b.type = 'button';
+      b.dataset.ccrSex = pair[0];
+      b.setAttribute('aria-pressed', pair[0] === 'male' ? 'true' : 'false');
+      if (pair[0] === 'male') b.classList.add('is-on');
+      sexRow.appendChild(b);
+    }
+    form.append(sexRow,
+      ccrFieldEl('ccr-age', '年齡', '歲'),
+      ccrFieldEl('ccr-weight', '體重', 'kg', { step: '0.1' }),
+      ccrFieldEl('ccr-height', '身高', 'cm', { placeholder: '選填' }),
+      ccrFieldEl('ccr-cr', 'Cr', 'mg/dL', { step: '0.01' }));
+
+    const result = el('div', 'ccr-result');
+    result.id = 'ccr-result';
+    result.setAttribute('aria-live', 'polite');
+
+    const actions = el('div', 'ccr-actions');
+    const copy = el('button', 'btn ccr-copy', '複製結果');
+    copy.type = 'button';
+    copy.id = 'ccr-copy';
+    copy.disabled = true;
+    const reset = el('button', 'btn btn-secondary ccr-reset', '清除');
+    reset.type = 'button';
+    reset.id = 'ccr-reset';
+    actions.append(copy, reset);
+
+    panel.append(head, form, result, actions, el('p', 'ccr-disclaimer', CCR_DISCLAIMER));
+    overlay.appendChild(panel);
+    return overlay;
+  }
+
+  /* 從面板讀值。刻意不經過 store：這些是「這一位病人」的數字，每敲一鍵就寫進全域狀態
+     會連帶重繪整個版面，也讓它多一條被持久化的路。 */
+  function ccrInputs(root2) {
+    const val = (id) => {
+      const node = root2.querySelector('#' + id);
+      return node ? String(node.value).trim() : '';
+    };
+    const on = root2.querySelector('#ccr-sex .ccr-sex-btn[aria-pressed="true"]');
+    return {
+      sex: on ? on.dataset.ccrSex : 'male',
+      age: val('ccr-age'),
+      weightKg: val('ccr-weight'),
+      heightCm: val('ccr-height'),
+      creatinine: val('ccr-cr'),
+    };
+  }
+
+  function ccrResultText(r) {
+    if (!r || !r.ok) return '';
+    return 'CCr ' + r.crcl + ' mL/min（' + CCR_BASIS_LABEL[r.basis] + ' ' + r.weightUsed + ' kg）';
+  }
+
+  function ccrAltRow(key, kg, value, activeKey) {
+    const line = el('div', 'ccr-alt-row' + (key === activeKey ? ' is-on' : ''));
+    line.append(el('span', 'ccr-alt-name', CCR_BASIS_LABEL[key]),
+                el('span', 'ccr-alt-kg', kg + ' kg'),
+                el('span', 'ccr-alt-val', String(value)));
+    return line;
+  }
+
+  function renderCcrResult(root2, ctx) {
+    const box = root2.querySelector('#ccr-result');
+    const copy = root2.querySelector('#ccr-copy');
+    if (!box) return null;
+    clear(box);
+    const input = ccrInputs(root2);
+    const r = ctx.logic.creatinineClearance(input);
+    if (copy) copy.disabled = !(r && r.ok);
+    if (!r || !r.ok) {
+      box.appendChild(el('p', 'ccr-hint', '填年齡、體重、Cr 就會算；身高選填。'));
+      return r;
+    }
+
+    const main = el('div', 'ccr-main');
+    main.append(el('strong', 'ccr-value', String(r.crcl)), el('span', 'ccr-value-unit', 'mL/min'));
+    box.appendChild(main);
+
+    box.appendChild(el('p', 'ccr-basis',
+      '以' + CCR_BASIS_LABEL[r.basis] + ' ' + r.weightUsed + ' kg 計算'
+      + (r.bmi === null ? '' : '（BMI ' + r.bmi + '）')));
+
+    if (r.range !== null) {
+      const lo = Math.min(r.crcl, r.range);
+      const hi = Math.max(r.crcl, r.range);
+      box.appendChild(el('p', 'ccr-range',
+        '範圍 ' + lo + '–' + hi + '（另一端＝' + CCR_BASIS_LABEL[r.rangeBasis] + '）'));
+    }
+
+    if (r.hasHeight && r.ibw !== null) {
+      const actualKg = Math.round(Number(input.weightKg) * 10) / 10;
+      const table = el('div', 'ccr-alt');
+      table.append(ccrAltRow('actual', actualKg, r.actual, r.basis),
+                   ccrAltRow('ideal', r.ibw, r.ideal, r.basis),
+                   ccrAltRow('adjusted', r.adjbw, r.adjusted, r.basis));
+      box.appendChild(table);
+    } else {
+      box.appendChild(el('p', 'ccr-hint',
+        '填身高就會依 BMI 自動選用理想／調整體重——體重極端時那才是建議的算法。'));
+    }
+    return r;
+  }
+
+  function syncCcr(root2, ctx) {
+    const open = !!ctx.store.getState().ccrOpen;
+    const overlay = root2.querySelector('#ccr-overlay');
+    const btn = root2.querySelector('#ccr-btn');
+    if (overlay) overlay.hidden = !open;
+    if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) renderCcrResult(root2, ctx);
+  }
+
   root.ICDRender = {
     icon, el, blueprint, clear, regionHeading, srHeading, markRegionSelected, regionGroupEl,
     regionShort, dateBtnEl,
@@ -837,8 +1010,9 @@
     settingsPopoverEl, syncSettings, dbNoteText, layoutNoteText, effectiveLayout, setPressed,
     modeSwitchEl, syncModeSwitch,
     chronicSwitchEl, chronicTabsEl, syncChronicSwitch, chronicOverlayEl, renderChronic,
+    ccrButtonEl, ccrOverlayEl, renderCcrResult, syncCcr, ccrResultText, ccrInputs,
     chronicToday, chronicTopics,
     FORMAT_LABEL, MODE_LABEL, MODE_SHORT, PANELS_TITLE, MODE_HINT, LAYOUT_LABEL, LAYOUT_MIN_WIDTH,
-    CHRONIC_KIND, CHRONIC_DISCLAIMER,
+    CHRONIC_KIND, CHRONIC_DISCLAIMER, CCR_DISCLAIMER, CCR_BASIS_LABEL,
   };
 })(typeof self !== 'undefined' ? self : this);

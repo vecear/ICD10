@@ -37,6 +37,7 @@
     shelfOpen: ['settings'],
     settingsOpen: ['settings'],
     chronicTopic: ['chronic'],
+    ccrOpen: ['ccr'],
     cartOpen: ['cartSheet', 'cartBar'],
     pinned: [],
     // 高度本身由 update() 末尾的 paneGroup.applyAll() 統一處理；這裡只同步設定面板的
@@ -91,7 +92,8 @@
 
     /* 「日期」與模式三鈕同一列：模式列本來就獨佔一行，左邊塞得下一顆小鈕。 */
     const modeRow = R.el('div', 'm-mode-row');
-    modeRow.append(refs.dateBtn, refs.modeSwitch);
+    refs.ccrBtn = R.ccrButtonEl(false);      // 「CCr」緊接在日期右邊
+    modeRow.append(refs.dateBtn, refs.ccrBtn, refs.modeSwitch);
 
     const headRow = R.el('div', 'm-head-row');
     headRow.append(search, settingsToggle);
@@ -195,6 +197,8 @@
     // 慢病速查浮層：掛在版面根節點底下（三套版面一致）
     refs.chronicOverlay = R.chronicOverlayEl();
     wrap.appendChild(refs.chronicOverlay);
+    refs.ccrOverlay = R.ccrOverlayEl();
+    wrap.appendChild(refs.ccrOverlay);
 
     host.appendChild(wrap);
 
@@ -361,6 +365,8 @@
 
     U.his = () => R.renderHis(refs.hisPreview, refs.hisFormat, null, ctx);
     U.settings = () => R.syncSettings(wrap, ctx);
+    U.ccr = () => R.syncCcr(wrap, ctx);
+
     U.chronic = () => {
       R.syncChronicSwitch(wrap, ctx);
       R.renderChronic(refs.chronicOverlay, ctx);

@@ -29,11 +29,13 @@ PIP_PROBE = ("() => typeof window.documentPictureInPicture === 'object'"
 
 @pytest.fixture(scope="module")
 def page_url():
-    handler = partial(http.server.SimpleHTTPRequestHandler, directory=str(ROOT / "dist"))
-    srv = http.server.ThreadingHTTPServer(("127.0.0.1", PORT), handler)
-    threading.Thread(target=srv.serve_forever, daemon=True).start()
-    yield f"http://127.0.0.1:{PORT}/icd10.html"
-    srv.shutdown()
+    """用 file:// 而不是本機 HTTP server。
+
+    這台機器上的安全軟體會掃描 loopback 傳輸，dist 這個 2.2MB 單檔傳到約 248KB 就被
+    連線重設（WinError 10054），整批 E2E 會在 Page.goto 逾時 —— 而那與被測程式碼無關。
+    file:// 沒有網路層，Chromium 又視它為 secure context，clipboard 與 Document PiP
+    都照常可用（已實測），順帶省掉每個測試的傳輸時間。"""
+    yield (ROOT / "dist" / "icd10.html").as_uri()
 
 
 @pytest.fixture(scope="module")
@@ -79,12 +81,29 @@ def reset(page):
         s.setQuery('');
         s.setSettingsOpen(false);
         s.setChronicTopic(null); // 慢病速查浮層蓋住整個側欄；殘留會讓後面所有點擊被它攔截
+        s.setCcrOpen(false);     // 同理：CCr 面板留著開，下一條測試的點擊全部被遮罩吃掉
         s.setCartOpen(true);
         s.setTheme('light');
         s.resetPaneSizes();      // 窗格高度會寫 localStorage，殘留會讓別條測試量到上一條拖出來的高度
         s.setState({ favs: [], recent: [], expanded: {}, copied: false });
     }""")
     page.fill("#search", "")
+    # CCr 的輸入值刻意不進 store（那是「這一位病人」的暫態），所以 store 的 reset
+    # 清不掉它們——測試之間要自己清，否則上一條的體重會被下一條算進去。
+    page.evaluate("""() => {
+        for (const id of ['ccr-age', 'ccr-weight', 'ccr-height', 'ccr-cr']) {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        }
+        const male = document.querySelector('.ccr-sex-btn[data-ccr-sex="male"]');
+        const female = document.querySelector('.ccr-sex-btn[data-ccr-sex="female"]');
+        if (male && female) {
+            male.setAttribute('aria-pressed', 'true');
+            male.classList.add('is-on');
+            female.setAttribute('aria-pressed', 'false');
+            female.classList.remove('is-on');
+        }
+    }""")
 
 
 def open_settings(page):
@@ -1610,3 +1629,132 @@ def test_chronic_effective_window_follows_the_injected_today(browser_ctx, page_u
         assert case["cutover"] in snap["foot"]
     finally:
         after.close()
+
+
+# ---- CCr 計算機（Cockcroft-Gault） ----
+def ccr_open(pg):
+    pg.click("#ccr-btn")
+    expect(pg.locator("#ccr-panel")).to_be_visible()
+
+
+def ccr_fill(pg, age=None, weight=None, height=None, cr=None):
+    for sel, value in (("#ccr-age", age), ("#ccr-weight", weight),
+                       ("#ccr-height", height), ("#ccr-cr", cr)):
+        if value is not None:
+            pg.fill(sel, str(value))
+    pg.wait_for_timeout(150)
+
+
+def test_ccr_button_sits_right_of_date(pg):
+    """「CCr」排在「日期」右邊（使用者指定的位置）。"""
+    expect(pg.locator("#ccr-btn")).to_have_count(1)
+    date_box = pg.locator("#copy-date").bounding_box()
+    ccr_box = pg.locator("#ccr-btn").bounding_box()
+    assert abs(date_box["y"] - ccr_box["y"]) < 2, f"不在同一列：{date_box} vs {ccr_box}"
+    assert ccr_box["x"] > date_box["x"], "CCr 應在日期右邊"
+    assert ccr_box["x"] + ccr_box["width"] <= DOCK["width"] + 0.5, "CCr 鈕超出窄欄"
+
+
+def test_ccr_formula_and_weight_basis(pg):
+    """公式與「用哪個體重」——這是抗生素劑量會用到的數字，錯了會直接影響給藥。
+
+    規則照 MDCalc（Brown et al／Winter et al）：BMI <18.5 用實際、18.5–24.9 用理想、
+    ≥25 用調整體重。三個版本一律並列，因為肌肉量少、截肢、腎功能不穩的病人常要改用別的。
+    """
+    ccr_open(pg)
+
+    # 沒身高：只能用實際體重，並且要明講
+    ccr_fill(pg, age=60, weight=70, cr=1.0)
+    expect(pg.locator(".ccr-value")).to_have_text("77.8")
+    assert "實際體重" in pg.locator(".ccr-basis").inner_text()
+    assert "身高" in pg.locator(".ccr-hint").inner_text(), "沒身高時要提示填了會更準"
+
+    # 女性 ×0.85
+    pg.click('.ccr-sex-btn[data-ccr-sex="female"]')
+    pg.wait_for_timeout(150)
+    expect(pg.locator(".ccr-value")).to_have_text("66.1")
+    pg.click('.ccr-sex-btn[data-ccr-sex="male"]')
+    pg.wait_for_timeout(150)
+
+    # BMI 22.9（正常）→ 改用理想體重 70.5kg
+    ccr_fill(pg, height=175)
+    expect(pg.locator(".ccr-value")).to_have_text("78.3")
+    basis = pg.locator(".ccr-basis").inner_text()
+    assert "理想體重" in basis and "70.5" in basis and "22.9" in basis, basis
+    assert "實際體重" in pg.locator(".ccr-range").inner_text(), "範圍另一端應是實際體重"
+
+    # BMI 32.7（肥胖）→ 改用調整體重 82.3kg＝IBW+0.4×(100−IBW)
+    ccr_fill(pg, weight=100)
+    expect(pg.locator(".ccr-value")).to_have_text("91.4")
+    assert "調整體重" in pg.locator(".ccr-basis").inner_text()
+
+    # 三種體重並列，且標出主值用的是哪一個
+    expect(pg.locator(".ccr-alt-row")).to_have_count(3)
+    expect(pg.locator(".ccr-alt-row.is-on")).to_have_count(1)
+
+
+def test_ccr_copy_and_reset(pg):
+    """複製結果要帶著「用什麼體重算的」——只有一個數字貼進病歷，之後沒人知道怎麼來的。"""
+    ccr_open(pg)
+    ccr_fill(pg, age=60, weight=100, height=175, cr=1.0)
+    pg.click("#ccr-copy")
+    clip = clipboard(pg)
+    assert "91.4" in clip and "調整體重" in clip, f"複製內容不完整：{clip}"
+
+    pg.click("#ccr-reset")
+    pg.wait_for_timeout(150)
+    expect(pg.locator("#ccr-copy")).to_be_disabled()
+    assert pg.input_value("#ccr-age") == ""
+
+
+def test_ccr_rejects_bad_input(pg):
+    """缺欄位或不合理的值一律不顯示數字——NaN 或荒謬數字比沒有結果更危險。"""
+    ccr_open(pg)
+    ccr_fill(pg, age=60, weight=70)          # 缺 Cr
+    expect(pg.locator(".ccr-value")).to_have_count(0)
+    expect(pg.locator("#ccr-copy")).to_be_disabled()
+
+    ccr_fill(pg, cr=0)                        # Cr 0 會除以零
+    expect(pg.locator(".ccr-value")).to_have_count(0)
+
+    ccr_fill(pg, cr=1.0)
+    expect(pg.locator(".ccr-value")).to_have_count(1)
+
+
+def test_ccr_closes_and_is_exclusive(pg):
+    """Esc／關閉鈕都關得掉，焦點回到 CCr 鈕；與慢病速查互斥（浮層一次只開一個）。"""
+    ccr_open(pg)
+    pg.keyboard.press("Escape")
+    expect(pg.locator("#ccr-panel")).to_be_hidden()
+    assert pg.evaluate("() => document.activeElement && document.activeElement.id") == "ccr-btn"
+
+    ccr_open(pg)
+    pg.click("#ccr-close")
+    expect(pg.locator("#ccr-panel")).to_be_hidden()
+
+    # 互斥走狀態層驗：CCr 開著時遮罩本來就蓋住外面的慢病速查鈕（點不到才是對的），
+    # 所以這裡不假裝使用者點得到，改直接叫 action —— 那才是互斥真正要守的地方。
+    ccr_open(pg)
+    pg.evaluate("() => window.ICDApp.store.setChronicTopic('dm')")
+    expect(pg.locator("#ccr-panel")).to_be_hidden()
+    expect(pg.locator("#chronic-panel")).to_be_visible()
+    pg.keyboard.press("Escape")
+
+    # 反向：開 CCr 也要關掉慢病速查
+    pg.evaluate("() => window.ICDApp.store.setChronicTopic('htn')")
+    expect(pg.locator("#chronic-panel")).to_be_visible()
+    pg.evaluate("() => window.ICDApp.store.setCcrOpen(true)")
+    expect(pg.locator("#chronic-panel")).to_be_hidden()
+    expect(pg.locator("#ccr-panel")).to_be_visible()
+    pg.keyboard.press("Escape")
+
+
+def test_ccr_fits_narrow_dock(pg):
+    """176px 下面板不得溢出，也不得讓文件水平捲動。"""
+    ccr_open(pg)
+    ccr_fill(pg, age=60, weight=100, height=175, cr=1.0)
+    box = pg.locator("#ccr-panel").bounding_box()
+    assert box["x"] >= 0 and box["x"] + box["width"] <= DOCK["width"] + 0.5, f"面板溢出：{box}"
+    assert_no_hscroll(pg, "CCr 面板")
+    assert not overflowing_elements(pg), overflowing_elements(pg)
+    pg.keyboard.press("Escape")

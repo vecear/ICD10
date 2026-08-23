@@ -217,6 +217,73 @@
     return true;
   }
 
+  /* CCr 計算機。與慢病速查同型的浮層：關閉有三個出口（關閉鈕、Esc、點面板外）。
+     `node` 用來判斷事件發生在哪個 document——1c 置頂後整條窄欄在 PiP 小視窗裡，
+     主文件的 getElementById 找不到那邊的節點。 */
+  function ccrDoc(node) {
+    return (node && node.ownerDocument) || document;
+  }
+
+  function openCcr(ctx, node) {
+    if (ctx.store.getState().ccrOpen) return;
+    ctx.store.setCcrOpen(true);
+    const doc = ccrDoc(node);
+    const age = doc.getElementById('ccr-age');
+    if (age) age.focus();          // 直接落在第一個輸入格，少一次點擊
+    announce('CCr 計算機已開啟，Cockcroft-Gault 估計值');
+  }
+
+  function closeCcr(ctx, node) {
+    if (!ctx.store.getState().ccrOpen) return false;
+    ctx.store.setCcrOpen(false);
+    const btn = ccrDoc(node).getElementById('ccr-btn');
+    if (btn) btn.focus();
+    announce('已關閉 CCr 計算機');
+    return true;
+  }
+
+  /* 任一輸入變動就重算。不經過 store：輸入值是「這一位病人」的暫態，
+     每敲一鍵重繪整個版面既慢也沒必要（見 render-shared.js 的 ccrInputs 註解）。 */
+  function recalcCcr(ctx, node) {
+    const doc = ccrDoc(node);
+    const panel = doc.getElementById('ccr-panel');
+    if (panel) root.ICDRender.renderCcrResult(doc, ctx);
+  }
+
+  function chooseCcrSex(ctx, node) {
+    const doc = ccrDoc(node);
+    const row = doc.getElementById('ccr-sex');
+    if (!row) return;
+    for (const b of row.querySelectorAll('.ccr-sex-btn')) {
+      const on = b === node;
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      b.classList.toggle('is-on', on);
+    }
+    recalcCcr(ctx, node);
+  }
+
+  function resetCcr(ctx, node) {
+    const doc = ccrDoc(node);
+    for (const id of ['ccr-age', 'ccr-weight', 'ccr-height', 'ccr-cr']) {
+      const input = doc.getElementById(id);
+      if (input) input.value = '';
+    }
+    recalcCcr(ctx, node);
+    const age = doc.getElementById('ccr-age');
+    if (age) age.focus();
+    announce('已清除 CCr 輸入');
+  }
+
+  /* 複製結果：使用者主動按的，失敗要跳後備視窗（與「日期」鈕同一條規則，
+     和清單的靜默自動同步刻意不同）。 */
+  async function copyCcr(ctx, node) {
+    const doc = ccrDoc(node);
+    const r = ctx.logic.creatinineClearance(root.ICDRender.ccrInputs(doc));
+    const text = root.ICDRender.ccrResultText(r);
+    if (!text) { announce('還沒有可複製的結果'); return; }
+    if (await copyText(text)) announce('已複製：' + text);
+  }
+
   /* 設定面板的「回復預設高度」（三套版面共用）。只清**生效版面**那一組：在 176px 窄欄
      按下它，不該把桌機工作台調好的高度一起抹掉（分版面各記各的）。 */
   function resetPanes(ctx) {
@@ -289,6 +356,13 @@
          背景（`target.id` 恰為 overlay 本身＝點在面板以外）。要排在泛用 `button` 那條之前。 */
       const chronicBtn = target.closest('[data-chronic]');
       if (chronicBtn) { chooseChronic(ctx, chronicBtn.getAttribute('data-chronic'), chronicBtn); return; }
+
+      const ccrSexBtn = target.closest('.ccr-sex-btn');
+      if (ccrSexBtn) { chooseCcrSex(ctx, ccrSexBtn); return; }
+      if (target.closest('#ccr-close') || target.id === 'ccr-overlay') { closeCcr(ctx, target); return; }
+      if (target.closest('#ccr-copy')) { copyCcr(ctx, target); return; }
+      if (target.closest('#ccr-reset')) { resetCcr(ctx, target); return; }
+      if (target.closest('#ccr-btn')) { openCcr(ctx, target); return; }
       if (target.closest('#chronic-close') || target.id === 'chronic-overlay') {
         closeChronic(ctx, target);
         return;
@@ -369,6 +443,10 @@
 
     // ---- 搜尋 ----
     document.addEventListener('input', (ev) => {
+      if (ev.target && ev.target.classList && ev.target.classList.contains('ccr-input')) {
+        recalcCcr(ctx, ev.target);
+        return;
+      }
       if (!ev.target || ev.target.id !== 'search') return;
       const value = ev.target.value;
       if (value.trim().length >= 2) data.ensureDb();     // 觸發全庫延遲載入
@@ -384,6 +462,7 @@
           store.setQuery('');
           // Esc 在其他情境都會關掉開著的浮層，搜尋框裡也要一致（R2 M3）
           if (isFallbackOpen()) closeFallbackCopy();
+          else if (store.getState().ccrOpen) closeCcr(ctx, ev.target);
           else if (store.getState().chronicTopic) closeChronic(ctx, ev.target);
           else if (store.getState().settingsOpen) store.setSettingsOpen(false);
           return;
@@ -412,7 +491,8 @@
       }
       if (ev.key === 'Escape') {
         if (isFallbackOpen()) { closeFallbackCopy(); return; }
-        // 慢病速查排在設定之前：它是最上層的浮層（開它時 setChronicTopic 已把設定關掉）
+        // 三個浮層互斥（開任一個會關掉其他兩個），所以這裡的順序只是保險
+        if (store.getState().ccrOpen) { closeCcr(ctx, ev.target); return; }
         if (store.getState().chronicTopic) { closeChronic(ctx, ev.target); return; }
         if (store.getState().settingsOpen) store.setSettingsOpen(false);
         return;
@@ -477,5 +557,6 @@
     // 1c 置頂時 main document 的委派搆不到側欄，render-dock.js 要用同一份實作代打
     chooseMode, resetPanes,
     chooseMode, chooseAllRegions, resetPanes, chooseChronic, closeChronic,
+    openCcr, closeCcr, recalcCcr, chooseCcrSex, resetCcr, copyCcr,
   };
 })(typeof self !== 'undefined' ? self : this);

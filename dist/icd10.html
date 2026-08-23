@@ -838,6 +838,75 @@ b.cart-code {
   font-size: 11px; line-height: 1.45; color: var(--color-neutral-700);
 }
 
+/* ── CCr 計算機（Cockcroft-Gault） ──────────────────────────────────────────
+   浮層骨架刻意與 .chronic-* 同型（同樣的遮罩、同樣的關閉出口），使用者只要學一次。
+   差別在這個是**輸入**面板，所以主體是表單而不是捲動內文。 */
+#ccr-btn {
+  flex: 0 0 auto; letter-spacing: .04em;
+  background: var(--his-btn); color: var(--his-btn-ink); border: 1px solid var(--his-btn);
+}
+#ccr-btn:hover { background: var(--his-btn-hover); }
+
+.ccr-overlay {
+  position: fixed; inset: 0; z-index: 30;
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+  background: rgba(43, 43, 45, .5);
+}
+.ccr-panel {
+  display: flex; flex-direction: column; min-height: 0;
+  width: min(420px, 100%); max-height: 100%; padding: 14px 16px; overflow-y: auto;
+  background: var(--color-bg); border: 1px solid var(--color-accent); box-shadow: var(--shadow-lg);
+}
+.ccr-head { display: flex; align-items: baseline; gap: 10px; flex: none; }
+.ccr-title { flex: 1; min-width: 0; margin: 0; font-size: 19px; line-height: 1.2; letter-spacing: -.01em; }
+.ccr-close {
+  flex: none; min-height: 28px; padding: 0 10px; font: inherit; font-size: 13px;
+  border: 1px solid var(--color-divider); background: transparent; color: var(--color-text);
+  cursor: pointer;
+}
+.ccr-close:hover { border-color: var(--color-accent); }
+
+.ccr-form { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.ccr-sex { align-self: flex-start; }
+.ccr-field { display: flex; align-items: center; gap: 8px; }
+.ccr-label { flex: 0 0 3.5em; font-size: 13px; color: var(--color-neutral-700); }
+/* min-width:0 不可省：flex item 的固有寬度會擋住收縮，窄欄下輸入框會把整列撐出去 */
+.ccr-input { flex: 1; min-width: 0; min-height: 32px; font-variant-numeric: tabular-nums; }
+.ccr-unit { flex: 0 0 3.2em; font-size: 12px; color: var(--color-neutral-700); }
+
+.ccr-result { margin-top: 12px; padding: 10px; background: var(--color-neutral-100); }
+.ccr-main { display: flex; align-items: baseline; gap: 6px; }
+.ccr-value {
+  font-family: var(--font-heading); font-size: 30px; line-height: 1.1; letter-spacing: -.02em;
+  color: var(--color-accent-800); font-variant-numeric: tabular-nums;
+}
+.ccr-value-unit { font-size: 13px; color: var(--color-neutral-700); }
+.ccr-basis { margin: 4px 0 0; font-size: 13px; }
+.ccr-range { margin: 2px 0 0; font-size: 12px; color: var(--color-neutral-700); }
+.ccr-hint { margin: 0; font-size: 12px; line-height: 1.5; color: var(--color-neutral-700); }
+
+/* 三種體重並列。選中那一列標亮＝「主值是用它算的」，其餘兩個仍看得到數字，
+   因為肌肉量少、截肢、腎功能不穩的病人常常要改用別的體重。 */
+.ccr-alt { margin-top: 8px; border-top: 1px solid var(--color-divider); }
+.ccr-alt-row {
+  display: flex; align-items: baseline; gap: 8px; padding: 3px 0;
+  font-size: 12px; color: var(--color-neutral-700);
+}
+.ccr-alt-row.is-on { color: var(--color-accent-800); font-weight: 600; }
+.ccr-alt-name { flex: 0 0 4.5em; }
+.ccr-alt-kg { flex: 1; min-width: 0; font-variant-numeric: tabular-nums; }
+.ccr-alt-val { flex: 0 0 auto; font-family: var(--font-heading); font-variant-numeric: tabular-nums; }
+
+.ccr-actions { display: flex; gap: 6px; margin-top: 10px; }
+.ccr-copy { flex: 1; background: var(--his-btn); color: var(--his-btn-ink); border: 1px solid var(--his-btn); }
+.ccr-copy:hover:not(:disabled) { background: var(--his-btn-hover); }
+.ccr-copy:disabled { opacity: .5; cursor: not-allowed; }
+.ccr-reset { flex: 0 0 auto; }
+.ccr-disclaimer {
+  flex: none; margin: 10px 0 0; padding: 6px 9px; font-size: 12px; line-height: 1.5;
+  border-left: 2px solid var(--warn-line); background: var(--warn-bg); color: var(--warn-ink);
+}
+
 
 /* ===== styles/wide.css ===== */
 /* 1a 桌機工作台（body[data-layout="wide"]）。數值取自 .review/design-ref/new-design.dc.html
@@ -1343,6 +1412,25 @@ body[data-layout="dock"] .chronic-tab {
   min-height: 20px; padding: 1px 6px; font-size: 11px; letter-spacing: .02em;
 }
 
+/* CCr：176px 下 header 那列已經很擠，按鈕與「日期」同尺寸；浮層改成貼齊視窗的滿版 */
+body[data-layout="dock"] #ccr-btn {
+  min-height: 22px; padding: 0 6px; font-size: 11px; letter-spacing: .02em;
+}
+body[data-layout="dock"] .ccr-overlay { padding: 6px; }
+body[data-layout="dock"] .ccr-panel { width: 100%; padding: 8px 9px; }
+body[data-layout="dock"] .ccr-title { font-size: 14px; }
+body[data-layout="dock"] .ccr-form { gap: 4px; margin-top: 8px; }
+body[data-layout="dock"] .ccr-label { flex-basis: 3em; font-size: 11px; }
+body[data-layout="dock"] .ccr-unit { flex-basis: 2.8em; font-size: 10px; }
+body[data-layout="dock"] .ccr-input { min-height: 26px; font-size: 12px; }
+body[data-layout="dock"] .ccr-result { padding: 7px; }
+body[data-layout="dock"] .ccr-value { font-size: 24px; }
+body[data-layout="dock"] .ccr-basis { font-size: 11px; }
+body[data-layout="dock"] .ccr-range,
+body[data-layout="dock"] .ccr-hint,
+body[data-layout="dock"] .ccr-alt-row { font-size: 10px; }
+body[data-layout="dock"] .ccr-disclaimer { font-size: 10px; padding: 5px 7px; }
+
 
 /* ===== styles/mobile.css ===== */
 /* 1b 手機看診（body[data-layout="mobile"]）。數值取自 .review/design-ref/new-design.dc.html
@@ -1602,6 +1690,15 @@ body[data-layout="mobile"] .chronic-tab {
   flex: 1; min-width: 0; min-height: 44px; padding: 0 8px; font-size: 14px;
 }
 
+/* CCr：手機一律 44px 觸控門檻（輸入框、按鈕都是），浮層貼齊底部留白 */
+body[data-layout="mobile"] #ccr-btn { flex: 0 0 auto; min-height: 44px; padding: 0 14px; font-size: 14px; }
+body[data-layout="mobile"] .ccr-panel { width: 100%; }
+body[data-layout="mobile"] .ccr-input { min-height: 44px; font-size: 16px; }  /* 16px 避免 iOS 自動放大 */
+body[data-layout="mobile"] .ccr-sex .seg-btn { min-height: 44px; }
+body[data-layout="mobile"] .ccr-copy,
+body[data-layout="mobile"] .ccr-reset,
+body[data-layout="mobile"] .ccr-close { min-height: 44px; }
+
 </style>
 </head>
 <body>
@@ -1765,7 +1862,89 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
     return { current, upcoming, expired };
   }
 
-  return { buildIndex, search, family, formatCart, mergeRelated, rocDate, splitByEffective };
+  /* ── Cockcroft-Gault 肌酸酐廓清率（純函式，node 可直接測） ─────────────────
+     用途是抗生素劑量調整，所以「用哪個體重」比公式本身更容易出錯——這裡完全照
+     MDCalc 的規格（Brown et al／Winter et al）依 BMI 選，不自己發明：
+
+       CrCl (mL/min) = (140 − 年齡) × 體重(kg) × (女性 0.85) / (72 × Cr(mg/dL))
+       IBW(Devine)   男 50 + 2.3 ×(身高吋 − 60)；女 45.5 + 2.3 ×(身高吋 − 60)
+       AdjBW         IBW + 0.4 ×(實際體重 − IBW)
+
+       BMI < 18.5     用實際體重（不調整）
+       BMI 18.5–24.9  用理想體重，範圍另一端用實際體重
+       BMI ≥ 25       用調整體重，範圍另一端用理想體重
+
+     沒有身高就算不出 BMI／IBW，只能退回實際體重——那正是這個公式在體重極端時
+     最不準的情形，所以回傳 basis 讓畫面明講「這個數字是用什麼體重算的」。
+
+     回傳 ok:false 時 reason 說明缺什麼；不回傳 NaN，也不猜使用者的意思。 */
+  function creatinineClearance(input) {
+    const raw = input || {};
+    const num = (v) => {
+      if (v === '' || v === null || v === undefined) return null;
+      const n = Number(v);
+      return Number.isFinite(n) ? n : null;
+    };
+    const age = num(raw.age);
+    const weight = num(raw.weightKg);
+    const scr = num(raw.creatinine);
+    const height = num(raw.heightCm);
+    const female = raw.sex === 'female';
+
+    const missing = [];
+    if (age === null || age <= 0 || age > 120) missing.push('age');
+    if (weight === null || weight <= 0 || weight > 400) missing.push('weight');
+    if (scr === null || scr <= 0 || scr > 30) missing.push('creatinine');
+    if (missing.length) return { ok: false, missing };
+
+    const q = female ? 0.85 : 1;
+    const crclFor = (kg) => ((140 - age) * kg * q) / (72 * scr);
+
+    const hasHeight = height !== null && height > 0 && height <= 250;
+    let ibw = null;
+    let adjbw = null;
+    let bmi = null;
+    if (hasHeight) {
+      const inches = height / 2.54;
+      ibw = (female ? 45.5 : 50) + 2.3 * (inches - 60);
+      if (ibw < 1) ibw = null;                  // 極矮身高會讓 Devine 算出負值，那不是體重
+      if (ibw !== null) adjbw = ibw + 0.4 * (weight - ibw);
+      const m = height / 100;
+      bmi = weight / (m * m);
+    }
+
+    /* 選體重。沒身高（或 Devine 失效）時只能用實際體重，並在 basis 標明——
+       畫面要據此提醒「填身高才會依 BMI 自動選用理想／調整體重」。 */
+    let basis = 'actual';
+    let rangeBasis = null;
+    if (ibw !== null && bmi !== null) {
+      if (bmi < 18.5) basis = 'actual';
+      else if (bmi < 25) { basis = 'ideal'; rangeBasis = 'actual'; }
+      else { basis = 'adjusted'; rangeBasis = 'ideal'; }
+    }
+    const weightOf = (key) => (key === 'ideal' ? ibw : key === 'adjusted' ? adjbw : weight);
+
+    const round1 = (n) => Math.round(n * 10) / 10;
+    const result = {
+      ok: true,
+      crcl: round1(crclFor(weightOf(basis))),
+      basis,
+      weightUsed: round1(weightOf(basis)),
+      actual: round1(crclFor(weight)),
+      ibw: ibw === null ? null : round1(ibw),
+      adjbw: adjbw === null ? null : round1(adjbw),
+      bmi: bmi === null ? null : round1(bmi),
+      hasHeight,
+    };
+    result.ideal = ibw === null ? null : round1(crclFor(ibw));
+    result.adjusted = adjbw === null ? null : round1(crclFor(adjbw));
+    result.range = rangeBasis ? round1(crclFor(weightOf(rangeBasis))) : null;
+    result.rangeBasis = rangeBasis;
+    return result;
+  }
+
+  return { buildIndex, search, family, formatCart, mergeRelated, rocDate, splitByEffective,
+           creatinineClearance };
 });
 
 </script>
@@ -1891,6 +2070,9 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
       /* 慢病速查目前開著的主題（null ＝ 關閉）。刻意**不持久化**：它是「現在正在查」的
          暫態，跨診次留著只會讓下一位病人開機就看到上一位的降血脂給付表擋住畫面。 */
       chronicTopic: null,
+      /* CCr 計算機是否開著。同樣不持久化——裡面是上一位病人的年齡體重肌酸酐，
+         跨診次留著比沒有還危險（會被誤當成這一位的數字）。 */
+      ccrOpen: false,
       shelfOpen: true,           // 常用列
       cartOpen: true,            // 1c/1b 的清單摺疊
       pinned: false,             // Document PiP 置頂
@@ -2233,8 +2415,18 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
         return true;
       }
       if (CHRONIC_TOPICS.indexOf(key) < 0) return false;
-      setState({ chronicTopic: key, settingsOpen: false });
+      setState({ chronicTopic: key, settingsOpen: false, ccrOpen: false });
       return true;
+    }
+
+    /* CCr 計算機。與慢病速查、設定同為浮層，一次只開一個。
+       輸入值不進 store：那是「這一位病人」的資料，留在 DOM 裡隨面板關閉一起消失，
+       不會被持久化、也不會被別的版面撿去用。 */
+    function setCcrOpen(open) {
+      const next = !!open;
+      if (next) setState({ ccrOpen: true, settingsOpen: false, chronicTopic: null });
+      else setState({ ccrOpen: false });
+      return next;
     }
 
     const setShelfOpen = (open) => { setState({ shelfOpen: !!open }); };
@@ -2260,7 +2452,7 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
       setQuery, setRelatedCode, setCopied, setDbState,
       setSettingsOpen, toggleSettings, setShelfOpen, toggleShelf,
       setCartOpen, toggleCart, setPinned,
-      setChronicTopic,
+      setChronicTopic, setCcrOpen,
     };
   }
 
@@ -3681,6 +3873,179 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
       '依當天日期（' + today + '）只顯示現行版本；每條的出處與查證日期就列在該條下方。'));
   }
 
+  // ---- CCr 計算機（Cockcroft-Gault） ----
+  /* 為什麼三種體重要並列：這個數字是拿來調抗生素劑量的，而 Cockcroft-Gault 在體重
+     極端時最不準——同一位病人用實際／理想／調整體重可以差到將近兩倍。主值只是
+     「依 BMI 的一般建議」（MDCalc／Brown et al 的規則），選哪個仍然是醫師的判斷，
+     所以畫面一定要標明「這個數字是用什麼體重算出來的」，而不是只丟一個數字。 */
+  const CCR_BASIS_LABEL = { actual: '實際體重', ideal: '理想體重', adjusted: '調整體重' };
+  const CCR_DISCLAIMER = 'Cockcroft-Gault 估計值，僅適用腎功能穩定者。'
+    + '可能高估 GFR 10–20%，體重過輕或肥胖時更不準；實際劑量請依藥品仿單與臨床判斷。';
+
+  function ccrButtonEl(compact) {
+    const b = el('button', 'btn btn-secondary ccr-btn' + (compact ? ' seg-btn--sm' : ''), 'CCr');
+    b.type = 'button';
+    b.id = 'ccr-btn';
+    b.setAttribute('aria-haspopup', 'dialog');
+    b.setAttribute('aria-expanded', 'false');
+    b.setAttribute('aria-controls', 'ccr-panel');
+    b.title = '肌酸酐廓清率（Cockcroft-Gault）：抗生素劑量調整用';
+    return b;
+  }
+
+  function ccrFieldEl(id, label, unit, opts) {
+    const wrap = el('label', 'ccr-field');
+    wrap.append(el('span', 'ccr-label', label));
+    const input = document.createElement('input');
+    input.id = id;
+    input.className = 'input ccr-input';
+    input.type = 'number';
+    input.inputMode = 'decimal';
+    input.autocomplete = 'off';
+    input.step = (opts && opts.step) || '1';
+    if (opts && opts.placeholder) input.placeholder = opts.placeholder;
+    wrap.append(input, el('span', 'ccr-unit', unit));
+    return wrap;
+  }
+
+  function ccrOverlayEl() {
+    const overlay = el('div', 'ccr-overlay');
+    overlay.id = 'ccr-overlay';
+    overlay.hidden = true;
+    const panel = el('div', 'ccr-panel');
+    panel.id = 'ccr-panel';
+    panel.setAttribute('role', 'dialog');
+    panel.setAttribute('aria-modal', 'true');
+    panel.setAttribute('aria-labelledby', 'ccr-title');
+
+    const head = el('div', 'ccr-head');
+    const title = el('h2', 'ccr-title', 'CCr　肌酸酐廓清率');
+    title.id = 'ccr-title';
+    const close = el('button', 'ccr-close', '關閉');
+    close.type = 'button';
+    close.id = 'ccr-close';
+    close.title = '關閉（Esc，或點面板以外任一處）';
+    head.append(title, close);
+
+    const form = el('div', 'ccr-form');
+    const sexRow = el('div', 'seg-row ccr-sex');
+    sexRow.id = 'ccr-sex';
+    sexRow.setAttribute('role', 'group');
+    sexRow.setAttribute('aria-label', '性別');
+    for (const pair of [['male', '男'], ['female', '女']]) {
+      const b = el('button', 'seg-btn ccr-sex-btn', pair[1]);
+      b.type = 'button';
+      b.dataset.ccrSex = pair[0];
+      b.setAttribute('aria-pressed', pair[0] === 'male' ? 'true' : 'false');
+      if (pair[0] === 'male') b.classList.add('is-on');
+      sexRow.appendChild(b);
+    }
+    form.append(sexRow,
+      ccrFieldEl('ccr-age', '年齡', '歲'),
+      ccrFieldEl('ccr-weight', '體重', 'kg', { step: '0.1' }),
+      ccrFieldEl('ccr-height', '身高', 'cm', { placeholder: '選填' }),
+      ccrFieldEl('ccr-cr', 'Cr', 'mg/dL', { step: '0.01' }));
+
+    const result = el('div', 'ccr-result');
+    result.id = 'ccr-result';
+    result.setAttribute('aria-live', 'polite');
+
+    const actions = el('div', 'ccr-actions');
+    const copy = el('button', 'btn ccr-copy', '複製結果');
+    copy.type = 'button';
+    copy.id = 'ccr-copy';
+    copy.disabled = true;
+    const reset = el('button', 'btn btn-secondary ccr-reset', '清除');
+    reset.type = 'button';
+    reset.id = 'ccr-reset';
+    actions.append(copy, reset);
+
+    panel.append(head, form, result, actions, el('p', 'ccr-disclaimer', CCR_DISCLAIMER));
+    overlay.appendChild(panel);
+    return overlay;
+  }
+
+  /* 從面板讀值。刻意不經過 store：這些是「這一位病人」的數字，每敲一鍵就寫進全域狀態
+     會連帶重繪整個版面，也讓它多一條被持久化的路。 */
+  function ccrInputs(root2) {
+    const val = (id) => {
+      const node = root2.querySelector('#' + id);
+      return node ? String(node.value).trim() : '';
+    };
+    const on = root2.querySelector('#ccr-sex .ccr-sex-btn[aria-pressed="true"]');
+    return {
+      sex: on ? on.dataset.ccrSex : 'male',
+      age: val('ccr-age'),
+      weightKg: val('ccr-weight'),
+      heightCm: val('ccr-height'),
+      creatinine: val('ccr-cr'),
+    };
+  }
+
+  function ccrResultText(r) {
+    if (!r || !r.ok) return '';
+    return 'CCr ' + r.crcl + ' mL/min（' + CCR_BASIS_LABEL[r.basis] + ' ' + r.weightUsed + ' kg）';
+  }
+
+  function ccrAltRow(key, kg, value, activeKey) {
+    const line = el('div', 'ccr-alt-row' + (key === activeKey ? ' is-on' : ''));
+    line.append(el('span', 'ccr-alt-name', CCR_BASIS_LABEL[key]),
+                el('span', 'ccr-alt-kg', kg + ' kg'),
+                el('span', 'ccr-alt-val', String(value)));
+    return line;
+  }
+
+  function renderCcrResult(root2, ctx) {
+    const box = root2.querySelector('#ccr-result');
+    const copy = root2.querySelector('#ccr-copy');
+    if (!box) return null;
+    clear(box);
+    const input = ccrInputs(root2);
+    const r = ctx.logic.creatinineClearance(input);
+    if (copy) copy.disabled = !(r && r.ok);
+    if (!r || !r.ok) {
+      box.appendChild(el('p', 'ccr-hint', '填年齡、體重、Cr 就會算；身高選填。'));
+      return r;
+    }
+
+    const main = el('div', 'ccr-main');
+    main.append(el('strong', 'ccr-value', String(r.crcl)), el('span', 'ccr-value-unit', 'mL/min'));
+    box.appendChild(main);
+
+    box.appendChild(el('p', 'ccr-basis',
+      '以' + CCR_BASIS_LABEL[r.basis] + ' ' + r.weightUsed + ' kg 計算'
+      + (r.bmi === null ? '' : '（BMI ' + r.bmi + '）')));
+
+    if (r.range !== null) {
+      const lo = Math.min(r.crcl, r.range);
+      const hi = Math.max(r.crcl, r.range);
+      box.appendChild(el('p', 'ccr-range',
+        '範圍 ' + lo + '–' + hi + '（另一端＝' + CCR_BASIS_LABEL[r.rangeBasis] + '）'));
+    }
+
+    if (r.hasHeight && r.ibw !== null) {
+      const actualKg = Math.round(Number(input.weightKg) * 10) / 10;
+      const table = el('div', 'ccr-alt');
+      table.append(ccrAltRow('actual', actualKg, r.actual, r.basis),
+                   ccrAltRow('ideal', r.ibw, r.ideal, r.basis),
+                   ccrAltRow('adjusted', r.adjbw, r.adjusted, r.basis));
+      box.appendChild(table);
+    } else {
+      box.appendChild(el('p', 'ccr-hint',
+        '填身高就會依 BMI 自動選用理想／調整體重——體重極端時那才是建議的算法。'));
+    }
+    return r;
+  }
+
+  function syncCcr(root2, ctx) {
+    const open = !!ctx.store.getState().ccrOpen;
+    const overlay = root2.querySelector('#ccr-overlay');
+    const btn = root2.querySelector('#ccr-btn');
+    if (overlay) overlay.hidden = !open;
+    if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) renderCcrResult(root2, ctx);
+  }
+
   root.ICDRender = {
     icon, el, blueprint, clear, regionHeading, srHeading, markRegionSelected, regionGroupEl,
     regionShort, dateBtnEl,
@@ -3690,9 +4055,10 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
     settingsPopoverEl, syncSettings, dbNoteText, layoutNoteText, effectiveLayout, setPressed,
     modeSwitchEl, syncModeSwitch,
     chronicSwitchEl, chronicTabsEl, syncChronicSwitch, chronicOverlayEl, renderChronic,
+    ccrButtonEl, ccrOverlayEl, renderCcrResult, syncCcr, ccrResultText, ccrInputs,
     chronicToday, chronicTopics,
     FORMAT_LABEL, MODE_LABEL, MODE_SHORT, PANELS_TITLE, MODE_HINT, LAYOUT_LABEL, LAYOUT_MIN_WIDTH,
-    CHRONIC_KIND, CHRONIC_DISCLAIMER,
+    CHRONIC_KIND, CHRONIC_DISCLAIMER, CCR_DISCLAIMER, CCR_BASIS_LABEL,
   };
 })(typeof self !== 'undefined' ? self : this);
 
@@ -3729,6 +4095,7 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
     shelfOpen: ['shelf', 'settings'],
     settingsOpen: ['settings'],
     chronicTopic: ['chronic'],
+    ccrOpen: ['ccr'],
     // 高度本身由 update() 末尾的 applyPanes() 統一處理；這裡只同步設定面板的
     // 「回復預設高度」可按狀態（不寫這條會退回全量重繪，每拖一次整片重畫）
     paneSizes: ['settings'],
@@ -3746,8 +4113,9 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
     header.append(R.srHeading(1, 'ICD-10 門診導引'), R.el('div', 'app-brand', 'ICD-10'));
     // 「日期」＋看診模式三鈕並排在 header（1440 空間充足，用全名、不壓縮）
     refs.dateBtn = R.dateBtnEl(false);
+    refs.ccrBtn = R.ccrButtonEl(false);   // 「CCr」緊接在日期右邊
     refs.modeSwitch = R.modeSwitchEl(false);
-    header.append(refs.dateBtn, refs.modeSwitch);
+    header.append(refs.dateBtn, refs.ccrBtn, refs.modeSwitch);
 
     /* 慢病速查（DM／HTN／LIPID）：1a 的 header 只有一列而且 1440 下大量留白（搜尋框是
        flex:1，讓出 130px 仍有近 900px），所以這裡是三套版面中唯一把它常駐在固定 chrome 的
@@ -3889,6 +4257,8 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
     // 慢病速查浮層：掛在版面根節點底下（三套版面一致，見 render-shared 的 chronicOverlayEl）
     refs.chronicOverlay = R.chronicOverlayEl();
     wide.appendChild(refs.chronicOverlay);
+    refs.ccrOverlay = R.ccrOverlayEl();
+    wide.appendChild(refs.ccrOverlay);
 
     host.appendChild(wide);
 
@@ -4041,6 +4411,8 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
       R.renderShelf(refs.shelfChips, refs.shelfEmpty, ctx);
     };
     U.settings = () => R.syncSettings(wide, ctx);
+    U.ccr = () => R.syncCcr(wide, ctx);
+
     U.chronic = () => {
       R.syncChronicSwitch(wide, ctx);
       R.renderChronic(refs.chronicOverlay, ctx);
@@ -4184,6 +4556,7 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
     shelfOpen: [],
     settingsOpen: ['settings'],
     chronicTopic: ['chronic'],
+    ccrOpen: ['ccr'],
     cartOpen: ['cart'],
     pinned: ['pin'],
     // 窗格高度本身由 update() 末尾的 paneGroup.applyAll() 統一處理，這裡只需同步
@@ -4222,8 +4595,9 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
        spacer 吸收，置頂與設定仍靠右對齊。 */
     const tools = R.el('div', 'dock-tools');
     refs.dateBtn = R.dateBtnEl(true);        // 「日期」排在模式三鈕左邊
+    refs.ccrBtn = R.ccrButtonEl(true);       // 「CCr」緊接在日期右邊
     refs.modeSwitch = R.modeSwitchEl(true);
-    tools.append(refs.dateBtn, refs.modeSwitch);
+    tools.append(refs.dateBtn, refs.ccrBtn, refs.modeSwitch);
 
     const pin = R.el('button', 'dock-pin');
     pin.type = 'button';
@@ -4348,6 +4722,8 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
     // 慢病速查浮層：掛在 dock 根節點底下，置頂時會跟著整棵樹被 adopt 進 PiP 小視窗
     refs.chronicOverlay = R.chronicOverlayEl();
     dock.appendChild(refs.chronicOverlay);
+    refs.ccrOverlay = R.ccrOverlayEl();
+    dock.appendChild(refs.ccrOverlay);
 
     host.appendChild(dock);
 
@@ -4441,6 +4817,7 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
       if (ev.key !== 'Escape') return;
       if (root.ICDInteractions.isFallbackOpen()) { root.ICDInteractions.closeFallbackCopy(); return; }
       // 順序與 interactions.js 的 Esc 鏈一致：最上層的浮層先關
+      if (ctx.store.getState().ccrOpen) { root.ICDInteractions.closeCcr(ctx, ev.target); return; }
       if (ctx.store.getState().chronicTopic) { root.ICDInteractions.closeChronic(ctx, ev.target); return; }
       if (ctx.store.getState().settingsOpen) ctx.store.setSettingsOpen(false);
     }
@@ -4550,6 +4927,18 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
       }
       /* 慢病速查：三顆按鈕與浮層的關閉（關閉鈕／點面板外）。規則同樣共用
          interactions.js，這裡只是 PiP 期間的轉送。要排在泛用 `button` 那條之前。 */
+      /* CCr 的性別鈕帶著 .seg-btn 類名，一定要排在下方泛用 `.seg-btn` 分支之前，
+         否則會被它攔下（那條只認 data-mode／format／layoutOpt，結果是空轉）。 */
+      const ccrSexBtn = target.closest('.ccr-sex-btn');
+      if (ccrSexBtn) { root.ICDInteractions.chooseCcrSex(ctx, ccrSexBtn); return; }
+      if (target.closest('#ccr-close') || target.id === 'ccr-overlay') {
+        root.ICDInteractions.closeCcr(ctx, target);
+        return;
+      }
+      if (target.closest('#ccr-copy')) { root.ICDInteractions.copyCcr(ctx, target); return; }
+      if (target.closest('#ccr-reset')) { root.ICDInteractions.resetCcr(ctx, target); return; }
+      if (target.closest('#ccr-btn')) { root.ICDInteractions.openCcr(ctx, target); return; }
+
       const chronicBtn = target.closest('[data-chronic]');
       if (chronicBtn) {
         root.ICDInteractions.chooseChronic(ctx, chronicBtn.getAttribute('data-chronic'), chronicBtn);
@@ -4629,6 +5018,11 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
 
     dock.addEventListener('input', (ev) => {
       if (dock.ownerDocument === document) return;
+      // CCr 的輸入同樣要代打，否則置頂時打字不會重算
+      if (ev.target && ev.target.classList && ev.target.classList.contains('ccr-input')) {
+        root.ICDInteractions.recalcCcr(ctx, ev.target);
+        return;
+      }
       if (!ev.target || ev.target.id !== 'search') return;
       const value = ev.target.value;
       if (value.trim().length >= 2) ctx.data.ensureDb();
@@ -4761,6 +5155,9 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
 
     U.settings = () => R.syncSettings(dock, ctx);
 
+    /* PiP 小視窗裡主文件的委派搆不到，這裡代打（與 chip／模式鈕同一條路）。 */
+    U.ccr = () => R.syncCcr(dock, ctx);
+
     U.chronic = () => {
       R.syncChronicSwitch(dock, ctx);
       R.renderChronic(refs.chronicOverlay, ctx);
@@ -4851,6 +5248,7 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
     shelfOpen: ['settings'],
     settingsOpen: ['settings'],
     chronicTopic: ['chronic'],
+    ccrOpen: ['ccr'],
     cartOpen: ['cartSheet', 'cartBar'],
     pinned: [],
     // 高度本身由 update() 末尾的 paneGroup.applyAll() 統一處理；這裡只同步設定面板的
@@ -4905,7 +5303,8 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
 
     /* 「日期」與模式三鈕同一列：模式列本來就獨佔一行，左邊塞得下一顆小鈕。 */
     const modeRow = R.el('div', 'm-mode-row');
-    modeRow.append(refs.dateBtn, refs.modeSwitch);
+    refs.ccrBtn = R.ccrButtonEl(false);      // 「CCr」緊接在日期右邊
+    modeRow.append(refs.dateBtn, refs.ccrBtn, refs.modeSwitch);
 
     const headRow = R.el('div', 'm-head-row');
     headRow.append(search, settingsToggle);
@@ -5009,6 +5408,8 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
     // 慢病速查浮層：掛在版面根節點底下（三套版面一致）
     refs.chronicOverlay = R.chronicOverlayEl();
     wrap.appendChild(refs.chronicOverlay);
+    refs.ccrOverlay = R.ccrOverlayEl();
+    wrap.appendChild(refs.ccrOverlay);
 
     host.appendChild(wrap);
 
@@ -5175,6 +5576,8 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
 
     U.his = () => R.renderHis(refs.hisPreview, refs.hisFormat, null, ctx);
     U.settings = () => R.syncSettings(wrap, ctx);
+    U.ccr = () => R.syncCcr(wrap, ctx);
+
     U.chronic = () => {
       R.syncChronicSwitch(wrap, ctx);
       R.renderChronic(refs.chronicOverlay, ctx);
@@ -5434,6 +5837,73 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
     return true;
   }
 
+  /* CCr 計算機。與慢病速查同型的浮層：關閉有三個出口（關閉鈕、Esc、點面板外）。
+     `node` 用來判斷事件發生在哪個 document——1c 置頂後整條窄欄在 PiP 小視窗裡，
+     主文件的 getElementById 找不到那邊的節點。 */
+  function ccrDoc(node) {
+    return (node && node.ownerDocument) || document;
+  }
+
+  function openCcr(ctx, node) {
+    if (ctx.store.getState().ccrOpen) return;
+    ctx.store.setCcrOpen(true);
+    const doc = ccrDoc(node);
+    const age = doc.getElementById('ccr-age');
+    if (age) age.focus();          // 直接落在第一個輸入格，少一次點擊
+    announce('CCr 計算機已開啟，Cockcroft-Gault 估計值');
+  }
+
+  function closeCcr(ctx, node) {
+    if (!ctx.store.getState().ccrOpen) return false;
+    ctx.store.setCcrOpen(false);
+    const btn = ccrDoc(node).getElementById('ccr-btn');
+    if (btn) btn.focus();
+    announce('已關閉 CCr 計算機');
+    return true;
+  }
+
+  /* 任一輸入變動就重算。不經過 store：輸入值是「這一位病人」的暫態，
+     每敲一鍵重繪整個版面既慢也沒必要（見 render-shared.js 的 ccrInputs 註解）。 */
+  function recalcCcr(ctx, node) {
+    const doc = ccrDoc(node);
+    const panel = doc.getElementById('ccr-panel');
+    if (panel) root.ICDRender.renderCcrResult(doc, ctx);
+  }
+
+  function chooseCcrSex(ctx, node) {
+    const doc = ccrDoc(node);
+    const row = doc.getElementById('ccr-sex');
+    if (!row) return;
+    for (const b of row.querySelectorAll('.ccr-sex-btn')) {
+      const on = b === node;
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      b.classList.toggle('is-on', on);
+    }
+    recalcCcr(ctx, node);
+  }
+
+  function resetCcr(ctx, node) {
+    const doc = ccrDoc(node);
+    for (const id of ['ccr-age', 'ccr-weight', 'ccr-height', 'ccr-cr']) {
+      const input = doc.getElementById(id);
+      if (input) input.value = '';
+    }
+    recalcCcr(ctx, node);
+    const age = doc.getElementById('ccr-age');
+    if (age) age.focus();
+    announce('已清除 CCr 輸入');
+  }
+
+  /* 複製結果：使用者主動按的，失敗要跳後備視窗（與「日期」鈕同一條規則，
+     和清單的靜默自動同步刻意不同）。 */
+  async function copyCcr(ctx, node) {
+    const doc = ccrDoc(node);
+    const r = ctx.logic.creatinineClearance(root.ICDRender.ccrInputs(doc));
+    const text = root.ICDRender.ccrResultText(r);
+    if (!text) { announce('還沒有可複製的結果'); return; }
+    if (await copyText(text)) announce('已複製：' + text);
+  }
+
   /* 設定面板的「回復預設高度」（三套版面共用）。只清**生效版面**那一組：在 176px 窄欄
      按下它，不該把桌機工作台調好的高度一起抹掉（分版面各記各的）。 */
   function resetPanes(ctx) {
@@ -5506,6 +5976,13 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
          背景（`target.id` 恰為 overlay 本身＝點在面板以外）。要排在泛用 `button` 那條之前。 */
       const chronicBtn = target.closest('[data-chronic]');
       if (chronicBtn) { chooseChronic(ctx, chronicBtn.getAttribute('data-chronic'), chronicBtn); return; }
+
+      const ccrSexBtn = target.closest('.ccr-sex-btn');
+      if (ccrSexBtn) { chooseCcrSex(ctx, ccrSexBtn); return; }
+      if (target.closest('#ccr-close') || target.id === 'ccr-overlay') { closeCcr(ctx, target); return; }
+      if (target.closest('#ccr-copy')) { copyCcr(ctx, target); return; }
+      if (target.closest('#ccr-reset')) { resetCcr(ctx, target); return; }
+      if (target.closest('#ccr-btn')) { openCcr(ctx, target); return; }
       if (target.closest('#chronic-close') || target.id === 'chronic-overlay') {
         closeChronic(ctx, target);
         return;
@@ -5586,6 +6063,10 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
 
     // ---- 搜尋 ----
     document.addEventListener('input', (ev) => {
+      if (ev.target && ev.target.classList && ev.target.classList.contains('ccr-input')) {
+        recalcCcr(ctx, ev.target);
+        return;
+      }
       if (!ev.target || ev.target.id !== 'search') return;
       const value = ev.target.value;
       if (value.trim().length >= 2) data.ensureDb();     // 觸發全庫延遲載入
@@ -5601,6 +6082,7 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
           store.setQuery('');
           // Esc 在其他情境都會關掉開著的浮層，搜尋框裡也要一致（R2 M3）
           if (isFallbackOpen()) closeFallbackCopy();
+          else if (store.getState().ccrOpen) closeCcr(ctx, ev.target);
           else if (store.getState().chronicTopic) closeChronic(ctx, ev.target);
           else if (store.getState().settingsOpen) store.setSettingsOpen(false);
           return;
@@ -5629,7 +6111,8 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
       }
       if (ev.key === 'Escape') {
         if (isFallbackOpen()) { closeFallbackCopy(); return; }
-        // 慢病速查排在設定之前：它是最上層的浮層（開它時 setChronicTopic 已把設定關掉）
+        // 三個浮層互斥（開任一個會關掉其他兩個），所以這裡的順序只是保險
+        if (store.getState().ccrOpen) { closeCcr(ctx, ev.target); return; }
         if (store.getState().chronicTopic) { closeChronic(ctx, ev.target); return; }
         if (store.getState().settingsOpen) store.setSettingsOpen(false);
         return;
@@ -5694,6 +6177,7 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
     // 1c 置頂時 main document 的委派搆不到側欄，render-dock.js 要用同一份實作代打
     chooseMode, resetPanes,
     chooseMode, chooseAllRegions, resetPanes, chooseChronic, closeChronic,
+    openCcr, closeCcr, recalcCcr, chooseCcrSex, resetCcr, copyCcr,
   };
 })(typeof self !== 'undefined' ? self : this);
 

@@ -114,6 +114,7 @@
     shelfOpen: [],
     settingsOpen: ['settings'],
     chronicTopic: ['chronic'],
+    ccrOpen: ['ccr'],
     cartOpen: ['cart'],
     pinned: ['pin'],
     // 窗格高度本身由 update() 末尾的 paneGroup.applyAll() 統一處理，這裡只需同步
@@ -152,8 +153,9 @@
        spacer 吸收，置頂與設定仍靠右對齊。 */
     const tools = R.el('div', 'dock-tools');
     refs.dateBtn = R.dateBtnEl(true);        // 「日期」排在模式三鈕左邊
+    refs.ccrBtn = R.ccrButtonEl(true);       // 「CCr」緊接在日期右邊
     refs.modeSwitch = R.modeSwitchEl(true);
-    tools.append(refs.dateBtn, refs.modeSwitch);
+    tools.append(refs.dateBtn, refs.ccrBtn, refs.modeSwitch);
 
     const pin = R.el('button', 'dock-pin');
     pin.type = 'button';
@@ -278,6 +280,8 @@
     // 慢病速查浮層：掛在 dock 根節點底下，置頂時會跟著整棵樹被 adopt 進 PiP 小視窗
     refs.chronicOverlay = R.chronicOverlayEl();
     dock.appendChild(refs.chronicOverlay);
+    refs.ccrOverlay = R.ccrOverlayEl();
+    dock.appendChild(refs.ccrOverlay);
 
     host.appendChild(dock);
 
@@ -371,6 +375,7 @@
       if (ev.key !== 'Escape') return;
       if (root.ICDInteractions.isFallbackOpen()) { root.ICDInteractions.closeFallbackCopy(); return; }
       // 順序與 interactions.js 的 Esc 鏈一致：最上層的浮層先關
+      if (ctx.store.getState().ccrOpen) { root.ICDInteractions.closeCcr(ctx, ev.target); return; }
       if (ctx.store.getState().chronicTopic) { root.ICDInteractions.closeChronic(ctx, ev.target); return; }
       if (ctx.store.getState().settingsOpen) ctx.store.setSettingsOpen(false);
     }
@@ -480,6 +485,18 @@
       }
       /* 慢病速查：三顆按鈕與浮層的關閉（關閉鈕／點面板外）。規則同樣共用
          interactions.js，這裡只是 PiP 期間的轉送。要排在泛用 `button` 那條之前。 */
+      /* CCr 的性別鈕帶著 .seg-btn 類名，一定要排在下方泛用 `.seg-btn` 分支之前，
+         否則會被它攔下（那條只認 data-mode／format／layoutOpt，結果是空轉）。 */
+      const ccrSexBtn = target.closest('.ccr-sex-btn');
+      if (ccrSexBtn) { root.ICDInteractions.chooseCcrSex(ctx, ccrSexBtn); return; }
+      if (target.closest('#ccr-close') || target.id === 'ccr-overlay') {
+        root.ICDInteractions.closeCcr(ctx, target);
+        return;
+      }
+      if (target.closest('#ccr-copy')) { root.ICDInteractions.copyCcr(ctx, target); return; }
+      if (target.closest('#ccr-reset')) { root.ICDInteractions.resetCcr(ctx, target); return; }
+      if (target.closest('#ccr-btn')) { root.ICDInteractions.openCcr(ctx, target); return; }
+
       const chronicBtn = target.closest('[data-chronic]');
       if (chronicBtn) {
         root.ICDInteractions.chooseChronic(ctx, chronicBtn.getAttribute('data-chronic'), chronicBtn);
@@ -559,6 +576,11 @@
 
     dock.addEventListener('input', (ev) => {
       if (dock.ownerDocument === document) return;
+      // CCr 的輸入同樣要代打，否則置頂時打字不會重算
+      if (ev.target && ev.target.classList && ev.target.classList.contains('ccr-input')) {
+        root.ICDInteractions.recalcCcr(ctx, ev.target);
+        return;
+      }
       if (!ev.target || ev.target.id !== 'search') return;
       const value = ev.target.value;
       if (value.trim().length >= 2) ctx.data.ensureDb();
@@ -690,6 +712,9 @@
     U.his = () => R.renderHis(refs.hisScratch, null, null, ctx);
 
     U.settings = () => R.syncSettings(dock, ctx);
+
+    /* PiP 小視窗裡主文件的委派搆不到，這裡代打（與 chip／模式鈕同一條路）。 */
+    U.ccr = () => R.syncCcr(dock, ctx);
 
     U.chronic = () => {
       R.syncChronicSwitch(dock, ctx);

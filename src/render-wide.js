@@ -29,6 +29,7 @@
     shelfOpen: ['shelf', 'settings'],
     settingsOpen: ['settings'],
     chronicTopic: ['chronic'],
+    ccrOpen: ['ccr'],
     // 高度本身由 update() 末尾的 applyPanes() 統一處理；這裡只同步設定面板的
     // 「回復預設高度」可按狀態（不寫這條會退回全量重繪，每拖一次整片重畫）
     paneSizes: ['settings'],
@@ -46,8 +47,9 @@
     header.append(R.srHeading(1, 'ICD-10 門診導引'), R.el('div', 'app-brand', 'ICD-10'));
     // 「日期」＋看診模式三鈕並排在 header（1440 空間充足，用全名、不壓縮）
     refs.dateBtn = R.dateBtnEl(false);
+    refs.ccrBtn = R.ccrButtonEl(false);   // 「CCr」緊接在日期右邊
     refs.modeSwitch = R.modeSwitchEl(false);
-    header.append(refs.dateBtn, refs.modeSwitch);
+    header.append(refs.dateBtn, refs.ccrBtn, refs.modeSwitch);
 
     /* 慢病速查（DM／HTN／LIPID）：1a 的 header 只有一列而且 1440 下大量留白（搜尋框是
        flex:1，讓出 130px 仍有近 900px），所以這裡是三套版面中唯一把它常駐在固定 chrome 的
@@ -189,6 +191,8 @@
     // 慢病速查浮層：掛在版面根節點底下（三套版面一致，見 render-shared 的 chronicOverlayEl）
     refs.chronicOverlay = R.chronicOverlayEl();
     wide.appendChild(refs.chronicOverlay);
+    refs.ccrOverlay = R.ccrOverlayEl();
+    wide.appendChild(refs.ccrOverlay);
 
     host.appendChild(wide);
 
@@ -341,6 +345,8 @@
       R.renderShelf(refs.shelfChips, refs.shelfEmpty, ctx);
     };
     U.settings = () => R.syncSettings(wide, ctx);
+    U.ccr = () => R.syncCcr(wide, ctx);
+
     U.chronic = () => {
       R.syncChronicSwitch(wide, ctx);
       R.renderChronic(refs.chronicOverlay, ctx);

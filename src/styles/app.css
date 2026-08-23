@@ -502,3 +502,72 @@ b.cart-code {
   margin: 12px 0 0; padding-top: 7px; border-top: 1px solid var(--color-divider);
   font-size: 11px; line-height: 1.45; color: var(--color-neutral-700);
 }
+
+/* ── CCr 計算機（Cockcroft-Gault） ──────────────────────────────────────────
+   浮層骨架刻意與 .chronic-* 同型（同樣的遮罩、同樣的關閉出口），使用者只要學一次。
+   差別在這個是**輸入**面板，所以主體是表單而不是捲動內文。 */
+#ccr-btn {
+  flex: 0 0 auto; letter-spacing: .04em;
+  background: var(--his-btn); color: var(--his-btn-ink); border: 1px solid var(--his-btn);
+}
+#ccr-btn:hover { background: var(--his-btn-hover); }
+
+.ccr-overlay {
+  position: fixed; inset: 0; z-index: 30;
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+  background: rgba(43, 43, 45, .5);
+}
+.ccr-panel {
+  display: flex; flex-direction: column; min-height: 0;
+  width: min(420px, 100%); max-height: 100%; padding: 14px 16px; overflow-y: auto;
+  background: var(--color-bg); border: 1px solid var(--color-accent); box-shadow: var(--shadow-lg);
+}
+.ccr-head { display: flex; align-items: baseline; gap: 10px; flex: none; }
+.ccr-title { flex: 1; min-width: 0; margin: 0; font-size: 19px; line-height: 1.2; letter-spacing: -.01em; }
+.ccr-close {
+  flex: none; min-height: 28px; padding: 0 10px; font: inherit; font-size: 13px;
+  border: 1px solid var(--color-divider); background: transparent; color: var(--color-text);
+  cursor: pointer;
+}
+.ccr-close:hover { border-color: var(--color-accent); }
+
+.ccr-form { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.ccr-sex { align-self: flex-start; }
+.ccr-field { display: flex; align-items: center; gap: 8px; }
+.ccr-label { flex: 0 0 3.5em; font-size: 13px; color: var(--color-neutral-700); }
+/* min-width:0 不可省：flex item 的固有寬度會擋住收縮，窄欄下輸入框會把整列撐出去 */
+.ccr-input { flex: 1; min-width: 0; min-height: 32px; font-variant-numeric: tabular-nums; }
+.ccr-unit { flex: 0 0 3.2em; font-size: 12px; color: var(--color-neutral-700); }
+
+.ccr-result { margin-top: 12px; padding: 10px; background: var(--color-neutral-100); }
+.ccr-main { display: flex; align-items: baseline; gap: 6px; }
+.ccr-value {
+  font-family: var(--font-heading); font-size: 30px; line-height: 1.1; letter-spacing: -.02em;
+  color: var(--color-accent-800); font-variant-numeric: tabular-nums;
+}
+.ccr-value-unit { font-size: 13px; color: var(--color-neutral-700); }
+.ccr-basis { margin: 4px 0 0; font-size: 13px; }
+.ccr-range { margin: 2px 0 0; font-size: 12px; color: var(--color-neutral-700); }
+.ccr-hint { margin: 0; font-size: 12px; line-height: 1.5; color: var(--color-neutral-700); }
+
+/* 三種體重並列。選中那一列標亮＝「主值是用它算的」，其餘兩個仍看得到數字，
+   因為肌肉量少、截肢、腎功能不穩的病人常常要改用別的體重。 */
+.ccr-alt { margin-top: 8px; border-top: 1px solid var(--color-divider); }
+.ccr-alt-row {
+  display: flex; align-items: baseline; gap: 8px; padding: 3px 0;
+  font-size: 12px; color: var(--color-neutral-700);
+}
+.ccr-alt-row.is-on { color: var(--color-accent-800); font-weight: 600; }
+.ccr-alt-name { flex: 0 0 4.5em; }
+.ccr-alt-kg { flex: 1; min-width: 0; font-variant-numeric: tabular-nums; }
+.ccr-alt-val { flex: 0 0 auto; font-family: var(--font-heading); font-variant-numeric: tabular-nums; }
+
+.ccr-actions { display: flex; gap: 6px; margin-top: 10px; }
+.ccr-copy { flex: 1; background: var(--his-btn); color: var(--his-btn-ink); border: 1px solid var(--his-btn); }
+.ccr-copy:hover:not(:disabled) { background: var(--his-btn-hover); }
+.ccr-copy:disabled { opacity: .5; cursor: not-allowed; }
+.ccr-reset { flex: 0 0 auto; }
+.ccr-disclaimer {
+  flex: none; margin: 10px 0 0; padding: 6px 9px; font-size: 12px; line-height: 1.5;
+  border-left: 2px solid var(--warn-line); background: var(--warn-bg); color: var(--warn-ink);
+}

@@ -129,5 +129,87 @@
     return { current, upcoming, expired };
   }
 
-  return { buildIndex, search, family, formatCart, mergeRelated, rocDate, splitByEffective };
+  /* ── Cockcroft-Gault 肌酸酐廓清率（純函式，node 可直接測） ─────────────────
+     用途是抗生素劑量調整，所以「用哪個體重」比公式本身更容易出錯——這裡完全照
+     MDCalc 的規格（Brown et al／Winter et al）依 BMI 選，不自己發明：
+
+       CrCl (mL/min) = (140 − 年齡) × 體重(kg) × (女性 0.85) / (72 × Cr(mg/dL))
+       IBW(Devine)   男 50 + 2.3 ×(身高吋 − 60)；女 45.5 + 2.3 ×(身高吋 − 60)
+       AdjBW         IBW + 0.4 ×(實際體重 − IBW)
+
+       BMI < 18.5     用實際體重（不調整）
+       BMI 18.5–24.9  用理想體重，範圍另一端用實際體重
+       BMI ≥ 25       用調整體重，範圍另一端用理想體重
+
+     沒有身高就算不出 BMI／IBW，只能退回實際體重——那正是這個公式在體重極端時
+     最不準的情形，所以回傳 basis 讓畫面明講「這個數字是用什麼體重算的」。
+
+     回傳 ok:false 時 reason 說明缺什麼；不回傳 NaN，也不猜使用者的意思。 */
+  function creatinineClearance(input) {
+    const raw = input || {};
+    const num = (v) => {
+      if (v === '' || v === null || v === undefined) return null;
+      const n = Number(v);
+      return Number.isFinite(n) ? n : null;
+    };
+    const age = num(raw.age);
+    const weight = num(raw.weightKg);
+    const scr = num(raw.creatinine);
+    const height = num(raw.heightCm);
+    const female = raw.sex === 'female';
+
+    const missing = [];
+    if (age === null || age <= 0 || age > 120) missing.push('age');
+    if (weight === null || weight <= 0 || weight > 400) missing.push('weight');
+    if (scr === null || scr <= 0 || scr > 30) missing.push('creatinine');
+    if (missing.length) return { ok: false, missing };
+
+    const q = female ? 0.85 : 1;
+    const crclFor = (kg) => ((140 - age) * kg * q) / (72 * scr);
+
+    const hasHeight = height !== null && height > 0 && height <= 250;
+    let ibw = null;
+    let adjbw = null;
+    let bmi = null;
+    if (hasHeight) {
+      const inches = height / 2.54;
+      ibw = (female ? 45.5 : 50) + 2.3 * (inches - 60);
+      if (ibw < 1) ibw = null;                  // 極矮身高會讓 Devine 算出負值，那不是體重
+      if (ibw !== null) adjbw = ibw + 0.4 * (weight - ibw);
+      const m = height / 100;
+      bmi = weight / (m * m);
+    }
+
+    /* 選體重。沒身高（或 Devine 失效）時只能用實際體重，並在 basis 標明——
+       畫面要據此提醒「填身高才會依 BMI 自動選用理想／調整體重」。 */
+    let basis = 'actual';
+    let rangeBasis = null;
+    if (ibw !== null && bmi !== null) {
+      if (bmi < 18.5) basis = 'actual';
+      else if (bmi < 25) { basis = 'ideal'; rangeBasis = 'actual'; }
+      else { basis = 'adjusted'; rangeBasis = 'ideal'; }
+    }
+    const weightOf = (key) => (key === 'ideal' ? ibw : key === 'adjusted' ? adjbw : weight);
+
+    const round1 = (n) => Math.round(n * 10) / 10;
+    const result = {
+      ok: true,
+      crcl: round1(crclFor(weightOf(basis))),
+      basis,
+      weightUsed: round1(weightOf(basis)),
+      actual: round1(crclFor(weight)),
+      ibw: ibw === null ? null : round1(ibw),
+      adjbw: adjbw === null ? null : round1(adjbw),
+      bmi: bmi === null ? null : round1(bmi),
+      hasHeight,
+    };
+    result.ideal = ibw === null ? null : round1(crclFor(ibw));
+    result.adjusted = adjbw === null ? null : round1(crclFor(adjbw));
+    result.range = rangeBasis ? round1(crclFor(weightOf(rangeBasis))) : null;
+    result.rangeBasis = rangeBasis;
+    return result;
+  }
+
+  return { buildIndex, search, family, formatCart, mergeRelated, rocDate, splitByEffective,
+           creatinineClearance };
 });
