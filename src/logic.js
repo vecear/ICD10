@@ -129,6 +129,28 @@
     return { current, upcoming, expired };
   }
 
+  /* 把一段補充敘述依句號拆成數行。
+     給付條文的補充常是四五句連在一起（「較嚴格（如 < 6.5%）：…。較寬鬆（…）：…。」），
+     在 176px 的側掛窄欄裡就是一面文字牆，要逐字讀才找得到自己要的那一句。
+     只切「。」——分號、破折號在條文裡是句內結構，切了反而把一句話拆散。
+     句號留在該句尾，接回去等於原文（只差句間空白）。 */
+  function splitSentences(text) {
+    const src = typeof text === 'string' ? text : '';
+    const out = [];
+    let buf = '';
+    for (const ch of src) {
+      buf += ch;
+      if (ch === '。') {
+        const line = buf.trim();
+        if (line) out.push(line);
+        buf = '';
+      }
+    }
+    const tail = buf.trim();
+    if (tail) out.push(tail);          // 沒有句號結尾的殘句照樣要顯示，不能吞掉
+    return out;
+  }
+
   /* ── Cockcroft-Gault 肌酸酐廓清率（純函式，node 可直接測） ─────────────────
      用途是抗生素劑量調整，所以「用哪個體重」比公式本身更容易出錯——這裡完全照
      MDCalc 的規格（Brown et al／Winter et al）依 BMI 選，不自己發明：
@@ -211,5 +233,5 @@
   }
 
   return { buildIndex, search, family, formatCart, mergeRelated, rocDate, splitByEffective,
-           creatinineClearance };
+           splitSentences, creatinineClearance };
 });

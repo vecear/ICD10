@@ -9,6 +9,8 @@
 ;   F9         送出剪貼簿裡的所有 ICD 代碼（每碼之後按 Enter）
 ;   Shift+F9   只送第一個代碼
 ;   F10        預覽：顯示解析到哪些代碼，不送出
+;   Ctrl+Alt+D   把工具視窗貼到螢幕右緣、拉成窄欄全高（**不會**改變置頂狀態）
+;   Ctrl+Alt+T   切換目前視窗的永遠置頂（**不會**改變大小）
 ;   Ctrl+Alt+F9  暫停／恢復（暫停時 F9 交還給原本的程式）
 ;   Ctrl+Alt+X   結束
 ;
@@ -41,6 +43,11 @@ DIALOG_WAIT  := 90      ; 跳出視窗後最多等你處理幾秒；超過就停
 ; Document Picture-in-Picture 視窗的尺寸限制在螢幕的 80%，那是防止網頁用永遠置頂的
 ; 視窗蓋滿螢幕的安全設計，網頁端改不掉。改成讓一般 Edge 視窗貼在螢幕邊緣並由這裡
 ; 設為永遠置頂，高度就不受那個上限約束。
+; Ctrl+Alt+D 與 Ctrl+Alt+T 刻意分家（使用者要求）：
+;   Ctrl+Alt+D 只改「大小與位置」——貼到螢幕右緣、拉到工作區全高、寬度 DOCK_WIDTH
+;   Ctrl+Alt+T 只切換「永遠置頂」——不動大小
+; 想要按一次就同時貼齊＋置頂的話，把下面改成 true。
+DOCK_ALSO_TOPMOST := false
 ICD_WIN    := "ICD-10 門診導引"   ; 工具的網頁標題，用來認出那個 Edge 視窗
 DOCK_WIDTH := 340                 ; 貼齊時的寬度（側掛窄欄的設計範圍是 176–565px）
 ICD_FILE   := A_ScriptDir "\icd10.html"   ; 找不到視窗時要開哪個檔（預設與本腳本同資料夾）
@@ -169,7 +176,7 @@ ToggleSuspend() {
 ; 這是瀏覽器「置頂」（Document PiP）的替代品：PiP 視窗被瀏覽器限制在螢幕 80% 以內，
 ; 一般視窗沒有這個限制，高度可以拉滿。工作列的高度由 MonitorGetWorkArea 自動避開。
 DockIcdWindow() {
-    global ICD_WIN, DOCK_WIDTH, ICD_FILE
+    global ICD_WIN, DOCK_WIDTH, ICD_FILE, DOCK_ALSO_TOPMOST
 
     hwnd := WinExist(ICD_WIN)
     if (!hwnd)
@@ -191,11 +198,15 @@ DockIcdWindow() {
     Sleep 150
     WinGetPos(, , &gw, , hwnd)
     WinMove right - gw, top, gw, h, hwnd
-    WinSetAlwaysOnTop 1, hwnd
+    if (DOCK_ALSO_TOPMOST)
+        WinSetAlwaysOnTop 1, hwnd
     WinActivate hwnd
 
     WinGetPos(&x2, &y2, &w2, &h2, hwnd)
-    note := "已貼到螢幕右側並置頂`n" w2 "×" h2
+    isTop := (WinGetExStyle(hwnd) & 0x8) != 0        ; WS_EX_TOPMOST
+    note := (DOCK_ALSO_TOPMOST ? "已貼到螢幕右側並置頂`n" : "已貼到螢幕右側`n") w2 "×" h2
+    if (!DOCK_ALSO_TOPMOST && !isTop)
+        note .= "`n（要浮在 HIS 上面請按 Ctrl+Alt+T）"
     if (w2 > DOCK_WIDTH + 2)
         note .= "`n這個視窗縮不到 " DOCK_WIDTH "px（Edge 一般視窗的最小寬度）`n"
               . "關掉它再按一次 Ctrl+Alt+D，我會用應用程式模式重開"

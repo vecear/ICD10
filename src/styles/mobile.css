@@ -263,3 +263,6 @@ body[data-layout="mobile"] .ccr-sex .seg-btn { min-height: 44px; }
 body[data-layout="mobile"] .ccr-copy,
 body[data-layout="mobile"] .ccr-reset,
 body[data-layout="mobile"] .ccr-close { min-height: 44px; }
+
+/* 慢病速查在手機：速判摘要維持可讀字級（它是最常看的一行），其餘沿用共用層 */
+body[data-layout="mobile"] .chronic-headline { font-size: 14px; }

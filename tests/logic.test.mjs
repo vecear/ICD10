@@ -229,3 +229,31 @@ test('CCr：身高極端時不產生負的理想體重', () => {
   assert.equal(r.ibw, null, '算出負值就不該當成體重用');
   assert.equal(r.basis, 'actual');
 });
+
+/* splitSentences：補充說明在窄欄裡是一面文字牆，依句號斷行才讀得動。
+   最重要的不變式是**不吞字**——條文是臨床依據，少一句比擠在一起嚴重得多。 */
+test('splitSentences: 依句號斷行，句號留在句尾', () => {
+  const r = L.splitSentences('較嚴格：低血糖風險低。較寬鬆：情況相反。');
+  assert.deepEqual(r, ['較嚴格：低血糖風險低。', '較寬鬆：情況相反。']);
+});
+test('splitSentences: 沒有句號就是一整段', () => {
+  assert.deepEqual(L.splitSentences('限用於 metformin 已達最大耐受劑量'),
+    ['限用於 metformin 已達最大耐受劑量']);
+});
+test('splitSentences: 結尾沒有句號的殘句不能被吞掉', () => {
+  assert.deepEqual(L.splitSentences('第一句。第二句沒句號'), ['第一句。', '第二句沒句號']);
+});
+test('splitSentences: 分號與破折號是句內結構，不切', () => {
+  const s = '健康正常＝少共病；中等＝多共病——以避免低血糖為原則。';
+  assert.deepEqual(L.splitSentences(s), [s]);
+});
+test('splitSentences: 接回去等於原文（不吞字的硬保證）', () => {
+  const s = '較嚴格（如 < 6.5%）：低血糖風險低、罹病時間短。較寬鬆（如 < 8.0～8.5%）：情況相反。'
+    + '指引刻意不給單一固定數字——這是設計，不是查詢遺漏。';
+  assert.equal(L.splitSentences(s).join(''), s);
+});
+test('splitSentences: 空值與非字串回空陣列', () => {
+  assert.deepEqual(L.splitSentences(''), []);
+  assert.deepEqual(L.splitSentences(null), []);
+  assert.deepEqual(L.splitSentences(undefined), []);
+});

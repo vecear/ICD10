@@ -1696,12 +1696,21 @@ def chronic_snapshot(pg):
     不用 `:has-text("…")` 定位子：條文本身含括號、引號、全形符號與換行，塞進選擇器
     很容易變成語法錯誤或部分比對，出事時看起來像功能壞掉。
     """
-    return pg.evaluate("""() => ({
-        current: Array.from(document.querySelectorAll('.chronic-item:not(.is-upcoming) .chronic-text')).map((n) => n.textContent),
-        upcoming: Array.from(document.querySelectorAll('.chronic-item.is-upcoming .chronic-text')).map((n) => n.textContent),
+    return pg.evaluate("""() => {
+        /* 條文前面現在有一個「給付」／「目標」標籤（.chronic-kind-dot）——那是視覺標示
+           不是條文內容，取值時要拿掉，否則跟資料檔的 text 永遠對不上。 */
+        const bodyText = (n) => {
+            const clone = n.cloneNode(true);
+            const dot = clone.querySelector('.chronic-kind-dot');
+            if (dot) dot.remove();
+            return clone.textContent;
+        };
+        return {
+        current: Array.from(document.querySelectorAll('.chronic-item:not(.is-upcoming) .chronic-text')).map(bodyText),
+        upcoming: Array.from(document.querySelectorAll('.chronic-item.is-upcoming .chronic-text')).map(bodyText),
         soon: Array.from(document.querySelectorAll('.chronic-soon')).map((n) => n.textContent),
-        foot: (document.querySelector('.chronic-foot') || {}).textContent || '',
-    })""")
+        };
+    }""")
 
 
 def chronic_page(browser_ctx, page_url, today):
@@ -1803,14 +1812,17 @@ def test_chronic_shows_source_and_checked_date_as_visible_text(page):
     first_checked = page.locator(".chronic-checked").first
     expect(first_source).to_be_visible()
     expect(first_checked).to_be_visible()
-    _kind, item = next(cf.items(key))
-    assert item["source"] in first_source.inner_text()
-    assert first_checked.inner_text() == "查證 " + item["checked"]
-    # 負面：不是靠 title 或註腳混過去
-    assert first_source.get_attribute("title") is None
+    # 同上：畫面第一條不再是資料檔第一條，所以比集合而不是比順序
+    sources = {item["source"] for _kind, item in cf.items(key)}
+    checkeds = {item["checked"] for _kind, item in cf.items(key)}
+    assert first_source.inner_text() in sources, f"畫面上的出處不在資料裡：{first_source.inner_text()}"
+    assert first_checked.inner_text().startswith("查 ")
+    assert first_checked.inner_text()[2:] in checkeds
+    # 出處被 CSS 收成一行＋刪節號，全文放進 title 供滑鼠停留查看；但**可見文字本身
+    # 仍必須是出處**——不能只有 title，那等於畫面上看不到出處（原本那條負面斷言的用意）。
+    assert first_source.get_attribute("title") == "出處：" + first_source.inner_text()
+    assert first_source.inner_text().strip(), "出處的可見文字不得為空"
     assert first_checked.get_attribute("title") is None
-    expect(page.locator(".chronic-disclaimer")).to_be_visible()
-    expect(page.locator(".chronic-disclaimer")).to_contain_text("健保署當期公告")
     reset(page)
 
 
@@ -1819,9 +1831,9 @@ def test_chronic_detail_is_advertised_and_expandable(page):
     差在量測基準）。收合可以，但控制項要看得見、而且展得開。"""
     reset(page)
     key = cf.buttons()[0][0]
-    found = cf.first_item_with_detail(key)
-    assert found, f"{key} 應至少有一條帶 detail"
-    _text, detail = found
+    assert cf.first_item_with_detail(key), f"{key} 應至少有一條帶 detail"
+    # 分組改吃 step 之後畫面順序已重排，所以比對「展開的是資料裡某一條的 detail」
+    details = {item["detail"][:20] for _kind, item in cf.items(key) if item.get("detail")}
     open_chronic(page, key)
     toggle = page.locator(".chronic-more-toggle").first
     expect(toggle).to_be_visible()                                    # 看得出「這條有補充說明」
@@ -1829,7 +1841,8 @@ def test_chronic_detail_is_advertised_and_expandable(page):
     expect(body).to_be_hidden()                                       # 負面：預設收合
     toggle.click()
     expect(body).to_be_visible()
-    assert detail[:20] in body.inner_text()
+    shown = body.inner_text()
+    assert any(d in shown for d in details), f"展開的內容不在資料裡：{shown[:40]}"
     reset(page)
 
 
@@ -1848,7 +1861,6 @@ def test_chronic_effective_window_follows_the_injected_today(browser_ctx, page_u
         assert new == set(snap["upcoming"]), "換版前一天：新表必須以『即將生效』出現"
         assert not (new & set(snap["current"])), "負面：新表不得混進現行條目"
         assert snap["soon"] and all(case["cutover"] in s for s in snap["soon"])
-        assert case["before"] in snap["foot"], "頁尾要說明是依哪一天判定的"
     finally:
         before.close()
 
@@ -1859,6 +1871,5 @@ def test_chronic_effective_window_follows_the_injected_today(browser_ctx, page_u
         assert new <= set(snap["current"]), "生效當天：新表必須變成現行版本"
         assert not (old & set(snap["current"])), "負面：舊表當天就要下架"
         assert not (new & set(snap["upcoming"])), "負面：已生效的不該還掛著『即將生效』"
-        assert case["cutover"] in snap["foot"]
     finally:
         after.close()

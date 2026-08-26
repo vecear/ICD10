@@ -307,7 +307,6 @@ body[data-layout="dock"] .chronic-overlay { padding: 3px; }
 body[data-layout="dock"] .chronic-panel { width: 100%; padding: 6px 7px; }
 body[data-layout="dock"] .chronic-title { font-size: 14px; }
 body[data-layout="dock"] .chronic-close { min-height: 22px; padding: 0 6px; font-size: 11px; }
-body[data-layout="dock"] .chronic-disclaimer { margin-top: 5px; padding: 4px 6px; font-size: 11px; }
 body[data-layout="dock"] .chronic-body { margin-top: 6px; }
 body[data-layout="dock"] .chronic-section { margin-bottom: 9px; }
 body[data-layout="dock"] .chronic-section-title { font-size: 12px; }
@@ -319,7 +318,6 @@ body[data-layout="dock"] .chronic-more-toggle { font-size: 11px; }
 body[data-layout="dock"] .chronic-detail { font-size: 11px; padding-left: 6px; }
 body[data-layout="dock"] .chronic-meta { font-size: 10px; gap: 1px 6px; }
 body[data-layout="dock"] .chronic-soon { font-size: 10px; }
-body[data-layout="dock"] .chronic-foot { font-size: 10px; margin-top: 8px; }
 body[data-layout="dock"] .chronic-tabs { gap: 3px; margin-top: 5px; }
 body[data-layout="dock"] .chronic-tab {
   min-height: 20px; padding: 1px 6px; font-size: 11px; letter-spacing: .02em;
@@ -343,3 +341,12 @@ body[data-layout="dock"] .ccr-range,
 body[data-layout="dock"] .ccr-hint,
 body[data-layout="dock"] .ccr-alt-row { font-size: 10px; }
 body[data-layout="dock"] .ccr-disclaimer { font-size: 10px; padding: 5px 7px; }
+
+/* 慢病速查在 176–340px：速判摘要與分段標題都收字級，條目行距壓到 1.4 */
+body[data-layout="dock"] .chronic-headline {
+  margin-top: 7px; padding: 6px 7px; font-size: 12px; line-height: 1.4;
+}
+body[data-layout="dock"] .chronic-step-hint { font-size: 9px; letter-spacing: .02em; }
+body[data-layout="dock"] .chronic-kind-dot { font-size: 9px; padding: 0 3px; margin-right: 4px; }
+body[data-layout="dock"] .chronic-section[data-step="pitfall"],
+body[data-layout="dock"] .chronic-section[data-step="nocover"] { padding-left: 6px; }

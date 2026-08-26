@@ -446,12 +446,6 @@ b.cart-code {
   border-radius: 0; cursor: pointer; white-space: nowrap;
 }
 .chronic-close:hover { border-color: var(--color-accent); background: var(--color-accent-100); }
-/* 但書永遠在最上面、永遠不捲走：它講的是「這份東西能信到什麼程度」，
-   不是看過就沒用的一次性提示（對比密度原則第 4 點的「一次性提示要自己消失」）。 */
-.chronic-disclaimer {
-  flex: none; margin: 8px 0 0; padding: 6px 9px; font-size: 12px; line-height: 1.5;
-  border-left: 2px solid var(--warn-line); background: var(--warn-bg); color: var(--warn-ink);
-}
 .chronic-body { flex: 1; min-height: 0; overflow-y: auto; margin-top: 10px; }
 .chronic-section { margin: 0 0 14px; }
 .chronic-section:last-of-type { margin-bottom: 0; }
@@ -484,6 +478,9 @@ b.cart-code {
   font-size: 12.5px; line-height: 1.55; color: var(--color-neutral-700);
   overflow-wrap: anywhere;
 }
+/* 逐句一段：句與句之間留白，並列條件（較嚴格／較寬鬆）才分得開。 */
+.chronic-sentence { margin: 0 0 5px; }
+.chronic-sentence:last-child { margin-bottom: 0; }
 /* 出處與查證日期是**可見文字**，不是 title 也不是註腳（本功能與 ICD 代碼最大的差別：
    代碼錯了建置會失敗，給付規定沒有這種驗證，只能靠醫師自己看得到它有多舊）。 */
 .chronic-meta {
@@ -498,10 +495,6 @@ b.cart-code {
   color: var(--warn-ink);
 }
 .chronic-empty { margin: 0; font-size: 13px; line-height: 1.55; color: var(--color-neutral-700); }
-.chronic-foot {
-  margin: 12px 0 0; padding-top: 7px; border-top: 1px solid var(--color-divider);
-  font-size: 11px; line-height: 1.45; color: var(--color-neutral-700);
-}
 
 /* ── CCr 計算機（Cockcroft-Gault） ──────────────────────────────────────────
    浮層骨架刻意與 .chronic-* 同型（同樣的遮罩、同樣的關閉出口），使用者只要學一次。
@@ -571,3 +564,54 @@ b.cart-code {
   flex: none; margin: 10px 0 0; padding: 6px 9px; font-size: 12px; line-height: 1.5;
   border-left: 2px solid var(--warn-line); background: var(--warn-bg); color: var(--warn-ink);
 }
+
+/* ── 慢病速查改版：依臨床決策順序分段（gate→how→pitfall→nocover→target） ──
+   使用者是「在電腦上看到異常數值」才打開這個面板的，所以第一眼要能判斷
+   這個數字算不算不達標／夠不夠格開藥，而不是先讀一整段治療目標。 */
+.chronic-headline {
+  margin: 10px 0 0; padding: 8px 10px;
+  font-family: var(--font-heading); font-size: 15px; line-height: 1.45; letter-spacing: .01em;
+  background: var(--color-accent-100); color: var(--color-accent-800);
+  border-left: 3px solid var(--color-accent);
+}
+/* 分段標題旁的一句話，說明這一段回答什麼問題 */
+.chronic-step-hint {
+  flex: none; font-size: 11px; letter-spacing: .04em; color: var(--color-neutral-700);
+}
+/* 「別踩雷」整段用警示色：那一段的每一條都是核刪風險，值得在視覺上跳出來 */
+.chronic-section[data-step="pitfall"] .chronic-section-title { color: var(--warn-ink); }
+.chronic-section[data-step="pitfall"] { border-left: 2px solid var(--warn-line); padding-left: 8px; }
+/* 「不給付」用中性但明確的界線：它不是風險，是「這條路走不通」 */
+.chronic-section[data-step="nocover"] { border-left: 2px solid var(--line-strong); padding-left: 8px; }
+
+/* 條目上的來源標籤。分段改吃 step 之後，同一段裡可能混著給付規定與治療目標，
+   而兩者的可信度來源不同（公告 vs 指引），所以在句首標出來。 */
+.chronic-kind-dot {
+  display: inline-block; margin-right: 5px; padding: 0 4px;
+  font-family: var(--font-heading); font-size: 10px; letter-spacing: .06em;
+  border: 1px solid var(--color-divider); color: var(--color-neutral-700); vertical-align: 1px;
+}
+.chronic-kind-dot[data-kind="coverage"] { border-color: var(--color-accent); color: var(--color-accent-800); }
+.chronic-kind-dot[data-kind="target"] { border-color: var(--line-strong); }
+
+/* 出處與查證日期合併成一行（原本各佔一行）。仍然印在畫面上，只是不再各據一行；
+   64 條 × 省一行，在 340px 窄欄就是少捲將近一屏。 */
+.chronic-meta { display: contents; }   /* meta 只是語意容器，排版交給 .chronic-line */
+
+/* 條目的最後一行：「補充」toggle ＋ 出處 ＋ 查證日期併排（原本三行）。
+   有 detail 時它是 <summary>，點整行就展開，可點區域比原本只有「補充說明」四個字大得多。 */
+.chronic-line {
+  display: flex; align-items: baseline; flex-wrap: nowrap; gap: 8px;
+  margin: 2px 0 0; list-style: none;
+}
+/* 出處吃掉剩餘寬度並收成一行；查證日期是固定寬度的關鍵資訊，不讓它被擠掉。
+   min-width:0 不可省——flex item 的固有寬度會擋住收縮，長出處會把整行撐出容器。 */
+.chronic-source { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chronic-checked { flex: none; white-space: nowrap; }
+details.chronic-more > .chronic-line { cursor: pointer; }
+details.chronic-more > .chronic-line::-webkit-details-marker { display: none; }
+.chronic-more-toggle {
+  flex: none; font-size: 11px; letter-spacing: .04em; color: var(--color-accent-700);
+  border-bottom: 1px dotted var(--color-accent-700);
+}
+details.chronic-more[open] > .chronic-line .chronic-more-toggle { color: var(--color-accent-800); }

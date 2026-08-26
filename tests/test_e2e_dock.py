@@ -1466,12 +1466,21 @@ def open_chronic(page, key):
 
 def chronic_snapshot(page):
     """浮層內容抓成純資料再比對（條文含括號與全形符號，塞進 :has-text 選擇器會爆）。"""
-    return page.evaluate("""() => ({
-        current: Array.from(document.querySelectorAll('.chronic-item:not(.is-upcoming) .chronic-text')).map((n) => n.textContent),
-        upcoming: Array.from(document.querySelectorAll('.chronic-item.is-upcoming .chronic-text')).map((n) => n.textContent),
+    return page.evaluate("""() => {
+        /* 條文前面現在有一個「給付」／「目標」標籤（.chronic-kind-dot），那是視覺標示
+           不是條文內容，取值時要拿掉——否則比對資料檔的 text 一定對不上。 */
+        const bodyText = (n) => {
+            const clone = n.cloneNode(true);
+            const dot = clone.querySelector('.chronic-kind-dot');
+            if (dot) dot.remove();
+            return clone.textContent;
+        };
+        return {
+        current: Array.from(document.querySelectorAll('.chronic-item:not(.is-upcoming) .chronic-text')).map(bodyText),
+        upcoming: Array.from(document.querySelectorAll('.chronic-item.is-upcoming .chronic-text')).map(bodyText),
         soon: Array.from(document.querySelectorAll('.chronic-soon')).map((n) => n.textContent),
-        foot: (document.querySelector('.chronic-foot') || {}).textContent || '',
-    })""")
+        };
+    }""")
 
 
 def chronic_page(browser_ctx, page_url, today):
@@ -1531,7 +1540,6 @@ def test_chronic_panel_opens_and_closes(pg, how):
     key, _short, label = cf.buttons()[0]
     open_chronic(pg, key)
     expect(pg.locator("#chronic-title")).to_contain_text(label)
-    expect(pg.locator(".chronic-disclaimer")).to_contain_text("健保署當期公告")
     if how == "close-button":
         pg.click("#chronic-close")
     else:
@@ -1558,20 +1566,28 @@ def test_chronic_shows_source_and_checked_date_as_visible_text(pg):
     expect(pg.locator(".chronic-item")).to_have_count(count)
     expect(pg.locator(".chronic-source")).to_have_count(count)
     expect(pg.locator(".chronic-checked")).to_have_count(count)
-    _kind, item = next(cf.items(key))
+    # 分組改吃 step 之後，畫面第一條不再是資料檔第一條，所以比集合而不是比順序
+    sources = {item["source"] for _kind, item in cf.items(key)}
+    checkeds = {item["checked"] for _kind, item in cf.items(key)}
     src, checked = pg.locator(".chronic-source").first, pg.locator(".chronic-checked").first
     expect(src).to_be_visible()
     expect(checked).to_be_visible()
-    assert item["source"] in src.inner_text()
-    assert checked.inner_text() == "查證 " + item["checked"]
-    assert src.get_attribute("title") is None                        # 負面：不是靠 title 混過去
+    assert src.inner_text() in sources, f"畫面上的出處不在資料裡：{src.inner_text()}"
+    assert checked.inner_text().startswith("查 ")
+    assert checked.inner_text()[2:] in checkeds
+
+    # 出處長到會被 CSS 收成一行＋刪節號，全文放進 title 供滑鼠停留查看。
+    # 但**可見文字本身仍必須是出處**——不能只有 title（那等於畫面上看不到出處）。
+    assert src.get_attribute("title") == "出處：" + src.inner_text()
+    assert src.inner_text().strip(), "出處的可見文字不得為空"
+    assert "未註明" not in src.inner_text() or src.inner_text() == "未註明"
 
 
 def test_chronic_detail_is_advertised_and_expandable(pg):
     key = cf.buttons()[0][0]
-    found = cf.first_item_with_detail(key)
-    assert found, f"{key} 應至少有一條帶 detail"
-    _text, detail = found
+    assert cf.first_item_with_detail(key), f"{key} 應至少有一條帶 detail"
+    # 同上：畫面順序已依 step 重排，所以比對「展開的內容是資料裡某一條的 detail」
+    details = {item["detail"][:20] for _kind, item in cf.items(key) if item.get("detail")}
     open_chronic(pg, key)
     toggle = pg.locator(".chronic-more-toggle").first
     expect(toggle).to_be_visible()
@@ -1579,7 +1595,8 @@ def test_chronic_detail_is_advertised_and_expandable(pg):
     expect(body).to_be_hidden()                                      # 負面：預設收合
     toggle.click()
     expect(body).to_be_visible()
-    assert detail[:20] in body.inner_text()
+    shown = body.inner_text()
+    assert any(d in shown for d in details), f"展開的內容不在資料裡：{shown[:40]}" 
 
 
 @pytest.mark.parametrize("theme", ["light", "dark"])
@@ -1614,7 +1631,6 @@ def test_chronic_effective_window_follows_the_injected_today(browser_ctx, page_u
         assert new == set(snap["upcoming"])
         assert not (new & set(snap["current"]))                      # 負面：新表不得混進現行
         assert snap["soon"] and all(case["cutover"] in s for s in snap["soon"])
-        assert case["before"] in snap["foot"]
         assert_no_hscroll(before, "換版前一天的慢病速查")
     finally:
         before.close()
@@ -1626,7 +1642,6 @@ def test_chronic_effective_window_follows_the_injected_today(browser_ctx, page_u
         assert new <= set(snap["current"])
         assert not (old & set(snap["current"]))                      # 負面：舊表當天下架
         assert not (new & set(snap["upcoming"]))
-        assert case["cutover"] in snap["foot"]
     finally:
         after.close()
 

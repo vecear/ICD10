@@ -57,12 +57,21 @@ certutil -decode AutoHotkey64.txt AutoHotkey64.exe
     再把桌面上那個捷徑剪下，貼到「Win+R 打 shell:startup」開啟的資料夾裡。
 
 
-==== 把工具貼在 HIS 旁邊（建議用 Ctrl+Alt+D）====
+==== 把工具貼在 HIS 旁邊（Ctrl+Alt+D 貼齊、Ctrl+Alt+T 置頂）====
 
 先做一次：工具右上角「設定」→ 桌機版面 → 選「側掛窄欄」。這個選擇會記住。
 
-然後按 Ctrl+Alt+D，工具視窗會自動貼到螢幕右緣、拉到全高、並且永遠浮在 HIS 上面。
-如果工具還沒開，這個熱鍵會自己開一個（用 Edge 的應用程式模式，沒有網址列與分頁列）。
+兩個熱鍵分開，因為它們是兩件不同的事，你不會每次都兩個都要：
+
+   Ctrl+Alt+D   只改大小與位置：貼到螢幕右緣、拉到工作區全高、寬度 340px。
+                不會主動置頂。工具還沒開的話，這個熱鍵會自己開一個
+                （用 Edge 的應用程式模式，沒有網址列與分頁列）。
+   Ctrl+Alt+T   只切「永遠置頂」：把目前這個視窗浮到最上層，不動大小與位置。
+                再按一次取消。
+
+要「貼齊 ＋ 浮在 HIS 上面」就兩個都按，先後順序不拘。
+每次都想一起做的話：用記事本打開 AutoHotkey64.ahk，把第 50 行的
+DOCK_ALSO_TOPMOST := false 改成 true，Ctrl+Alt+D 就會順便置頂。
 
   ※ 為什麼不用工具裡的「置頂」按鈕？
     那個按鈕用的是瀏覽器的子母畫面功能，而 Chrome／Edge 為了防止網頁用永遠置頂的
@@ -70,7 +79,6 @@ certutil -decode AutoHotkey64.txt AutoHotkey64.exe
     這是瀏覽器的安全設計，網頁改不掉。Ctrl+Alt+D 走的是一般視窗，沒有這個限制。
     在 1920×1200 的螢幕上實測：置頂按鈕最高約 960px，Ctrl+Alt+D 可以到 1128px（全高）。
 
-  ※ Ctrl+Alt+T 可以單獨切換「目前這個視窗」的永遠置頂，想自己擺位置時用。
   ※ 想改貼齊後的寬度：用記事本打開 AutoHotkey64.ahk，找 DOCK_WIDTH := 340 改掉，
     存檔後重新雙擊 AutoHotkey64.exe。窄欄的設計範圍是 176–565px。
 
@@ -160,8 +168,8 @@ certutil -decode AutoHotkey64.txt AutoHotkey64.exe
   其他按鍵：
      F10          先預覽會送出哪些碼（不會真的送出）── 第一次用建議先按這個
      Shift + F9   只送第一個碼
-     Ctrl+Alt+D   把工具視窗貼到螢幕右緣、全高、永遠置頂（沒開會自己開）
-     Ctrl+Alt+T   切換目前視窗的永遠置頂
+     Ctrl+Alt+D   貼到螢幕右緣、全高（沒開會自己開）；不動置頂
+     Ctrl+Alt+T   切換永遠置頂；不動大小與位置
      Ctrl+Alt+F9  暫停／恢復（暫停時 F9 還給原本的程式）
      Ctrl+Alt+X   關掉熱鍵程式
 
@@ -185,26 +193,26 @@ certutil -decode AutoHotkey64.txt AutoHotkey64.exe
      ‧ 換作業畫面不會再沒反應：程式預設**不檢查視窗標題**，任何畫面都送得出去。
        （舊版綁死「OpoC200」，換一個作業畫面就整個不動作，已經改掉。）
        反過來，如果你想擋掉「不小心在別的程式按到 F9」，用記事本打開
-       AutoHotkey64.ahk，把第 25 行的 CHECK_WINDOW := false 改成 true，
-       再確認第 26 行的 TARGET_WIN 是你各畫面共同的一段字。
+       AutoHotkey64.ahk，把第 27 行的 CHECK_WINDOW := false 改成 true，
+       再確認第 28 行的 TARGET_WIN 是你各畫面共同的一段字。
      ‧ 跳出「剪貼簿看起來不是代碼清單」＝你在工具之外複製過別的東西
        （例如病歷文字），把代碼蓋掉了。回工具點一下清單裡任一個代碼，
        或重新點一個診斷，剪貼簿就會回到目前的完整清單。
 
   2. 代碼進去了但 HIS 沒帶出病名
      可能是這個欄位不需要 Enter。用記事本打開 AutoHotkey64.ahk，
-     把第 28 行的  SEND_ENTER := true  改成  SEND_ENTER := false ，
+     把第 30 行的  SEND_ENTER := true  改成  SEND_ENTER := false ，
      存檔後重新雙擊 AutoHotkey64.exe。
 
   3. 只有第一個碼進去，後面的碼沒送出
      HIS 處理完第一個碼還沒準備好接收下一個。用記事本打開 AutoHotkey64.ahk，
-     用 Ctrl+F 找 CODE_DELAY（在第 31 行）：
+     用 Ctrl+F 找 CODE_DELAY（在第 33 行）：
         CODE_DELAY := 250   → 改成 1500，存檔後重新雙擊 AutoHotkey64.exe
      還是不行就再往上加到 2500。若加到很大仍只進第一個碼，
      那就不是速度問題，而是 HIS 按 Enter 後游標離開了疾病碼欄位。
 
   3b. 代碼缺字（例如 E11.9 變成 E1.9）
-     用記事本打開 AutoHotkey64.ahk，用 Ctrl+F 找 KEY_DELAY（在第 32 行）：
+     用記事本打開 AutoHotkey64.ahk，用 Ctrl+F 找 KEY_DELAY（在第 34 行）：
         KEY_DELAY  := 25    → 改成 50 或 80，存檔後重新雙擊 AutoHotkey64.exe
 
   4. 第二步的 certutil 說「不是內部或外部命令」

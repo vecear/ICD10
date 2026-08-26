@@ -457,8 +457,9 @@
        加入慢病速查之前，這個工具從不告訴醫師該做什麼——它只把已經做好的診斷決定轉成代碼，
        所以介面上不需要臨床免責。現在它會顯示治療目標與給付門檻，已經跨進臨床參考的範疇，
        這句話必須在介面上（而不只是 README）講清楚。
-       浮層裡另有一句更貼近內容的但書（CHRONIC_DISCLAIMER），兩者刻意不合併：
-       這一句講的是整個工具的性質，那一句講的是眼前那幾條規定能信到什麼程度。 */
+       浮層裡原本另有一句更貼近內容的但書，2026-08-26 依使用者要求移除：他每天開那個面板，
+       那句話每次都在，但只有第一次有用，在 176px 窄欄裡它擋掉的閱讀空間比提醒價值大。
+       免責因此只剩這一處——它仍然在介面上，不是只寫在 README。 */
     const about = el('div', 'settings-note settings-disclaimer',
       '本工具輔助選碼，不做診斷。慢病速查列出的給付規定與治療目標僅為查閱起點，'
       + '以健保署當期公告與醫師臨床判斷為準。');
@@ -625,9 +626,22 @@
      kind、不帶標題，標題由這裡映射——不是可有可無的裝飾：「臨床治療目標」與「健保給付規定」
      正是這份速查最需要被分清楚的兩件事（能不能開 ≠ 該開到什麼程度）。 */
   const CHRONIC_KIND = { target: '臨床治療目標', coverage: '健保給付規定', caution: '實務提醒' };
-  const CHRONIC_DISCLAIMER = '此為查閱起點，不是給付判定或治療處方：'
-    + '實際給付以健保署當期公告為準，治療目標須依個別病人狀況調整。';
 
+  /* 分組順序照使用者的實際動線排（原話：「我是看到電腦上異常的數值才來看這個頁面，
+     看健保有沒有給付、怎麼給付、治療目標」）——所以門檻排第一、目標排最後。
+     原本照資料檔的 section 順序（目標→給付→提醒），最常查的給付門檻被推到第二屏。
+
+     step 與 kind 是兩件事：step 決定「排在哪一段」，kind 決定「這條的可信度來自哪裡」
+     （指引／給付公告／實務提醒），所以條目上仍然標 kind。 */
+  const CHRONIC_STEP = [
+    ['gate', '能不能開', '起始門檻'],
+    ['how', '怎麼開', '路徑、劑量與追蹤'],
+    ['pitfall', '別踩雷', '最常被核刪'],
+    ['nocover', '不給付', '開了就是自費'],
+    ['target', '治療目標', '達標後回來看'],
+  ];
+  const CHRONIC_STEP_LABEL = {};
+  for (const row of CHRONIC_STEP) CHRONIC_STEP_LABEL[row[0]] = row[1];
   /* 判定「現行版本」用的當天日期（本地時區，不是 UTC——`new Date('2026-09-01')` 是 UTC 午夜，
      台北會早一天翻版）。`window.ICD_TODAY`（YYYY-MM-DD）可覆寫，讓 E2E 能驗證換版前後
      兩個時間點；格式不符一律忽略，不讓壞值變成看起來合理的錯誤日期。 */
@@ -729,12 +743,9 @@
     close.id = 'chronic-close';
     close.title = '關閉（Esc，或點面板以外任一處）';
     head.append(title, close);
-    const note = el('p', 'chronic-disclaimer', CHRONIC_DISCLAIMER);
     const body = el('div', 'chronic-body');
     body.id = 'chronic-body';
-    /* 分頁列刻意排在標題之後、但書之前：換主題是浮層內最高頻的動作，而但書必須緊貼內容
-       （它講的是下面那些條文能信到什麼程度，不是整個工具的一般免責）。 */
-    panel.append(head, chronicTabsEl(), note, body);
+    panel.append(head, chronicTabsEl(), body);
     overlay.appendChild(panel);
     return overlay;
   }
@@ -742,8 +753,19 @@
   /* 一條規定。出處與查證日期是**可見文字**，不是 title——這是本功能與其他區塊最大的差別。 */
   function chronicItemEl(item, upcoming) {
     const li = el('li', 'chronic-item' + (upcoming ? ' is-upcoming' : ''));
+    if (item.kind) li.dataset.kind = item.kind;
     if (upcoming) li.appendChild(el('p', 'chronic-soon', '新版將於 ' + item.effectiveFrom + ' 生效'));
-    li.appendChild(el('p', 'chronic-text', String(item.text || '')));
+    const line = el('p', 'chronic-text');
+    /* 給付規定與治療目標混在同一段時（例如「別踩雷」同時收了兩者），要分得出哪條是
+       哪一種——它們的可信度來源不同：給付看公告、目標看指引。 */
+    if (item.kind === 'coverage' || item.kind === 'target') {
+      const tag = el('span', 'chronic-kind-dot');
+      tag.dataset.kind = item.kind;
+      tag.textContent = item.kind === 'coverage' ? '給付' : '目標';
+      line.appendChild(tag);
+    }
+    line.appendChild(document.createTextNode(String(item.text || '')));
+    li.appendChild(line);
     /* detail 收在原生 <details> 裡，預設收合但**控制項本身永遠看得見**。
        兩邊都不能選：全部攤開的話 64 條加起來是一面文字牆，176px 窄欄要捲十幾屏，
        違背「看診當下瞄一眼」；藏進 title 則等於沒有——而 detail 正是消歧義的那一層。
@@ -751,21 +773,19 @@
        居家血壓），醫師看到 text 一定會懷疑寫錯，答案就在 detail 裡。
        用原生 <details> 而不是自建 toggle：鍵盤操作、展開狀態、可存取性都由瀏覽器負責，
        也不必為一個純檢視的暫態多開一個 store 欄位。 */
-    if (item.detail) {
-      const more = el('details', 'chronic-more');
-      const summary = document.createElement('summary');
-      summary.className = 'chronic-more-toggle';
-      summary.textContent = '補充說明';
-      more.append(summary, el('div', 'chronic-detail', String(item.detail)));
-      li.appendChild(more);
-    }
-    const meta = el('p', 'chronic-meta');
+    /* 出處、查證日期與「補充說明」併成同一行（原本各佔一行，64 條就是 64 行）。
+       出處仍然**印在畫面上**——那條原則沒讓步，讓的只是行數。
+       有 detail 的條目用原生 <details>，把 meta 放進 <summary> 裡：點整行都能展開，
+       可點區域反而更大；鍵盤與可存取性照樣由瀏覽器負責。 */
+    const meta = el('span', 'chronic-meta');
     /* 缺漏一律顯示「未註明」而不是留白：留白看起來像「沒有這個欄位」，
        「未註明」看起來像「這條沒人查證過」——後者才是事實。 */
-    meta.append(
-      el('span', 'chronic-source', '出處 ' + (item.source || '未註明')),
-      el('span', 'chronic-checked', '查證 ' + (item.checked || '未註明'))
-    );
+    const src = el('span', 'chronic-source', item.source || '未註明');
+    /* 出處在 340px 下常常長到兩三行（「藥品給付規定 第五節 5.1 使用條件(2)（114/6/1
+       生效；115.07.23 版）」），一條就吃掉三行。收成一行＋刪節號，全文留在 title——
+       與部位鈕縮成兩字同一個取捨：看得到、查得到，但不佔版面。 */
+    src.title = '出處：' + (item.source || '未註明');
+    meta.append(src, el('span', 'chronic-checked', '查 ' + (item.checked || '未註明')));
     const from = item.effectiveFrom || '';
     const to = item.effectiveTo || '';
     if (from || to) {
@@ -773,7 +793,25 @@
         : (from ? '適用 ' + from + ' 起' : '適用至 ' + to);
       meta.appendChild(el('span', 'chronic-window', window_));
     }
-    li.appendChild(meta);
+
+    if (item.detail) {
+      const more = el('details', 'chronic-more');
+      const summary = document.createElement('summary');
+      summary.className = 'chronic-line';
+      summary.append(el('span', 'chronic-more-toggle', '補充'), meta);
+      /* 逐句成段（logic.splitSentences）：補充是整段密集敘述，不斷行的話
+         在窄欄裡要從頭讀到尾才找得到自己要的那一句。 */
+      const body = el('div', 'chronic-detail');
+      for (const line of root.ICDLogic.splitSentences(String(item.detail))) {
+        body.appendChild(el('p', 'chronic-sentence', line));
+      }
+      more.append(summary, body);
+      li.appendChild(more);
+    } else {
+      const foot = el('p', 'chronic-line');
+      foot.appendChild(meta);
+      li.appendChild(foot);
+    }
     return li;
   }
 
@@ -800,6 +838,43 @@
     return box;
   }
 
+  /* 把所有 section 的 items 攤平，帶上它原本的 kind，然後依 step 分組。
+     沒有 step 的條目（將來新增內容時忘了標）不會消失——收到「其他」那一段，
+     寧可位置不對也不要靜默不見。 */
+  function chronicStepGroups(topic) {
+    const all = [];
+    for (const section of (topic && topic.sections) || []) {
+      for (const item of section.items || []) {
+        all.push(Object.assign({}, item, { kind: item.kind || section.kind }));
+      }
+    }
+    const groups = [];
+    const used = new Set();
+    for (const row of CHRONIC_STEP) {
+      const items = all.filter((it) => it.step === row[0]);
+      items.forEach((it) => used.add(it));
+      if (items.length) groups.push({ step: row[0], title: row[1], hint: row[2], items });
+    }
+    const rest = all.filter((it) => !used.has(it));
+    if (rest.length) groups.push({ step: '', title: '其他', hint: '', items: rest });
+    return groups;
+  }
+
+  function chronicStepEl(group, today) {
+    const parts = root.ICDLogic.splitByEffective(group.items, today);
+    if (!parts.current.length && !parts.upcoming.length) return null;
+    const box = el('section', 'chronic-section');
+    box.dataset.step = group.step;
+    const head = el('div', 'chronic-section-head');
+    head.appendChild(el('h3', 'chronic-section-title', group.title));
+    if (group.hint) head.appendChild(el('span', 'chronic-step-hint', group.hint));
+    const list = el('ul', 'chronic-items');
+    for (const item of parts.current) list.appendChild(chronicItemEl(item, false));
+    for (const item of parts.upcoming) list.appendChild(chronicItemEl(item, true));
+    box.append(head, list);
+    return box;
+  }
+
   function renderChronic(overlay, ctx) {
     const key = ctx.store.getState().chronicTopic;
     const title = overlay.querySelector('#chronic-title');
@@ -812,9 +887,14 @@
     const short = (topic && topic.short) || key.toUpperCase();
     title.textContent = label + '（' + short + '）';
     const today = chronicToday();
+    /* 速判摘要：使用者是「看到異常數值」才打開這個面板的，第一眼要能判斷
+       這個數字算不算不達標／夠不夠格開藥，不必先捲過整段治療目標。 */
+    if (topic && topic.headline) {
+      body.appendChild(el('p', 'chronic-headline', String(topic.headline)));
+    }
     let sections = 0;
-    for (const section of (topic && topic.sections) || []) {
-      const node = chronicSectionEl(section, today);
+    for (const group of chronicStepGroups(topic)) {
+      const node = chronicStepEl(group, today);
       if (!node) continue;
       body.appendChild(node);
       sections += 1;
@@ -824,8 +904,6 @@
       body.appendChild(el('p', 'chronic-empty',
         '「' + label + '」的內容尚未整理完成，請直接查健保署當期公告與現行指引。'));
     }
-    body.appendChild(el('p', 'chronic-foot',
-      '依當天日期（' + today + '）只顯示現行版本；每條的出處與查證日期就列在該條下方。'));
   }
 
   // ---- CCr 計算機（Cockcroft-Gault） ----
@@ -1013,6 +1091,6 @@
     ccrButtonEl, ccrOverlayEl, renderCcrResult, syncCcr, ccrResultText, ccrInputs,
     chronicToday, chronicTopics,
     FORMAT_LABEL, MODE_LABEL, MODE_SHORT, PANELS_TITLE, MODE_HINT, LAYOUT_LABEL, LAYOUT_MIN_WIDTH,
-    CHRONIC_KIND, CHRONIC_DISCLAIMER, CCR_DISCLAIMER, CCR_BASIS_LABEL,
+    CHRONIC_KIND, CCR_DISCLAIMER, CCR_BASIS_LABEL,
   };
 })(typeof self !== 'undefined' ? self : this);
