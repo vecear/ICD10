@@ -813,9 +813,33 @@ b.cart-code {
   font-size: 12.5px; line-height: 1.55; color: var(--color-neutral-700);
   overflow-wrap: anywhere;
 }
-/* 逐句一段：句與句之間留白，並列條件（較嚴格／較寬鬆）才分得開。 */
-.chronic-sentence { margin: 0 0 5px; }
-.chronic-sentence:last-child { margin-bottom: 0; }
+/* ── 一條一行（主文與補充共用） ────────────────────────────────────────────
+   健保條文的分號幾乎都是「另一個適用條件」的界線，接在一起排就是一面文字牆，
+   醫師得自己在腦中拆一次。斷開之後還要解決第二個問題：**換行的續行與新的一條
+   長得一模一樣**（都從左邊界開始），所以用懸掛縮排——每一條的第一行凸出去，
+   續行縮進來，一眼就分得出「這是同一條的下半句」還是「下一條」。
+
+   只有斷成兩段以上的區塊才掛 is-split：單段條目加項目符號等於宣告「還有第二條」
+   卻沒有，是假訊號；而且會白白吃掉 176px 窄欄的左側寬度。 */
+.chronic-seg { display: block; }
+.chronic-seg + .chronic-seg { margin-top: 4px; }
+.is-split > .chronic-seg { padding-left: .8em; text-indent: -.8em; }
+.is-split > .chronic-seg::before {
+  content: '▪'; margin-right: .3em; font-size: .8em; vertical-align: .1em;
+  color: var(--color-accent-700);
+}
+/* 「給付」／「目標」標籤已經佔著行首的標記位，不再疊一個項目符號（見 fillSegments）。 */
+.is-split > .chronic-seg.is-tagged::before { content: none; }
+/* text-indent 會被繼承，而 inline-block 本身就是一個 block container——
+   .chronic-kind-dot 會拿到同一個 -.8em，把「給」推到自己的框外裁掉，畫面上只剩「付」。
+   凡是掛在 .chronic-seg 裡的 inline-block 都要歸零（實際踩過，2026-08-26）。 */
+.chronic-seg .chronic-kind-dot { text-indent: 0; }
+/* 行首的短標（「起始門檻：」「篩檢：」「Fibrate：」）。掃視時要找的就是這個詞，
+   標重不佔任何額外行高——是這個面板性價比最高的一刀。
+   粗體壓到 600 而不是 <b> 預設的 700：12.5px 的中文字 700 會糊成一團，
+   靠「換色＋半粗」比純加粗更容易在餘光中找到。 */
+.chronic-lead { font-weight: 600; color: var(--color-accent-800); }
+.chronic-detail .chronic-lead { color: var(--color-text); }
 /* 出處與查證日期是**可見文字**，不是 title 也不是註腳（本功能與 ICD 代碼最大的差別：
    代碼錯了建置會失敗，給付規定沒有這種驗證，只能靠醫師自己看得到它有多舊）。 */
 .chronic-meta {
@@ -1916,26 +1940,61 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
     return { current, upcoming, expired };
   }
 
-  /* 把一段補充敘述依句號拆成數行。
-     給付條文的補充常是四五句連在一起（「較嚴格（如 < 6.5%）：…。較寬鬆（…）：…。」），
-     在 176px 的側掛窄欄裡就是一面文字牆，要逐字讀才找得到自己要的那一句。
-     只切「。」——分號、破折號在條文裡是句內結構，切了反而把一句話拆散。
-     句號留在該句尾，接回去等於原文（只差句間空白）。 */
+  /* 把一段條文拆成「一條一行」。
+     給付條文常是四五個並列條件連在一起，在 176px 的側掛窄欄裡就是一面文字牆，
+     要逐字讀才找得到自己要的那一句。
+
+     切「。」也切「；」。分號在健保條文裡幾乎都是**另一個適用條件**的界線，
+     不是句內修飾——「起始門檻：ACS／PCI／CABG 病史 LDL-C ≧ 70；心血管疾病或糖尿病 ≧ 100」
+     是兩條各自成立的門檻，接在一起讀就得自己在腦中拆一次。
+     （2026-08-26 使用者指定改的：原本刻意不切分號，實際使用後判定讀不動。）
+
+     括號內的分號不切：那是括號這個單位內部的結構，切了會把括號拆成兩半。
+     目前資料裡是 0 個，這是給日後新增內容的保險。
+
+     終止符留在該段尾端，接回去等於原文（只差段間空白）——條文是臨床依據，
+     少一個字都不行，E2E 也直接拿 textContent 比對資料檔。 */
+  const SPLIT_OPEN = '（(【〔[';
+  const SPLIT_CLOSE = '）)】〕]';
   function splitSentences(text) {
     const src = typeof text === 'string' ? text : '';
     const out = [];
     let buf = '';
+    let depth = 0;
     for (const ch of src) {
       buf += ch;
-      if (ch === '。') {
+      if (SPLIT_OPEN.indexOf(ch) >= 0) depth += 1;
+      else if (SPLIT_CLOSE.indexOf(ch) >= 0) depth = Math.max(0, depth - 1);
+      else if (ch === '。' || (ch === '；' && depth === 0)) {
         const line = buf.trim();
         if (line) out.push(line);
         buf = '';
       }
     }
     const tail = buf.trim();
-    if (tail) out.push(tail);          // 沒有句號結尾的殘句照樣要顯示，不能吞掉
+    if (tail) out.push(tail);          // 沒有終止符結尾的殘句照樣要顯示，不能吞掉
     return out;
+  }
+
+  /* 一段條文開頭的「短標：」——「起始門檻：」「篩檢：」「族群目標：」「Fibrate：」。
+     65 條主文有 18 條、補充有 39 條是這個形狀，而它正是醫師掃視時要找的那個詞。
+     切出來讓畫面能把它標重，**不佔任何額外行高**，是這個面板性價比最高的一刀。
+
+     只認「短且乾淨」的前導標：≤ 14 字、其間不得有別的標點。
+     這條界線是刻意的——「evolocumab（Repatha）與 alirocumab（Praluent）：」有 33 字，
+     那不是標籤而是主詞，標重了整行都在發亮，等於沒標。
+     全形冒號才算；半形冒號在條文裡是時間與比值（1:1、8:00）。
+
+     回傳 { lead, rest }，lead 為 '' 表示沒有前導標。lead + rest 恆等於原字串。 */
+  const LEAD_STOP = '，。；、（）()';
+  function splitLead(text) {
+    const src = typeof text === 'string' ? text : '';
+    const at = src.indexOf('：');
+    if (at <= 0 || at > 14) return { lead: '', rest: src };
+    for (const ch of src.slice(0, at)) {
+      if (LEAD_STOP.indexOf(ch) >= 0) return { lead: '', rest: src };
+    }
+    return { lead: src.slice(0, at + 1), rest: src.slice(at + 1) };
   }
 
   /* ── Cockcroft-Gault 肌酸酐廓清率（純函式，node 可直接測） ─────────────────
@@ -2020,7 +2079,7 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
   }
 
   return { buildIndex, search, family, formatCart, mergeRelated, rocDate, splitByEffective,
-           splitSentences, creatinineClearance };
+           splitSentences, splitLead, creatinineClearance };
 });
 
 </script>
@@ -3871,6 +3930,36 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
     return overlay;
   }
 
+  /* 把一段條文攤成「一條一行」，塞進 box。主文與補充共用同一套排版，
+     因為它們是同一種東西（並列的適用條件），醫師沒有理由要學兩種讀法。
+
+     兩件事同時做，兩件都不佔額外行高：
+       1. 依 logic.splitSentences 斷段（句號與括號外的分號）——分號後面幾乎都是
+          **另一個適用條件**，接在一起讀就得自己在腦中拆一次。
+       2. 行首的「短標：」（起始門檻：、篩檢：、Fibrate：）標重——那正是掃視時要找的詞。
+
+     斷成兩段以上才掛 is-split（＝才有項目符號與懸掛縮排）：單段條目掛符號等於
+     宣告「這裡有第二條」卻沒有，是假訊號；而 .chronic-item 本身已經有下緣線當分隔。
+
+     不吞字、不插字：符號走 CSS ::before，textContent 接回去仍等於資料檔的原文
+     （E2E 直接拿它比對 chronic_care.json，見 test_e2e_dock.py 的 chronic_snapshot）。 */
+  function fillSegments(box, text, prefix) {
+    const segs = root.ICDLogic.splitSentences(String(text || ''));
+    if (segs.length > 1) box.classList.add('is-split');
+    for (let i = 0; i < segs.length; i++) {
+      const seg = el('span', 'chronic-seg');
+      /* 帶「給付」／「目標」標籤的那一段不再掛項目符號：標籤本身就佔著行首的標記位，
+         再加一個符號就是「▪給付 起始門檻…」，兩個標記擠在一起反而看不出哪個是分條。
+         懸掛縮排照樣套用，所以它的續行仍與底下各條的續行對齊。 */
+      if (i === 0 && prefix) { seg.appendChild(prefix); seg.classList.add('is-tagged'); }
+      const cut = root.ICDLogic.splitLead(segs[i]);
+      if (cut.lead) seg.appendChild(el('b', 'chronic-lead', cut.lead));
+      seg.appendChild(document.createTextNode(cut.rest));
+      box.appendChild(seg);
+    }
+    return box;
+  }
+
   /* 一條規定。出處與查證日期是**可見文字**，不是 title——這是本功能與其他區塊最大的差別。 */
   function chronicItemEl(item, upcoming) {
     const li = el('li', 'chronic-item' + (upcoming ? ' is-upcoming' : ''));
@@ -3878,14 +3967,15 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
     if (upcoming) li.appendChild(el('p', 'chronic-soon', '新版將於 ' + item.effectiveFrom + ' 生效'));
     const line = el('p', 'chronic-text');
     /* 給付規定與治療目標混在同一段時（例如「別踩雷」同時收了兩者），要分得出哪條是
-       哪一種——它們的可信度來源不同：給付看公告、目標看指引。 */
+       哪一種——它們的可信度來源不同：給付看公告、目標看指引。
+       標籤跟著第一段走（不自成一行），否則每條都多一列。 */
+    let tag = null;
     if (item.kind === 'coverage' || item.kind === 'target') {
-      const tag = el('span', 'chronic-kind-dot');
+      tag = el('span', 'chronic-kind-dot');
       tag.dataset.kind = item.kind;
       tag.textContent = item.kind === 'coverage' ? '給付' : '目標';
-      line.appendChild(tag);
     }
-    line.appendChild(document.createTextNode(String(item.text || '')));
+    fillSegments(line, item.text, tag);
     li.appendChild(line);
     /* detail 收在原生 <details> 裡，預設收合但**控制項本身永遠看得見**。
        兩邊都不能選：全部攤開的話 64 條加起來是一面文字牆，176px 窄欄要捲十幾屏，
@@ -3920,12 +4010,10 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
       const summary = document.createElement('summary');
       summary.className = 'chronic-line';
       summary.append(el('span', 'chronic-more-toggle', '補充'), meta);
-      /* 逐句成段（logic.splitSentences）：補充是整段密集敘述，不斷行的話
-         在窄欄裡要從頭讀到尾才找得到自己要的那一句。 */
+      /* 補充是整段密集敘述（平均 206 字、最長 476），不斷行的話在窄欄裡要從頭讀到尾
+         才找得到自己要的那一句。與主文共用 fillSegments，讀法完全一樣。 */
       const body = el('div', 'chronic-detail');
-      for (const line of root.ICDLogic.splitSentences(String(item.detail))) {
-        body.appendChild(el('p', 'chronic-sentence', line));
-      }
+      fillSegments(body, item.detail);
       more.append(summary, body);
       li.appendChild(more);
     } else {

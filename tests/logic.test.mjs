@@ -230,30 +230,77 @@ test('CCr：身高極端時不產生負的理想體重', () => {
   assert.equal(r.basis, 'actual');
 });
 
-/* splitSentences：補充說明在窄欄裡是一面文字牆，依句號斷行才讀得動。
+/* splitSentences：條文在窄欄裡是一面文字牆，斷成「一條一行」才讀得動。
    最重要的不變式是**不吞字**——條文是臨床依據，少一句比擠在一起嚴重得多。 */
 test('splitSentences: 依句號斷行，句號留在句尾', () => {
   const r = L.splitSentences('較嚴格：低血糖風險低。較寬鬆：情況相反。');
   assert.deepEqual(r, ['較嚴格：低血糖風險低。', '較寬鬆：情況相反。']);
 });
-test('splitSentences: 沒有句號就是一整段', () => {
+test('splitSentences: 沒有終止符就是一整段', () => {
   assert.deepEqual(L.splitSentences('限用於 metformin 已達最大耐受劑量'),
     ['限用於 metformin 已達最大耐受劑量']);
 });
 test('splitSentences: 結尾沒有句號的殘句不能被吞掉', () => {
   assert.deepEqual(L.splitSentences('第一句。第二句沒句號'), ['第一句。', '第二句沒句號']);
 });
-test('splitSentences: 分號與破折號是句內結構，不切', () => {
-  const s = '健康正常＝少共病；中等＝多共病——以避免低血糖為原則。';
+/* 2026-08-26 反轉的設計決定：原本刻意不切分號（「分號是句內結構」），
+   實際在診間讀過之後判定讀不動。健保條文的分號幾乎都是**另一個適用條件**的界線。 */
+test('splitSentences: 分號也斷行，分號留在段尾', () => {
+  const r = L.splitSentences('ACS 病史 LDL-C ≧ 70；心血管疾病或糖尿病 ≧ 100');
+  assert.deepEqual(r, ['ACS 病史 LDL-C ≧ 70；', '心血管疾病或糖尿病 ≧ 100']);
+});
+test('splitSentences: 括號內的分號不切（那是括號這個單位的內部結構）', () => {
+  const s = '出處為藥品給付規定（114/6/1 生效；115.07.23 版）之第二節。';
+  assert.deepEqual(L.splitSentences(s), [s]);
+});
+test('splitSentences: 括號沒關好也不能把後面整段吃掉', () => {
+  // 資料打錯字（缺右括號）時寧可退回「不切」，也不可以吞字
+  const s = '前段（沒關好；後段。';
+  assert.equal(L.splitSentences(s).join(''), s);
+});
+test('splitSentences: 破折號仍然是句內結構，不切', () => {
+  const s = '血壓數值不是給付條件——不會因為沒降到 130/80 被核刪。';
   assert.deepEqual(L.splitSentences(s), [s]);
 });
 test('splitSentences: 接回去等於原文（不吞字的硬保證）', () => {
   const s = '較嚴格（如 < 6.5%）：低血糖風險低、罹病時間短。較寬鬆（如 < 8.0～8.5%）：情況相反。'
-    + '指引刻意不給單一固定數字——這是設計，不是查詢遺漏。';
+    + '指引刻意不給單一固定數字——這是設計，不是查詢遺漏；表二另有例外。';
   assert.equal(L.splitSentences(s).join(''), s);
 });
 test('splitSentences: 空值與非字串回空陣列', () => {
   assert.deepEqual(L.splitSentences(''), []);
   assert.deepEqual(L.splitSentences(null), []);
   assert.deepEqual(L.splitSentences(undefined), []);
+});
+
+/* splitLead：把行首的「短標：」切出來給畫面標重。
+   lead + rest 必須恆等於原字串——畫面是拿它們接起來當條文顯示的。 */
+test('splitLead: 切出短標，冒號留在 lead', () => {
+  assert.deepEqual(L.splitLead('起始門檻：ACS 病史 LDL-C ≧ 70'),
+    { lead: '起始門檻：', rest: 'ACS 病史 LDL-C ≧ 70' });
+});
+test('splitLead: 冒號前太長就不是標籤（標重了整行都在發亮＝等於沒標）', () => {
+  const s = 'evolocumab（Repatha）與 alirocumab（Praluent）：限重大心血管事件後一年內';
+  assert.deepEqual(L.splitLead(s), { lead: '', rest: s });
+});
+test('splitLead: 冒號前有別的標點就不是標籤', () => {
+  const s = '早晚 2 次、共 4 天：連續測';    // 冒號夠前面，是「、」把它擋掉的
+  assert.deepEqual(L.splitLead(s), { lead: '', rest: s });
+});
+test('splitLead: 半形冒號不算（條文裡那是時間與比值）', () => {
+  const s = '每時段至少 2 次讀數，早上 8:00 前測';
+  assert.deepEqual(L.splitLead(s), { lead: '', rest: s });
+});
+test('splitLead: 沒有冒號、開頭就是冒號、空值都回整段', () => {
+  assert.deepEqual(L.splitLead('限用於 metformin 已達最大耐受劑量'),
+    { lead: '', rest: '限用於 metformin 已達最大耐受劑量' });
+  assert.deepEqual(L.splitLead('：開頭就是冒號'), { lead: '', rest: '：開頭就是冒號' });
+  assert.deepEqual(L.splitLead(''), { lead: '', rest: '' });
+  assert.deepEqual(L.splitLead(null), { lead: '', rest: '' });
+});
+test('splitLead: lead + rest 恆等於原字串（畫面靠這條不吞字）', () => {
+  for (const s of ['篩檢：每年 UACR＋Cr 各 1 次', '沒有標籤的一整段', 'Fibrate：TG 200–499']) {
+    const { lead, rest } = L.splitLead(s);
+    assert.equal(lead + rest, s);
+  }
 });

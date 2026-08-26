@@ -478,9 +478,33 @@ b.cart-code {
   font-size: 12.5px; line-height: 1.55; color: var(--color-neutral-700);
   overflow-wrap: anywhere;
 }
-/* 逐句一段：句與句之間留白，並列條件（較嚴格／較寬鬆）才分得開。 */
-.chronic-sentence { margin: 0 0 5px; }
-.chronic-sentence:last-child { margin-bottom: 0; }
+/* ── 一條一行（主文與補充共用） ────────────────────────────────────────────
+   健保條文的分號幾乎都是「另一個適用條件」的界線，接在一起排就是一面文字牆，
+   醫師得自己在腦中拆一次。斷開之後還要解決第二個問題：**換行的續行與新的一條
+   長得一模一樣**（都從左邊界開始），所以用懸掛縮排——每一條的第一行凸出去，
+   續行縮進來，一眼就分得出「這是同一條的下半句」還是「下一條」。
+
+   只有斷成兩段以上的區塊才掛 is-split：單段條目加項目符號等於宣告「還有第二條」
+   卻沒有，是假訊號；而且會白白吃掉 176px 窄欄的左側寬度。 */
+.chronic-seg { display: block; }
+.chronic-seg + .chronic-seg { margin-top: 4px; }
+.is-split > .chronic-seg { padding-left: .8em; text-indent: -.8em; }
+.is-split > .chronic-seg::before {
+  content: '▪'; margin-right: .3em; font-size: .8em; vertical-align: .1em;
+  color: var(--color-accent-700);
+}
+/* 「給付」／「目標」標籤已經佔著行首的標記位，不再疊一個項目符號（見 fillSegments）。 */
+.is-split > .chronic-seg.is-tagged::before { content: none; }
+/* text-indent 會被繼承，而 inline-block 本身就是一個 block container——
+   .chronic-kind-dot 會拿到同一個 -.8em，把「給」推到自己的框外裁掉，畫面上只剩「付」。
+   凡是掛在 .chronic-seg 裡的 inline-block 都要歸零（實際踩過，2026-08-26）。 */
+.chronic-seg .chronic-kind-dot { text-indent: 0; }
+/* 行首的短標（「起始門檻：」「篩檢：」「Fibrate：」）。掃視時要找的就是這個詞，
+   標重不佔任何額外行高——是這個面板性價比最高的一刀。
+   粗體壓到 600 而不是 <b> 預設的 700：12.5px 的中文字 700 會糊成一團，
+   靠「換色＋半粗」比純加粗更容易在餘光中找到。 */
+.chronic-lead { font-weight: 600; color: var(--color-accent-800); }
+.chronic-detail .chronic-lead { color: var(--color-text); }
 /* 出處與查證日期是**可見文字**，不是 title 也不是註腳（本功能與 ICD 代碼最大的差別：
    代碼錯了建置會失敗，給付規定沒有這種驗證，只能靠醫師自己看得到它有多舊）。 */
 .chronic-meta {

@@ -129,26 +129,61 @@
     return { current, upcoming, expired };
   }
 
-  /* 把一段補充敘述依句號拆成數行。
-     給付條文的補充常是四五句連在一起（「較嚴格（如 < 6.5%）：…。較寬鬆（…）：…。」），
-     在 176px 的側掛窄欄裡就是一面文字牆，要逐字讀才找得到自己要的那一句。
-     只切「。」——分號、破折號在條文裡是句內結構，切了反而把一句話拆散。
-     句號留在該句尾，接回去等於原文（只差句間空白）。 */
+  /* 把一段條文拆成「一條一行」。
+     給付條文常是四五個並列條件連在一起，在 176px 的側掛窄欄裡就是一面文字牆，
+     要逐字讀才找得到自己要的那一句。
+
+     切「。」也切「；」。分號在健保條文裡幾乎都是**另一個適用條件**的界線，
+     不是句內修飾——「起始門檻：ACS／PCI／CABG 病史 LDL-C ≧ 70；心血管疾病或糖尿病 ≧ 100」
+     是兩條各自成立的門檻，接在一起讀就得自己在腦中拆一次。
+     （2026-08-26 使用者指定改的：原本刻意不切分號，實際使用後判定讀不動。）
+
+     括號內的分號不切：那是括號這個單位內部的結構，切了會把括號拆成兩半。
+     目前資料裡是 0 個，這是給日後新增內容的保險。
+
+     終止符留在該段尾端，接回去等於原文（只差段間空白）——條文是臨床依據，
+     少一個字都不行，E2E 也直接拿 textContent 比對資料檔。 */
+  const SPLIT_OPEN = '（(【〔[';
+  const SPLIT_CLOSE = '）)】〕]';
   function splitSentences(text) {
     const src = typeof text === 'string' ? text : '';
     const out = [];
     let buf = '';
+    let depth = 0;
     for (const ch of src) {
       buf += ch;
-      if (ch === '。') {
+      if (SPLIT_OPEN.indexOf(ch) >= 0) depth += 1;
+      else if (SPLIT_CLOSE.indexOf(ch) >= 0) depth = Math.max(0, depth - 1);
+      else if (ch === '。' || (ch === '；' && depth === 0)) {
         const line = buf.trim();
         if (line) out.push(line);
         buf = '';
       }
     }
     const tail = buf.trim();
-    if (tail) out.push(tail);          // 沒有句號結尾的殘句照樣要顯示，不能吞掉
+    if (tail) out.push(tail);          // 沒有終止符結尾的殘句照樣要顯示，不能吞掉
     return out;
+  }
+
+  /* 一段條文開頭的「短標：」——「起始門檻：」「篩檢：」「族群目標：」「Fibrate：」。
+     65 條主文有 18 條、補充有 39 條是這個形狀，而它正是醫師掃視時要找的那個詞。
+     切出來讓畫面能把它標重，**不佔任何額外行高**，是這個面板性價比最高的一刀。
+
+     只認「短且乾淨」的前導標：≤ 14 字、其間不得有別的標點。
+     這條界線是刻意的——「evolocumab（Repatha）與 alirocumab（Praluent）：」有 33 字，
+     那不是標籤而是主詞，標重了整行都在發亮，等於沒標。
+     全形冒號才算；半形冒號在條文裡是時間與比值（1:1、8:00）。
+
+     回傳 { lead, rest }，lead 為 '' 表示沒有前導標。lead + rest 恆等於原字串。 */
+  const LEAD_STOP = '，。；、（）()';
+  function splitLead(text) {
+    const src = typeof text === 'string' ? text : '';
+    const at = src.indexOf('：');
+    if (at <= 0 || at > 14) return { lead: '', rest: src };
+    for (const ch of src.slice(0, at)) {
+      if (LEAD_STOP.indexOf(ch) >= 0) return { lead: '', rest: src };
+    }
+    return { lead: src.slice(0, at + 1), rest: src.slice(at + 1) };
   }
 
   /* ── Cockcroft-Gault 肌酸酐廓清率（純函式，node 可直接測） ─────────────────
@@ -233,5 +268,5 @@
   }
 
   return { buildIndex, search, family, formatCart, mergeRelated, rocDate, splitByEffective,
-           splitSentences, creatinineClearance };
+           splitSentences, splitLead, creatinineClearance };
 });

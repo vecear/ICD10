@@ -750,6 +750,36 @@
     return overlay;
   }
 
+  /* 把一段條文攤成「一條一行」，塞進 box。主文與補充共用同一套排版，
+     因為它們是同一種東西（並列的適用條件），醫師沒有理由要學兩種讀法。
+
+     兩件事同時做，兩件都不佔額外行高：
+       1. 依 logic.splitSentences 斷段（句號與括號外的分號）——分號後面幾乎都是
+          **另一個適用條件**，接在一起讀就得自己在腦中拆一次。
+       2. 行首的「短標：」（起始門檻：、篩檢：、Fibrate：）標重——那正是掃視時要找的詞。
+
+     斷成兩段以上才掛 is-split（＝才有項目符號與懸掛縮排）：單段條目掛符號等於
+     宣告「這裡有第二條」卻沒有，是假訊號；而 .chronic-item 本身已經有下緣線當分隔。
+
+     不吞字、不插字：符號走 CSS ::before，textContent 接回去仍等於資料檔的原文
+     （E2E 直接拿它比對 chronic_care.json，見 test_e2e_dock.py 的 chronic_snapshot）。 */
+  function fillSegments(box, text, prefix) {
+    const segs = root.ICDLogic.splitSentences(String(text || ''));
+    if (segs.length > 1) box.classList.add('is-split');
+    for (let i = 0; i < segs.length; i++) {
+      const seg = el('span', 'chronic-seg');
+      /* 帶「給付」／「目標」標籤的那一段不再掛項目符號：標籤本身就佔著行首的標記位，
+         再加一個符號就是「▪給付 起始門檻…」，兩個標記擠在一起反而看不出哪個是分條。
+         懸掛縮排照樣套用，所以它的續行仍與底下各條的續行對齊。 */
+      if (i === 0 && prefix) { seg.appendChild(prefix); seg.classList.add('is-tagged'); }
+      const cut = root.ICDLogic.splitLead(segs[i]);
+      if (cut.lead) seg.appendChild(el('b', 'chronic-lead', cut.lead));
+      seg.appendChild(document.createTextNode(cut.rest));
+      box.appendChild(seg);
+    }
+    return box;
+  }
+
   /* 一條規定。出處與查證日期是**可見文字**，不是 title——這是本功能與其他區塊最大的差別。 */
   function chronicItemEl(item, upcoming) {
     const li = el('li', 'chronic-item' + (upcoming ? ' is-upcoming' : ''));
@@ -757,14 +787,15 @@
     if (upcoming) li.appendChild(el('p', 'chronic-soon', '新版將於 ' + item.effectiveFrom + ' 生效'));
     const line = el('p', 'chronic-text');
     /* 給付規定與治療目標混在同一段時（例如「別踩雷」同時收了兩者），要分得出哪條是
-       哪一種——它們的可信度來源不同：給付看公告、目標看指引。 */
+       哪一種——它們的可信度來源不同：給付看公告、目標看指引。
+       標籤跟著第一段走（不自成一行），否則每條都多一列。 */
+    let tag = null;
     if (item.kind === 'coverage' || item.kind === 'target') {
-      const tag = el('span', 'chronic-kind-dot');
+      tag = el('span', 'chronic-kind-dot');
       tag.dataset.kind = item.kind;
       tag.textContent = item.kind === 'coverage' ? '給付' : '目標';
-      line.appendChild(tag);
     }
-    line.appendChild(document.createTextNode(String(item.text || '')));
+    fillSegments(line, item.text, tag);
     li.appendChild(line);
     /* detail 收在原生 <details> 裡，預設收合但**控制項本身永遠看得見**。
        兩邊都不能選：全部攤開的話 64 條加起來是一面文字牆，176px 窄欄要捲十幾屏，
@@ -799,12 +830,10 @@
       const summary = document.createElement('summary');
       summary.className = 'chronic-line';
       summary.append(el('span', 'chronic-more-toggle', '補充'), meta);
-      /* 逐句成段（logic.splitSentences）：補充是整段密集敘述，不斷行的話
-         在窄欄裡要從頭讀到尾才找得到自己要的那一句。 */
+      /* 補充是整段密集敘述（平均 206 字、最長 476），不斷行的話在窄欄裡要從頭讀到尾
+         才找得到自己要的那一句。與主文共用 fillSegments，讀法完全一樣。 */
       const body = el('div', 'chronic-detail');
-      for (const line of root.ICDLogic.splitSentences(String(item.detail))) {
-        body.appendChild(el('p', 'chronic-sentence', line));
-      }
+      fillSegments(body, item.detail);
       more.append(summary, body);
       li.appendChild(more);
     } else {
