@@ -449,9 +449,23 @@ b.cart-code {
 .chronic-body { flex: 1; min-height: 0; overflow-y: auto; margin-top: 10px; }
 .chronic-section { margin: 0 0 14px; }
 .chronic-section:last-of-type { margin-bottom: 0; }
+/* 分段標題吸頂。條文對回官方原文之後，主文載了更多門檻，面板變長約一倍
+   （見 docs/dense-ui-principle.md 的第二筆帳）。捲長沒辦法在不刪門檻的前提下縮回來，
+   但「捲到一半不知道自己在哪一段」是可以免費解決的——sticky 不佔任何額外高度，
+   它重複利用的是本來就存在的那一列。
+
+   醫師打開這個面板時心裡有個特定問題（能不能開？會不會被扣？目標多少？），
+   標題常駐才對得上那個問題。背景色不可省：sticky 元素會蓋在內文上，透明的話兩層字會疊在一起。 */
 .chronic-section-head {
   display: flex; align-items: baseline; gap: 6px;
   padding-bottom: 3px; border-bottom: 1px solid var(--color-divider);
+  position: sticky; top: 0; z-index: 1; background: var(--color-bg);
+}
+/* 「別踩雷」「不給付」整段有左邊界線與內距，吸頂時背景要蓋滿那塊內距，
+   否則捲過去會從左側縫隙看到底下的字。 */
+.chronic-section[data-step="pitfall"] > .chronic-section-head,
+.chronic-section[data-step="nocover"] > .chronic-section-head {
+  margin-left: -8px; padding-left: 8px;
 }
 .chronic-section-title { margin: 0; font-size: 14px; line-height: 1.2; letter-spacing: .02em; }
 .chronic-kind {
