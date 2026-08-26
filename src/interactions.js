@@ -284,6 +284,69 @@
     if (await copyText(text)) announce('已複製：' + text);
   }
 
+  /* 血脂給付試算。與 CCr 完全同型的浮層，使用者只要學一次。 */
+  function lipidDoc(node) {
+    return (node && node.ownerDocument) || document;
+  }
+
+  function openLipid(ctx, node) {
+    if (ctx.store.getState().lipidOpen) return;
+    ctx.store.setLipidOpen(true);
+    const ldl = lipidDoc(node).getElementById('lipid-ldl');
+    if (ldl) ldl.focus();      // 直接落在 LDL-C：那是這個判定唯一的必填值
+    announce('血脂給付試算已開啟');
+  }
+
+  function closeLipid(ctx, node) {
+    if (!ctx.store.getState().lipidOpen) return false;
+    ctx.store.setLipidOpen(false);
+    const btn = lipidDoc(node).getElementById('lipid-btn');
+    if (btn) btn.focus();
+    announce('已關閉血脂給付試算');
+    return true;
+  }
+
+  /* 任一輸入或勾選變動就重算。與 CCr 同一個理由不經過 store。 */
+  function recalcLipid(ctx, node) {
+    const doc = lipidDoc(node);
+    if (doc.getElementById('lipid-panel')) root.ICDRender.renderLipidResult(doc, ctx);
+  }
+
+  function chooseLipidSex(ctx, node) {
+    const row = lipidDoc(node).getElementById('lipid-sex');
+    if (!row) return;
+    for (const b of row.querySelectorAll('.lipid-sex-btn')) {
+      const on = b === node;
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      b.classList.toggle('is-on', on);
+    }
+    root.ICDRender.syncLipidSexRows(lipidDoc(node));
+    recalcLipid(ctx, node);
+  }
+
+  function resetLipid(ctx, node) {
+    const doc = lipidDoc(node);
+    for (const id of ['lipid-age', 'lipid-ldl', 'lipid-tc', 'lipid-hdl', 'lipid-tg']) {
+      const input = doc.getElementById(id);
+      if (input) input.value = '';
+    }
+    for (const box of doc.querySelectorAll('[data-lipid-key]')) box.checked = false;
+    recalcLipid(ctx, node);
+    const ldl = doc.getElementById('lipid-ldl');
+    if (ldl) ldl.focus();
+    announce('已清除血脂試算的輸入');
+  }
+
+  /* 複製判定。理由要一起帶走——只複製「符合」兩個字，日後被核刪時什麼都證明不了。 */
+  async function copyLipid(ctx, node) {
+    const doc = lipidDoc(node);
+    const input = root.ICDRender.lipidInputs(doc);
+    const r = ctx.logic.lipidCoverage(input);
+    const text = root.ICDRender.lipidResultText(r, input);
+    if (!text) { announce('還沒有可複製的結果'); return; }
+    if (await copyText(text)) announce('已複製血脂給付試算結果');
+  }
+
   /* 設定面板的「回復預設高度」（三套版面共用）。只清**生效版面**那一組：在 176px 窄欄
      按下它，不該把桌機工作台調好的高度一起抹掉（分版面各記各的）。 */
   function resetPanes(ctx) {
@@ -357,6 +420,14 @@
       const chronicBtn = target.closest('[data-chronic]');
       if (chronicBtn) { chooseChronic(ctx, chronicBtn.getAttribute('data-chronic'), chronicBtn); return; }
 
+      if (target.closest('#lipid-btn')) { openLipid(ctx, target); return; }
+      const lipidSexBtn = target.closest('.lipid-sex-btn');
+      if (lipidSexBtn) { chooseLipidSex(ctx, lipidSexBtn); return; }
+      if (target.closest('#lipid-close') || target.id === 'lipid-overlay') {
+        closeLipid(ctx, target); return;
+      }
+      if (target.closest('#lipid-copy')) { copyLipid(ctx, target); return; }
+      if (target.closest('#lipid-reset')) { resetLipid(ctx, target); return; }
       const ccrSexBtn = target.closest('.ccr-sex-btn');
       if (ccrSexBtn) { chooseCcrSex(ctx, ccrSexBtn); return; }
       if (target.closest('#ccr-close') || target.id === 'ccr-overlay') { closeCcr(ctx, target); return; }
@@ -447,11 +518,22 @@
         recalcCcr(ctx, ev.target);
         return;
       }
+      if (ev.target && ev.target.classList && ev.target.classList.contains('lipid-input')) {
+        recalcLipid(ctx, ev.target);
+        return;
+      }
       if (!ev.target || ev.target.id !== 'search') return;
       const value = ev.target.value;
       if (value.trim().length >= 2) data.ensureDb();     // 觸發全庫延遲載入
       clearTimeout(debounce);
       debounce = setTimeout(() => store.setQuery(value), SEARCH_DEBOUNCE);
+    });
+
+    /* 勾選變動走 change：checkbox 的正規事件是 change，input 在部分瀏覽器上不保證。 */
+    document.addEventListener('change', (ev) => {
+      if (ev.target && ev.target.dataset && ev.target.dataset.lipidKey) {
+        recalcLipid(ctx, ev.target);
+      }
     });
 
     document.addEventListener('keydown', (ev) => {
@@ -462,6 +544,7 @@
           store.setQuery('');
           // Esc 在其他情境都會關掉開著的浮層，搜尋框裡也要一致（R2 M3）
           if (isFallbackOpen()) closeFallbackCopy();
+          else if (store.getState().lipidOpen) closeLipid(ctx, ev.target);
           else if (store.getState().ccrOpen) closeCcr(ctx, ev.target);
           else if (store.getState().chronicTopic) closeChronic(ctx, ev.target);
           else if (store.getState().settingsOpen) store.setSettingsOpen(false);
@@ -491,7 +574,8 @@
       }
       if (ev.key === 'Escape') {
         if (isFallbackOpen()) { closeFallbackCopy(); return; }
-        // 三個浮層互斥（開任一個會關掉其他兩個），所以這裡的順序只是保險
+        // 四個浮層互斥（開任一個會關掉其他三個），所以這裡的順序只是保險
+        if (store.getState().lipidOpen) { closeLipid(ctx, ev.target); return; }
         if (store.getState().ccrOpen) { closeCcr(ctx, ev.target); return; }
         if (store.getState().chronicTopic) { closeChronic(ctx, ev.target); return; }
         if (store.getState().settingsOpen) store.setSettingsOpen(false);
@@ -558,5 +642,6 @@
     chooseMode, resetPanes,
     chooseMode, chooseAllRegions, resetPanes, chooseChronic, closeChronic,
     openCcr, closeCcr, recalcCcr, chooseCcrSex, resetCcr, copyCcr,
+    openLipid, closeLipid, recalcLipid, chooseLipidSex, resetLipid, copyLipid,
   };
 })(typeof self !== 'undefined' ? self : this);

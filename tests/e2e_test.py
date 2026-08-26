@@ -113,6 +113,7 @@ def reset(pg):
         s.setQuery('');
         s.setSettingsOpen(false);
         s.setChronicTopic(null); // 慢病速查浮層蓋住整個工作區；殘留會讓後面所有點擊被它攔截
+        s.setLipidOpen(false);   // 同理：血脂試算面板也是全幅浮層
         s.resetPaneSizes();      // 窗格高度也會寫 localStorage，殘留會讓其他測試量到別條測試拖出來的高度
         s.setState({ favs: [], recent: [], expanded: {}, quickOpen: {}, copied: false });
     }""")

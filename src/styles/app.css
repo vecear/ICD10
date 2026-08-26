@@ -658,3 +658,106 @@ details.chronic-more > .chronic-line::-webkit-details-marker { display: none; }
   border-bottom: 1px dotted var(--color-accent-700);
 }
 details.chronic-more[open] > .chronic-line .chronic-more-toggle { color: var(--color-accent-800); }
+
+/* ── 血脂給付試算 ──────────────────────────────────────────────────────────
+   骨架與 .ccr-* 同型（同樣的遮罩與關閉出口），差別是這個以**多選輸入**為主體，
+   所以主體是可捲的表單而不是幾格數字。
+
+   面板比 CCr 寬（480 vs 420）：勾選項目是兩欄，420 下會被擠成一欄再多捲一屏。 */
+/* 掛在慢病速查那一排尾巴，與 DM／HTN／LIPID 三顆鈕同高，但用次要樣式區隔
+   ——它們是「看規定」，這顆是「算數字」。 */
+.chronic-switch .lipid-btn { margin-left: 4px; }
+
+.lipid-overlay {
+  position: fixed; inset: 0; z-index: 30;
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+  background: rgba(43, 43, 45, .5);
+}
+.lipid-panel {
+  display: flex; flex-direction: column; min-height: 0;
+  width: min(480px, 100%); max-height: 100%; padding: 14px 16px; overflow-y: auto;
+  background: var(--color-bg); border: 1px solid var(--color-accent); box-shadow: var(--shadow-lg);
+}
+.lipid-head { display: flex; align-items: baseline; gap: 10px; flex: none; }
+.lipid-title { flex: 1; min-width: 0; margin: 0; font-size: 19px; line-height: 1.2; letter-spacing: -.01em; }
+.lipid-close {
+  flex: none; min-height: 28px; padding: 0 10px; font: inherit; font-size: 13px;
+  border: 1px solid var(--color-divider); background: transparent; color: var(--color-text);
+  cursor: pointer;
+}
+.lipid-close:hover { border-color: var(--color-accent); }
+
+.lipid-form { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.lipid-sex { align-self: flex-start; }
+/* 五個數值欄位排成可換行的一列：它們是同一組東西（這次的血脂 profile），
+   各佔一行會把最重要的勾選區推到摺線以下。 */
+.lipid-nums { display: flex; flex-wrap: wrap; gap: 6px 10px; }
+.lipid-field { display: flex; align-items: center; gap: 5px; }
+.lipid-label { font-size: 12px; color: var(--color-neutral-700); white-space: nowrap; }
+/* min-width:0 不可省——flex item 的固有寬度會擋住收縮，窄欄下輸入框會把整列撐出去 */
+.lipid-input { width: 5.2em; min-width: 0; min-height: 30px; font-variant-numeric: tabular-nums; }
+/* 拿掉數字微調鈕：血脂值一律用鍵盤輸入，那兩個箭頭在 176px 會吃掉整整一個字的寬度，
+   把「120」擠成「12(」。實測 176px 下不移除就會裁字。 */
+.lipid-input::-webkit-outer-spin-button,
+.lipid-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.lipid-input { -moz-appearance: textfield; appearance: textfield; }
+
+.lipid-group { margin: 0; padding: 0; border: 0; }
+.lipid-legend {
+  padding: 0; font-family: var(--font-heading); font-size: 11px; letter-spacing: .08em;
+  color: var(--color-neutral-700);
+}
+/* 兩欄格線。minmax(0, 1fr) 不可寫成 1fr：長到不能斷的藥名會把該欄撐開 */
+.lipid-checks {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(11em, 100%), 1fr));
+  gap: 1px 10px; margin-top: 3px;
+}
+.lipid-check {
+  display: flex; align-items: flex-start; gap: 5px;
+  font-size: 12.5px; line-height: 1.35; cursor: pointer; padding: 2px 0;
+}
+.lipid-check input { flex: none; margin: 2px 0 0; }
+.lipid-check:hover { color: var(--color-accent-800); }
+
+.lipid-result { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.lipid-hint { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--color-neutral-700); }
+
+/* 一張表一個區塊。左緣色條就是結論——綠＝符合、灰＝未達，
+   讓人在讀完細節之前就先看到答案。 */
+.lipid-block {
+  padding: 8px 10px; background: var(--color-neutral-100);
+  border-left: 3px solid var(--color-divider);
+}
+.lipid-block.is-ok { border-left-color: var(--color-accent); background: var(--color-accent-100); }
+.lipid-block.is-no { border-left-color: var(--line-strong); }
+.lipid-block-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; }
+.lipid-block-title { font-size: 13px; letter-spacing: .01em; }
+.lipid-block-note { font-size: 11px; color: var(--color-neutral-700); }
+.lipid-level {
+  margin: 3px 0 0; font-family: var(--font-heading); font-size: 16px; line-height: 1.2;
+  letter-spacing: -.01em; color: var(--color-accent-800);
+}
+.lipid-threshold { margin: 2px 0 0; font-size: 12.5px; line-height: 1.45; font-variant-numeric: tabular-nums; }
+.lipid-verdict { margin: 3px 0 0; font-size: 13px; font-weight: 600; }
+.lipid-block.is-ok .lipid-verdict { color: var(--color-accent-800); }
+.lipid-why, .lipid-parallel, .lipid-proof {
+  margin: 2px 0 0; font-size: 12px; line-height: 1.45; color: var(--color-neutral-700);
+}
+/* 舉證要求是「申報時會被查的東西」，不是背景說明，所以不與其他附註同色 */
+.lipid-proof { color: var(--warn-ink); }
+/* 兩張表結論不同——這是這個工具最有價值的一刻，必須跳出來 */
+.lipid-split {
+  margin: 0; padding: 6px 9px; font-size: 12.5px; line-height: 1.5;
+  border-left: 2px solid var(--warn-line); background: var(--warn-bg); color: var(--warn-ink);
+}
+.lipid-rf { margin: 0; font-size: 11.5px; line-height: 1.5; color: var(--color-neutral-700); }
+
+.lipid-actions { display: flex; gap: 6px; margin-top: 10px; flex: none; }
+.lipid-copy { flex: 1; background: var(--his-btn); color: var(--his-btn-ink); border: 1px solid var(--his-btn); }
+.lipid-copy:hover:not(:disabled) { background: var(--his-btn-hover); }
+.lipid-copy:disabled { opacity: .5; cursor: not-allowed; }
+.lipid-reset { flex: 0 0 auto; }
+.lipid-disclaimer {
+  flex: none; margin: 10px 0 0; padding: 6px 9px; font-size: 12px; line-height: 1.5;
+  border-left: 2px solid var(--warn-line); background: var(--warn-bg); color: var(--warn-ink);
+}

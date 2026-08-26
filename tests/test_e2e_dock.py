@@ -82,6 +82,7 @@ def reset(page):
         s.setSettingsOpen(false);
         s.setChronicTopic(null); // 慢病速查浮層蓋住整個側欄；殘留會讓後面所有點擊被它攔截
         s.setCcrOpen(false);     // 同理：CCr 面板留著開，下一條測試的點擊全部被遮罩吃掉
+        s.setLipidOpen(false);   // 同理：血脂試算面板也是全幅浮層
         s.setCartOpen(true);
         s.setTheme('light');
         s.resetPaneSizes();      // 窗格高度會寫 localStorage，殘留會讓別條測試量到上一條拖出來的高度
@@ -103,6 +104,23 @@ def reset(page):
             female.setAttribute('aria-pressed', 'false');
             female.classList.remove('is-on');
         }
+        /* 血脂試算：數值與勾選同樣不進 store（都是「這一位病人」的暫態），
+           殘留會讓下一條測試算進上一位病人的病史。 */
+        for (const id of ['lipid-age', 'lipid-ldl', 'lipid-tc', 'lipid-hdl', 'lipid-tg']) {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        }
+        for (const box of document.querySelectorAll('[data-lipid-key]')) box.checked = false;
+        const lm = document.querySelector('.lipid-sex-btn[data-lipid-sex="male"]');
+        const lf = document.querySelector('.lipid-sex-btn[data-lipid-sex="female"]');
+        if (lm && lf) {
+            lm.setAttribute('aria-pressed', 'true');
+            lm.classList.add('is-on');
+            lf.setAttribute('aria-pressed', 'false');
+            lf.classList.remove('is-on');
+        }
+        const mrow = document.querySelector('[data-lipid-row="menopause"]');
+        if (mrow) mrow.hidden = true;
     }""")
 
 
@@ -1773,3 +1791,169 @@ def test_ccr_fits_narrow_dock(pg):
     assert_no_hscroll(pg, "CCr 面板")
     assert not overflowing_elements(pg), overflowing_elements(pg)
     pg.keyboard.press("Escape")
+
+
+# ---- 血脂給付試算 ----
+def lipid_open(pg):
+    pg.click("#lipid-btn")
+    expect(pg.locator("#lipid-panel")).to_be_visible()
+
+
+def lipid_fill(pg, **vals):
+    for key, value in vals.items():
+        pg.fill("#lipid-" + key, str(value))
+    pg.wait_for_timeout(120)
+
+
+def test_lipid_button_lives_with_the_chronic_row_not_the_header(pg):
+    """「血脂試算」掛在慢病速查那一排（DM／HTN／LIPID 旁），**不得放進 header**。
+
+    兩個理由，第二個是實測踩到的：
+      1. 它算的就是 LIPID 主題的給付門檻，放在該主題的入口鈕旁邊語意才對得上。
+      2. 176px 的 header 塞不下第四顆鈕——放進去會把模式三鈕擠到第二列
+         （實測 y 37→62），直接違反本檔的密度守門。
+
+    這一排跟著內容捲動，常駐版面成本是 0（見 docs/dense-ui-principle.md）。
+    """
+    btn = pg.locator("#lipid-btn")
+    expect(btn).to_have_count(1)
+    placement = pg.evaluate("""() => {
+        const b = document.getElementById('lipid-btn');
+        return { inChronicRow: !!b.closest('#chronic-switch'),
+                 inHead: !!b.closest('.dock-head') }; }""")
+    assert placement["inChronicRow"], "血脂鈕要掛在慢病速查那一排"
+    assert not placement["inHead"], "血脂鈕不得放進 header：176px 塞不下第四顆鈕"
+
+    lip = btn.bounding_box()
+    lipid_topic = pg.locator("#chronic-btn-lipid").bounding_box()
+    assert abs(lip["y"] - lipid_topic["y"]) < 2, "要與 LIPID 鈕同一列"
+    assert lip["x"] > lipid_topic["x"], "排在三顆主題鈕之後"
+    assert lip["x"] + lip["width"] <= DOCK["width"] + 0.5, "血脂鈕超出窄欄"
+
+
+def test_lipid_two_tables_and_the_split_warning(pg):
+    """這個計算機真正的價值：同一位病人在兩張表可能結論不同，取決於健保代碼走哪一張。
+
+    案例取自條文本身：糖尿病、LDL-C 95、TC 180。
+      表一（高風險）門檻 LDL-C ≧ 100 → 未達
+      表二（心血管疾病或糖尿病）門檻 LDL-C ≧ 100 **或 TC ≧ 160** → TC 180 已達
+    這種落差如果不講出來，醫師會以為只有一個答案。
+    """
+    lipid_open(pg)
+    lipid_fill(pg, age=58, ldl=95, tc=180, hdl=55)
+    pg.check("#lipid-dm")
+    pg.wait_for_timeout(150)
+
+    blocks = pg.locator("#lipid-result .lipid-block")
+    assert blocks.count() >= 2, "兩張表都要出現"
+    one = blocks.nth(0).inner_text()
+    two = blocks.nth(1).inner_text()
+    assert "高風險" in one and "≧ 100" in one
+    assert "未達" in one, f"表一應判未達：{one}"
+    assert "心血管疾病或糖尿病" in two
+    assert "符合" in two, f"表二應判符合（TC 180 ≧ 160）：{two}"
+    expect(pg.locator("#lipid-result .lipid-split")).to_be_visible()
+
+
+def test_lipid_very_high_risk_needs_the_pair_not_one_checkbox(pg):
+    """極高風險是「冠心病**合併**什麼」的組合。單獨勾一年內 MI 不能升到極高——
+    這正是人最容易接錯、也最值得交給機器的一步。"""
+    lipid_open(pg)
+    lipid_fill(pg, age=60, ldl=120)
+    pg.check("#lipid-miWithin1y")
+    pg.wait_for_timeout(150)
+    first = pg.locator("#lipid-result .lipid-block").nth(0).inner_text()
+    assert "極高風險" not in first, f"只有一年內 MI 不該是極高風險：{first}"
+
+    pg.check("#lipid-cad")
+    pg.wait_for_timeout(150)
+    first = pg.locator("#lipid-result .lipid-block").nth(0).inner_text()
+    assert "極高風險" in first, f"冠心病＋一年內 MI 才是極高風險：{first}"
+    assert "≧ 55" in first
+
+
+def test_lipid_menopause_row_only_for_female(pg):
+    """「已停經」只在舊表、且只對女性計入。男性不該看到它，切回男性時勾選要被清掉——
+    否則會留下「畫面上看不到、計算卻仍生效」的鬼影。"""
+    lipid_open(pg)
+    row = pg.locator('[data-lipid-row="menopause"]')
+    expect(row).to_be_hidden()                          # 預設是男
+    pg.click('.lipid-sex-btn[data-lipid-sex="female"]')
+    expect(row).to_be_visible()
+    pg.check("#lipid-menopause")
+    pg.click('.lipid-sex-btn[data-lipid-sex="male"]')
+    expect(row).to_be_hidden()
+    assert pg.locator("#lipid-menopause").is_checked() is False, "藏起來時要一併清掉勾選"
+
+
+def test_lipid_copy_is_a_chart_note_not_a_calculator_dump(pg):
+    """複製出來的東西要能**直接貼進病歷**，目的是被核刪時證明「當時就符合」。
+
+    使用者原話：「看病歷的人並不知道我有這個計算器，所以只寫表一表二不曉得是在說什麼」。
+    所以這裡釘三件事：
+      1. 條文要寫全名，不能只寫「表一／表二」
+      2. 判定依據（風險分級的臨床理由、病人數值、官方門檻）三者要在同一段裡對得起來
+      3. 不得出現「試算／計算機」這類字眼——讀病歷的是審查醫師，那只會引出多餘的問題
+    """
+    lipid_open(pg)
+    lipid_fill(pg, age=60, ldl=120, tc=200, hdl=38)
+    pg.check("#lipid-cad")
+    pg.check("#lipid-miWithin1y")
+    pg.wait_for_timeout(150)
+    expect(pg.locator("#lipid-copy")).to_be_enabled()
+    pg.click("#lipid-copy")
+    pg.wait_for_timeout(200)
+    text = pg.evaluate("() => navigator.clipboard.readText()").replace("\r\n", "\n")
+
+    assert "全民健康保險降膽固醇藥物給付規定表" in text, f"條文要寫全名：{text}"
+    assert "藥品給付規定第二節 2.6.1" in text, "要標出處與版本"
+    assert "極高風險" in text
+    assert "冠狀動脈疾病合併一年內曾經歷心肌梗塞" in text, "風險分級的臨床依據要寫出來"
+    assert "LDL-C 120" in text, "病人數值要在"
+    assert "已達起始標準" in text
+    for banned in ("試算", "計算機", "計算器"):
+        assert banned not in text, f"病歷文字不該提到工具本身，出現了「{banned}」：{text}"
+
+
+def test_lipid_reset_clears_numbers_and_checkboxes(pg):
+    lipid_open(pg)
+    lipid_fill(pg, age=60, ldl=120)
+    pg.check("#lipid-dm")
+    pg.click("#lipid-reset")
+    pg.wait_for_timeout(150)
+    assert pg.input_value("#lipid-ldl") == ""
+    assert pg.locator("#lipid-dm").is_checked() is False
+    expect(pg.locator("#lipid-copy")).to_be_disabled()
+
+
+@pytest.mark.parametrize("theme", ["light", "dark"])
+def test_lipid_panel_never_overflows_at_176(pg, theme):
+    """176px 一旦水平溢出，貼在 HIS 旁邊的窄欄就沒法用。勾選格線要能塌成一欄。"""
+    pg.evaluate("(t) => window.ICDApp.store.setTheme(t)", theme)
+    lipid_open(pg)
+    lipid_fill(pg, age=62, ldl=120, tc=200, hdl=38, tg=180)
+    for key in ("cad", "miWithin1y", "htn", "dm"):
+        pg.check("#lipid-" + key)
+    pg.wait_for_timeout(200)
+    assert_no_hscroll(pg, f"{theme}／血脂給付試算")
+    assert overflowing_elements(pg) == [], f"{theme}：元素溢出"
+    pg.evaluate("() => window.ICDApp.store.setTheme('light')")
+
+
+def test_lipid_overlay_is_exclusive_with_the_other_panels(pg):
+    """四個浮層互斥：都會蓋住整個面板，同時開兩個沒有意義，Esc 該關哪一個也會變成猜謎。"""
+    # 互斥是**狀態層**的保證，不是點擊路徑：浮層開著時另外兩顆鈕就在它底下，
+    # 使用者本來就點不到（實測 Playwright 的點擊會被遮罩攔截）。所以這裡驅動 store。
+    lipid_open(pg)
+    pg.evaluate("() => window.ICDApp.store.setCcrOpen(true)")
+    expect(pg.locator("#ccr-overlay")).to_be_visible()
+    expect(pg.locator("#lipid-overlay")).to_be_hidden()
+    pg.evaluate("() => window.ICDApp.store.setLipidOpen(true)")
+    expect(pg.locator("#ccr-overlay")).to_be_hidden()
+    pg.evaluate("() => window.ICDApp.store.setChronicTopic('lipid')")
+    expect(pg.locator("#lipid-overlay")).to_be_hidden(), "慢病速查開啟時血脂試算要收起"
+    # Esc 這條走真實路徑：浮層開著時鍵盤仍然到得了
+    pg.evaluate("() => window.ICDApp.store.setLipidOpen(true)")
+    expect(pg.locator("#lipid-overlay")).to_be_visible()
+    pg.keyboard.press("Escape")
+    expect(pg.locator("#lipid-overlay")).to_be_hidden()

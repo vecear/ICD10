@@ -994,6 +994,109 @@ details.chronic-more > .chronic-line::-webkit-details-marker { display: none; }
 }
 details.chronic-more[open] > .chronic-line .chronic-more-toggle { color: var(--color-accent-800); }
 
+/* ── 血脂給付試算 ──────────────────────────────────────────────────────────
+   骨架與 .ccr-* 同型（同樣的遮罩與關閉出口），差別是這個以**多選輸入**為主體，
+   所以主體是可捲的表單而不是幾格數字。
+
+   面板比 CCr 寬（480 vs 420）：勾選項目是兩欄，420 下會被擠成一欄再多捲一屏。 */
+/* 掛在慢病速查那一排尾巴，與 DM／HTN／LIPID 三顆鈕同高，但用次要樣式區隔
+   ——它們是「看規定」，這顆是「算數字」。 */
+.chronic-switch .lipid-btn { margin-left: 4px; }
+
+.lipid-overlay {
+  position: fixed; inset: 0; z-index: 30;
+  display: flex; align-items: center; justify-content: center; padding: 16px;
+  background: rgba(43, 43, 45, .5);
+}
+.lipid-panel {
+  display: flex; flex-direction: column; min-height: 0;
+  width: min(480px, 100%); max-height: 100%; padding: 14px 16px; overflow-y: auto;
+  background: var(--color-bg); border: 1px solid var(--color-accent); box-shadow: var(--shadow-lg);
+}
+.lipid-head { display: flex; align-items: baseline; gap: 10px; flex: none; }
+.lipid-title { flex: 1; min-width: 0; margin: 0; font-size: 19px; line-height: 1.2; letter-spacing: -.01em; }
+.lipid-close {
+  flex: none; min-height: 28px; padding: 0 10px; font: inherit; font-size: 13px;
+  border: 1px solid var(--color-divider); background: transparent; color: var(--color-text);
+  cursor: pointer;
+}
+.lipid-close:hover { border-color: var(--color-accent); }
+
+.lipid-form { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.lipid-sex { align-self: flex-start; }
+/* 五個數值欄位排成可換行的一列：它們是同一組東西（這次的血脂 profile），
+   各佔一行會把最重要的勾選區推到摺線以下。 */
+.lipid-nums { display: flex; flex-wrap: wrap; gap: 6px 10px; }
+.lipid-field { display: flex; align-items: center; gap: 5px; }
+.lipid-label { font-size: 12px; color: var(--color-neutral-700); white-space: nowrap; }
+/* min-width:0 不可省——flex item 的固有寬度會擋住收縮，窄欄下輸入框會把整列撐出去 */
+.lipid-input { width: 5.2em; min-width: 0; min-height: 30px; font-variant-numeric: tabular-nums; }
+/* 拿掉數字微調鈕：血脂值一律用鍵盤輸入，那兩個箭頭在 176px 會吃掉整整一個字的寬度，
+   把「120」擠成「12(」。實測 176px 下不移除就會裁字。 */
+.lipid-input::-webkit-outer-spin-button,
+.lipid-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.lipid-input { -moz-appearance: textfield; appearance: textfield; }
+
+.lipid-group { margin: 0; padding: 0; border: 0; }
+.lipid-legend {
+  padding: 0; font-family: var(--font-heading); font-size: 11px; letter-spacing: .08em;
+  color: var(--color-neutral-700);
+}
+/* 兩欄格線。minmax(0, 1fr) 不可寫成 1fr：長到不能斷的藥名會把該欄撐開 */
+.lipid-checks {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(11em, 100%), 1fr));
+  gap: 1px 10px; margin-top: 3px;
+}
+.lipid-check {
+  display: flex; align-items: flex-start; gap: 5px;
+  font-size: 12.5px; line-height: 1.35; cursor: pointer; padding: 2px 0;
+}
+.lipid-check input { flex: none; margin: 2px 0 0; }
+.lipid-check:hover { color: var(--color-accent-800); }
+
+.lipid-result { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.lipid-hint { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--color-neutral-700); }
+
+/* 一張表一個區塊。左緣色條就是結論——綠＝符合、灰＝未達，
+   讓人在讀完細節之前就先看到答案。 */
+.lipid-block {
+  padding: 8px 10px; background: var(--color-neutral-100);
+  border-left: 3px solid var(--color-divider);
+}
+.lipid-block.is-ok { border-left-color: var(--color-accent); background: var(--color-accent-100); }
+.lipid-block.is-no { border-left-color: var(--line-strong); }
+.lipid-block-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; }
+.lipid-block-title { font-size: 13px; letter-spacing: .01em; }
+.lipid-block-note { font-size: 11px; color: var(--color-neutral-700); }
+.lipid-level {
+  margin: 3px 0 0; font-family: var(--font-heading); font-size: 16px; line-height: 1.2;
+  letter-spacing: -.01em; color: var(--color-accent-800);
+}
+.lipid-threshold { margin: 2px 0 0; font-size: 12.5px; line-height: 1.45; font-variant-numeric: tabular-nums; }
+.lipid-verdict { margin: 3px 0 0; font-size: 13px; font-weight: 600; }
+.lipid-block.is-ok .lipid-verdict { color: var(--color-accent-800); }
+.lipid-why, .lipid-parallel, .lipid-proof {
+  margin: 2px 0 0; font-size: 12px; line-height: 1.45; color: var(--color-neutral-700);
+}
+/* 舉證要求是「申報時會被查的東西」，不是背景說明，所以不與其他附註同色 */
+.lipid-proof { color: var(--warn-ink); }
+/* 兩張表結論不同——這是這個工具最有價值的一刻，必須跳出來 */
+.lipid-split {
+  margin: 0; padding: 6px 9px; font-size: 12.5px; line-height: 1.5;
+  border-left: 2px solid var(--warn-line); background: var(--warn-bg); color: var(--warn-ink);
+}
+.lipid-rf { margin: 0; font-size: 11.5px; line-height: 1.5; color: var(--color-neutral-700); }
+
+.lipid-actions { display: flex; gap: 6px; margin-top: 10px; flex: none; }
+.lipid-copy { flex: 1; background: var(--his-btn); color: var(--his-btn-ink); border: 1px solid var(--his-btn); }
+.lipid-copy:hover:not(:disabled) { background: var(--his-btn-hover); }
+.lipid-copy:disabled { opacity: .5; cursor: not-allowed; }
+.lipid-reset { flex: 0 0 auto; }
+.lipid-disclaimer {
+  flex: none; margin: 10px 0 0; padding: 6px 9px; font-size: 12px; line-height: 1.5;
+  border-left: 2px solid var(--warn-line); background: var(--warn-bg); color: var(--warn-ink);
+}
+
 
 /* ===== styles/wide.css ===== */
 /* 1a 桌機工作台（body[data-layout="wide"]）。數值取自 .review/design-ref/new-design.dc.html
@@ -1524,6 +1627,32 @@ body[data-layout="dock"] .chronic-step-hint { font-size: 9px; letter-spacing: .0
 body[data-layout="dock"] .chronic-kind-dot { font-size: 9px; padding: 0 3px; margin-right: 4px; }
 body[data-layout="dock"] .chronic-section[data-step="pitfall"],
 body[data-layout="dock"] .chronic-section[data-step="nocover"] { padding-left: 6px; }
+
+/* 血脂給付試算：176px 下與 CCr 同一套壓縮手法（面板滿版、字級與內距收緊）。
+   勾選格線在窄欄自動塌成一欄——auto-fit 的 minmax(min(11em,100%),1fr) 已經處理，
+   這裡只收字級與行距，不動 grid。 */
+body[data-layout="dock"] #lipid-btn {
+  min-height: 22px; padding: 0 6px; font-size: 11px; letter-spacing: .02em;
+}
+body[data-layout="dock"] .lipid-overlay { padding: 3px; }
+body[data-layout="dock"] .lipid-panel { width: 100%; padding: 6px 7px; }
+body[data-layout="dock"] .lipid-title { font-size: 14px; }
+body[data-layout="dock"] .lipid-close { min-height: 22px; padding: 0 6px; font-size: 11px; }
+body[data-layout="dock"] .lipid-form { gap: 6px; margin-top: 7px; }
+body[data-layout="dock"] .lipid-nums { gap: 4px 6px; }
+body[data-layout="dock"] .lipid-label { font-size: 11px; }
+body[data-layout="dock"] .lipid-input { width: 4.2em; min-height: 26px; font-size: 12px; }
+body[data-layout="dock"] .lipid-check { font-size: 11.5px; line-height: 1.3; }
+body[data-layout="dock"] .lipid-block { padding: 6px 7px; }
+body[data-layout="dock"] .lipid-level { font-size: 14px; }
+body[data-layout="dock"] .lipid-threshold,
+body[data-layout="dock"] .lipid-verdict { font-size: 11.5px; }
+body[data-layout="dock"] .lipid-why,
+body[data-layout="dock"] .lipid-parallel,
+body[data-layout="dock"] .lipid-proof,
+body[data-layout="dock"] .lipid-rf,
+body[data-layout="dock"] .lipid-split,
+body[data-layout="dock"] .lipid-disclaimer { font-size: 11px; line-height: 1.45; }
 
 
 /* ===== styles/mobile.css ===== */
@@ -2100,8 +2229,242 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
     return result;
   }
 
+  /* ── 降血脂給付試算（純函式，node 可直接測） ──────────────────────────────
+     為什麼要有這個：LIPID 的給付判定是這份速查裡最容易算錯的一塊，錯的方式有三種——
+       1. 用錯表：2026-09-01 起拆成表一（ASCVD 風險分級）與表二（舊表，僅公告所列健保代碼）
+       2. 風險分級接錯：極高／非常高不是看單一條件，是看「冠心病**合併**什麼」的組合
+       3. 危險因子數錯：新舊兩表的定義不同（新制 6 項含代謝症候群、HDL-C 女性改 < 50；
+          舊表 5 項含「或停經者」、HDL-C 男女同為 < 40）
+     這三件事都是機械判斷，正是計算機該接手的部分。
+
+     依據：藥品給付規定 第二節 2.6.1 表一與表二（115.8.21 版官方 .docx 逐條核對，2026-08-26）。
+
+     **這個函式只回報「條文怎麼算」，不做臨床建議**：回傳一定帶 why（判定理由），
+     讓醫師能自己覆核每一步，而不是看一個「符合／不符合」的黑箱。 */
+
+  const LIPID_TABLE_ONE_FROM = '2026-09-01';   // 健保審字第 1150671962 號公告
+
+  /* 表一：ASCVD 風險等級 → 起始門檻＝目標值，non-HDL-C 目標為各加 30。
+     parallel＝可與藥物治療並行；false 則給藥前應有 3–6 個月生活型態改變。 */
+  const LIPID_ONE = [
+    { level: 'veryhigh', label: '極高風險', ldl: 55, nonHdl: 85, parallel: true },
+    { level: 'high', label: '非常高風險', ldl: 70, nonHdl: 100, parallel: true },
+    { level: 'moderate', label: '高風險', ldl: 100, nonHdl: 130, parallel: true },
+    { level: 'mid', label: '中風險', ldl: 115, nonHdl: 145, parallel: false },
+    { level: 'low', label: '低風險', ldl: 130, nonHdl: 160, parallel: false },
+    { level: 'none', label: '0 項心血管風險因子', ldl: 160, nonHdl: null, parallel: false },
+  ];
+
+  const lipBool = (v) => v === true;
+
+  /* 表一的風險分級。順序即優先序，命中最高的那一級就停。
+     極高與非常高刻意寫成「組合」而不是單一旗標——原文就是這樣定義的，
+     攤平成單一 checkbox 等於把最容易錯的那一步推回給使用者。 */
+  function lipidRiskLevel(c) {
+    const veryHigh = [];
+    if (lipBool(c.cad) && lipBool(c.miWithin1y)) veryHigh.push('冠狀動脈疾病合併一年內曾經歷心肌梗塞');
+    if (lipBool(c.cad) && lipBool(c.mi2plus)) veryHigh.push('冠狀動脈疾病合併 ≧ 2 次心肌梗塞病史');
+    if (lipBool(c.cad) && lipBool(c.multivessel)) veryHigh.push('冠狀動脈疾病合併多支冠狀動脈阻塞');
+    if (lipBool(c.acsHistory) && lipBool(c.dm)) veryHigh.push('急性冠心症合併糖尿病');
+    if (lipBool(c.cad) && (lipBool(c.pad) || lipBool(c.carotid))) {
+      veryHigh.push('冠狀動脈疾病合併周邊動脈疾病或頸動脈狹窄');
+    }
+    if (lipBool(c.pad) && (lipBool(c.cad) || lipBool(c.carotid))) {
+      veryHigh.push('周邊動脈疾病合併冠狀動脈疾病或頸動脈狹窄');
+    }
+    if (veryHigh.length) return { level: 'veryhigh', why: veryHigh };
+
+    const high = [];
+    if (lipBool(c.acsHistory)) high.push('急性冠心症病史');
+    if (lipBool(c.revasc)) high.push('接受血管再通術');
+    if (lipBool(c.strokeTia)) high.push('缺血性中風／TIA 合併動脈硬化相關疾病或病史');
+    if (lipBool(c.padSymptomatic)) high.push('症狀性周邊動脈疾病');
+    if (lipBool(c.imaging50)) high.push('影像確認 ≧ 50% 直徑狹窄');
+    if (high.length) return { level: 'high', why: high };
+
+    const mod = [];
+    if (lipBool(c.dm)) mod.push('糖尿病');
+    if (lipBool(c.ckd)) mod.push('未透析慢性腎臟病');
+    if (lipBool(c.cac400)) mod.push('冠狀動脈鈣化分數 ≧ 400');
+    const ldl = Number(c.ldl);
+    if (Number.isFinite(ldl) && ldl >= 190) mod.push('LDL-C ≧ 190');
+    if (mod.length) return { level: 'moderate', why: mod };
+
+    const n = c.riskFactorCountNew;
+    if (n >= 2) return { level: 'mid', why: ['心血管風險因子 ' + n + ' 項'] };
+    if (n === 1) return { level: 'low', why: ['心血管風險因子 1 項'] };
+    return { level: 'none', why: ['無心血管風險因子'] };
+  }
+
+  /* 新制 6 項風險因子。年齡與 HDL-C 由數值自動判定，其餘勾選——
+     代謝症候群本身是「五取三」的複合判準，不在這裡拆，由使用者依原文自行認定。 */
+  function lipidRiskFactorsNew(c) {
+    const hit = [];
+    const female = c.sex === 'female';
+    const age = Number(c.age);
+    const hdl = Number(c.hdl);
+    if (lipBool(c.htn)) hit.push('高血壓');
+    if (Number.isFinite(age) && (female ? age >= 55 : age >= 45)) {
+      hit.push(female ? '女性 ≧ 55 歲' : '男性 ≧ 45 歲');
+    }
+    if (lipBool(c.familyHistory)) hit.push('早發性冠心病家族史');
+    if (Number.isFinite(hdl) && hdl < (female ? 50 : 40)) {
+      hit.push('HDL-C < ' + (female ? 50 : 40));
+    }
+    if (lipBool(c.smoking)) hit.push('抽菸');
+    if (lipBool(c.metabolicSyndrome)) hit.push('代謝症候群');
+    return hit;
+  }
+
+  /* 舊表 5 項危險因子。與新制的三處差異都在這裡：多了「或停經者」、
+     HDL-C 男女同為 < 40、沒有代謝症候群。 */
+  function lipidRiskFactorsOld(c) {
+    const hit = [];
+    const female = c.sex === 'female';
+    const age = Number(c.age);
+    const hdl = Number(c.hdl);
+    if (lipBool(c.htn)) hit.push('高血壓');
+    if ((Number.isFinite(age) && (female ? age >= 55 : age >= 45))
+        || (female && lipBool(c.menopause))) {
+      hit.push(female ? '女性 ≧ 55 歲或停經' : '男性 ≧ 45 歲');
+    }
+    if (lipBool(c.familyHistory)) hit.push('早發性冠心病家族史');
+    if (Number.isFinite(hdl) && hdl < 40) hit.push('HDL-C < 40');
+    if (lipBool(c.smoking)) hit.push('抽菸');
+    return hit;
+  }
+
+  /* 表二的兩個分層條件，由表一那組勾選推導出來——不另外要使用者再勾一次，
+     那只會製造兩份互相矛盾的輸入。對應關係取自表二原文的定義：
+
+       ACS／PCI／CABG 之冠狀動脈粥狀硬化 ← 急性冠心症病史，或接受血管再通術
+       心血管疾病（舊表定義）           ← 冠狀動脈粥狀硬化（冠心病），或
+                                        缺血型腦血管疾病（缺血性中風／TIA／症狀性頸動脈狹窄）
+
+     **舊表的「心血管疾病」不含 PAD、不含 CKD**（新制才含），所以這裡刻意不接 pad／ckd。
+     推導出來的分層另帶舉證要求：舊表對冠狀動脈粥狀硬化要求「心導管證實或缺氧性
+     心電圖變化或負荷試驗陽性（附檢查報告）」，TIA 與症狀性頸動脈狹窄須神經科醫師確立。
+     這些是申報時才會被查的東西，所以要回報出來而不是默默假設已經有。 */
+  function lipidTwoFlags(c) {
+    const acs = lipBool(c.acsPciCabg) || lipBool(c.acsHistory) || lipBool(c.revasc);
+    const cvd = lipBool(c.cvdOld) || lipBool(c.cad) || lipBool(c.strokeTia) || lipBool(c.carotid);
+    const proof = [];
+    if (lipBool(c.cad) || lipBool(c.acsHistory)) {
+      proof.push('冠狀動脈粥狀硬化之診斷依據：心導管證實、缺氧性心電圖變化或負荷試驗陽性反應報告');
+    }
+    if (lipBool(c.strokeTia) || lipBool(c.carotid)) {
+      proof.push('暫時性腦缺血發作與症狀性頸動脈狹窄之診斷須由神經科醫師確立');
+    }
+    return { acs, cvd, proof };
+  }
+
+  /* 表二分層。舊表的「心血管疾病」定義比新制窄：只含冠狀動脈粥狀硬化與
+     缺血型腦血管疾病，**不含 PAD、不含 CKD**——最常被拿新制的印象去套錯。 */
+  function lipidTableTwo(c, oldCount) {
+    if (lipBool(c.acsPciCabg)) {
+      return { tier: 'acs', label: 'ACS 病史／PCI／CABG 之冠狀動脈粥狀硬化',
+               ldl: 70, tc: null, target: 70, targetTc: null, parallel: true };
+    }
+    if (lipBool(c.cvdOld) || lipBool(c.dm)) {
+      return { tier: 'cvd', label: '心血管疾病或糖尿病', ldl: 100, tc: 160,
+               target: 100, targetTc: 160, parallel: true };
+    }
+    if (oldCount >= 2) {
+      return { tier: 'rf2', label: '2 個以上危險因子', ldl: 130, tc: 200,
+               target: 130, targetTc: 200, parallel: false };
+    }
+    if (oldCount === 1) {
+      return { tier: 'rf1', label: '1 個危險因子', ldl: 160, tc: 240,
+               target: 160, targetTc: 240, parallel: false };
+    }
+    return { tier: 'rf0', label: '0 個危險因子', ldl: 190, tc: null,
+             target: 190, targetTc: null, parallel: false };
+  }
+
+  /* Fibrate（降三酸甘油酯表）。兩列的門檻都是 TG ≧ 200；決定要不要先做 3–6 個月
+     非藥物治療的是「有沒有心血管疾病或糖尿病」，不是 TG 落在哪一段。
+     此表在現行官方彙編中查無、狀態未確認——詳見 chronic_care.json 該條的補充。 */
+  function lipidFibrate(c) {
+    const tg = Number(c.tg);
+    const tc = Number(c.tc);
+    const hdl = Number(c.hdl);
+    if (!Number.isFinite(tg) || tg <= 0) return { ok: false, reason: 'no-tg' };
+    const parallel = lipBool(c.cvdOld) || lipBool(c.dm) || lipBool(c.acsPciCabg);
+    if (tg >= 500) {
+      return { ok: true, meets: true, route: 'TG ≧ 500', target: 500, parallel,
+               why: ['TG ' + tg + ' ≧ 500，可單憑 TG 起始'], needs: [] };
+    }
+    if (tg < 200) {
+      return { ok: true, meets: false, route: 'TG < 200', target: 200, parallel,
+               why: ['TG ' + tg + ' 未達 200'], needs: [] };
+    }
+    const ratio = (Number.isFinite(tc) && Number.isFinite(hdl) && hdl > 0) ? tc / hdl : null;
+    const ratioHit = ratio !== null && ratio > 5;
+    const hdlHit = Number.isFinite(hdl) && hdl < 40;
+    const why = ['TG ' + tg + ' ≧ 200'];
+    if (ratioHit) why.push('TC/HDL-C ' + (Math.round(ratio * 100) / 100) + ' > 5');
+    if (hdlHit) why.push('HDL-C ' + hdl + ' < 40');
+    if (!ratioHit && !hdlHit) {
+      return { ok: true, meets: false, route: 'TG 200–499', target: 200, parallel, why,
+               needs: ['TG 200–499 還須同時 TC/HDL-C > 5 或 HDL-C < 40'] };
+    }
+    return { ok: true, meets: true, route: 'TG 200–499', target: 200, parallel, why, needs: [] };
+  }
+
+  function lipidCoverage(input) {
+    const c = input || {};
+    const ldl = Number(c.ldl);
+    const tc = Number(c.tc);
+    const today = typeof c.today === 'string' ? c.today : '';
+
+    const rfNew = lipidRiskFactorsNew(c);
+    const rfOld = lipidRiskFactorsOld(c);
+    const risk = lipidRiskLevel(Object.assign({}, c, { riskFactorCountNew: rfNew.length }));
+    const row = LIPID_ONE.filter((r) => r.level === risk.level)[0];
+
+    const hasLdl = Number.isFinite(ldl) && ldl > 0;
+    const hasTc = Number.isFinite(tc) && tc > 0;
+    const one = {
+      level: risk.level, label: row.label, why: risk.why,
+      threshold: row.ldl, target: row.ldl, nonHdlTarget: row.nonHdl,
+      parallel: row.parallel,
+      meets: hasLdl ? ldl >= row.ldl : null,
+    };
+
+    const twoFlags = lipidTwoFlags(c);
+    const base = lipidTableTwo(
+      Object.assign({}, c, { acsPciCabg: twoFlags.acs, cvdOld: twoFlags.cvd }), rfOld.length);
+    const twoMeets = (hasLdl && ldl >= base.ldl)
+      || (base.tc !== null && hasTc && tc >= base.tc);
+    const two = Object.assign({}, base, {
+      threshold: base.ldl,
+      meets: (hasLdl || hasTc) ? twoMeets : null,
+      riskFactors: rfOld,
+      proof: twoFlags.proof,
+    });
+
+    return {
+      ok: true,
+      today,
+      /* 換版前後都要能用：8/31 之前表一還沒生效；9/1 之後表二仍適用於公告所列健保代碼。
+         所以兩張表一律都算、都回傳，由醫師依實際要開的品項代碼取用。 */
+      tableOneInForce: !today || today >= LIPID_TABLE_ONE_FROM,
+      tableOneFrom: LIPID_TABLE_ONE_FROM,
+      ldl: hasLdl ? ldl : null,
+      tc: hasTc ? tc : null,
+      riskFactorsNew: rfNew,
+      one,
+      two,
+      /* 傳推導後的旗標：fibrate 的「可否並行」看的是有無心血管疾病或糖尿病，
+         而使用者勾的是冠心病／中風那些具體項目，沒有推導就會漏判。實測踩過。 */
+      fibrate: lipidFibrate(Object.assign({}, c,
+        { cvdOld: twoFlags.cvd, acsPciCabg: twoFlags.acs })),
+    };
+  }
+
   return { buildIndex, search, family, formatCart, mergeRelated, rocDate, splitByEffective,
-           splitSentences, splitLead, creatinineClearance };
+           splitSentences, splitLead, creatinineClearance,
+           lipidCoverage, lipidRiskFactorsNew, lipidRiskFactorsOld };
 });
 
 </script>
@@ -2230,6 +2593,9 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
       /* CCr 計算機是否開著。同樣不持久化——裡面是上一位病人的年齡體重肌酸酐，
          跨診次留著比沒有還危險（會被誤當成這一位的數字）。 */
       ccrOpen: false,
+      /* 血脂給付試算是否開著。與 ccrOpen 同一個理由不持久化——
+         裡面是上一位病人的血脂值與病史勾選。 */
+      lipidOpen: false,
       shelfOpen: true,           // 常用列
       cartOpen: true,            // 1c/1b 的清單摺疊
       pinned: false,             // Document PiP 置頂
@@ -2572,7 +2938,7 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
         return true;
       }
       if (CHRONIC_TOPICS.indexOf(key) < 0) return false;
-      setState({ chronicTopic: key, settingsOpen: false, ccrOpen: false });
+      setState({ chronicTopic: key, settingsOpen: false, ccrOpen: false, lipidOpen: false });
       return true;
     }
 
@@ -2581,9 +2947,17 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
        不會被持久化、也不會被別的版面撿去用。 */
     function setCcrOpen(open) {
       const next = !!open;
-      if (next) setState({ ccrOpen: true, settingsOpen: false, chronicTopic: null });
+      if (next) setState({ ccrOpen: true, settingsOpen: false, chronicTopic: null, lipidOpen: false });
       else setState({ ccrOpen: false });
       return next;
+    }
+
+    /* 血脂給付試算。同為浮層，一次只開一個——三個浮層都會蓋住整個面板，
+       同時開兩個沒有意義，而且 Esc 該關掉哪一個會變成猜謎。 */
+    function setLipidOpen(open) {
+      const next = !!open;
+      if (next) setState({ lipidOpen: true, settingsOpen: false, chronicTopic: null, ccrOpen: false });
+      else setState({ lipidOpen: false });
     }
 
     const setShelfOpen = (open) => { setState({ shelfOpen: !!open }); };
@@ -2609,7 +2983,7 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
       setQuery, setRelatedCode, setCopied, setDbState,
       setSettingsOpen, toggleSettings, setShelfOpen, toggleShelf,
       setCartOpen, toggleCart, setPinned,
-      setChronicTopic, setCcrOpen,
+      setChronicTopic, setCcrOpen, setLipidOpen,
     };
   }
 
@@ -3885,6 +4259,10 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
       b.title = '慢病速查：' + (topic.label || topic.key) + '　健保給付規定與治療目標';
       row.appendChild(b);
     }
+    /* 血脂給付試算掛在這一排的尾巴：它算的就是 LIPID 主題的給付門檻，
+       放在該主題的入口鈕旁邊語意才對得上。也順便解決 176px 的 header 塞不下第四顆鈕
+       ——這一排跟著內容捲動，常駐版面成本是 0。 */
+    row.appendChild(lipidButtonEl(compact));
     return row;
   }
 
@@ -4325,6 +4703,415 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
     return r;
   }
 
+  // ---- 血脂給付試算 ----
+  /* 為什麼值得做一個計算機：LIPID 的判定有三個機械步驟特別容易錯——用錯表、
+     極高／非常高的「組合」條件接錯、新舊兩表的風險因子定義混用。這三件事都不需要
+     臨床判斷，只需要不出錯地照條文走，正是機器該接手的部分。
+
+     浮層骨架刻意與 .ccr-* 同型（同樣的遮罩、關閉出口、複製與清除），使用者只要學一次。
+     差別在這個是**多選輸入**：勾選項目直接用原生 checkbox 而不是 aria-pressed 的切換鈕，
+     因為它們是「可複選的事實陳述」不是「模式切換」，原生元件的讀屏語意與鍵盤行為都對。 */
+  const LIPID_DISCLAIMER = '依藥品給付規定 第二節 2.6.1 表一與表二（115.8.21 版）試算，'
+    + '只計算條文門檻，不含臨床判斷。實際給付以審查為準；'
+    + '適用表一或表二由藥品健保代碼決定，開藥前請核對當期公告。';
+
+  /* 勾選項目分三組，順序照使用者查閱時的思路：先問「有沒有心血管病史」，
+     再問「有沒有那幾個共病」，最後才數風險因子。
+     每一項的字面盡量貼原文——這些字之後會被拿去跟條文對照。 */
+  const LIPID_HISTORY = [
+    ['cad', '冠心病 CAD'],
+    ['miWithin1y', '一年內心肌梗塞'],
+    ['mi2plus', '≧ 2 次心肌梗塞'],
+    ['multivessel', '多支冠狀動脈阻塞'],
+    ['pad', '周邊動脈疾病'],
+    ['carotid', '頸動脈狹窄'],
+    ['acsHistory', '急性冠心症病史'],
+    ['revasc', '血管再通術 PCI／CABG'],
+    ['strokeTia', '缺血性中風／TIA'],
+    ['padSymptomatic', '症狀性 PAD'],
+    ['imaging50', '影像 ≧ 50% 狹窄'],
+  ];
+  const LIPID_COMORBID = [
+    ['dm', '糖尿病'],
+    ['ckd', '未透析 CKD'],
+    ['cac400', '鈣化分數 ≧ 400'],
+  ];
+  const LIPID_FACTORS = [
+    ['htn', '高血壓'],
+    ['smoking', '抽菸'],
+    ['familyHistory', '早發性冠心病家族史'],
+    ['metabolicSyndrome', '代謝症候群'],
+    ['menopause', '已停經（僅舊表計入）'],
+  ];
+
+  function lipidCheckEl(key, label) {
+    const wrap = el('label', 'lipid-check');
+    wrap.dataset.lipidRow = key;
+    if (key === 'menopause') wrap.hidden = true;      // 預設性別是男，先藏起來
+    const box = document.createElement('input');
+    box.type = 'checkbox';
+    box.id = 'lipid-' + key;
+    box.dataset.lipidKey = key;
+    wrap.append(box, el('span', null, label));
+    return wrap;
+  }
+
+  function lipidGroupEl(title, rows) {
+    const box = el('fieldset', 'lipid-group');
+    box.appendChild(el('legend', 'lipid-legend', title));
+    const grid = el('div', 'lipid-checks');
+    for (const r of rows) grid.appendChild(lipidCheckEl(r[0], r[1]));
+    box.appendChild(grid);
+    return box;
+  }
+
+  function lipidFieldEl(id, label, opts) {
+    const wrap = el('label', 'lipid-field');
+    wrap.append(el('span', 'lipid-label', label));
+    const input = document.createElement('input');
+    input.id = id;
+    input.className = 'input lipid-input';
+    input.type = 'number';
+    input.inputMode = 'decimal';
+    input.autocomplete = 'off';
+    input.step = (opts && opts.step) || '1';
+    if (opts && opts.placeholder) input.placeholder = opts.placeholder;
+    wrap.appendChild(input);
+    return wrap;
+  }
+
+  function lipidOverlayEl() {
+    const overlay = el('div', 'lipid-overlay');
+    overlay.id = 'lipid-overlay';
+    overlay.hidden = true;
+    const panel = el('div', 'lipid-panel');
+    panel.id = 'lipid-panel';
+    panel.setAttribute('role', 'dialog');
+    panel.setAttribute('aria-modal', 'true');
+    panel.setAttribute('aria-labelledby', 'lipid-title');
+
+    const head = el('div', 'lipid-head');
+    const title = el('h2', 'lipid-title', '血脂給付試算');
+    title.id = 'lipid-title';
+    const close = el('button', 'lipid-close', '關閉');
+    close.type = 'button';
+    close.id = 'lipid-close';
+    close.title = '關閉（Esc，或點面板以外任一處）';
+    head.append(title, close);
+
+    const form = el('div', 'lipid-form');
+    const sexRow = el('div', 'seg-row lipid-sex');
+    sexRow.id = 'lipid-sex';
+    sexRow.setAttribute('role', 'group');
+    sexRow.setAttribute('aria-label', '性別');
+    for (const pair of [['male', '男'], ['female', '女']]) {
+      const b = el('button', 'seg-btn lipid-sex-btn', pair[1]);
+      b.type = 'button';
+      b.dataset.lipidSex = pair[0];
+      b.setAttribute('aria-pressed', pair[0] === 'male' ? 'true' : 'false');
+      if (pair[0] === 'male') b.classList.add('is-on');
+      sexRow.appendChild(b);
+    }
+    const nums = el('div', 'lipid-nums');
+    nums.append(
+      lipidFieldEl('lipid-age', '年齡'),
+      lipidFieldEl('lipid-ldl', 'LDL-C'),
+      lipidFieldEl('lipid-tc', 'TC', { placeholder: '選填' }),
+      lipidFieldEl('lipid-hdl', 'HDL-C', { placeholder: '選填' }),
+      lipidFieldEl('lipid-tg', 'TG', { placeholder: '選填' }));
+    form.append(sexRow, nums,
+      lipidGroupEl('心血管病史', LIPID_HISTORY),
+      lipidGroupEl('共病', LIPID_COMORBID),
+      lipidGroupEl('風險因子', LIPID_FACTORS));
+
+    const result = el('div', 'lipid-result');
+    result.id = 'lipid-result';
+    result.setAttribute('aria-live', 'polite');
+
+    const actions = el('div', 'lipid-actions');
+    const copy = el('button', 'btn lipid-copy', '複製結果');
+    copy.type = 'button';
+    copy.id = 'lipid-copy';
+    copy.disabled = true;
+    const reset = el('button', 'btn btn-secondary lipid-reset', '清除');
+    reset.type = 'button';
+    reset.id = 'lipid-reset';
+    actions.append(copy, reset);
+
+    panel.append(head, form, result, actions, el('p', 'lipid-disclaimer', LIPID_DISCLAIMER));
+    overlay.appendChild(panel);
+    return overlay;
+  }
+
+  /* 讀面板的值。與 ccrInputs 同一個理由刻意不經過 store：這些是「這一位病人」的數字。 */
+  function lipidInputs(root2) {
+    const val = (id) => {
+      const node = root2.querySelector('#' + id);
+      return node ? String(node.value).trim() : '';
+    };
+    const on = root2.querySelector('#lipid-sex .lipid-sex-btn[aria-pressed="true"]');
+    const out = {
+      sex: on ? on.dataset.lipidSex : 'male',
+      age: val('lipid-age'),
+      ldl: val('lipid-ldl'),
+      tc: val('lipid-tc'),
+      hdl: val('lipid-hdl'),
+      tg: val('lipid-tg'),
+      today: chronicToday(),
+    };
+    for (const box of root2.querySelectorAll('[data-lipid-key]')) {
+      out[box.dataset.lipidKey] = box.checked === true;
+    }
+    return out;
+  }
+
+  const LIPID_VERDICT = { true: '符合起始門檻', false: '未達起始門檻', null: '待輸入 LDL-C' };
+
+  /* 一張表的結果區塊。刻意把「判定」「數值比較」「理由」分成三行：
+     醫師要能一眼看出這個結論是怎麼來的，而不是接受一個黑箱。 */
+  function lipidTableBlock(title, note, info, ldl, tc) {
+    const box = el('section', 'lipid-block');
+    if (info.meets === true) box.classList.add('is-ok');
+    else if (info.meets === false) box.classList.add('is-no');
+    const head = el('div', 'lipid-block-head');
+    head.append(el('b', 'lipid-block-title', title));
+    if (note) head.appendChild(el('span', 'lipid-block-note', note));
+    box.appendChild(head);
+
+    box.appendChild(el('p', 'lipid-level', info.label));
+
+    const thr = info.threshold !== undefined ? info.threshold : info.ldl;
+    const parts = ['起始門檻 LDL-C ≧ ' + thr];
+    if (info.tc) parts.push('或 TC ≧ ' + info.tc);
+    if (info.target) parts.push('目標 < ' + info.target);
+    if (info.nonHdlTarget) parts.push('non-HDL-C < ' + info.nonHdlTarget);
+    box.appendChild(el('p', 'lipid-threshold', parts.join('｜')));
+
+    const cmp = [];
+    if (ldl !== null) cmp.push('LDL-C ' + ldl);
+    if (tc !== null) cmp.push('TC ' + tc);
+    const verdict = el('p', 'lipid-verdict',
+      LIPID_VERDICT[String(info.meets)] + (cmp.length ? '（' + cmp.join('、') + '）' : ''));
+    box.appendChild(verdict);
+
+    if (info.why && info.why.length) {
+      box.appendChild(el('p', 'lipid-why', '依據：' + info.why.join('、')));
+    }
+    box.appendChild(el('p', 'lipid-parallel', info.parallel
+      ? '可與藥物治療並行，不必先做 3–6 個月'
+      : '給藥前應有 3–6 個月生活型態改變／非藥物治療'));
+    for (const p of info.proof || []) box.appendChild(el('p', 'lipid-proof', '舉證：' + p));
+    return box;
+  }
+
+  function renderLipidResult(root2, ctx) {
+    const box = root2.querySelector('#lipid-result');
+    if (!box) return;
+    clear(box);
+    const input = lipidInputs(root2);
+    const r = ctx.logic.lipidCoverage(input);
+    const copy = root2.querySelector('#lipid-copy');
+
+    const anyInput = r.ldl !== null || r.tc !== null || (r.fibrate && r.fibrate.ok);
+    if (copy) copy.disabled = !anyInput;
+    if (!anyInput) {
+      box.appendChild(el('p', 'lipid-hint', '輸入 LDL-C（或 TC／TG）並勾選病史後，這裡會列出兩張表各自的判定。'));
+      return;
+    }
+
+    box.appendChild(lipidTableBlock(
+      '表一（ASCVD 風險分級）',
+      r.tableOneInForce ? '現行' : r.tableOneFrom + ' 起生效',
+      r.one, r.ldl, null));
+    box.appendChild(lipidTableBlock(
+      '表二（舊表）',
+      r.tableOneInForce ? '限公告所列健保代碼' : '現行',
+      r.two, r.ldl, r.tc));
+
+    /* 兩張表結論不同時要明講。這正是這個計算機最有價值的一刻——同一位病人，
+       開 A 廠牌符合、開 B 廠牌不符合，差別只在健保代碼走哪一張表。 */
+    if (r.one.meets !== null && r.two.meets !== null && r.one.meets !== r.two.meets) {
+      box.appendChild(el('p', 'lipid-split',
+        '兩張表結論不同：符合與否取決於你要開的品項走哪一張表，開藥前務必依健保代碼核對當期公告。'));
+    }
+
+    box.appendChild(el('p', 'lipid-rf',
+      '新制風險因子 ' + r.riskFactorsNew.length + ' 項'
+      + (r.riskFactorsNew.length ? '（' + r.riskFactorsNew.join('、') + '）' : '')
+      + '｜舊表危險因子 ' + r.two.riskFactors.length + ' 項'
+      + (r.two.riskFactors.length ? '（' + r.two.riskFactors.join('、') + '）' : '')));
+
+    const f = r.fibrate;
+    if (f && f.ok) {
+      const fb = el('section', 'lipid-block' + (f.meets ? ' is-ok' : ' is-no'));
+      fb.appendChild(el('div', 'lipid-block-head')).appendChild(el('b', 'lipid-block-title', 'Fibrate'));
+      fb.appendChild(el('p', 'lipid-threshold', f.route + '｜目標 TG < ' + f.target));
+      fb.appendChild(el('p', 'lipid-verdict', f.meets ? '符合起始門檻' : '未達起始門檻'));
+      if (f.why && f.why.length) fb.appendChild(el('p', 'lipid-why', '依據：' + f.why.join('、')));
+      for (const n of f.needs || []) fb.appendChild(el('p', 'lipid-proof', '還缺：' + n));
+      fb.appendChild(el('p', 'lipid-parallel', f.parallel
+        ? '可與藥物治療並行'
+        : '無心血管疾病或糖尿病者，給藥前應有 3–6 個月非藥物治療'));
+      box.appendChild(fb);
+    }
+  }
+
+  /* 複製用的病歷文字。
+
+     使用者的要求（2026-08-26）：「輸出成我可以直接貼在病歷裡面的樣式，我希望是有寫出
+     符合哪些條文（看病歷的人並不知道我有這個計算器所以只寫表一表二不曉得是在說什麼），
+     目的是避免被健保核刪。」
+
+     所以這段文字有三個硬性要求，跟畫面上的顯示不一樣：
+       1. **不提計算機**。讀病歷的是審查醫師，出現「試算」只會讓人問這是什麼工具。
+          寫的是「依某某規定，本例符合某某條件」——那是病歷本來就該有的敘述。
+       2. **條文寫全名**。「表一」在病歷裡沒有意義；要寫
+          「全民健康保險降膽固醇藥物給付規定表一」並附生效日與版本。
+       3. **把判定依據攤開**。核刪時要證明的是「當時就符合」，所以病人數值、
+          風險分級的臨床依據、以及該分層的官方門檻，三者都要在同一段裡對得起來。
+
+     另外附上「應檢附」——那是舊表對冠狀動脈粥狀硬化與腦血管疾病的舉證要求，
+     醫師看到才會記得把報告附上，而那正是最常被核刪的一項。 */
+  const LIPID_TABLE_ONE_NAME = '全民健康保險降膽固醇藥物給付規定表一';
+  const LIPID_TABLE_TWO_NAME = '全民健康保險降膽固醇藥物給付規定表二';
+  const LIPID_SOURCE_NOTE = '（依藥品給付規定第二節 2.6.1，115.8.21 版）';
+
+  function lipidProfileLine(r, input) {
+    const bits = [];
+    const age = Number(input.age);
+    if (Number.isFinite(age) && age > 0) {
+      bits.push(age + ' 歲' + (input.sex === 'female' ? '女性' : '男性'));
+    }
+    const labs = [];
+    if (r.ldl !== null) labs.push('LDL-C ' + r.ldl);
+    if (r.tc !== null) labs.push('TC ' + r.tc);
+    const hdl = Number(input.hdl);
+    if (Number.isFinite(hdl) && hdl > 0) labs.push('HDL-C ' + hdl);
+    const tg = Number(input.tg);
+    if (Number.isFinite(tg) && tg > 0) labs.push('TG ' + tg);
+    if (labs.length) bits.push(labs.join('、') + ' mg/dL');
+    return bits.join('，');
+  }
+
+  /* 一張表的段落。meets 為 null（沒填數值）時只寫門檻不下判斷——
+     病歷裡寫一個沒有數值支撐的「符合」，被查到比不寫還糟。 */
+  function lipidTableParagraph(name, effect, info, r, ordinal) {
+    const lines = [ordinal + '、適用「' + name + '」' + effect];
+    const thr = ['　　該分層起始藥物治療血脂值：LDL-C ≧ ' + info.threshold + ' mg/dL'];
+    if (info.tc) thr[0] += ' 或 TC ≧ ' + info.tc + ' mg/dL';
+    lines.push(thr[0]);
+    if (info.meets === true) {
+      const got = [];
+      if (r.ldl !== null) got.push('LDL-C ' + r.ldl);
+      if (info.tc && r.tc !== null) got.push('TC ' + r.tc);
+      lines.push('　　本例 ' + got.join('、') + ' mg/dL，已達起始標準');
+    } else if (info.meets === false) {
+      lines.push('　　本例未達該分層之起始標準');
+    }
+    lines.push(info.parallel
+      ? '　　依該表處方規定，可與藥物治療並行，不需先行 3–6 個月非藥物治療'
+      : '　　依該表處方規定，給藥前應有 3–6 個月生活型態改變／非藥物治療');
+    if (info.target) {
+      let t = '　　治療目標：LDL-C < ' + info.target + ' mg/dL';
+      if (info.targetTc) t += ' 或 TC < ' + info.targetTc + ' mg/dL';
+      if (info.nonHdlTarget) t += '（次要目標 non-HDL-C < ' + info.nonHdlTarget + ' mg/dL）';
+      lines.push(t);
+    }
+    return lines;
+  }
+
+  function lipidResultText(r, input) {
+    if (!r || !r.ok) return '';
+    const c = input || {};
+    if (r.ldl === null && r.tc === null && !(r.fibrate && r.fibrate.ok)) return '';
+
+    const out = ['【降血脂藥物給付依據】'];
+    const profile = lipidProfileLine(r, c);
+    if (profile) out.push(profile);
+    out.push('');
+
+    /* 風險分級要寫在最前面：它決定後面所有數字，也是審查最先看的一項。 */
+    out.push('一、ASCVD 風險分級：' + r.one.label);
+    out.push('　　依據：' + r.one.why.join('；'));
+    /* 只有「中／低／0 項」這三級是靠數風險因子決定的；其餘級別由臨床狀況決定，
+       列出因子清單只會讓病歷多一段與判定無關的文字。 */
+    if (['mid', 'low', 'none'].indexOf(r.one.level) >= 0) {
+      out.push('　　心血管風險因子 ' + r.riskFactorsNew.length + ' 項'
+        + (r.riskFactorsNew.length ? '：' + r.riskFactorsNew.join('、') : '（無）'));
+    }
+    out.push('');
+
+    /* 換版前後，「現行的那一張」要排在前面——病歷寫的是當下依據，不是未來的。 */
+    const oneEffect = r.tableOneInForce ? '（現行）' : '（' + r.tableOneFrom + ' 生效）';
+    const twoEffect = r.tableOneInForce ? '（限公告所列健保代碼之品項）' : '（現行）';
+    const onePara = lipidTableParagraph(LIPID_TABLE_ONE_NAME, oneEffect, r.one, r, r.tableOneInForce ? '二' : '三');
+    const twoPara = lipidTableParagraph(LIPID_TABLE_TWO_NAME, twoEffect, r.two, r, r.tableOneInForce ? '三' : '二');
+    /* 同理：只有 rf0／rf1／rf2 三層是靠數危險因子決定的。 */
+    const twoByCount = ['rf0', 'rf1', 'rf2'].indexOf(r.two.tier) >= 0;
+    twoPara.splice(1, 0, '　　該表分層：' + r.two.label
+      + (twoByCount && r.two.riskFactors.length
+         ? '（危險因子：' + r.two.riskFactors.join('、') + '）' : ''));
+    for (const p of r.two.proof || []) twoPara.push('　　應檢附：' + p);
+
+    for (const line of (r.tableOneInForce ? onePara : twoPara)) out.push(line);
+    out.push('');
+    for (const line of (r.tableOneInForce ? twoPara : onePara)) out.push(line);
+
+    const f = r.fibrate;
+    if (f && f.ok) {
+      out.push('');
+      out.push('四、降三酸甘油酯藥物：' + f.route
+        + (f.meets ? '，符合起始標準' : '，未達起始標準'));
+      out.push('　　依據：' + f.why.join('；'));
+      for (const n of f.needs || []) out.push('　　尚缺：' + n);
+      out.push(f.parallel
+        ? '　　可與藥物治療並行'
+        : '　　無心血管疾病或糖尿病者，給藥前應有 3–6 個月非藥物治療');
+      out.push('　　治療目標：TG < ' + f.target + ' mg/dL');
+    }
+
+    out.push('');
+    out.push(LIPID_SOURCE_NOTE);
+    return out.join('\n');
+  }
+
+  /* 血脂給付試算的入口鈕。排在「CCr」右邊——兩者都是「輸入數值換一個判斷」的工具，
+     放在一起使用者只要記一個位置。1c 窄欄用 seg-btn--sm 與鄰居同尺寸。 */
+  function lipidButtonEl(compact) {
+    const b = el('button', 'btn btn-secondary lipid-btn' + (compact ? ' seg-btn--sm' : ''), '血脂');
+    b.type = 'button';
+    b.id = 'lipid-btn';
+    b.setAttribute('aria-haspopup', 'dialog');
+    b.setAttribute('aria-expanded', 'false');
+    b.setAttribute('aria-controls', 'lipid-panel');
+    b.title = '血脂給付試算：依表一／表二算起始門檻與風險分級';
+    return b;
+  }
+
+  /* 「已停經」只在女性時有意義（舊表的危險因子是「女性 ≧ 55 歲**或停經者**」）。
+     男性看到它只會困惑，所以直接藏起來——但藏的同時要清掉勾選，
+     否則會留下「畫面上看不到、計算卻仍生效」的鬼影。 */
+  function syncLipidSexRows(root2) {
+    const on = root2.querySelector('#lipid-sex .lipid-sex-btn[aria-pressed="true"]');
+    const female = !!on && on.dataset.lipidSex === 'female';
+    const row = root2.querySelector('[data-lipid-row="menopause"]');
+    if (!row) return;
+    row.hidden = !female;
+    if (!female) {
+      const box = row.querySelector('input');
+      if (box) box.checked = false;
+    }
+  }
+
+  function syncLipid(root2, ctx) {
+    const open = !!ctx.store.getState().lipidOpen;
+    const overlay = root2.querySelector('#lipid-overlay');
+    const btn = root2.querySelector('#lipid-btn');
+    if (overlay) overlay.hidden = !open;
+    if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) { syncLipidSexRows(root2); renderLipidResult(root2, ctx); }
+  }
+
   function syncCcr(root2, ctx) {
     const open = !!ctx.store.getState().ccrOpen;
     const overlay = root2.querySelector('#ccr-overlay');
@@ -4344,9 +5131,11 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
     modeSwitchEl, syncModeSwitch,
     chronicSwitchEl, chronicTabsEl, syncChronicSwitch, chronicOverlayEl, renderChronic,
     ccrButtonEl, ccrOverlayEl, renderCcrResult, syncCcr, ccrResultText, ccrInputs,
+    lipidButtonEl, lipidOverlayEl, renderLipidResult, syncLipid, lipidResultText, lipidInputs,
+    syncLipidSexRows,
     chronicToday, chronicTopics,
     FORMAT_LABEL, MODE_LABEL, MODE_SHORT, PANELS_TITLE, MODE_HINT, LAYOUT_LABEL, LAYOUT_MIN_WIDTH,
-    CHRONIC_KIND, CCR_DISCLAIMER, CCR_BASIS_LABEL,
+    CHRONIC_KIND, CCR_DISCLAIMER, CCR_BASIS_LABEL, LIPID_DISCLAIMER,
   };
 })(typeof self !== 'undefined' ? self : this);
 
@@ -4384,6 +5173,7 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
     settingsOpen: ['settings'],
     chronicTopic: ['chronic'],
     ccrOpen: ['ccr'],
+    lipidOpen: ['lipid'],
     // 高度本身由 update() 末尾的 applyPanes() 統一處理；這裡只同步設定面板的
     // 「回復預設高度」可按狀態（不寫這條會退回全量重繪，每拖一次整片重畫）
     paneSizes: ['settings'],
@@ -4546,7 +5336,9 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
     refs.chronicOverlay = R.chronicOverlayEl();
     wide.appendChild(refs.chronicOverlay);
     refs.ccrOverlay = R.ccrOverlayEl();
+    refs.lipidOverlay = R.lipidOverlayEl();
     wide.appendChild(refs.ccrOverlay);
+    wide.appendChild(refs.lipidOverlay);
 
     host.appendChild(wide);
 
@@ -4700,6 +5492,7 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
     };
     U.settings = () => R.syncSettings(wide, ctx);
     U.ccr = () => R.syncCcr(wide, ctx);
+    U.lipid = () => R.syncLipid(wide, ctx);
 
     U.chronic = () => {
       R.syncChronicSwitch(wide, ctx);
@@ -4845,6 +5638,7 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
     settingsOpen: ['settings'],
     chronicTopic: ['chronic'],
     ccrOpen: ['ccr'],
+    lipidOpen: ['lipid'],
     cartOpen: ['cart'],
     pinned: ['pin'],
     // 窗格高度本身由 update() 末尾的 paneGroup.applyAll() 統一處理，這裡只需同步
@@ -5011,7 +5805,9 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
     refs.chronicOverlay = R.chronicOverlayEl();
     dock.appendChild(refs.chronicOverlay);
     refs.ccrOverlay = R.ccrOverlayEl();
+    refs.lipidOverlay = R.lipidOverlayEl();
     dock.appendChild(refs.ccrOverlay);
+    dock.appendChild(refs.lipidOverlay);
 
     host.appendChild(dock);
 
@@ -5105,6 +5901,7 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
       if (ev.key !== 'Escape') return;
       if (root.ICDInteractions.isFallbackOpen()) { root.ICDInteractions.closeFallbackCopy(); return; }
       // 順序與 interactions.js 的 Esc 鏈一致：最上層的浮層先關
+      if (ctx.store.getState().lipidOpen) { root.ICDInteractions.closeLipid(ctx, ev.target); return; }
       if (ctx.store.getState().ccrOpen) { root.ICDInteractions.closeCcr(ctx, ev.target); return; }
       if (ctx.store.getState().chronicTopic) { root.ICDInteractions.closeChronic(ctx, ev.target); return; }
       if (ctx.store.getState().settingsOpen) ctx.store.setSettingsOpen(false);
@@ -5445,6 +6242,7 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
 
     /* PiP 小視窗裡主文件的委派搆不到，這裡代打（與 chip／模式鈕同一條路）。 */
     U.ccr = () => R.syncCcr(dock, ctx);
+    U.lipid = () => R.syncLipid(dock, ctx);
 
     U.chronic = () => {
       R.syncChronicSwitch(dock, ctx);
@@ -5537,6 +6335,7 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
     settingsOpen: ['settings'],
     chronicTopic: ['chronic'],
     ccrOpen: ['ccr'],
+    lipidOpen: ['lipid'],
     cartOpen: ['cartSheet', 'cartBar'],
     pinned: [],
     // 高度本身由 update() 末尾的 paneGroup.applyAll() 統一處理；這裡只同步設定面板的
@@ -5697,7 +6496,9 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
     refs.chronicOverlay = R.chronicOverlayEl();
     wrap.appendChild(refs.chronicOverlay);
     refs.ccrOverlay = R.ccrOverlayEl();
+    refs.lipidOverlay = R.lipidOverlayEl();
     wrap.appendChild(refs.ccrOverlay);
+    wrap.appendChild(refs.lipidOverlay);
 
     host.appendChild(wrap);
 
@@ -5865,6 +6666,7 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
     U.his = () => R.renderHis(refs.hisPreview, refs.hisFormat, null, ctx);
     U.settings = () => R.syncSettings(wrap, ctx);
     U.ccr = () => R.syncCcr(wrap, ctx);
+    U.lipid = () => R.syncLipid(wrap, ctx);
 
     U.chronic = () => {
       R.syncChronicSwitch(wrap, ctx);
@@ -6192,6 +6994,69 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
     if (await copyText(text)) announce('已複製：' + text);
   }
 
+  /* 血脂給付試算。與 CCr 完全同型的浮層，使用者只要學一次。 */
+  function lipidDoc(node) {
+    return (node && node.ownerDocument) || document;
+  }
+
+  function openLipid(ctx, node) {
+    if (ctx.store.getState().lipidOpen) return;
+    ctx.store.setLipidOpen(true);
+    const ldl = lipidDoc(node).getElementById('lipid-ldl');
+    if (ldl) ldl.focus();      // 直接落在 LDL-C：那是這個判定唯一的必填值
+    announce('血脂給付試算已開啟');
+  }
+
+  function closeLipid(ctx, node) {
+    if (!ctx.store.getState().lipidOpen) return false;
+    ctx.store.setLipidOpen(false);
+    const btn = lipidDoc(node).getElementById('lipid-btn');
+    if (btn) btn.focus();
+    announce('已關閉血脂給付試算');
+    return true;
+  }
+
+  /* 任一輸入或勾選變動就重算。與 CCr 同一個理由不經過 store。 */
+  function recalcLipid(ctx, node) {
+    const doc = lipidDoc(node);
+    if (doc.getElementById('lipid-panel')) root.ICDRender.renderLipidResult(doc, ctx);
+  }
+
+  function chooseLipidSex(ctx, node) {
+    const row = lipidDoc(node).getElementById('lipid-sex');
+    if (!row) return;
+    for (const b of row.querySelectorAll('.lipid-sex-btn')) {
+      const on = b === node;
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      b.classList.toggle('is-on', on);
+    }
+    root.ICDRender.syncLipidSexRows(lipidDoc(node));
+    recalcLipid(ctx, node);
+  }
+
+  function resetLipid(ctx, node) {
+    const doc = lipidDoc(node);
+    for (const id of ['lipid-age', 'lipid-ldl', 'lipid-tc', 'lipid-hdl', 'lipid-tg']) {
+      const input = doc.getElementById(id);
+      if (input) input.value = '';
+    }
+    for (const box of doc.querySelectorAll('[data-lipid-key]')) box.checked = false;
+    recalcLipid(ctx, node);
+    const ldl = doc.getElementById('lipid-ldl');
+    if (ldl) ldl.focus();
+    announce('已清除血脂試算的輸入');
+  }
+
+  /* 複製判定。理由要一起帶走——只複製「符合」兩個字，日後被核刪時什麼都證明不了。 */
+  async function copyLipid(ctx, node) {
+    const doc = lipidDoc(node);
+    const input = root.ICDRender.lipidInputs(doc);
+    const r = ctx.logic.lipidCoverage(input);
+    const text = root.ICDRender.lipidResultText(r, input);
+    if (!text) { announce('還沒有可複製的結果'); return; }
+    if (await copyText(text)) announce('已複製血脂給付試算結果');
+  }
+
   /* 設定面板的「回復預設高度」（三套版面共用）。只清**生效版面**那一組：在 176px 窄欄
      按下它，不該把桌機工作台調好的高度一起抹掉（分版面各記各的）。 */
   function resetPanes(ctx) {
@@ -6265,6 +7130,14 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
       const chronicBtn = target.closest('[data-chronic]');
       if (chronicBtn) { chooseChronic(ctx, chronicBtn.getAttribute('data-chronic'), chronicBtn); return; }
 
+      if (target.closest('#lipid-btn')) { openLipid(ctx, target); return; }
+      const lipidSexBtn = target.closest('.lipid-sex-btn');
+      if (lipidSexBtn) { chooseLipidSex(ctx, lipidSexBtn); return; }
+      if (target.closest('#lipid-close') || target.id === 'lipid-overlay') {
+        closeLipid(ctx, target); return;
+      }
+      if (target.closest('#lipid-copy')) { copyLipid(ctx, target); return; }
+      if (target.closest('#lipid-reset')) { resetLipid(ctx, target); return; }
       const ccrSexBtn = target.closest('.ccr-sex-btn');
       if (ccrSexBtn) { chooseCcrSex(ctx, ccrSexBtn); return; }
       if (target.closest('#ccr-close') || target.id === 'ccr-overlay') { closeCcr(ctx, target); return; }
@@ -6355,11 +7228,22 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
         recalcCcr(ctx, ev.target);
         return;
       }
+      if (ev.target && ev.target.classList && ev.target.classList.contains('lipid-input')) {
+        recalcLipid(ctx, ev.target);
+        return;
+      }
       if (!ev.target || ev.target.id !== 'search') return;
       const value = ev.target.value;
       if (value.trim().length >= 2) data.ensureDb();     // 觸發全庫延遲載入
       clearTimeout(debounce);
       debounce = setTimeout(() => store.setQuery(value), SEARCH_DEBOUNCE);
+    });
+
+    /* 勾選變動走 change：checkbox 的正規事件是 change，input 在部分瀏覽器上不保證。 */
+    document.addEventListener('change', (ev) => {
+      if (ev.target && ev.target.dataset && ev.target.dataset.lipidKey) {
+        recalcLipid(ctx, ev.target);
+      }
     });
 
     document.addEventListener('keydown', (ev) => {
@@ -6370,6 +7254,7 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
           store.setQuery('');
           // Esc 在其他情境都會關掉開著的浮層，搜尋框裡也要一致（R2 M3）
           if (isFallbackOpen()) closeFallbackCopy();
+          else if (store.getState().lipidOpen) closeLipid(ctx, ev.target);
           else if (store.getState().ccrOpen) closeCcr(ctx, ev.target);
           else if (store.getState().chronicTopic) closeChronic(ctx, ev.target);
           else if (store.getState().settingsOpen) store.setSettingsOpen(false);
@@ -6399,7 +7284,8 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
       }
       if (ev.key === 'Escape') {
         if (isFallbackOpen()) { closeFallbackCopy(); return; }
-        // 三個浮層互斥（開任一個會關掉其他兩個），所以這裡的順序只是保險
+        // 四個浮層互斥（開任一個會關掉其他三個），所以這裡的順序只是保險
+        if (store.getState().lipidOpen) { closeLipid(ctx, ev.target); return; }
         if (store.getState().ccrOpen) { closeCcr(ctx, ev.target); return; }
         if (store.getState().chronicTopic) { closeChronic(ctx, ev.target); return; }
         if (store.getState().settingsOpen) store.setSettingsOpen(false);
@@ -6466,6 +7352,7 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
     chooseMode, resetPanes,
     chooseMode, chooseAllRegions, resetPanes, chooseChronic, closeChronic,
     openCcr, closeCcr, recalcCcr, chooseCcrSex, resetCcr, copyCcr,
+    openLipid, closeLipid, recalcLipid, chooseLipidSex, resetLipid, copyLipid,
   };
 })(typeof self !== 'undefined' ? self : this);
 

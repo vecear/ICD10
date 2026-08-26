@@ -115,6 +115,7 @@
     settingsOpen: ['settings'],
     chronicTopic: ['chronic'],
     ccrOpen: ['ccr'],
+    lipidOpen: ['lipid'],
     cartOpen: ['cart'],
     pinned: ['pin'],
     // 窗格高度本身由 update() 末尾的 paneGroup.applyAll() 統一處理，這裡只需同步
@@ -281,7 +282,9 @@
     refs.chronicOverlay = R.chronicOverlayEl();
     dock.appendChild(refs.chronicOverlay);
     refs.ccrOverlay = R.ccrOverlayEl();
+    refs.lipidOverlay = R.lipidOverlayEl();
     dock.appendChild(refs.ccrOverlay);
+    dock.appendChild(refs.lipidOverlay);
 
     host.appendChild(dock);
 
@@ -375,6 +378,7 @@
       if (ev.key !== 'Escape') return;
       if (root.ICDInteractions.isFallbackOpen()) { root.ICDInteractions.closeFallbackCopy(); return; }
       // 順序與 interactions.js 的 Esc 鏈一致：最上層的浮層先關
+      if (ctx.store.getState().lipidOpen) { root.ICDInteractions.closeLipid(ctx, ev.target); return; }
       if (ctx.store.getState().ccrOpen) { root.ICDInteractions.closeCcr(ctx, ev.target); return; }
       if (ctx.store.getState().chronicTopic) { root.ICDInteractions.closeChronic(ctx, ev.target); return; }
       if (ctx.store.getState().settingsOpen) ctx.store.setSettingsOpen(false);
@@ -715,6 +719,7 @@
 
     /* PiP 小視窗裡主文件的委派搆不到，這裡代打（與 chip／模式鈕同一條路）。 */
     U.ccr = () => R.syncCcr(dock, ctx);
+    U.lipid = () => R.syncLipid(dock, ctx);
 
     U.chronic = () => {
       R.syncChronicSwitch(dock, ctx);

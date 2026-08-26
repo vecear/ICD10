@@ -30,6 +30,7 @@
     settingsOpen: ['settings'],
     chronicTopic: ['chronic'],
     ccrOpen: ['ccr'],
+    lipidOpen: ['lipid'],
     // 高度本身由 update() 末尾的 applyPanes() 統一處理；這裡只同步設定面板的
     // 「回復預設高度」可按狀態（不寫這條會退回全量重繪，每拖一次整片重畫）
     paneSizes: ['settings'],
@@ -192,7 +193,9 @@
     refs.chronicOverlay = R.chronicOverlayEl();
     wide.appendChild(refs.chronicOverlay);
     refs.ccrOverlay = R.ccrOverlayEl();
+    refs.lipidOverlay = R.lipidOverlayEl();
     wide.appendChild(refs.ccrOverlay);
+    wide.appendChild(refs.lipidOverlay);
 
     host.appendChild(wide);
 
@@ -346,6 +349,7 @@
     };
     U.settings = () => R.syncSettings(wide, ctx);
     U.ccr = () => R.syncCcr(wide, ctx);
+    U.lipid = () => R.syncLipid(wide, ctx);
 
     U.chronic = () => {
       R.syncChronicSwitch(wide, ctx);

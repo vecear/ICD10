@@ -122,6 +122,9 @@
       /* CCr 計算機是否開著。同樣不持久化——裡面是上一位病人的年齡體重肌酸酐，
          跨診次留著比沒有還危險（會被誤當成這一位的數字）。 */
       ccrOpen: false,
+      /* 血脂給付試算是否開著。與 ccrOpen 同一個理由不持久化——
+         裡面是上一位病人的血脂值與病史勾選。 */
+      lipidOpen: false,
       shelfOpen: true,           // 常用列
       cartOpen: true,            // 1c/1b 的清單摺疊
       pinned: false,             // Document PiP 置頂
@@ -464,7 +467,7 @@
         return true;
       }
       if (CHRONIC_TOPICS.indexOf(key) < 0) return false;
-      setState({ chronicTopic: key, settingsOpen: false, ccrOpen: false });
+      setState({ chronicTopic: key, settingsOpen: false, ccrOpen: false, lipidOpen: false });
       return true;
     }
 
@@ -473,9 +476,17 @@
        不會被持久化、也不會被別的版面撿去用。 */
     function setCcrOpen(open) {
       const next = !!open;
-      if (next) setState({ ccrOpen: true, settingsOpen: false, chronicTopic: null });
+      if (next) setState({ ccrOpen: true, settingsOpen: false, chronicTopic: null, lipidOpen: false });
       else setState({ ccrOpen: false });
       return next;
+    }
+
+    /* 血脂給付試算。同為浮層，一次只開一個——三個浮層都會蓋住整個面板，
+       同時開兩個沒有意義，而且 Esc 該關掉哪一個會變成猜謎。 */
+    function setLipidOpen(open) {
+      const next = !!open;
+      if (next) setState({ lipidOpen: true, settingsOpen: false, chronicTopic: null, ccrOpen: false });
+      else setState({ lipidOpen: false });
     }
 
     const setShelfOpen = (open) => { setState({ shelfOpen: !!open }); };
@@ -501,7 +512,7 @@
       setQuery, setRelatedCode, setCopied, setDbState,
       setSettingsOpen, toggleSettings, setShelfOpen, toggleShelf,
       setCartOpen, toggleCart, setPinned,
-      setChronicTopic, setCcrOpen,
+      setChronicTopic, setCcrOpen, setLipidOpen,
     };
   }
 

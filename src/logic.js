@@ -270,6 +270,240 @@
     return result;
   }
 
+  /* ── 降血脂給付試算（純函式，node 可直接測） ──────────────────────────────
+     為什麼要有這個：LIPID 的給付判定是這份速查裡最容易算錯的一塊，錯的方式有三種——
+       1. 用錯表：2026-09-01 起拆成表一（ASCVD 風險分級）與表二（舊表，僅公告所列健保代碼）
+       2. 風險分級接錯：極高／非常高不是看單一條件，是看「冠心病**合併**什麼」的組合
+       3. 危險因子數錯：新舊兩表的定義不同（新制 6 項含代謝症候群、HDL-C 女性改 < 50；
+          舊表 5 項含「或停經者」、HDL-C 男女同為 < 40）
+     這三件事都是機械判斷，正是計算機該接手的部分。
+
+     依據：藥品給付規定 第二節 2.6.1 表一與表二（115.8.21 版官方 .docx 逐條核對，2026-08-26）。
+
+     **這個函式只回報「條文怎麼算」，不做臨床建議**：回傳一定帶 why（判定理由），
+     讓醫師能自己覆核每一步，而不是看一個「符合／不符合」的黑箱。 */
+
+  const LIPID_TABLE_ONE_FROM = '2026-09-01';   // 健保審字第 1150671962 號公告
+
+  /* 表一：ASCVD 風險等級 → 起始門檻＝目標值，non-HDL-C 目標為各加 30。
+     parallel＝可與藥物治療並行；false 則給藥前應有 3–6 個月生活型態改變。 */
+  const LIPID_ONE = [
+    { level: 'veryhigh', label: '極高風險', ldl: 55, nonHdl: 85, parallel: true },
+    { level: 'high', label: '非常高風險', ldl: 70, nonHdl: 100, parallel: true },
+    { level: 'moderate', label: '高風險', ldl: 100, nonHdl: 130, parallel: true },
+    { level: 'mid', label: '中風險', ldl: 115, nonHdl: 145, parallel: false },
+    { level: 'low', label: '低風險', ldl: 130, nonHdl: 160, parallel: false },
+    { level: 'none', label: '0 項心血管風險因子', ldl: 160, nonHdl: null, parallel: false },
+  ];
+
+  const lipBool = (v) => v === true;
+
+  /* 表一的風險分級。順序即優先序，命中最高的那一級就停。
+     極高與非常高刻意寫成「組合」而不是單一旗標——原文就是這樣定義的，
+     攤平成單一 checkbox 等於把最容易錯的那一步推回給使用者。 */
+  function lipidRiskLevel(c) {
+    const veryHigh = [];
+    if (lipBool(c.cad) && lipBool(c.miWithin1y)) veryHigh.push('冠狀動脈疾病合併一年內曾經歷心肌梗塞');
+    if (lipBool(c.cad) && lipBool(c.mi2plus)) veryHigh.push('冠狀動脈疾病合併 ≧ 2 次心肌梗塞病史');
+    if (lipBool(c.cad) && lipBool(c.multivessel)) veryHigh.push('冠狀動脈疾病合併多支冠狀動脈阻塞');
+    if (lipBool(c.acsHistory) && lipBool(c.dm)) veryHigh.push('急性冠心症合併糖尿病');
+    if (lipBool(c.cad) && (lipBool(c.pad) || lipBool(c.carotid))) {
+      veryHigh.push('冠狀動脈疾病合併周邊動脈疾病或頸動脈狹窄');
+    }
+    if (lipBool(c.pad) && (lipBool(c.cad) || lipBool(c.carotid))) {
+      veryHigh.push('周邊動脈疾病合併冠狀動脈疾病或頸動脈狹窄');
+    }
+    if (veryHigh.length) return { level: 'veryhigh', why: veryHigh };
+
+    const high = [];
+    if (lipBool(c.acsHistory)) high.push('急性冠心症病史');
+    if (lipBool(c.revasc)) high.push('接受血管再通術');
+    if (lipBool(c.strokeTia)) high.push('缺血性中風／TIA 合併動脈硬化相關疾病或病史');
+    if (lipBool(c.padSymptomatic)) high.push('症狀性周邊動脈疾病');
+    if (lipBool(c.imaging50)) high.push('影像確認 ≧ 50% 直徑狹窄');
+    if (high.length) return { level: 'high', why: high };
+
+    const mod = [];
+    if (lipBool(c.dm)) mod.push('糖尿病');
+    if (lipBool(c.ckd)) mod.push('未透析慢性腎臟病');
+    if (lipBool(c.cac400)) mod.push('冠狀動脈鈣化分數 ≧ 400');
+    const ldl = Number(c.ldl);
+    if (Number.isFinite(ldl) && ldl >= 190) mod.push('LDL-C ≧ 190');
+    if (mod.length) return { level: 'moderate', why: mod };
+
+    const n = c.riskFactorCountNew;
+    if (n >= 2) return { level: 'mid', why: ['心血管風險因子 ' + n + ' 項'] };
+    if (n === 1) return { level: 'low', why: ['心血管風險因子 1 項'] };
+    return { level: 'none', why: ['無心血管風險因子'] };
+  }
+
+  /* 新制 6 項風險因子。年齡與 HDL-C 由數值自動判定，其餘勾選——
+     代謝症候群本身是「五取三」的複合判準，不在這裡拆，由使用者依原文自行認定。 */
+  function lipidRiskFactorsNew(c) {
+    const hit = [];
+    const female = c.sex === 'female';
+    const age = Number(c.age);
+    const hdl = Number(c.hdl);
+    if (lipBool(c.htn)) hit.push('高血壓');
+    if (Number.isFinite(age) && (female ? age >= 55 : age >= 45)) {
+      hit.push(female ? '女性 ≧ 55 歲' : '男性 ≧ 45 歲');
+    }
+    if (lipBool(c.familyHistory)) hit.push('早發性冠心病家族史');
+    if (Number.isFinite(hdl) && hdl < (female ? 50 : 40)) {
+      hit.push('HDL-C < ' + (female ? 50 : 40));
+    }
+    if (lipBool(c.smoking)) hit.push('抽菸');
+    if (lipBool(c.metabolicSyndrome)) hit.push('代謝症候群');
+    return hit;
+  }
+
+  /* 舊表 5 項危險因子。與新制的三處差異都在這裡：多了「或停經者」、
+     HDL-C 男女同為 < 40、沒有代謝症候群。 */
+  function lipidRiskFactorsOld(c) {
+    const hit = [];
+    const female = c.sex === 'female';
+    const age = Number(c.age);
+    const hdl = Number(c.hdl);
+    if (lipBool(c.htn)) hit.push('高血壓');
+    if ((Number.isFinite(age) && (female ? age >= 55 : age >= 45))
+        || (female && lipBool(c.menopause))) {
+      hit.push(female ? '女性 ≧ 55 歲或停經' : '男性 ≧ 45 歲');
+    }
+    if (lipBool(c.familyHistory)) hit.push('早發性冠心病家族史');
+    if (Number.isFinite(hdl) && hdl < 40) hit.push('HDL-C < 40');
+    if (lipBool(c.smoking)) hit.push('抽菸');
+    return hit;
+  }
+
+  /* 表二的兩個分層條件，由表一那組勾選推導出來——不另外要使用者再勾一次，
+     那只會製造兩份互相矛盾的輸入。對應關係取自表二原文的定義：
+
+       ACS／PCI／CABG 之冠狀動脈粥狀硬化 ← 急性冠心症病史，或接受血管再通術
+       心血管疾病（舊表定義）           ← 冠狀動脈粥狀硬化（冠心病），或
+                                        缺血型腦血管疾病（缺血性中風／TIA／症狀性頸動脈狹窄）
+
+     **舊表的「心血管疾病」不含 PAD、不含 CKD**（新制才含），所以這裡刻意不接 pad／ckd。
+     推導出來的分層另帶舉證要求：舊表對冠狀動脈粥狀硬化要求「心導管證實或缺氧性
+     心電圖變化或負荷試驗陽性（附檢查報告）」，TIA 與症狀性頸動脈狹窄須神經科醫師確立。
+     這些是申報時才會被查的東西，所以要回報出來而不是默默假設已經有。 */
+  function lipidTwoFlags(c) {
+    const acs = lipBool(c.acsPciCabg) || lipBool(c.acsHistory) || lipBool(c.revasc);
+    const cvd = lipBool(c.cvdOld) || lipBool(c.cad) || lipBool(c.strokeTia) || lipBool(c.carotid);
+    const proof = [];
+    if (lipBool(c.cad) || lipBool(c.acsHistory)) {
+      proof.push('冠狀動脈粥狀硬化之診斷依據：心導管證實、缺氧性心電圖變化或負荷試驗陽性反應報告');
+    }
+    if (lipBool(c.strokeTia) || lipBool(c.carotid)) {
+      proof.push('暫時性腦缺血發作與症狀性頸動脈狹窄之診斷須由神經科醫師確立');
+    }
+    return { acs, cvd, proof };
+  }
+
+  /* 表二分層。舊表的「心血管疾病」定義比新制窄：只含冠狀動脈粥狀硬化與
+     缺血型腦血管疾病，**不含 PAD、不含 CKD**——最常被拿新制的印象去套錯。 */
+  function lipidTableTwo(c, oldCount) {
+    if (lipBool(c.acsPciCabg)) {
+      return { tier: 'acs', label: 'ACS 病史／PCI／CABG 之冠狀動脈粥狀硬化',
+               ldl: 70, tc: null, target: 70, targetTc: null, parallel: true };
+    }
+    if (lipBool(c.cvdOld) || lipBool(c.dm)) {
+      return { tier: 'cvd', label: '心血管疾病或糖尿病', ldl: 100, tc: 160,
+               target: 100, targetTc: 160, parallel: true };
+    }
+    if (oldCount >= 2) {
+      return { tier: 'rf2', label: '2 個以上危險因子', ldl: 130, tc: 200,
+               target: 130, targetTc: 200, parallel: false };
+    }
+    if (oldCount === 1) {
+      return { tier: 'rf1', label: '1 個危險因子', ldl: 160, tc: 240,
+               target: 160, targetTc: 240, parallel: false };
+    }
+    return { tier: 'rf0', label: '0 個危險因子', ldl: 190, tc: null,
+             target: 190, targetTc: null, parallel: false };
+  }
+
+  /* Fibrate（降三酸甘油酯表）。兩列的門檻都是 TG ≧ 200；決定要不要先做 3–6 個月
+     非藥物治療的是「有沒有心血管疾病或糖尿病」，不是 TG 落在哪一段。
+     此表在現行官方彙編中查無、狀態未確認——詳見 chronic_care.json 該條的補充。 */
+  function lipidFibrate(c) {
+    const tg = Number(c.tg);
+    const tc = Number(c.tc);
+    const hdl = Number(c.hdl);
+    if (!Number.isFinite(tg) || tg <= 0) return { ok: false, reason: 'no-tg' };
+    const parallel = lipBool(c.cvdOld) || lipBool(c.dm) || lipBool(c.acsPciCabg);
+    if (tg >= 500) {
+      return { ok: true, meets: true, route: 'TG ≧ 500', target: 500, parallel,
+               why: ['TG ' + tg + ' ≧ 500，可單憑 TG 起始'], needs: [] };
+    }
+    if (tg < 200) {
+      return { ok: true, meets: false, route: 'TG < 200', target: 200, parallel,
+               why: ['TG ' + tg + ' 未達 200'], needs: [] };
+    }
+    const ratio = (Number.isFinite(tc) && Number.isFinite(hdl) && hdl > 0) ? tc / hdl : null;
+    const ratioHit = ratio !== null && ratio > 5;
+    const hdlHit = Number.isFinite(hdl) && hdl < 40;
+    const why = ['TG ' + tg + ' ≧ 200'];
+    if (ratioHit) why.push('TC/HDL-C ' + (Math.round(ratio * 100) / 100) + ' > 5');
+    if (hdlHit) why.push('HDL-C ' + hdl + ' < 40');
+    if (!ratioHit && !hdlHit) {
+      return { ok: true, meets: false, route: 'TG 200–499', target: 200, parallel, why,
+               needs: ['TG 200–499 還須同時 TC/HDL-C > 5 或 HDL-C < 40'] };
+    }
+    return { ok: true, meets: true, route: 'TG 200–499', target: 200, parallel, why, needs: [] };
+  }
+
+  function lipidCoverage(input) {
+    const c = input || {};
+    const ldl = Number(c.ldl);
+    const tc = Number(c.tc);
+    const today = typeof c.today === 'string' ? c.today : '';
+
+    const rfNew = lipidRiskFactorsNew(c);
+    const rfOld = lipidRiskFactorsOld(c);
+    const risk = lipidRiskLevel(Object.assign({}, c, { riskFactorCountNew: rfNew.length }));
+    const row = LIPID_ONE.filter((r) => r.level === risk.level)[0];
+
+    const hasLdl = Number.isFinite(ldl) && ldl > 0;
+    const hasTc = Number.isFinite(tc) && tc > 0;
+    const one = {
+      level: risk.level, label: row.label, why: risk.why,
+      threshold: row.ldl, target: row.ldl, nonHdlTarget: row.nonHdl,
+      parallel: row.parallel,
+      meets: hasLdl ? ldl >= row.ldl : null,
+    };
+
+    const twoFlags = lipidTwoFlags(c);
+    const base = lipidTableTwo(
+      Object.assign({}, c, { acsPciCabg: twoFlags.acs, cvdOld: twoFlags.cvd }), rfOld.length);
+    const twoMeets = (hasLdl && ldl >= base.ldl)
+      || (base.tc !== null && hasTc && tc >= base.tc);
+    const two = Object.assign({}, base, {
+      threshold: base.ldl,
+      meets: (hasLdl || hasTc) ? twoMeets : null,
+      riskFactors: rfOld,
+      proof: twoFlags.proof,
+    });
+
+    return {
+      ok: true,
+      today,
+      /* 換版前後都要能用：8/31 之前表一還沒生效；9/1 之後表二仍適用於公告所列健保代碼。
+         所以兩張表一律都算、都回傳，由醫師依實際要開的品項代碼取用。 */
+      tableOneInForce: !today || today >= LIPID_TABLE_ONE_FROM,
+      tableOneFrom: LIPID_TABLE_ONE_FROM,
+      ldl: hasLdl ? ldl : null,
+      tc: hasTc ? tc : null,
+      riskFactorsNew: rfNew,
+      one,
+      two,
+      /* 傳推導後的旗標：fibrate 的「可否並行」看的是有無心血管疾病或糖尿病，
+         而使用者勾的是冠心病／中風那些具體項目，沒有推導就會漏判。實測踩過。 */
+      fibrate: lipidFibrate(Object.assign({}, c,
+        { cvdOld: twoFlags.cvd, acsPciCabg: twoFlags.acs })),
+    };
+  }
+
   return { buildIndex, search, family, formatCart, mergeRelated, rocDate, splitByEffective,
-           splitSentences, splitLead, creatinineClearance };
+           splitSentences, splitLead, creatinineClearance,
+           lipidCoverage, lipidRiskFactorsNew, lipidRiskFactorsOld };
 });

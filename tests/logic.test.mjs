@@ -314,3 +314,148 @@ test('splitLead: lead + rest 恆等於原字串（畫面靠這條不吞字）', 
     assert.equal(lead + rest, s);
   }
 });
+
+/* ── 降血脂給付試算（lipidCoverage） ───────────────────────────────────────
+   這是整份速查裡最容易算錯的一塊，而且錯了會直接影響「開不開得成」。
+   每一條門檻與分級都對回藥品給付規定 第二節 2.6.1 表一／表二（115.8.21 版）原文，
+   不接受「大致對」。 */
+
+/* 表一：起始門檻＝目標值，non-HDL-C 目標為各加 30。逐級釘死。 */
+test('lipidCoverage 表一：五級門檻與 non-HDL-C 目標', () => {
+  // 刻意用 LDL 150：填 190 以上的話「LDL-C ≧ 190 本身即高風險」會蓋掉風險因子計數那幾級
+  const at = (extra) => L.lipidCoverage(Object.assign({ sex: 'male', age: 40, ldl: 150 }, extra)).one;
+  assert.equal(at({ cad: true, miWithin1y: true }).threshold, 55);
+  assert.equal(at({ acsHistory: true }).threshold, 70);
+  assert.equal(at({ dm: true }).threshold, 100);
+  assert.equal(at({ htn: true, smoking: true }).threshold, 115);   // 2 項風險因子＝中風險
+  assert.equal(at({ htn: true }).threshold, 130);                  // 1 項＝低風險
+  // 40 歲男性、HDL 未填 → 0 項
+  assert.equal(at({}).threshold, 160);
+  assert.equal(at({ cad: true, miWithin1y: true }).nonHdlTarget, 85);
+  assert.equal(at({ dm: true }).nonHdlTarget, 130);
+});
+
+/* 極高風險是「冠心病**合併**什麼」的組合，不是單一旗標——這是人最容易接錯的一步。 */
+test('lipidCoverage 表一：極高風險要成對命中，單獨一個條件不算', () => {
+  const only = L.lipidCoverage({ sex: 'male', age: 40, ldl: 200, miWithin1y: true });
+  assert.notEqual(only.one.level, 'veryhigh', '沒有冠心病時，單獨的一年內 MI 不構成極高風險');
+  const pair = L.lipidCoverage({ sex: 'male', age: 40, ldl: 200, cad: true, miWithin1y: true });
+  assert.equal(pair.one.level, 'veryhigh');
+  assert.deepEqual(pair.one.why, ['冠狀動脈疾病合併一年內曾經歷心肌梗塞']);
+  // ACS＋糖尿病是極高；但只有 ACS 是非常高
+  assert.equal(L.lipidCoverage({ acsHistory: true, dm: true }).one.level, 'veryhigh');
+  assert.equal(L.lipidCoverage({ acsHistory: true }).one.level, 'high');
+});
+
+test('lipidCoverage 表一：PAD 單獨不是極高，要合併冠心病或頸動脈狹窄', () => {
+  assert.notEqual(L.lipidCoverage({ pad: true }).one.level, 'veryhigh');
+  assert.equal(L.lipidCoverage({ pad: true, carotid: true }).one.level, 'veryhigh');
+});
+
+test('lipidCoverage 表一：LDL-C ≧ 190 本身就是高風險', () => {
+  const r = L.lipidCoverage({ sex: 'male', age: 30, ldl: 195 });
+  assert.equal(r.one.level, 'moderate');
+  assert.ok(r.one.why.indexOf('LDL-C ≧ 190') >= 0);
+});
+
+/* 新舊兩表的風險因子定義有三處不同，錯一處就換一級。 */
+test('lipidRiskFactors：HDL-C 女性新制 < 50、舊表 < 40', () => {
+  const f = { sex: 'female', age: 30, hdl: 45 };
+  assert.ok(L.lipidRiskFactorsNew(f).indexOf('HDL-C < 50') >= 0, '新制女性 45 算低');
+  assert.deepEqual(L.lipidRiskFactorsOld(f), [], '舊表女性 45 不算低（門檻 40）');
+});
+test('lipidRiskFactors：「或停經者」只在舊表', () => {
+  const f = { sex: 'female', age: 48, menopause: true };
+  assert.deepEqual(L.lipidRiskFactorsNew(f), [], '新制已刪除「或停經者」');
+  assert.deepEqual(L.lipidRiskFactorsOld(f), ['女性 ≧ 55 歲或停經']);
+});
+test('lipidRiskFactors：代謝症候群只在新制', () => {
+  const f = { sex: 'male', age: 30, metabolicSyndrome: true };
+  assert.deepEqual(L.lipidRiskFactorsNew(f), ['代謝症候群']);
+  assert.deepEqual(L.lipidRiskFactorsOld(f), []);
+});
+
+/* 表二：門檻是「LDL 或 TC」兩選一，不是都要達到。 */
+test('lipidCoverage 表二：TC 達標即可，不必 LDL 也達標', () => {
+  const r = L.lipidCoverage({ sex: 'female', age: 58, ldl: 95, tc: 180, hdl: 55, dm: true });
+  assert.equal(r.two.label, '心血管疾病或糖尿病');
+  assert.equal(r.two.ldl, 100);
+  assert.equal(r.two.tc, 160);
+  assert.equal(r.two.meets, true, 'TC 180 ≧ 160 即符合');
+  assert.equal(r.one.meets, false, '同一位病人在表一（門檻 100）反而未達——這正是要提醒的落差');
+});
+
+test('lipidCoverage 表二：分層由表一的勾選推導，且不含 PAD／CKD', () => {
+  // 舊表的「心血管疾病」不含 PAD，也不含 CKD
+  const pad = L.lipidCoverage({ sex: 'male', age: 30, ldl: 200, padSymptomatic: true });
+  assert.equal(pad.two.tier, 'rf0', 'PAD 不落入舊表的心血管疾病');
+  const ckd = L.lipidCoverage({ sex: 'male', age: 30, ldl: 200, ckd: true });
+  assert.equal(ckd.two.tier, 'rf0', 'CKD 不落入舊表的心血管疾病');
+  // 冠心病與缺血性腦血管疾病才落入
+  assert.equal(L.lipidCoverage({ cad: true }).two.tier, 'cvd');
+  assert.equal(L.lipidCoverage({ strokeTia: true }).two.tier, 'cvd');
+  // ACS／再通術走最上面那一列
+  assert.equal(L.lipidCoverage({ revasc: true }).two.tier, 'acs');
+  assert.equal(L.lipidCoverage({ revasc: true }).two.ldl, 70);
+});
+
+test('lipidCoverage 表二：推導出的分層要附舉證要求（申報時會被查）', () => {
+  const r = L.lipidCoverage({ cad: true, ldl: 200 });
+  assert.ok(r.two.proof.some((s) => s.indexOf('心導管證實') >= 0));
+  const s = L.lipidCoverage({ strokeTia: true, ldl: 200 });
+  assert.ok(s.two.proof.some((x) => x.indexOf('神經科醫師') >= 0));
+});
+
+/* 「並行 vs 先做 3–6 個月」決定的是今天能不能開藥，比門檻本身更常被搞錯。 */
+test('lipidCoverage：極高／非常高／高可並行，中／低／0 項要先做 3–6 個月', () => {
+  assert.equal(L.lipidCoverage({ dm: true }).one.parallel, true);
+  assert.equal(L.lipidCoverage({ sex: 'male', age: 50, htn: true }).one.parallel, false);
+});
+
+/* 換版：兩張表一律都算，因為 9/1 之後表二仍適用於公告所列健保代碼。 */
+test('lipidCoverage：換版前後都回傳兩張表，只標示表一有沒有生效', () => {
+  const before = L.lipidCoverage({ ldl: 200, today: '2026-08-31' });
+  const after = L.lipidCoverage({ ldl: 200, today: '2026-09-01' });
+  assert.equal(before.tableOneInForce, false);
+  assert.equal(after.tableOneInForce, true);
+  for (const r of [before, after]) {
+    assert.ok(r.one && r.two, '兩張表都要算——9/1 之後表二仍適用於公告所列代碼');
+  }
+});
+
+/* Fibrate：兩列的門檻都是 TG ≧ 200，決定要不要先做非藥物治療的是有無心血管疾病／糖尿病。 */
+test('lipidCoverage fibrate：TG 200–499 還要 ratio 或低 HDL', () => {
+  const bare = L.lipidCoverage({ tg: 300, tc: 180, hdl: 50 }).fibrate;
+  assert.equal(bare.meets, false);
+  assert.ok(bare.needs[0].indexOf('TC/HDL-C') >= 0);
+  const ratio = L.lipidCoverage({ tg: 300, tc: 260, hdl: 50 }).fibrate;   // 5.2 > 5
+  assert.equal(ratio.meets, true);
+  const lowHdl = L.lipidCoverage({ tg: 300, tc: 180, hdl: 35 }).fibrate;
+  assert.equal(lowHdl.meets, true);
+});
+test('lipidCoverage fibrate：TG ≧ 500 可單憑 TG，目標改為 < 500', () => {
+  const r = L.lipidCoverage({ tg: 600, tc: 180, hdl: 50 }).fibrate;
+  assert.equal(r.meets, true);
+  assert.equal(r.target, 500);
+});
+test('lipidCoverage fibrate：有心血管疾病或糖尿病才可與藥物治療並行', () => {
+  assert.equal(L.lipidCoverage({ tg: 600 }).fibrate.parallel, false);
+  assert.equal(L.lipidCoverage({ tg: 600, dm: true }).fibrate.parallel, true);
+});
+test('lipidCoverage fibrate：沒填 TG 就不判定（不猜）', () => {
+  assert.equal(L.lipidCoverage({ ldl: 200 }).fibrate.ok, false);
+});
+
+test('lipidCoverage：沒填 LDL-C 時 meets 回 null，不當成「不符合」', () => {
+  const r = L.lipidCoverage({ dm: true });
+  assert.equal(r.one.meets, null);
+  assert.equal(r.two.meets, null);
+  assert.equal(r.one.threshold, 100, '分級仍算得出來，只是沒有數值可比');
+});
+test('lipidCoverage：空值與非物件吃得下，不丟例外', () => {
+  for (const v of [undefined, null, {}, 'x', 42]) {
+    const r = L.lipidCoverage(v);
+    assert.equal(r.ok, true);
+    assert.ok(r.one && r.two);
+  }
+});

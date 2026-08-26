@@ -350,3 +350,29 @@ body[data-layout="dock"] .chronic-step-hint { font-size: 9px; letter-spacing: .0
 body[data-layout="dock"] .chronic-kind-dot { font-size: 9px; padding: 0 3px; margin-right: 4px; }
 body[data-layout="dock"] .chronic-section[data-step="pitfall"],
 body[data-layout="dock"] .chronic-section[data-step="nocover"] { padding-left: 6px; }
+
+/* 血脂給付試算：176px 下與 CCr 同一套壓縮手法（面板滿版、字級與內距收緊）。
+   勾選格線在窄欄自動塌成一欄——auto-fit 的 minmax(min(11em,100%),1fr) 已經處理，
+   這裡只收字級與行距，不動 grid。 */
+body[data-layout="dock"] #lipid-btn {
+  min-height: 22px; padding: 0 6px; font-size: 11px; letter-spacing: .02em;
+}
+body[data-layout="dock"] .lipid-overlay { padding: 3px; }
+body[data-layout="dock"] .lipid-panel { width: 100%; padding: 6px 7px; }
+body[data-layout="dock"] .lipid-title { font-size: 14px; }
+body[data-layout="dock"] .lipid-close { min-height: 22px; padding: 0 6px; font-size: 11px; }
+body[data-layout="dock"] .lipid-form { gap: 6px; margin-top: 7px; }
+body[data-layout="dock"] .lipid-nums { gap: 4px 6px; }
+body[data-layout="dock"] .lipid-label { font-size: 11px; }
+body[data-layout="dock"] .lipid-input { width: 4.2em; min-height: 26px; font-size: 12px; }
+body[data-layout="dock"] .lipid-check { font-size: 11.5px; line-height: 1.3; }
+body[data-layout="dock"] .lipid-block { padding: 6px 7px; }
+body[data-layout="dock"] .lipid-level { font-size: 14px; }
+body[data-layout="dock"] .lipid-threshold,
+body[data-layout="dock"] .lipid-verdict { font-size: 11.5px; }
+body[data-layout="dock"] .lipid-why,
+body[data-layout="dock"] .lipid-parallel,
+body[data-layout="dock"] .lipid-proof,
+body[data-layout="dock"] .lipid-rf,
+body[data-layout="dock"] .lipid-split,
+body[data-layout="dock"] .lipid-disclaimer { font-size: 11px; line-height: 1.45; }
