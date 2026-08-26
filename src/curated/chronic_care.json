@@ -72,66 +72,66 @@
           "kind": "coverage",
           "items": [
             {
-              "text": "TZD／DPP-4i／SGLT2i 及含此 3 類成分之複方，限 metformin 最大耐受劑量仍未達標者",
+              "text": "TZD／DPP-4i／SGLT2i：限最大耐受劑量 metformin 仍未達標者，含此 3 類成分的複方亦同；SGLT2i 與 DPP-4i（含其複方）宜二種擇一",
               "detail": "總則使用條件(2)，且明定 SGLT-2 抑制劑與 DPP-4 抑制劑及其複方製劑宜二種擇一種使用。原則上第二型糖尿病應優先使用 metformin，或考慮早期開始使用胰島素；使用三種口服降血糖藥仍未達標者宜考慮給予胰島素（建議語氣，非硬性禁止）。",
-              "source": "藥品給付規定 第五節 5.1 使用條件(2)（114/6/1 生效；115.07.23 版）",
-              "checked": "2026-08-18",
+              "source": "藥品給付規定 第五節 5.1 使用條件(2)（114/6/1 生效；115.08.21 版）",
+              "checked": "2026-08-26",
               "step": "gate"
             },
             {
-              "text": "SGLT2i 走糖尿病適應症沒有 HbA1c 門檻，每日限 1 粒（Jardiance Duo 為 2 粒）",
+              "text": "SGLT2i 劑量上限：糖尿病適應症無 HbA1c 門檻；單方與 Xigduo XR 每日限 1 粒；Jardiance Duo（empagliflozin／metformin）每日限 2 粒",
               "detail": "坊間常說的 HbA1c ≧ 8.5% 是 GLP-1 RA 的門檻，不是 SGLT2i 的。劑量上限（5.1.5）：dapagliflozin（Forxiga）、empagliflozin（Jardiance）、canagliflozin、ertugliflozin 與 Xigduo XR 每日最多處方 1 粒；empagliflozin／metformin 複方（Jardiance Duo）每日最多 2 粒。",
-              "source": "藥品給付規定 第五節 5.1、5.1.5（115.07.23 版）",
-              "checked": "2026-08-18",
+              "source": "藥品給付規定 第五節 5.1、5.1.5（115.08.21 版）",
+              "checked": "2026-08-26",
               "step": "how"
             },
             {
-              "text": "SGLT2i 心衰竭路徑：NYHA II–IV 且 LVEF ≦ 40%，初次須附一年內影像 LVEF 數值",
+              "text": "SGLT2i 心衰竭兩條路徑：NYHA II–IV 且 LVEF ≦ 40%；或 LVEF 41–49%，但另需心衰竭住院病史或心臟專科醫師診斷；兩條都須先經 ACEI／ARB 穩定劑量＋β-阻斷劑最大耐受滿 4 週；初次須附一年內影像 LVEF 數值",
               "detail": "限 dapagliflozin（Forxiga）與 empagliflozin（Jardiance 10mg）。須經 ACEI 或 ARB 穩定劑量治療，並合併 β-阻斷劑最大可耐受劑量已達 4 週以上（或有禁忌症無法使用），仍有心衰竭症狀。LVEF 41–49% 者（114/3/1 新增）條件相同，但另需過去曾有心衰竭住院病史或經心臟專科醫師診斷為心衰竭。影像可為心臟超音波、心導管左心室造影、核醫、電腦斷層或磁振造影。",
-              "source": "藥品給付規定 第二節 2.16（114/3/1；115.5.22 版）",
-              "checked": "2026-08-18",
+              "source": "藥品給付規定 第二節 2.16（114/3/1；115.8.21 版）",
+              "checked": "2026-08-26",
               "step": "how"
             },
             {
-              "text": "SGLT2i 走 CKD，前提是病人已納入 Early-CKD 或 Pre-ESRD 照護計畫——最常被忽略",
+              "text": "SGLT2i 走 CKD：前提是病人已納入 Early-CKD 或 Pre-ESRD 照護計畫（最常被忽略）；eGFR 25–60 且 uACR 200–5000；ACEI／ARB 最大耐受穩定滿 4 週；eGFR 降到 < 15 應停藥",
               "detail": "限 dapagliflozin 與 empagliflozin 10mg，須完全符合：治療前穩定接受最大耐受劑量 ACEI 或 ARB 至少 4 週；起始治療 eGFR ≧ 25 且 ≦ 60 mL/min/1.73m²；uACR ≧ 200 且 ≦ 5000 mg/g；並排除第 1 型糖尿病、多囊腎／紅斑性狼瘡相關腎病／ANCA 相關血管炎、6 個月內化療或免疫抑制治療、器官移植病史、急性心肌梗塞／不穩定型心絞痛／中風或 12 週內 TIA、12 週內冠狀動脈血運重建術。使用後 eGFR 降至 < 15 應予停藥；每日最多 1 粒。",
-              "source": "藥品給付規定 第二節 2.16（114/3/1；115.5.22 版）",
-              "checked": "2026-08-18",
+              "source": "藥品給付規定 第二節 2.16（114/3/1；115.8.21 版）",
+              "checked": "2026-08-26",
               "step": "how"
             },
             {
-              "text": "GLP-1 RA 起始：metformin ± SU 最大耐受，併用第二線藥滿 6 個月後 HbA1c 仍 > 8.5%",
+              "text": "GLP-1 RA 起始三關：metformin 及／或 SU 已達最大耐受；併用 SGLT2i／DPP-4i／兩者複方／insulin 之一滿 6 個月；HbA1c 仍高於 8.5%",
               "detail": "適用 liraglutide（Victoza）、dulaglutide（Trulicity）、lixisenatide（Lyxumia）、semaglutide 針劑（Ozempic）。第二線藥指 SGLT2i、DPP-4i、兩者複方或 insulin 之一。8.5% 是併用滿 6 個月之後測的那一次，不是任何一次 HbA1c。重大心血管事件（心肌梗塞、冠狀動脈或其他動脈血管再通術、動脈硬化相關缺血性腦中風）病人有捷徑：metformin 最大耐受後即可考慮 liraglutide／dulaglutide／semaglutide，免除先用第二線藥 6 個月。Soliqua（lixisenatide＋insulin glargine 複方，5.1.3.3）門檻為 8.0%，且併用之 insulin 須每日 < 60 單位。",
-              "source": "藥品給付規定 第五節 5.1.3.2、5.1.3.3（109/5/1、109/12/1、110/7/1；115.07.23 版）",
-              "checked": "2026-08-18",
+              "source": "藥品給付規定 第五節 5.1.3.2、5.1.3.3（109/5/1、109/12/1、110/7/1；115.08.21 版）",
+              "checked": "2026-08-26",
               "step": "gate"
             },
             {
-              "text": "GLP-1 RA 不得與 DPP-4i 或 SGLT2i 併用；exenatide 更是連 insulin 都不得併用",
+              "text": "GLP-1 RA 併用禁令：Victoza／Trulicity／Lyxumia／Ozempic 不得與 DPP-4i、SGLT2i 併用；Byetta（exenatide）連 insulin 也不得併用",
               "detail": "5.1.3.2 第 4 點明文禁止。exenatide（Byetta，5.1.3.1）條件與其他 GLP-1 RA 不同：無 HbA1c 門檻，但不得與 insulin、DPP-4i、SGLT2i 併用。liraglutide 等則條文明文允許與口服降血糖藥及／或基礎胰島素併用。Soliqua 亦不得與 DPP-4i／SGLT2i 併用。",
-              "source": "藥品給付規定 第五節 5.1.3.1、5.1.3.2、5.1.3.3（115.07.23 版）",
-              "checked": "2026-08-18",
+              "source": "藥品給付規定 第五節 5.1.3.1、5.1.3.2、5.1.3.3（115.08.21 版）",
+              "checked": "2026-08-26",
               "step": "pitfall"
             },
             {
-              "text": "SGLT2i＋DPP-4i 要併用只能走固定複方，且須單方滿 6 個月且 HbA1c 仍 > 7.5%",
+              "text": "SGLT2i＋DPP-4i 併用：只能走固定複方（Glyxambi／Qtern／Steglujan）；須 metformin 最大耐受，且併用其中一種單方成分滿 6 個月；HbA1c 仍高於 7.5%；每日限 1 粒",
               "detail": "Glyxambi（empagliflozin＋linagliptin，5.1.6）、Qtern（dapagliflozin＋saxagliptin，5.1.7）、Steglujan（ertugliflozin＋sitagliptin，5.1.8）三者條件一致：已接受最大耐受劑量 metformin，且併用其中一種單方成分治療至少 6 個月、HbA1c 仍高於 7.5%，每日限處方 1 粒。邏輯是單方先用滿 6 個月、未達標才換複方，不是直接開複方。",
-              "source": "藥品給付規定 第五節 5.1.6～5.1.8（108/1/1、108/11/1、109/5/1；115.07.23 版）",
-              "checked": "2026-08-18",
+              "source": "藥品給付規定 第五節 5.1.6～5.1.8（108/1/1、108/11/1、109/5/1；115.08.21 版）",
+              "checked": "2026-08-26",
               "step": "how"
             },
             {
-              "text": "降血糖藥（含 SGLT2i、GLP-1 RA）全部不需事前審查，屬事後審查",
+              "text": "不需事前審查：降血糖藥（含 SGLT2i、GLP-1 RA）全部屬事後審查；病歷紀錄與檢驗值完整性就是唯一防線",
               "detail": "第五節 5.1 全段「事前審查」字樣出現 0 次；第二節 2.16 亦未要求事前審查。但 CKD 適應症要求病人已納入 Early-CKD 或 Pre-ESRD 計畫，等同一道前置門檻。不需事前審查代表病歷紀錄與檢驗值完整性就是唯一防線。",
-              "source": "藥品給付規定 第五節（115.07.23 版）、第二節（115.5.22 版）全文檢索",
-              "checked": "2026-08-18",
+              "source": "藥品給付規定 第五節（115.08.21 版）、第二節（115.8.21 版）全文檢索",
+              "checked": "2026-08-26",
               "step": "how"
             },
             {
-              "text": "「口服降血糖藥最多四種成分」已於 2025-06-01 刪除；但 TZD 的 metformin 二線限制仍在",
+              "text": "成分數量上限：「口服降血糖藥最多四種成分」已於 2025-06-01 刪除；TZD 的 metformin 二線限制仍在；成分數仍受通則九重複用藥條款約束",
               "detail": "現行 5.1 使用條件僅剩 4 項，舊版第 (5) 項四種成分上限與其備註已完全消失（健保署用藥查詢系統之 5.1 單項條文檔，檔名內嵌生效日 20250601 可佐證）。院內醫令系統若仍沿用舊規則擋單，可引用現行條文反映。同案另提「刪除 TZD 的 metformin 二線限制」未獲採納，TZD 仍限 metformin 之後使用。成分數量雖無硬上限，仍受通則九重複用藥條款約束。該次修訂的健保審字公告文號與正式會議紀錄本次未取得，若需引用文號報備須向健保署藥品組索取。",
-              "source": "藥品給付規定 第五節 5.1（114/6/1 修訂；115.07.23 版）",
-              "checked": "2026-08-18",
+              "source": "藥品給付規定 第五節 5.1（114/6/1 修訂；115.08.21 版）",
+              "checked": "2026-08-26",
               "step": "how"
             }
           ]
@@ -140,38 +140,38 @@
           "kind": "caution",
           "items": [
             {
-              "text": "開 SGLT2i／DPP-4i／TZD，病歷要看得到 metformin 已用到最大耐受劑量或不耐受",
+              "text": "病歷要寫得出來：開 SGLT2i／DPP-4i／TZD 前，病歷須看得到 metformin 已用到最大耐受劑量或不耐受；這三類不需事前審查，等於全靠事後查病歷",
               "detail": "這是三類藥的共同門檻，且不需事前審查，等於全靠事後查病歷。因腎功能不佳而減量 metformin 者，務必寫明減量理由。SGLT2i 與 DPP-4i 同時開立是高風險組合（條文為宜二種擇一，加上通則九重複用藥條款）。",
-              "source": "藥品給付規定 第五節 5.1 使用條件(2)（115.07.23 版）；通則九（113.05.28 版）",
-              "checked": "2026-08-18",
+              "source": "藥品給付規定 第五節 5.1 使用條件(2)（115.08.21 版）；通則九（113.05.28 版）",
+              "checked": "2026-08-26",
               "step": "pitfall"
             },
             {
-              "text": "加 GLP-1 RA 卻忘了停 SGLT2i／DPP-4i 就是直接核刪；心血管捷徑不解除併用禁令",
+              "text": "換到 GLP-1 RA 時：忘了停 SGLT2i／DPP-4i 就是直接核刪；重大心血管事件的捷徑只免除「先用第二線藥 6 個月」，不解除併用禁令",
               "detail": "5.1.3.2 第 3 點的重大心血管事件捷徑只免除「先用其他口服降血糖藥」的要求，第 4 點的併用禁令依然有效。換藥時 exenatide 尤其容易誤套規則——它無 HbA1c 門檻，但連 insulin 都不得併用。",
-              "source": "藥品給付規定 第五節 5.1.3.1、5.1.3.2（115.07.23 版）",
-              "checked": "2026-08-18",
+              "source": "藥品給付規定 第五節 5.1.3.1、5.1.3.2（115.08.21 版）",
+              "checked": "2026-08-26",
               "step": "pitfall"
             },
             {
-              "text": "心衰竭／CKD 路徑限 Jardiance 10mg；LVEF 影像要一年內（Entresto 是半年內，別記混）",
+              "text": "影像時效別記混：心衰竭／CKD 路徑限 Jardiance 10mg，開 25mg 走這兩條路徑有風險；SGLT2i 初次須一年內的 LVEF 影像；Entresto（2.14）要求的是半年內",
               "detail": "第二節 2.16 條文明列 empagliflozin 10mg，開 25mg 走這兩條路徑有風險。SGLT2i 心衰竭適應症初次使用須附一年內的 LVEF 影像數值；ARNI（2.14）要求的是半年內。",
-              "source": "藥品給付規定 第二節 2.14、2.16（115.5.22 版）",
-              "checked": "2026-08-18",
+              "source": "藥品給付規定 第二節 2.14、2.16（115.8.21 版）",
+              "checked": "2026-08-26",
               "step": "pitfall"
             },
             {
-              "text": "Rybelsus（口服 semaglutide）與 Mounjaro（tirzepatide）未納健保給付，開立即為自費",
+              "text": "未納給付：Rybelsus（口服 semaglutide）與 Mounjaro（tirzepatide）第五節全文查無，開立即為自費；勿與已給付的針劑 Ozempic（同為 semaglutide）混淆",
               "detail": "現行第五節全文檢索 Rybelsus／tirzepatide／Mounjaro 命中皆為 0。此判定屬「官方完整權威文件中闕如即未給付」的推定，未取得健保署明文否定之公告，若近期有新納入給付之公告則不會反映在此。注意勿與已給付的針劑 Ozempic（semaglutide）混淆——同成分、不同劑型、給付狀態不同。",
-              "source": "藥品給付規定 第五節（115.07.23 版）全文檢索；未取得明文否定公告",
-              "checked": "2026-08-18",
+              "source": "藥品給付規定 第五節（115.08.21 版）全文檢索；未取得明文否定公告",
+              "checked": "2026-08-26",
               "step": "nocover"
             },
             {
-              "text": "續用的 HbA1c 複查頻率條文中並無規定——6 個月與 HbA1c 門檻都只是起始條件",
+              "text": "續用沒有複查規定：條文中沒有「續用需每 X 個月複查 HbA1c」的文字；6 個月與 HbA1c 門檻都只是起始條件",
               "detail": "5.1 條文中沒有任何「續用需每 X 個月複查 HbA1c」的文字。審查實務上是否要求特定複查間隔、以及 HbA1c 檢驗本身的申報頻率上限，本次未取得《全民健康保險醫療服務給付項目及支付標準》原文，屬未確認事項，需向健保署或院內申報單位確認。另：糖尿病醫療給付改善方案（P4P）是另一套制度，其檢查頻率要求不在本節。",
-              "source": "藥品給付規定 第五節 5.1（115.07.23 版）；複查頻率為條文無明文之未確認事項",
-              "checked": "2026-08-18",
+              "source": "藥品給付規定 第五節 5.1（115.08.21 版）；複查頻率為條文無明文之未確認事項",
+              "checked": "2026-08-26",
               "step": "how"
             },
             {

@@ -169,9 +169,12 @@
      65 條主文有 18 條、補充有 39 條是這個形狀，而它正是醫師掃視時要找的那個詞。
      切出來讓畫面能把它標重，**不佔任何額外行高**，是這個面板性價比最高的一刀。
 
-     只認「短且乾淨」的前導標：≤ 14 字、其間不得有別的標點。
-     這條界線是刻意的——「evolocumab（Repatha）與 alirocumab（Praluent）：」有 33 字，
-     那不是標籤而是主詞，標重了整行都在發亮，等於沒標。
+     只認「短且乾淨」的前導標：≤ 18 字、其間不得有別的標點。
+     18 這個數字是量出來的，不是猜的：條文裡的標籤常含英文藥名與條號（「2.6.2 ezetimibe：」
+     15 字、「TZD／DPP-4i／SGLT2i：」17 字），字數吃得比中文快；放到 20 以上就開始把
+     整句話當標籤抓（「指引目標與健保門檻落差最大的就是 PCSK9：」22 字），標重了整行
+     都在發亮，等於沒標。「evolocumab（Repatha）與 alirocumab（Praluent）：」33 字，
+     那不是標籤而是主詞，兩端都排除掉。
      全形冒號才算；半形冒號在條文裡是時間與比值（1:1、8:00）。
 
      回傳 { lead, rest }，lead 為 '' 表示沒有前導標。lead + rest 恆等於原字串。 */
@@ -179,7 +182,7 @@
   function splitLead(text) {
     const src = typeof text === 'string' ? text : '';
     const at = src.indexOf('：');
-    if (at <= 0 || at > 14) return { lead: '', rest: src };
+    if (at <= 0 || at > 18) return { lead: '', rest: src };
     for (const ch of src.slice(0, at)) {
       if (LEAD_STOP.indexOf(ch) >= 0) return { lead: '', rest: src };
     }

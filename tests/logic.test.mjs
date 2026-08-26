@@ -282,6 +282,16 @@ test('splitLead: 切出短標，冒號留在 lead', () => {
 test('splitLead: 冒號前太長就不是標籤（標重了整行都在發亮＝等於沒標）', () => {
   const s = 'evolocumab（Repatha）與 alirocumab（Praluent）：限重大心血管事件後一年內';
   assert.deepEqual(L.splitLead(s), { lead: '', rest: s });
+  const sentence = '指引目標與健保門檻落差最大的就是 PCSK9：健保限重大事件後一年內';  // 22 字，是句子不是標籤
+  assert.deepEqual(L.splitLead(sentence), { lead: '', rest: sentence });
+});
+/* 上限 18 而不是 14：條文的標籤常含英文藥名與條號，字數吃得比中文快。
+   這兩個是實際資料裡被 14 誤殺、放寬後才抓得到的。 */
+test('splitLead: 含英文藥名與條號的標籤（14 字會誤殺）照樣認得', () => {
+  assert.deepEqual(L.splitLead('TZD／DPP-4i／SGLT2i：限 metformin 最大耐受仍未達標').lead,
+    'TZD／DPP-4i／SGLT2i：');                                      // 17 字
+  assert.deepEqual(L.splitLead('2.6.2 ezetimibe：限原發性高膽固醇血症').lead,
+    '2.6.2 ezetimibe：');                                        // 15 字
 });
 test('splitLead: 冒號前有別的標點就不是標籤', () => {
   const s = '早晚 2 次、共 4 天：連續測';    // 冒號夠前面，是「、」把它擋掉的
