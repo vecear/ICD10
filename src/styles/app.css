@@ -495,6 +495,11 @@ b.cart-code {
 }
 /* 「給付」／「目標」標籤已經佔著行首的標記位，不再疊一個項目符號（見 fillSegments）。 */
 .is-split > .chronic-seg.is-tagged::before { content: none; }
+/* 抬頭行（「Fibrate：」「起始門檻：」）：它統轄底下所有條件，本身不是其中一條，
+   所以不掛項目符號也不縮排——縮排會讓它看起來跟條件同級。 */
+.chronic-seg.is-head { padding-left: 0; text-indent: 0; margin-top: 0; }
+.is-split > .chronic-seg.is-head::before { content: none; }
+.chronic-seg.is-head + .chronic-seg { margin-top: 3px; }
 /* text-indent 會被繼承，而 inline-block 本身就是一個 block container——
    .chronic-kind-dot 會拿到同一個 -.8em，把「給」推到自己的框外裁掉，畫面上只剩「付」。
    凡是掛在 .chronic-seg 裡的 inline-block 都要歸零（實際踩過，2026-08-26）。 */

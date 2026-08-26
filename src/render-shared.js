@@ -761,17 +761,41 @@
      斷成兩段以上才掛 is-split（＝才有項目符號與懸掛縮排）：單段條目掛符號等於
      宣告「這裡有第二條」卻沒有，是假訊號；而 .chronic-item 本身已經有下緣線當分隔。
 
+     promoteLead（**只有主文用**）把第一段的短標提成獨立的標題行，底下所有條件平行掛。
+     來由：使用者 2026-08-26 指出「Fibrate：TG 200–499 …；／▪ TG ≧ 500 …」是錯的——
+     原文是一張給付規定**表**，兩個 TG 區間是各自成立的兩列，而「Fibrate」是這張表的
+     抬頭。把抬頭黏在第一列上，等於宣告它只管第一條，第二條變成沒有歸屬的孤兒。
+
+     **補充（detail）刻意不提**：主文是「一條規定＝一個主題」，短標確實統轄整條；
+     補充是散文，同一段裡會出現好幾個短標（「眼底：…。腎功能：…」共 6 段、
+     「其餘依危險因子計數：…」共 9 段），把第一個提上去會把後面不相干的段落
+     全掛到它底下——那是把可讀性換成錯誤的歸屬。
+
      不吞字、不插字：符號走 CSS ::before，textContent 接回去仍等於資料檔的原文
      （E2E 直接拿它比對 chronic_care.json，見 test_e2e_dock.py 的 chronic_snapshot）。 */
-  function fillSegments(box, text, prefix) {
-    const segs = root.ICDLogic.splitSentences(String(text || ''));
-    if (segs.length > 1) box.classList.add('is-split');
+  function fillSegments(box, text, prefix, promoteLead) {
+    let segs = root.ICDLogic.splitSentences(String(text || ''));
+    const multi = segs.length > 1;
+    if (multi) box.classList.add('is-split');
+    let tag = prefix;
+    if (multi && promoteLead) {
+      const cut = root.ICDLogic.splitLead(segs[0]);
+      if (cut.lead && cut.rest) {
+        const head = el('span', 'chronic-seg is-head');
+        if (tag) { head.appendChild(tag); tag = null; }   // 標籤跟著抬頭走
+        head.appendChild(el('b', 'chronic-lead', cut.lead));
+        box.appendChild(head);
+        segs = [cut.rest].concat(segs.slice(1));
+      }
+    }
     for (let i = 0; i < segs.length; i++) {
       const seg = el('span', 'chronic-seg');
-      /* 帶「給付」／「目標」標籤的那一段不再掛項目符號：標籤本身就佔著行首的標記位，
-         再加一個符號就是「▪給付 起始門檻…」，兩個標記擠在一起反而看不出哪個是分條。
-         懸掛縮排照樣套用，所以它的續行仍與底下各條的續行對齊。 */
-      if (i === 0 && prefix) { seg.appendChild(prefix); seg.classList.add('is-tagged'); }
+      /* 沒有抬頭可提時，「給付」／「目標」標籤留在第一段並吃掉它的項目符號：
+         標籤本身就佔著行首的標記位，再加一個符號就是「▪給付 …」，兩個標記擠在一起
+         反而看不出哪個是分條。懸掛縮排照樣套用，續行仍與底下各條對齊。 */
+      if (i === 0 && tag) { seg.appendChild(tag); seg.classList.add('is-tagged'); }
+      /* 抬頭提走之後，各條自己的次級短標（「TG 200–499：」「TG ≧ 500：」）照樣標重——
+         那正是這張表的決策欄，掃視時要比對的就是它。 */
       const cut = root.ICDLogic.splitLead(segs[i]);
       if (cut.lead) seg.appendChild(el('b', 'chronic-lead', cut.lead));
       seg.appendChild(document.createTextNode(cut.rest));
@@ -788,14 +812,14 @@
     const line = el('p', 'chronic-text');
     /* 給付規定與治療目標混在同一段時（例如「別踩雷」同時收了兩者），要分得出哪條是
        哪一種——它們的可信度來源不同：給付看公告、目標看指引。
-       標籤跟著第一段走（不自成一行），否則每條都多一列。 */
+       標籤跟著抬頭（或沒抬頭時的第一段）走，不自成一行，否則每條都多一列。 */
     let tag = null;
     if (item.kind === 'coverage' || item.kind === 'target') {
       tag = el('span', 'chronic-kind-dot');
       tag.dataset.kind = item.kind;
       tag.textContent = item.kind === 'coverage' ? '給付' : '目標';
     }
-    fillSegments(line, item.text, tag);
+    fillSegments(line, item.text, tag, true);
     li.appendChild(line);
     /* detail 收在原生 <details> 裡，預設收合但**控制項本身永遠看得見**。
        兩邊都不能選：全部攤開的話 64 條加起來是一面文字牆，176px 窄欄要捲十幾屏，
