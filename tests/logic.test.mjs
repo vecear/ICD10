@@ -438,9 +438,22 @@ test('lipidCoverage fibrate：TG ≧ 500 可單憑 TG，目標改為 < 500', () 
   assert.equal(r.meets, true);
   assert.equal(r.target, 500);
 });
-test('lipidCoverage fibrate：有心血管疾病或糖尿病才可與藥物治療並行', () => {
-  assert.equal(L.lipidCoverage({ tg: 600 }).fibrate.parallel, false);
+/* 官方表是三列，第三列專門讓「無心血管疾病但 TG ≧ 500」也能直接用藥。
+   決定可否並行的是**走哪一列**，不是病人有沒有共病——原本寫成只看共病，
+   把第三列整個漏掉（2026-08-27 使用者指出，附官方表影像）。 */
+test('lipidCoverage fibrate：TG ≧ 500 那一列不論有無心血管疾病都可並行', () => {
+  assert.equal(L.lipidCoverage({ tg: 600 }).fibrate.parallel, true,
+    '無心血管疾病、TG 600 → 官方第三列「與藥物治療可並行」');
   assert.equal(L.lipidCoverage({ tg: 600, dm: true }).fibrate.parallel, true);
+});
+test('lipidCoverage fibrate：TG 200–499 那一列才看有無心血管疾病或糖尿病', () => {
+  const bare = L.lipidCoverage({ tg: 300, tc: 180, hdl: 35 }).fibrate;
+  assert.equal(bare.meets, true);
+  assert.equal(bare.parallel, false, '無心血管疾病 → 給藥前應有 3–6 個月非藥物治療');
+  const dm = L.lipidCoverage({ tg: 300, tc: 180, hdl: 35, dm: true }).fibrate;
+  assert.equal(dm.parallel, true);
+  // 冠心病走推導：使用者勾的是 cad，不是 cvdOld
+  assert.equal(L.lipidCoverage({ tg: 300, tc: 180, hdl: 35, cad: true }).fibrate.parallel, true);
 });
 test('lipidCoverage fibrate：沒填 TG 就不判定（不猜）', () => {
   assert.equal(L.lipidCoverage({ ldl: 200 }).fibrate.ok, false);

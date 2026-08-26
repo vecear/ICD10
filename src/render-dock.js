@@ -501,6 +501,19 @@
       if (target.closest('#ccr-reset')) { root.ICDInteractions.resetCcr(ctx, target); return; }
       if (target.closest('#ccr-btn')) { root.ICDInteractions.openCcr(ctx, target); return; }
 
+      /* 血脂給付試算。同 CCr：性別鈕帶 .seg-btn 類名，必須排在下方泛用 .seg-btn 分支之前，
+         否則會被那條攔下（它只認 data-mode／format／layoutOpt，結果是空轉）。
+         入口鈕另要排在 [data-chronic] 之前——它就掛在慢病速查那一排裡面。 */
+      const lipidSexBtn = target.closest('.lipid-sex-btn');
+      if (lipidSexBtn) { root.ICDInteractions.chooseLipidSex(ctx, lipidSexBtn); return; }
+      if (target.closest('#lipid-close') || target.id === 'lipid-overlay') {
+        root.ICDInteractions.closeLipid(ctx, target);
+        return;
+      }
+      if (target.closest('#lipid-copy')) { root.ICDInteractions.copyLipid(ctx, target); return; }
+      if (target.closest('#lipid-reset')) { root.ICDInteractions.resetLipid(ctx, target); return; }
+      if (target.closest('#lipid-btn')) { root.ICDInteractions.openLipid(ctx, target); return; }
+
       const chronicBtn = target.closest('[data-chronic]');
       if (chronicBtn) {
         root.ICDInteractions.chooseChronic(ctx, chronicBtn.getAttribute('data-chronic'), chronicBtn);
@@ -585,11 +598,24 @@
         root.ICDInteractions.recalcCcr(ctx, ev.target);
         return;
       }
+      if (ev.target && ev.target.classList && ev.target.classList.contains('lipid-input')) {
+        root.ICDInteractions.recalcLipid(ctx, ev.target);
+        return;
+      }
       if (!ev.target || ev.target.id !== 'search') return;
       const value = ev.target.value;
       if (value.trim().length >= 2) ctx.data.ensureDb();
       clearTimeout(searchTimer);
       searchTimer = setTimeout(() => ctx.store.setQuery(value), SEARCH_DEBOUNCE);
+    });
+
+    /* 勾選的正規事件是 change，上面的 click／input 兩條都接不到。
+       PiP 期間漏了這條，血脂試算勾了病史不會重算。 */
+    dock.addEventListener('change', (ev) => {
+      if (dock.ownerDocument === document) return;
+      if (ev.target && ev.target.dataset && ev.target.dataset.lipidKey) {
+        root.ICDInteractions.recalcLipid(ctx, ev.target);
+      }
     });
 
     dock.addEventListener('keydown', (ev) => {

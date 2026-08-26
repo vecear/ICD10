@@ -1373,31 +1373,32 @@
       fb.appendChild(el('p', 'lipid-verdict', f.meets ? '符合起始門檻' : '未達起始門檻'));
       if (f.why && f.why.length) fb.appendChild(el('p', 'lipid-why', '依據：' + f.why.join('、')));
       for (const n of f.needs || []) fb.appendChild(el('p', 'lipid-proof', '還缺：' + n));
+      /* 講清楚「為什麼可以並行」——TG ≧ 500 那一列是不論共病的，
+         寫成通則會讓人以為無心血管疾病就一定要先做 3–6 個月。 */
       fb.appendChild(el('p', 'lipid-parallel', f.parallel
-        ? '可與藥物治療並行'
-        : '無心血管疾病或糖尿病者，給藥前應有 3–6 個月非藥物治療'));
+        ? (f.route === 'TG ≧ 500'
+           ? '可與藥物治療並行（TG ≧ 500 該列不論有無心血管疾病）'
+           : '可與藥物治療並行（心血管疾病或糖尿病）')
+        : '無心血管疾病者，走 TG 200–499 該列給藥前應有 3–6 個月非藥物治療'));
       box.appendChild(fb);
     }
   }
 
   /* 複製用的病歷文字。
 
-     使用者的要求（2026-08-26）：「輸出成我可以直接貼在病歷裡面的樣式，我希望是有寫出
-     符合哪些條文（看病歷的人並不知道我有這個計算器所以只寫表一表二不曉得是在說什麼），
-     目的是避免被健保核刪。」
+     使用者的要求分兩次給：
+       (2026-08-26)「輸出成我可以直接貼在病歷裡面的樣式，要寫出符合哪些條文
+        （看病歷的人並不知道我有這個計算器），目的是避免被健保核刪」
+       (2026-08-27)「只要寫符合的那一條條文就好（符合哪個用藥、條文是哪個）」
 
-     所以這段文字有三個硬性要求，跟畫面上的顯示不一樣：
-       1. **不提計算機**。讀病歷的是審查醫師，出現「試算」只會讓人問這是什麼工具。
-          寫的是「依某某規定，本例符合某某條件」——那是病歷本來就該有的敘述。
-       2. **條文寫全名**。「表一」在病歷裡沒有意義；要寫
-          「全民健康保險降膽固醇藥物給付規定表一」並附生效日與版本。
-       3. **把判定依據攤開**。核刪時要證明的是「當時就符合」，所以病人數值、
-          風險分級的臨床依據、以及該分層的官方門檻，三者都要在同一段裡對得起來。
+     所以規則是：**只輸出達標的那一條，並且指名是哪個藥、依哪一條**。
+     不達標的那張表不寫——病歷寫一堆「未達」只會給審查醫師更多可挑的地方。
 
-     另外附上「應檢附」——那是舊表對冠狀動脈粥狀硬化與腦血管疾病的舉證要求，
-     醫師看到才會記得把報告附上，而那正是最常被核刪的一項。 */
+     唯一的例外是「兩張表結論不同」：那時候必須寫出來哪一張不符合，
+     因為開錯健保代碼就會被核刪，而那正是這段文字要防的事。 */
   const LIPID_TABLE_ONE_NAME = '全民健康保險降膽固醇藥物給付規定表一';
   const LIPID_TABLE_TWO_NAME = '全民健康保險降膽固醇藥物給付規定表二';
+  const LIPID_TG_TABLE_NAME = '全民健康保險降三酸甘油酯藥物給付規定表';
   const LIPID_SOURCE_NOTE = '（依藥品給付規定第二節 2.6.1，115.8.21 版）';
 
   function lipidProfileLine(r, input) {
@@ -1417,30 +1418,24 @@
     return bits.join('，');
   }
 
-  /* 一張表的段落。meets 為 null（沒填數值）時只寫門檻不下判斷——
-     病歷裡寫一個沒有數值支撐的「符合」，被查到比不寫還糟。 */
-  function lipidTableParagraph(name, effect, info, r, ordinal) {
-    const lines = [ordinal + '、適用「' + name + '」' + effect];
-    const thr = ['　　該分層起始藥物治療血脂值：LDL-C ≧ ' + info.threshold + ' mg/dL'];
-    if (info.tc) thr[0] += ' 或 TC ≧ ' + info.tc + ' mg/dL';
-    lines.push(thr[0]);
-    if (info.meets === true) {
-      const got = [];
-      if (r.ldl !== null) got.push('LDL-C ' + r.ldl);
-      if (info.tc && r.tc !== null) got.push('TC ' + r.tc);
-      lines.push('　　本例 ' + got.join('、') + ' mg/dL，已達起始標準');
-    } else if (info.meets === false) {
-      lines.push('　　本例未達該分層之起始標準');
-    }
-    lines.push(info.parallel
-      ? '　　依該表處方規定，可與藥物治療並行，不需先行 3–6 個月非藥物治療'
-      : '　　依該表處方規定，給藥前應有 3–6 個月生活型態改變／非藥物治療');
-    if (info.target) {
-      let t = '　　治療目標：LDL-C < ' + info.target + ' mg/dL';
-      if (info.targetTc) t += ' 或 TC < ' + info.targetTc + ' mg/dL';
-      if (info.nonHdlTarget) t += '（次要目標 non-HDL-C < ' + info.nonHdlTarget + ' mg/dL）';
-      lines.push(t);
-    }
+  /* 達標那一條的敘述。刻意把「條文名稱→分層→門檻→本例數值→處方規定→目標」
+     串成一段連續文字：病歷裡是敘述，不是表格。 */
+  function lipidMetLines(name, info, r, extra) {
+    const thr = ['LDL-C ≧ ' + info.threshold + ' mg/dL'];
+    if (info.tc) thr.push('或 TC ≧ ' + info.tc + ' mg/dL');
+    const got = [];
+    if (r.ldl !== null) got.push('LDL-C ' + r.ldl);
+    if (info.tc && r.tc !== null) got.push('TC ' + r.tc);
+    const lines = ['降膽固醇藥物：符合「' + name + '」之「' + info.label + '」，'
+      + '起始藥物治療血脂值 ' + thr.join(' ') + '，本例 ' + got.join('、') + ' mg/dL，已達。'];
+    lines.push('　' + (info.parallel
+      ? '依該表處方規定，與藥物治療可並行。'
+      : '依該表處方規定，給藥前應有 3–6 個月生活型態改變／非藥物治療。')
+      + '治療目標 LDL-C < ' + info.target + ' mg/dL'
+      + (info.targetTc ? ' 或 TC < ' + info.targetTc + ' mg/dL' : '')
+      + (info.nonHdlTarget ? '（次要目標 non-HDL-C < ' + info.nonHdlTarget + ' mg/dL）' : '') + '。');
+    if (extra) lines.push('　' + extra);
+    for (const p of info.proof || []) lines.push('　應檢附：' + p + '。');
     return lines;
   }
 
@@ -1452,46 +1447,49 @@
     const out = ['【降血脂藥物給付依據】'];
     const profile = lipidProfileLine(r, c);
     if (profile) out.push(profile);
-    out.push('');
 
-    /* 風險分級要寫在最前面：它決定後面所有數字，也是審查最先看的一項。 */
-    out.push('一、ASCVD 風險分級：' + r.one.label);
-    out.push('　　依據：' + r.one.why.join('；'));
-    /* 只有「中／低／0 項」這三級是靠數風險因子決定的；其餘級別由臨床狀況決定，
-       列出因子清單只會讓病歷多一段與判定無關的文字。 */
-    if (['mid', 'low', 'none'].indexOf(r.one.level) >= 0) {
-      out.push('　　心血管風險因子 ' + r.riskFactorsNew.length + ' 項'
-        + (r.riskFactorsNew.length ? '：' + r.riskFactorsNew.join('、') : '（無）'));
+    /* 現行的那一張排前面：病歷寫的是當下依據。 */
+    const primary = r.tableOneInForce
+      ? { name: LIPID_TABLE_ONE_NAME, info: r.one, other: { name: LIPID_TABLE_TWO_NAME, info: r.two },
+          otherNote: '（限公告所列健保代碼之品項）' }
+      : { name: LIPID_TABLE_TWO_NAME, info: r.two, other: { name: LIPID_TABLE_ONE_NAME, info: r.one },
+          otherNote: '（' + r.tableOneFrom + ' 生效）' };
+
+    const risk = 'ASCVD 風險分級：' + r.one.label + '（' + r.one.why.join('；') + '）。';
+    if (primary.info.meets === true) {
+      out.push('');
+      for (const line of lipidMetLines(primary.name, primary.info, r, risk)) out.push(line);
+      /* 另一張表不符合時一定要寫：開錯健保代碼就會被核刪，那正是這段文字要防的事。 */
+      if (primary.other.info.meets === false) {
+        out.push('　註：本例不符合「' + primary.other.name + '」'
+          + primary.otherNote + '之起始標準，該表品項不適用。');
+      }
+    } else if (primary.other.info.meets === true) {
+      out.push('');
+      for (const line of lipidMetLines(primary.other.name, primary.other.info, r, risk)) out.push(line);
+      out.push('　註：本例不符合「' + primary.name + '」之起始標準，僅該表品項適用。');
     }
-    out.push('');
-
-    /* 換版前後，「現行的那一張」要排在前面——病歷寫的是當下依據，不是未來的。 */
-    const oneEffect = r.tableOneInForce ? '（現行）' : '（' + r.tableOneFrom + ' 生效）';
-    const twoEffect = r.tableOneInForce ? '（限公告所列健保代碼之品項）' : '（現行）';
-    const onePara = lipidTableParagraph(LIPID_TABLE_ONE_NAME, oneEffect, r.one, r, r.tableOneInForce ? '二' : '三');
-    const twoPara = lipidTableParagraph(LIPID_TABLE_TWO_NAME, twoEffect, r.two, r, r.tableOneInForce ? '三' : '二');
-    /* 同理：只有 rf0／rf1／rf2 三層是靠數危險因子決定的。 */
-    const twoByCount = ['rf0', 'rf1', 'rf2'].indexOf(r.two.tier) >= 0;
-    twoPara.splice(1, 0, '　　該表分層：' + r.two.label
-      + (twoByCount && r.two.riskFactors.length
-         ? '（危險因子：' + r.two.riskFactors.join('、') + '）' : ''));
-    for (const p of r.two.proof || []) twoPara.push('　　應檢附：' + p);
-
-    for (const line of (r.tableOneInForce ? onePara : twoPara)) out.push(line);
-    out.push('');
-    for (const line of (r.tableOneInForce ? twoPara : onePara)) out.push(line);
 
     const f = r.fibrate;
-    if (f && f.ok) {
+    /* 「未達」只在完全沒有任何一條符合時才寫。醫師在開 fibrate 時，
+       病歷多一行「降膽固醇藥物未達起始標準」是與本次處方無關的雜訊。 */
+    const anyMet = primary.info.meets === true || primary.other.info.meets === true
+      || !!(f && f.ok && f.meets);
+    if (!anyMet && (r.ldl !== null || r.tc !== null)) {
       out.push('');
-      out.push('四、降三酸甘油酯藥物：' + f.route
-        + (f.meets ? '，符合起始標準' : '，未達起始標準'));
-      out.push('　　依據：' + f.why.join('；'));
-      for (const n of f.needs || []) out.push('　　尚缺：' + n);
-      out.push(f.parallel
-        ? '　　可與藥物治療並行'
-        : '　　無心血管疾病或糖尿病者，給藥前應有 3–6 個月非藥物治療');
-      out.push('　　治療目標：TG < ' + f.target + ' mg/dL');
+      out.push('降膽固醇藥物：本例未達起始標準（' + risk.replace('。', '')
+        + '，起始藥物治療血脂值 LDL-C ≧ ' + primary.info.threshold + ' mg/dL）。');
+    }
+    if (f && f.ok && f.meets) {
+      out.push('');
+      out.push('降三酸甘油酯藥物：符合「' + LIPID_TG_TABLE_NAME + '」，'
+        + f.why.join('；') + '。');
+      out.push('　' + (f.parallel
+        ? (f.route === 'TG ≧ 500'
+           ? '依該表處方規定，TG ≧ 500 該列與藥物治療可並行（不論有無心血管疾病）。'
+           : '依該表處方規定，心血管疾病或糖尿病病人與藥物治療可並行。')
+        : '依該表處方規定，無心血管疾病病人給藥前應有 3–6 個月非藥物治療。')
+        + '治療目標 TG < ' + f.target + ' mg/dL。');
     }
 
     out.push('');

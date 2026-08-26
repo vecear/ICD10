@@ -422,21 +422,30 @@
              target: 190, targetTc: null, parallel: false };
   }
 
-  /* Fibrate（降三酸甘油酯表）。兩列的門檻都是 TG ≧ 200；決定要不要先做 3–6 個月
-     非藥物治療的是「有沒有心血管疾病或糖尿病」，不是 TG 落在哪一段。
-     此表在現行官方彙編中查無、狀態未確認——詳見 chronic_care.json 該條的補充。 */
+  /* Fibrate（降三酸甘油酯表）。官方表是三列：
+
+       心血管疾病或糖尿病 │ 與藥物治療可並行          │ TG ≧ 200 且 (TC/HDL-C > 5 或 HDL-C < 40) │ 目標 < 200
+       無心血管疾病       │ 給藥前應有 3–6 個月非藥物治療 │ TG ≧ 200 且 (TC/HDL-C > 5 或 HDL-C < 40) │ 目標 < 200
+       無心血管疾病       │ 與藥物治療可並行          │ TG ≧ 500                            │ 目標 < 500
+
+     **決定可否並行的是「走哪一列」，不是病人有沒有共病。** 第三列的存在就是為了讓
+     無心血管疾病但 TG ≧ 500 的人也能直接用藥；把並行寫成只看共病會把那一列整個漏掉
+     （2026-08-27 使用者指出，附官方表影像）。
+
+     此表在現行官方彙編（115.8.21）中查無、狀態未確認——詳見 chronic_care.json 該條的補充。 */
   function lipidFibrate(c) {
     const tg = Number(c.tg);
     const tc = Number(c.tc);
     const hdl = Number(c.hdl);
     if (!Number.isFinite(tg) || tg <= 0) return { ok: false, reason: 'no-tg' };
-    const parallel = lipBool(c.cvdOld) || lipBool(c.dm) || lipBool(c.acsPciCabg);
+    const hasCvd = lipBool(c.cvdOld) || lipBool(c.dm) || lipBool(c.acsPciCabg);
     if (tg >= 500) {
-      return { ok: true, meets: true, route: 'TG ≧ 500', target: 500, parallel,
-               why: ['TG ' + tg + ' ≧ 500，可單憑 TG 起始'], needs: [] };
+      /* 第三列：無心血管疾病也可並行，所以這裡不看 hasCvd。 */
+      return { ok: true, meets: true, route: 'TG ≧ 500', target: 500, parallel: true,
+               why: ['TG ' + tg + ' ≧ 500，可單憑 TG 起始，且與藥物治療可並行'], needs: [] };
     }
     if (tg < 200) {
-      return { ok: true, meets: false, route: 'TG < 200', target: 200, parallel,
+      return { ok: true, meets: false, route: 'TG < 200', target: 200, parallel: hasCvd,
                why: ['TG ' + tg + ' 未達 200'], needs: [] };
     }
     const ratio = (Number.isFinite(tc) && Number.isFinite(hdl) && hdl > 0) ? tc / hdl : null;
@@ -446,10 +455,10 @@
     if (ratioHit) why.push('TC/HDL-C ' + (Math.round(ratio * 100) / 100) + ' > 5');
     if (hdlHit) why.push('HDL-C ' + hdl + ' < 40');
     if (!ratioHit && !hdlHit) {
-      return { ok: true, meets: false, route: 'TG 200–499', target: 200, parallel, why,
+      return { ok: true, meets: false, route: 'TG 200–499', target: 200, parallel: hasCvd, why,
                needs: ['TG 200–499 還須同時 TC/HDL-C > 5 或 HDL-C < 40'] };
     }
-    return { ok: true, meets: true, route: 'TG 200–499', target: 200, parallel, why, needs: [] };
+    return { ok: true, meets: true, route: 'TG 200–499', target: 200, parallel: hasCvd, why, needs: [] };
   }
 
   function lipidCoverage(input) {

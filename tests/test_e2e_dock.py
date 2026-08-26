@@ -1889,11 +1889,11 @@ def test_lipid_menopause_row_only_for_female(pg):
 def test_lipid_copy_is_a_chart_note_not_a_calculator_dump(pg):
     """複製出來的東西要能**直接貼進病歷**，目的是被核刪時證明「當時就符合」。
 
-    使用者原話：「看病歷的人並不知道我有這個計算器，所以只寫表一表二不曉得是在說什麼」。
-    所以這裡釘三件事：
-      1. 條文要寫全名，不能只寫「表一／表二」
-      2. 判定依據（風險分級的臨床理由、病人數值、官方門檻）三者要在同一段裡對得起來
-      3. 不得出現「試算／計算機」這類字眼——讀病歷的是審查醫師，那只會引出多餘的問題
+    使用者的兩次要求都釘在這裡：
+      (08-26)「看病歷的人並不知道我有這個計算器，所以只寫表一表二不曉得是在說什麼」
+        → 條文要寫全名、要標出處版本、不得出現工具字眼
+      (08-27)「只要寫符合的那一條條文就好（符合哪個用藥、條文是哪個）」
+        → 不達標的那張表不寫進病歷；一堆「未達」只會給審查醫師更多可挑的地方
     """
     lipid_open(pg)
     lipid_fill(pg, age=60, ldl=120, tc=200, hdl=38)
@@ -1905,14 +1905,37 @@ def test_lipid_copy_is_a_chart_note_not_a_calculator_dump(pg):
     pg.wait_for_timeout(200)
     text = pg.evaluate("() => navigator.clipboard.readText()").replace("\r\n", "\n")
 
+    # 指名藥品類別與條文全名
+    assert "降膽固醇藥物：" in text, f"要指名是哪個用藥：{text}"
     assert "全民健康保險降膽固醇藥物給付規定表" in text, f"條文要寫全名：{text}"
     assert "藥品給付規定第二節 2.6.1" in text, "要標出處與版本"
+    # 判定依據三件事要對得起來
     assert "極高風險" in text
     assert "冠狀動脈疾病合併一年內曾經歷心肌梗塞" in text, "風險分級的臨床依據要寫出來"
     assert "LDL-C 120" in text, "病人數值要在"
-    assert "已達起始標準" in text
+    assert "已達" in text
+    # 這個案例兩張表都符合 → 不該出現任何「未達」
+    assert "未達" not in text, f"只寫符合的那一條，不寫未達的：{text}"
     for banned in ("試算", "計算機", "計算器"):
         assert banned not in text, f"病歷文字不該提到工具本身，出現了「{banned}」：{text}"
+
+
+def test_lipid_copy_names_the_table_that_does_not_qualify_when_they_disagree(pg):
+    """兩張表結論不同時，**必須**寫出哪一張不符合。
+
+    這是唯一該寫「未達」的情形：開錯健保代碼就會被核刪，而那正是這段文字要防的事。
+    案例取自條文本身——糖尿病、LDL-C 95、TC 180：表一門檻 100 未達，
+    表二「或 TC ≧ 160」已達。
+    """
+    lipid_open(pg)
+    lipid_fill(pg, age=58, ldl=95, tc=180, hdl=55)
+    pg.check("#lipid-dm")
+    pg.wait_for_timeout(200)
+    pg.click("#lipid-copy")
+    pg.wait_for_timeout(200)
+    text = pg.evaluate("() => navigator.clipboard.readText()").replace("\r\n", "\n")
+    assert "表二" in text and "已達" in text
+    assert "不符合" in text and "表一" in text, f"結論不同時要指名哪張表不適用：{text}"
 
 
 def test_lipid_reset_clears_numbers_and_checkboxes(pg):
@@ -1957,3 +1980,67 @@ def test_lipid_overlay_is_exclusive_with_the_other_panels(pg):
     expect(pg.locator("#lipid-overlay")).to_be_visible()
     pg.keyboard.press("Escape")
     expect(pg.locator("#lipid-overlay")).to_be_hidden()
+
+
+# ---- 置頂視窗裡的控制項（補測試盲點用；open_pinned 見上方既有的那個） ----
+def test_pinned_lipid_calculator_is_fully_operable(browser_ctx, page_url):
+    """置頂視窗裡，血脂試算的四種互動都要通：開啟、數值輸入、勾選、性別切換。
+
+    **為什麼要有這一節**：PiP 期間主文件的事件委派搆不到那棵 DOM，render-dock.js 另有
+    一份**白名單式**的轉送（pipDelegate ＋ input／change 代打）。新增控制項若忘了登記進去，
+    在一般視窗完全正常、一置頂就靜默失效——而使用者實際在診間用的正是置頂模式。
+
+    實案：2026-08-26 新增的血脂給付試算就是這樣漏掉的。176px 的測試全過，
+    使用者一置頂就點不出來；當時整個測試檔沒有任何一條真的開過 PiP 去操作裡面的控制項。
+
+    這裡的四種互動各走一條不同的轉送路徑（click／input／change／click），
+    少接一條就是靜默失效，所以一條一條驗，不是只驗「打得開」。
+    """
+    page, pip = open_pinned(browser_ctx, page_url)
+    try:
+        pip.click("#lipid-btn")                              # click 轉送
+        expect(pip.locator("#lipid-overlay")).to_be_visible()
+
+        pip.fill("#lipid-ldl", "120")                         # input 轉送
+        pip.fill("#lipid-tc", "200")
+        pip.wait_for_timeout(200)
+        assert "LDL-C 120" in pip.locator("#lipid-result").inner_text(), "數值輸入沒有觸發重算"
+
+        pip.check("#lipid-cad")                              # change 轉送（checkbox 不發 input）
+        pip.check("#lipid-miWithin1y")
+        pip.wait_for_timeout(250)
+        text = pip.locator("#lipid-result").inner_text()
+        assert "極高風險" in text, f"勾選沒有觸發重算：{text[:120]}"
+
+        pip.click('.lipid-sex-btn[data-lipid-sex="female"]')  # 性別鈕（帶 .seg-btn 類名）
+        pip.wait_for_timeout(250)
+        expect(pip.locator('[data-lipid-row="menopause"]')).to_be_visible()
+
+        pip.click("#lipid-close")                            # 關閉出口
+        expect(pip.locator("#lipid-overlay")).to_be_hidden()
+    finally:
+        page.close()
+
+
+def test_pinned_every_overlay_entry_button_actually_opens(browser_ctx, page_url):
+    """置頂視窗裡，每一顆會開浮層的鈕都要真的開得起來。
+
+    這條刻意寫成「掃過所有入口鈕」而不是逐顆列舉：日後再加第五個浮層時，
+    只要它照慣例掛 aria-haspopup="dialog"，這條就會自動涵蓋——不必記得回來補測試。
+    上一次就是因為沒有這種掃描式的守門，血脂鈕在置頂模式漏接了整整一版。
+    """
+    page, pip = open_pinned(browser_ctx, page_url)
+    try:
+        ids = pip.evaluate("""() => [...document.querySelectorAll('[aria-haspopup="dialog"]')]
+            .map((b) => ({ id: b.id, controls: b.getAttribute('aria-controls') }))""")
+        assert len(ids) >= 4, f"入口鈕少於預期：{ids}"
+        for item in ids:
+            assert item["id"], f"入口鈕沒有 id，無法定位：{item}"
+            pip.click("#" + item["id"])
+            pip.wait_for_timeout(250)
+            panel = pip.locator("#" + item["controls"])
+            assert panel.is_visible(), f"置頂時 #{item['id']} 點了沒開出 #{item['controls']}"
+            pip.keyboard.press("Escape")
+            pip.wait_for_timeout(200)
+    finally:
+        page.close()
