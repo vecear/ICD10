@@ -226,13 +226,16 @@ def test_switch_layout_from_header_button(browser_ctx, page_url):
     assert len(fresh) == 1, "側掛置頂應該一併開出小視窗"
     assert page.locator("#layout-dock").count() == 0, "側欄這時人在小視窗，不該還留在主視窗"
 
-    # 關掉小視窗：側欄回到主視窗（pagehide → restoreFromPip）
-    fresh[0].close()
+    # 關掉小視窗前先把主視窗縮窄：≥900px 的話會自動切回工作台
+    # （見 test_unpinning_in_a_wide_window_goes_back_to_the_workbench），
+    # 而這條要測的是「側欄回到主視窗」那條路。
+    page.set_viewport_size(dict(DOCK))
+    page.wait_for_timeout(200)
+    fresh[0].close()                    # pagehide → restoreFromPip
     page.wait_for_timeout(800)
     expect(page.locator("#layout-dock")).to_have_count(1)
     assert page.evaluate("() => window.ICDApp.store.getState().pinned") is False
 
-    page.set_viewport_size(dict(DOCK))
     page.wait_for_timeout(300)
     assert_no_hscroll(page, "切到 1c 後 176px")
     # 側掛偏好要跨診次保留（state.js 的 PERSISTED_KEYS）
@@ -1112,7 +1115,9 @@ def test_unpinning_keeps_the_width_the_pinned_window_had(browser_ctx, page_url):
     """
     page, pip = open_pinned(browser_ctx, page_url)
     try:
-        page.set_viewport_size({"width": 1440, "height": 900})
+        # 主視窗要 < LAYOUT_MIN_WIDTH，否則解除置頂會自動切回工作台（那條另有測試）；
+        # 800 也刻意大於 420，才看得出寬度是「沿用小視窗」而不是「被視窗夾住」。
+        page.set_viewport_size({"width": 800, "height": 900})
         pip.set_viewport_size({"width": 420, "height": 800})
         pip.wait_for_timeout(400)
 
@@ -1123,8 +1128,52 @@ def test_unpinning_keeps_the_width_the_pinned_window_had(browser_ctx, page_url):
         box = page.locator("#layout-dock").bounding_box()
         assert round(box["width"]) == 420, \
             f"沒沿用小視窗的寬度：{round(box['width'])}px，預期 420（預設 340 代表沒記住）"
-        assert abs(box["x"] + box["width"] - 1440) <= 1, f"仍要靠右貼齊：{box}"
+        assert abs(box["x"] + box["width"] - 800) <= 1, f"仍要靠右貼齊：{box}"
         assert_no_hscroll(page, "解除置頂後沿用寬度")
+    finally:
+        page.close()
+
+
+def test_unpinning_in_a_wide_window_goes_back_to_the_workbench(browser_ctx, page_url):
+    """解除置頂時主視窗若寬到足以跑工作台，就直接回工作台，不留「窄欄＋一片空白」。
+
+    使用者 2026-09-01：「左邊留一端空白很怪，不能讓瀏覽器視窗寬度大小也縮小嗎」。
+    實測確認網頁改不了自己所在視窗的大小（一般分頁 resizeTo 無作用，window.open
+    開出來的視窗則有效），所以縮視窗這條路走不通，改成回工作台。
+    """
+    page, pip = open_pinned(browser_ctx, page_url)
+    try:
+        page.set_viewport_size({"width": 1440, "height": 900})
+        page.wait_for_timeout(200)
+        pip.close()
+        page.wait_for_selector('body[data-layout="wide"]', timeout=5000)
+        page.wait_for_timeout(400)
+
+        assert page.locator("#layout-wide").count() == 1
+        assert page.locator("#layout-dock").count() == 0, "不該留下一條靠右的窄欄"
+        assert page.evaluate("() => window.ICDApp.store.getState().pinned") is False
+        assert page.evaluate("() => window.ICDApp.store.getState().layout") == "wide"
+        assert duplicate_ids(page) == []
+    finally:
+        page.close()
+
+
+def test_unpinning_in_a_narrow_window_keeps_the_dock(browser_ctx, page_url):
+    """負面對照：視窗本來就窄（例如 Ctrl+Alt+D 貼齊的寬度）就**不**該被切走。
+
+    沒有這條，把上面那條寫成「解除置頂一律回工作台」也會通過——而那會讓診間
+    貼在 HIS 旁邊的窄視窗每次關掉小視窗就跳回工作台。
+    """
+    page, pip = open_pinned(browser_ctx, page_url)
+    try:
+        page.set_viewport_size({"width": 340, "height": 900})
+        page.wait_for_timeout(200)
+        pip.close()
+        page.wait_for_timeout(900)
+
+        assert page.get_attribute("body", "data-layout") == "dock", "窄視窗不該被切回工作台"
+        assert page.locator("#layout-dock").count() == 1
+        assert page.evaluate("() => window.ICDApp.store.getState().layout") == "dock"
     finally:
         page.close()
 
@@ -1510,7 +1559,10 @@ def test_pane_resize_works_inside_pip(browser_ctx, page_url):
     assert page.evaluate("() => window.ICDApp.store.paneSizeFor('dock', 'regions')") == round(after)
     assert errors == [], errors
 
-    # 小視窗高度只有 900 以下，主視窗關掉小視窗後高度要重新夾一次而不是溢出
+    # 小視窗高度只有 900 以下，主視窗關掉小視窗後高度要重新夾一次而不是溢出。
+    # 先把主視窗縮窄：≥900px 的話解除置頂會自動切回工作台，就沒有側欄可以量了。
+    page.set_viewport_size({"width": 800, "height": 900})
+    page.wait_for_timeout(200)
     pip.close()
     page.wait_for_timeout(600)
     assert page.evaluate("() => !!document.getElementById('layout-dock')") is True

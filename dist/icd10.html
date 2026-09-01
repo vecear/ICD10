@@ -5893,7 +5893,9 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
        讓三套版面共用同一份文字產生邏輯。 */
     refs.hisScratch = document.createElement('pre');
 
-    refs.placeholder = R.el('div', 'dock-pinned-away', '已移到置頂小視窗；關閉小視窗即可回到這裡。');
+    /* 文案要兩種結果都成立：關掉小視窗後，視窗夠寬會回工作台、夠窄則側欄搬回這裡
+       （見 restoreFromPip 末段）。所以只講「回到這個視窗」，不講回到哪一個版面。 */
+    refs.placeholder = R.el('div', 'dock-pinned-away', '已移到置頂小視窗；關掉小視窗就回到這個視窗。');
 
     // 慢病速查浮層：掛在 dock 根節點底下，置頂時會跟著整棵樹被 adopt 進 PiP 小視窗
     refs.chronicOverlay = R.chronicOverlayEl();
@@ -6035,6 +6037,24 @@ window.CHRONIC_CARE = {"topics":[{"key":"dm","short":"DM","label":"糖尿病","s
       setNote('');
       // 小視窗與主視窗高度不同，窗格高度要照新的可用空間重新夾一次
       if (stillMounted) refs.paneGroup.applyAll();
+
+      /* 解除置頂後，主視窗寬到足以跑工作台就切回工作台。
+
+         為什麼不是「把視窗縮小」：網頁改不了自己所在視窗的大小。實測（2026-09-01）——
+         一般分頁呼叫 resizeTo(340,900) 後 innerWidth／clientWidth 1266 → 1266 完全沒動；
+         同一行在 window.open 開出來的視窗上則是 1266 → 326，真的縮了。所以限制是
+         「非腳本開的視窗不給改」，不是 API 壞掉。
+
+         那麼側欄回到一個最大化的視窗時，畫面就只能是「一條窄欄＋一大片空白」——
+         那既不是側掛也不是工作台。使用者裁示：這種情況直接回工作台。
+
+         門檻用 LAYOUT_MIN_WIDTH 而不是自己挑一個數字：低於它的話 resolveLayout() 會把
+         wide 降級成手機版面，那比空白更糟。視窗本來就窄（Ctrl+Alt+D 貼齊的 340px、
+         或使用者自己拉窄的）就維持側掛——那正是這個版面該用的場合。
+
+         這行要放在最後：setLayout 會同步觸發 mount() → teardown() → closePip()，
+         再繞回這個函式；那時 pipWin 已是 null 會直接 return，不會遞迴。 */
+      if (stillMounted && root.innerWidth >= R.LAYOUT_MIN_WIDTH) ctx.store.setLayout('wide');
     }
 
     function closePip() {
