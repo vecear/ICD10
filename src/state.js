@@ -119,6 +119,11 @@
       /* 慢病速查目前開著的主題（null ＝ 關閉）。刻意**不持久化**：它是「現在正在查」的
          暫態，跨診次留著只會讓下一位病人開機就看到上一位的降血脂給付表擋住畫面。 */
       chronicTopic: null,
+      /* 上一次看的主題。入口從 DM／HTN／LIPID 三顆收成一顆「健保規範條文」之後，
+         點下去要停在哪一頁得有個地方記——但**不能**記在 chronicTopic 上，那個欄位
+         同時代表「浮層開著」，開機就有值等於下一位病人一進來畫面就被條文蓋住。
+         刻意不進 PERSISTED_KEYS：這只是同一診期間的方便，不值得多一條 localStorage 寫入。 */
+      chronicLast: CHRONIC_TOPICS[0],
       /* CCr 計算機是否開著。同樣不持久化——裡面是上一位病人的年齡體重肌酸酐，
          跨診次留著比沒有還危險（會被誤當成這一位的數字）。 */
       ccrOpen: false,
@@ -467,7 +472,10 @@
         return true;
       }
       if (CHRONIC_TOPICS.indexOf(key) < 0) return false;
-      setState({ chronicTopic: key, settingsOpen: false, ccrOpen: false, lipidOpen: false });
+      setState({
+        chronicTopic: key, chronicLast: key,
+        settingsOpen: false, ccrOpen: false, lipidOpen: false,
+      });
       return true;
     }
 

@@ -228,10 +228,12 @@ body[data-layout="mobile"] #copy-all {
 /* 登記標記預設用 --color-text 畫，在深色底的複製鈕旁會糊掉 */
 body[data-layout="mobile"] #copy-all > .corner { color: var(--his-dim); }
 
-/* ── 慢病速查（DM／HTN／LIPID）──
+/* ── 健保規範條文／血脂計算機／CCr ──
    三顆鈕放在**捲動內容區的最上面**，不是 header：44px 的觸控目標是硬性邊界不能打折，
    一列常駐就是 844px 螢幕的 5%＋分隔線，而這是偶爾查閱的功能。放進捲動區：
-   開機第一眼看得到，往下選碼時自己讓開，永久成本 0px；按鈕本身仍是 44px。 */
+   開機第一眼看得到，往下選碼時自己讓開，永久成本 0px；按鈕本身仍是 44px。
+   390px 的寬度帳（可用 362）：健保規範條文 ~116 ＋ 血脂計算機 ~102 ＋ CCr ~58
+   ＋ 間距 20 ≈ 296，一列放得下。 */
 body[data-layout="mobile"] .chronic-switch {
   gap: 8px; padding: 10px 14px 0;
 }
@@ -255,7 +257,17 @@ body[data-layout="mobile"] .chronic-tab {
   flex: 1; min-width: 0; min-height: 44px; padding: 0 8px; font-size: 14px;
 }
 
-/* CCr：手機一律 44px 觸控門檻（輸入框、按鈕都是），浮層貼齊底部留白 */
+/* 官方條文 PDF 連結也是觸控目標：整行撐到 44px，不是只有那幾個字 */
+body[data-layout="mobile"] .chronic-doc-link {
+  display: inline-flex; align-items: center; min-height: 44px; font-size: 14px;
+}
+body[data-layout="mobile"] .chronic-doc-version,
+body[data-layout="mobile"] .chronic-doc-where { font-size: 12px; }
+
+/* 兩個計算機：手機一律 44px 觸控門檻（輸入框、按鈕都是）。
+   它們帶 .seg-btn--sm（那是給 176px 窄欄的 22px／10px），在 390px 一定要蓋掉——
+   血脂鈕原本就漏了這條，量到只有 22px 高、10px 字，是實測抓出來的觸控門檻破口。 */
+body[data-layout="mobile"] #lipid-btn,
 body[data-layout="mobile"] #ccr-btn { flex: 0 0 auto; min-height: 44px; padding: 0 14px; font-size: 14px; }
 body[data-layout="mobile"] .ccr-panel { width: 100%; }
 body[data-layout="mobile"] .ccr-input { min-height: 44px; font-size: 16px; }  /* 16px 避免 iOS 自動放大 */

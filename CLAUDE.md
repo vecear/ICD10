@@ -13,6 +13,7 @@
 - `dist/icd10.html`（改了 `src/` 就會變）
 - `tools/his-paste.ahk`
 - `tools/診間使用說明.txt`
+- `健保條文/`（官方條文 PDF；慢病速查每個主題最上方連的就是它們）
 
 ```bash
 python build/build.py && python tools/pack_for_clinic.py

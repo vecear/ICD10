@@ -1,5 +1,9 @@
 """打包診間電腦要用的整包東西，輸出 診間包/ 與 診間包.zip。
 
+包裡有三類東西：單檔 icd10.html、AutoHotkey 熱鍵（執行檔轉成文字）、
+以及 健保條文/ 底下的官方 PDF——慢病速查每個主題最上方連的就是它們，
+診間不能上網，條文不跟著寄就是點下去找不到檔案。
+
 診間電腦只能收信、不能上網下載、不能插隨身碟，而 Gmail 會封鎖 .exe（連壓縮檔裡的
 也擋，它看的是內容標頭不是副檔名）。所以 AutoHotkey 的執行檔在這裡轉成純文字，
 到診間用 Windows 內建的 certutil 還原——做法寫在包裡的使用說明。
@@ -14,6 +18,7 @@
 import base64
 import hashlib
 import io
+import json
 import os
 import re
 import shutil
@@ -25,6 +30,9 @@ sys.stdout.reconfigure(encoding="utf-8")
 
 ROOT = Path(__file__).resolve().parent.parent
 TOOLS = ROOT / "tools"
+NHI_DOC_DIR_NAME = "健保條文"
+NHI_DOCS = ROOT / NHI_DOC_DIR_NAME
+CHRONIC_CARE = ROOT / "src" / "curated" / "chronic_care.json"
 OUT_DIR = ROOT / "診間包"
 OUT_ZIP = ROOT / "診間包.zip"
 
@@ -80,6 +88,23 @@ def check_manual_line_numbers(manual, script):
     return problems
 
 
+def nhi_docs_referenced():
+    """chronic_care.json 裡被引用到的官方條文檔名。
+
+    build.py 已經擋過「檔案不存在」，這裡擋的是另一種：檔案在 健保條文/、
+    但**沒有被複製進包裡**。兩關看的是不同的東西，不能只留一關——
+    包寄出去之後沒有人會再檢查，而診間補不了檔。
+    """
+    raw = json.loads(CHRONIC_CARE.read_text(encoding="utf-8"))
+    names = set()
+    for topic in raw.get("topics") or []:
+        for doc in topic.get("docs") or []:
+            name = str((doc or {}).get("file") or "").strip()
+            if name:
+                names.add(name)
+    return names
+
+
 def to_pem_base64(data):
     """轉成 certutil -decode 認得的 PEM 格式（每行 64 字元）。"""
     b64 = base64.b64encode(data).decode("ascii")
@@ -101,6 +126,12 @@ def main():
         if not path.is_file():
             raise SystemExit(f"缺少 {path.relative_to(ROOT)}"
                              + ("（先跑 python build/build.py）" if path == dist else ""))
+
+    wanted_docs = nhi_docs_referenced()
+    missing_docs = sorted(n for n in wanted_docs if not (NHI_DOCS / n).is_file())
+    if missing_docs:
+        raise SystemExit(f"{NHI_DOC_DIR_NAME}/ 缺少慢病速查引用的條文檔：\n  "
+                         + "\n  ".join(missing_docs))
 
     stale = check_manual_line_numbers(manual, script)
     if stale:
@@ -128,6 +159,10 @@ def main():
     shutil.copy2(script, OUT_DIR / SCRIPT_AS)
     shutil.copy2(manual, OUT_DIR / "使用說明.txt")
     (OUT_DIR / ENCODED_AS).write_text(to_pem_base64(exe_bytes), encoding="ascii", newline="\n")
+    doc_out = OUT_DIR / NHI_DOC_DIR_NAME
+    doc_out.mkdir()
+    for pdf in sorted(NHI_DOCS.glob("*.pdf")):
+        shutil.copy2(pdf, doc_out / pdf.name)
 
     # 自我驗證 1：還原出來的位元組要與原檔一模一樣，否則診間會拿到壞掉的執行檔
     restored = from_pem_base64((OUT_DIR / ENCODED_AS).read_text(encoding="ascii"))
@@ -138,8 +173,11 @@ def main():
     if OUT_ZIP.exists():
         OUT_ZIP.unlink()
     with zipfile.ZipFile(OUT_ZIP, "w", zipfile.ZIP_DEFLATED) as zf:
-        for item in sorted(OUT_DIR.iterdir()):
-            zf.write(item, item.name)
+        # rglob 而不是 iterdir：健保條文/ 是子資料夾，只掃第一層會把條文整批漏掉，
+        # 而且**不會報錯**——寄出去的包看起來完整，診間點條文才發現沒有。
+        for item in sorted(OUT_DIR.rglob("*")):
+            if item.is_file():
+                zf.write(item, item.relative_to(OUT_DIR).as_posix())
 
     # 自我驗證 2：zip 裡不得有會被郵件擋下的副檔名
     with zipfile.ZipFile(OUT_ZIP) as zf:
@@ -148,17 +186,32 @@ def main():
     if blocked:
         raise SystemExit(f"zip 裡有會被郵件封鎖的檔案：{blocked}")
 
+    # 自我驗證 3：慢病速查引用的每一份條文都要真的在 zip 裡，路徑還要與網頁算出來的
+    # 相對路徑一致（健保條文/檔名）。少一份的表現是診間點下去找不到檔案。
+    zipped = set(names)
+    lost = sorted(n for n in wanted_docs if f"{NHI_DOC_DIR_NAME}/{n}" not in zipped)
+    if lost:
+        raise SystemExit("zip 裡缺少慢病速查引用的條文檔：\n  " + "\n  ".join(lost))
+
     print(f"AutoHotkey 來源：{exe}")
     print(f"  SHA-256 {exe_sha}")
     print(f"  轉成文字後還原比對：相同 ✔")
     print()
     print(f"輸出資料夾 {OUT_DIR.name}/")
     for item in sorted(OUT_DIR.iterdir()):
+        if item.is_dir():
+            kids = sorted(item.iterdir())
+            size = sum(k.stat().st_size for k in kids) / 1024
+            print(f"  {item.name + '/':<20} {size:>8,.0f} KB（{len(kids)} 個檔）")
+            for kid in kids:
+                print(f"    {kid.name}")
+            continue
         print(f"  {item.name:<20} {item.stat().st_size / 1024:>8,.0f} KB")
     print()
     print(f"壓縮檔 {OUT_ZIP.name}  {OUT_ZIP.stat().st_size / 1024 / 1024:.2f} MB"
           f"（Gmail 上限 25 MB）")
     print(f"  內含 {len(names)} 個檔，無執行檔副檔名 ✔")
+    print(f"  慢病速查引用的 {len(wanted_docs)} 份官方條文都在包裡 ✔")
     print()
     print("把這個 zip 整包寄到診間，解壓後覆蓋原本的資料夾即可。")
     print("第一次使用要先做一次還原：見包裡的「使用說明.txt」第二步。")

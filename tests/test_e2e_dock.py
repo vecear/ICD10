@@ -12,6 +12,8 @@ import http.server
 import threading
 from functools import partial
 from pathlib import Path
+from urllib.parse import urlparse
+from urllib.request import url2pathname
 
 import pytest
 from playwright.sync_api import expect, sync_playwright
@@ -1714,8 +1716,12 @@ def test_pip_requests_width_above_two_column_threshold(browser_ctx, page_url):
 # .dock-tools 那列在 176px 的寬度帳也已經滿了，而這是偶爾查閱的功能——不該佔固定高度。
 # 這裡把「它不在 header」與「176px 開著浮層仍不得水平溢出」兩件事都釘住。
 def open_chronic(page, key):
-    page.click(f"#chronic-btn-{key}")
+    """開某個主題＝先按入口鈕開浮層，再點該主題的分頁（入口鈕停在上次看的主題）。"""
+    if page.locator("#chronic-overlay").is_hidden():
+        page.click("#chronic-btn")
     expect(page.locator("#chronic-overlay")).to_be_visible()
+    page.click(f"#chronic-tab-{key}")
+    expect(page.locator(f"#chronic-tab-{key}")).to_have_attribute("aria-pressed", "true")
 
 
 def chronic_snapshot(page):
@@ -1749,10 +1755,11 @@ def chronic_page(browser_ctx, page_url, today):
 
 
 def test_chronic_buttons_live_in_the_scroll_area_not_the_header(pg):
-    """密度決定的守門：這三顆鈕不得把 header 撐回三列，也不得另闢一列固定 chrome。"""
-    btns = pg.locator("#chronic-switch .chronic-btn")
-    expect(btns).to_have_count(3)
-    assert btns.all_text_contents() == [short for _k, short, _l in cf.buttons()]
+    """密度決定的守門：這一排不得把 header 撐回三列，也不得另闢一列固定 chrome。"""
+    expect(pg.locator("#chronic-switch .chronic-btn")).to_have_count(1)
+    order = pg.evaluate("""() => Array.from(
+        document.getElementById('chronic-switch').children).map((n) => n.id)""")
+    assert order == ["chronic-btn", "lipid-btn", "ccr-btn"], order
     placement = pg.evaluate("""() => {
         const row = document.getElementById('chronic-switch');
         return {
@@ -1777,15 +1784,17 @@ def test_chronic_buttons_live_in_the_scroll_area_not_the_header(pg):
     top_after = pg.evaluate("() => document.getElementById('chronic-switch')"
                             ".getBoundingClientRect().top")
     assert top_after < top_before - 20, (
-        f"慢病三鈕沒有跟著內容捲走（{top_before}→{top_after}），"
+        f"這一排沒有跟著內容捲走（{top_before}→{top_after}），"
         "等於在版面上常駐")
     pg.evaluate("() => { document.querySelector('.dock-scroll').scrollTop = 0; }")
-    for key, _short, label in cf.buttons():
-        b = pg.locator(f"#chronic-btn-{key}")
+    for sel in ("#chronic-btn", "#lipid-btn", "#ccr-btn"):
+        b = pg.locator(sel)
         expect(b).to_be_visible()
-        assert label in (b.get_attribute("title") or ""), "176px 只塞得下短標籤，全名要在 title"
+        rect = b.bounding_box()
         # 側掛是滑鼠操作，密度原則的下限是 20px（不是手機的 44px）
-        assert b.bounding_box()["height"] >= 20
+        assert rect["height"] >= 20, f"{sel} 只有 {rect['height']:.1f}px"
+        # 176px 放不下一整列，所以 .chronic-switch 允許折行——折了也不得往右溢出
+        assert rect["x"] + rect["width"] <= DOCK["width"] + 0.5, f"{sel} 超出窄欄"
     expect(pg.locator("#chronic-overlay")).to_be_hidden()
 
 
@@ -1799,7 +1808,21 @@ def test_chronic_panel_opens_and_closes(pg, how):
     else:
         pg.keyboard.press("Escape")
     expect(pg.locator("#chronic-overlay")).to_be_hidden()
-    expect(pg.locator(f"#chronic-btn-{key}")).to_have_attribute("aria-expanded", "false")
+    expect(pg.locator("#chronic-btn")).to_have_attribute("aria-expanded", "false")
+
+
+def test_chronic_official_pdf_links_show_up_at_the_top_of_each_topic(pg):
+    """176px 下每個主題最上方仍要有官方條文連結（診間實際用的就是這個寬度）。"""
+    for key, _short, _label in cf.buttons():
+        open_chronic(pg, key)
+        docs = cf.docs(key)
+        assert docs, f"{key} 沒有登記官方條文"
+        first_class = pg.evaluate(
+            "() => document.getElementById('chronic-body').firstElementChild.className")
+        assert "chronic-docs" in first_class, f"{key} 的條文區不在最上面：{first_class}"
+        expect(pg.locator("#chronic-body .chronic-doc-link")).to_have_count(len(docs))
+        assert_no_hscroll(pg, f"{key} 的官方條文連結")
+    pg.keyboard.press("Escape")
 
 
 def test_chronic_tabs_switch_topic_without_closing(pg):
@@ -1914,13 +1937,23 @@ def ccr_fill(pg, age=None, weight=None, height=None, cr=None):
     pg.wait_for_timeout(150)
 
 
-def test_ccr_button_sits_right_of_date(pg):
-    """「CCr」排在「日期」右邊（使用者指定的位置）。"""
+def test_ccr_button_sits_right_of_the_lipid_calculator(pg):
+    """「CCr」排在「血脂計算機」右邊，兩顆都在捲動區那一排、**不得回到 header**。
+
+    回到 header 的代價是實測過的：176px 的 .dock-tools 那列已經滿了，多一顆會把
+    模式三鈕擠到第二列。這也是當初把它搬下來的原因。
+    """
     expect(pg.locator("#ccr-btn")).to_have_count(1)
-    date_box = pg.locator("#copy-date").bounding_box()
+    placement = pg.evaluate("""() => {
+        const b = document.getElementById('ccr-btn');
+        return { inChronicRow: !!b.closest('#chronic-switch'),
+                 inHead: !!b.closest('.dock-head') }; }""")
+    assert placement["inChronicRow"], "CCr 要掛在健保規範條文那一排"
+    assert not placement["inHead"], "CCr 不得放回 header：176px 那列塞不下"
+    lipid_box = pg.locator("#lipid-btn").bounding_box()
     ccr_box = pg.locator("#ccr-btn").bounding_box()
-    assert abs(date_box["y"] - ccr_box["y"]) < 2, f"不在同一列：{date_box} vs {ccr_box}"
-    assert ccr_box["x"] > date_box["x"], "CCr 應在日期右邊"
+    assert abs(lipid_box["y"] - ccr_box["y"]) < 2, f"不在同一列：{lipid_box} vs {ccr_box}"
+    assert ccr_box["x"] > lipid_box["x"], "CCr 應在血脂計算機右邊"
     assert ccr_box["x"] + ccr_box["width"] <= DOCK["width"] + 0.5, "CCr 鈕超出窄欄"
 
 
@@ -2042,10 +2075,10 @@ def lipid_fill(pg, **vals):
 
 
 def test_lipid_button_lives_with_the_chronic_row_not_the_header(pg):
-    """「血脂試算」掛在慢病速查那一排（DM／HTN／LIPID 旁），**不得放進 header**。
+    """「血脂計算機」掛在「健保規範條文」那一排，**不得放進 header**。
 
     兩個理由，第二個是實測踩到的：
-      1. 它算的就是 LIPID 主題的給付門檻，放在該主題的入口鈕旁邊語意才對得上。
+      1. 它算的就是 LIPID 主題的給付門檻，放在條文入口旁邊語意才對得上。
       2. 176px 的 header 塞不下第四顆鈕——放進去會把模式三鈕擠到第二列
          （實測 y 37→62），直接違反本檔的密度守門。
 
@@ -2053,17 +2086,17 @@ def test_lipid_button_lives_with_the_chronic_row_not_the_header(pg):
     """
     btn = pg.locator("#lipid-btn")
     expect(btn).to_have_count(1)
+    assert btn.inner_text() == "血脂計算機", "標籤要寫全名，免得被當成血脂的條文"
     placement = pg.evaluate("""() => {
         const b = document.getElementById('lipid-btn');
         return { inChronicRow: !!b.closest('#chronic-switch'),
                  inHead: !!b.closest('.dock-head') }; }""")
-    assert placement["inChronicRow"], "血脂鈕要掛在慢病速查那一排"
+    assert placement["inChronicRow"], "血脂鈕要掛在健保規範條文那一排"
     assert not placement["inHead"], "血脂鈕不得放進 header：176px 塞不下第四顆鈕"
 
     lip = btn.bounding_box()
-    lipid_topic = pg.locator("#chronic-btn-lipid").bounding_box()
-    assert abs(lip["y"] - lipid_topic["y"]) < 2, "要與 LIPID 鈕同一列"
-    assert lip["x"] > lipid_topic["x"], "排在三顆主題鈕之後"
+    entry = pg.locator("#chronic-btn").bounding_box()
+    assert lip["y"] >= entry["y"] - 0.5, "要排在入口鈕之後（同列在右，或折行到下一列）"
     assert lip["x"] + lip["width"] <= DOCK["width"] + 0.5, "血脂鈕超出窄欄"
 
 
@@ -2258,18 +2291,52 @@ def test_pinned_lipid_calculator_is_fully_operable(browser_ctx, page_url):
         page.close()
 
 
+def test_pinned_official_pdf_links_still_point_at_real_files(browser_ctx, page_url):
+    """置頂時條文連結不得變成相對路徑。
+
+    PiP 小視窗的文件 URL 是 about:blank：`健保條文/x.pdf` 這種相對路徑會解析成
+    `about:blank` 底下的東西，點下去必定失敗——而且**在一般視窗完全正常**，
+    只有置頂才壞，正是這個專案踩過的那類靜默失效（見上一條測試的註解）。
+    所以 href 由主文件的 baseURI 算成絕對路徑，這裡驗它在 PiP 裡也還是絕對路徑、
+    而且指到的檔案真的存在。
+    """
+    page, pip = open_pinned(browser_ctx, page_url)
+    try:
+        assert pip.url in ("about:blank", ""), f"PiP 文件不是 about:blank？{pip.url}"
+        pip.click("#chronic-btn")
+        pip.wait_for_timeout(300)
+        expect(pip.locator("#chronic-overlay")).to_be_visible()
+        for key, _short, _label in cf.buttons():
+            pip.click(f"#chronic-tab-{key}")
+            pip.wait_for_timeout(200)
+            links = pip.locator("#chronic-body .chronic-doc-link")
+            docs = cf.docs(key)
+            assert links.count() == len(docs), f"{key}：{links.count()} != {len(docs)}"
+            for i, doc in enumerate(docs):
+                href = links.nth(i).get_attribute("href")
+                assert href.startswith("file:///"), f"{key} 在 PiP 裡變成相對路徑：{href}"
+                path = Path(url2pathname(urlparse(href).path))
+                assert path == ROOT / "dist" / "健保條文" / doc["file"], path
+                assert path.is_file(), f"{key} 的條文連結指到不存在的檔案：{path}"
+    finally:
+        page.close()
+
+
 def test_pinned_every_overlay_entry_button_actually_opens(browser_ctx, page_url):
     """置頂視窗裡，每一顆會開浮層的鈕都要真的開得起來。
 
-    這條刻意寫成「掃過所有入口鈕」而不是逐顆列舉：日後再加第五個浮層時，
+    這條刻意寫成「掃過所有入口鈕」而不是逐顆列舉：日後再加一個浮層時，
     只要它照慣例掛 aria-haspopup="dialog"，這條就會自動涵蓋——不必記得回來補測試。
     上一次就是因為沒有這種掃描式的守門，血脂鈕在置頂模式漏接了整整一版。
+
+    下限寫 3（健保規範條文、血脂計算機、CCr）：入口從 DM／HTN／LIPID 三顆收成一顆
+    「健保規範條文」之後就是這個數。它只是「掃描沒抓到東西」的保險，不是規格。
     """
     page, pip = open_pinned(browser_ctx, page_url)
     try:
         ids = pip.evaluate("""() => [...document.querySelectorAll('[aria-haspopup="dialog"]')]
             .map((b) => ({ id: b.id, controls: b.getAttribute('aria-controls') }))""")
-        assert len(ids) >= 4, f"入口鈕少於預期：{ids}"
+        assert len(ids) >= 3, f"入口鈕少於預期：{ids}"
         for item in ids:
             assert item["id"], f"入口鈕沒有 id，無法定位：{item}"
             pip.click("#" + item["id"])

@@ -22,8 +22,17 @@ def topic(key):
 
 
 def buttons():
-    """三顆按鈕應有的短標籤與完整中文名，依 JSON 的順序。"""
+    """三個主題分頁應有的短標籤與完整中文名，依 JSON 的順序。
+
+    入口鈕收成一顆「健保規範條文」之後，這組值對應的是**浮層內的分頁**，
+    不再是外面那一排——外面現在是「健保規範條文／血脂計算機／CCr」。
+    """
     return [(t["key"], t.get("short") or t["key"].upper(), t.get("label") or t["key"]) for t in topics()]
+
+
+def docs(key):
+    """該主題登記的官方條文 PDF（file／label／version／where）。"""
+    return list(topic(key).get("docs") or [])
 
 
 def items(key):

@@ -314,20 +314,25 @@ body[data-layout="dock"] #copy-date {
 }
 body[data-layout="dock"] #clear-cart:hover { background: var(--his-card); }
 
-/* ── 慢病速查（DM／HTN／LIPID）──
+/* ── 健保規範條文／血脂計算機／CCr ──
    三顆鈕放在**捲動內容區的最上面**，不是 header。理由是寬度帳與密度帳兩筆：
-   (1) .dock-tools 那列在 176px 已經滿了（模式三鈕 ~89 ＋ 3 個間距 ＋ 置頂 ~24 ＋ 設定 ~40
-       ≈ 157／可用 164），塞不進第四組控制項；
+   (1) .dock-tools 那列在 176px 早就滿到溢出（實測需要 218.1／可用 163，已經折成兩列：
+       日期 36 ＋ 模式三鈕 89 ＋ 展開 24 ＋ 置頂 24 ＋ 設定 32 ＋ 間距），塞不進更多控制項；
    (2) 另闢一列固定 chrome 要付約 27px 的永久成本，而 header 剛從三列壓成兩列
        （docs/dense-ui-principle.md），不能反手加回去。這是偶爾查閱的參考功能，
        依密度原則「它每一次看診都被用到嗎」的判準，不該佔固定高度。
    放進捲動區頂端：開機就看得到，往下選碼時讓開，永久成本 0px。
-   三顆鈕的寬度帳（176px 可用 164）：DM ~26 ＋ HTN ~31 ＋ LIPID ~40 ＋ 2 個 3px 間距 ≈ 103。 */
+   寬度帳（176px 可用 163）：健保規範條文 79.3 ＋ 血脂計算機 70.1 ＋ CCr 28.2 ＝ 178，
+   放不下一列——所以 .chronic-switch 開了 flex-wrap（app.css），在這裡折成兩列。
+   折行是刻意接受的：這一排在捲動區裡（實測 33→58px，+25），往下捲就沒了，
+   永久成本仍是 0。565px 下三顆一列放得下，維持 33px。 */
 body[data-layout="dock"] .chronic-switch {
   gap: 3px; padding: 5px 6px; border-bottom: 1px solid var(--color-divider);
 }
+/* 22px 與同排的兩個計算機一致（它們吃 .seg-btn--sm 的 22px）；20 vs 22 那一格差
+   在 163px 的一排裡看得出來是參差的。仍高於側掛（滑鼠操作）的 20px 下限。 */
 body[data-layout="dock"] .chronic-btn {
-  min-height: 20px; padding: 1px 5px; font-size: 11px; letter-spacing: .02em;
+  min-height: 22px; padding: 1px 5px; font-size: 11px; letter-spacing: .02em;
 }
 /* 浮層在 164px 的可用寬度下沒有「留白襯托」的餘裕：邊距壓到 3px，其餘全部給內容。
    字級下限依密度原則——主要內容（規定本文）≥11px，次要 chrome（出處／日期）≥10px。 */
@@ -351,7 +356,7 @@ body[data-layout="dock"] .chronic-tab {
   min-height: 20px; padding: 1px 6px; font-size: 11px; letter-spacing: .02em;
 }
 
-/* CCr：176px 下 header 那列已經很擠，按鈕與「日期」同尺寸；浮層改成貼齊視窗的滿版 */
+/* CCr：按鈕與同排的「血脂計算機」同尺寸；浮層改成貼齊視窗的滿版 */
 body[data-layout="dock"] #ccr-btn {
   min-height: 22px; padding: 0 6px; font-size: 11px; letter-spacing: .02em;
 }
@@ -378,6 +383,14 @@ body[data-layout="dock"] .chronic-step-hint { font-size: 9px; letter-spacing: .0
 body[data-layout="dock"] .chronic-kind-dot { font-size: 9px; padding: 0 3px; margin-right: 4px; }
 body[data-layout="dock"] .chronic-section[data-step="pitfall"],
 body[data-layout="dock"] .chronic-section[data-step="nocover"] { padding-left: 6px; }
+
+/* 官方條文 PDF：176px 下與其他次要 chrome 同一條字級下限（≥10px） */
+body[data-layout="dock"] .chronic-docs { margin-bottom: 7px; }
+body[data-layout="dock"] .chronic-docs-title { font-size: 10px; }
+body[data-layout="dock"] .chronic-doc { padding: 3px 0; gap: 1px 5px; }
+body[data-layout="dock"] .chronic-doc-link { font-size: 11px; line-height: 1.35; }
+body[data-layout="dock"] .chronic-doc-version,
+body[data-layout="dock"] .chronic-doc-where { font-size: 10px; line-height: 1.35; }
 
 /* 血脂給付試算：176px 下與 CCr 同一套壓縮手法（面板滿版、字級與內距收緊）。
    勾選格線在窄欄自動塌成一欄——auto-fit 的 minmax(min(11em,100%),1fr) 已經處理，

@@ -94,8 +94,7 @@
 
     /* 「日期」與模式三鈕同一列：模式列本來就獨佔一行，左邊塞得下一顆小鈕。 */
     const modeRow = R.el('div', 'm-mode-row');
-    refs.ccrBtn = R.ccrButtonEl(false);      // 「CCr」緊接在日期右邊
-    modeRow.append(refs.dateBtn, refs.ccrBtn, refs.modeSwitch);
+    modeRow.append(refs.dateBtn, refs.modeSwitch);
 
     const headRow = R.el('div', 'm-head-row');
     headRow.append(search, settingsToggle);
@@ -118,9 +117,9 @@
     refs.panelsTitle = R.srHeading(3, '', 'panels-title');
     scroll.appendChild(refs.panelsTitle);
 
-    /* 慢病速查（DM／HTN／LIPID）擺在**捲動內容區的最上面**，不是 header。
-       手機的觸控目標下限是 44px（硬性邊界，不可打折），所以一列常駐的慢病鈕就是
-       844px 螢幕的 5%＋分隔線；而這是偶爾查閱的參考功能，不是每次看診都用。
+    /* 「健保規範條文／血脂計算機／CCr」擺在**捲動內容區的最上面**，不是 header。
+       手機的觸控目標下限是 44px（硬性邊界，不可打折），所以一列常駐就是
+       844px 螢幕的 5%＋分隔線；而這三顆是偶爾查閱的參考功能，不是每次看診都用。
        放進捲動區：開機第一眼就看得到，往下選碼時讓開，永久成本 0px（1c 同理）。
        按鈕本身仍是 44px 高——讓位讓的是版面，不是觸控目標。 */
     refs.chronicSwitch = R.chronicSwitchEl(true);

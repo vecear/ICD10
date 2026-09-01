@@ -695,31 +695,31 @@
 
   const chronicTopicOf = (key) => chronicTopics().filter((t) => t.key === key)[0] || null;
 
-  /* 三顆入口鈕。**刻意不用 .seg-row／.seg-btn**：那組視覺在本產品的語意是「選一個狀態」
-     （看診模式、複製格式），而這三顆是「開一個查閱浮層」，共用外觀會讓人以為點下去
-     會切換整個工具的模式。compact＝1c／1b，省掉可見的「慢病速查」小標（空間不足），
-     可讀名稱改由 group 的 aria-label 與每顆的 title 提供。 */
+  /* 一顆入口鈕。**刻意不用 .seg-row／.seg-btn**：那組視覺在本產品的語意是「選一個狀態」
+     （看診模式、複製格式），而這顆是「開一個查閱浮層」，共用外觀會讓人以為點下去
+     會切換整個工具的模式。
+
+     原本是 DM／HTN／LIPID 三顆並排。收成一顆的理由是版面：這一排現在還要放
+     「血脂計算機」與「CCr」兩個計算機（CCr 從 header 搬下來），176px 的窄欄放不下五顆。
+     主題選擇沒有因此消失，只是往後挪一步——浮層最上方本來就有 DM／HTN／LIPID 分頁列，
+     而且那排本來就是換主題的唯一路徑（浮層是 modal，開著時外面的鈕被遮罩蓋住）。 */
   function chronicSwitchEl(compact) {
     const row = el('div', 'chronic-switch' + (compact ? ' chronic-switch--compact' : ''));
     row.id = 'chronic-switch';
     row.setAttribute('role', 'group');
-    row.setAttribute('aria-label', '慢病速查：健保給付規定與治療目標');
-    if (!compact) row.appendChild(el('span', 'kicker chronic-kicker', '慢病速查'));
-    for (const topic of chronicTopics()) {
-      const b = el('button', 'chronic-btn', topic.short || topic.key.toUpperCase());
-      b.type = 'button';
-      b.id = 'chronic-btn-' + topic.key;
-      b.dataset.chronic = topic.key;
-      b.setAttribute('aria-haspopup', 'dialog');
-      b.setAttribute('aria-expanded', 'false');
-      b.setAttribute('aria-controls', 'chronic-panel');
-      b.title = '慢病速查：' + (topic.label || topic.key) + '　健保給付規定與治療目標';
-      row.appendChild(b);
-    }
-    /* 血脂給付試算掛在這一排的尾巴：它算的就是 LIPID 主題的給付門檻，
-       放在該主題的入口鈕旁邊語意才對得上。也順便解決 176px 的 header 塞不下第四顆鈕
-       ——這一排跟著內容捲動，常駐版面成本是 0。 */
-    row.appendChild(lipidButtonEl(compact));
+    row.setAttribute('aria-label', '健保規範條文與計算機');
+    const b = el('button', 'chronic-btn', '健保規範條文');
+    b.type = 'button';
+    b.id = 'chronic-btn';
+    b.setAttribute('aria-haspopup', 'dialog');
+    b.setAttribute('aria-expanded', 'false');
+    b.setAttribute('aria-controls', 'chronic-panel');
+    b.title = '健保規範條文：DM／HTN／LIPID 的給付規定、治療目標與官方條文 PDF';
+    row.appendChild(b);
+    /* 兩個計算機接在後面。血脂試算算的就是 LIPID 的給付門檻，CCr 是調劑量用的，
+       兩者都是「輸入數值換一個判斷」，與條文查閱同一個動線，放同一排。
+       這一排跟著內容捲動（1c／1b），常駐版面成本是 0。 */
+    row.append(lipidButtonEl(compact), ccrButtonEl(compact));
     return row;
   }
 
@@ -750,7 +750,7 @@
   function syncChronicSwitch(root2, ctx) {
     const open = ctx.store.getState().chronicTopic;
     for (const b of root2.querySelectorAll('#chronic-switch .chronic-btn')) {
-      const on = b.dataset.chronic === open;
+      const on = !!open;
       b.setAttribute('aria-expanded', on ? 'true' : 'false');
       b.classList.toggle('is-on', on);        // C1-2：不倚賴單一屬性選擇器
     }
@@ -965,6 +965,46 @@
     return box;
   }
 
+  /* 官方條文 PDF 的存放資料夾——與 icd10.html 同一層。診間電腦不能上網，條文得跟著
+     診間包一起寄過去；tools/pack_for_clinic.py 會把整個資料夾複製進包裡，
+     build/build.py 會核對 chronic_care.json 引用的每個檔名都真的存在。 */
+  const CHRONIC_DOC_DIR = '健保條文';
+
+  /* href 一律算成絕對路徑，不留相對路徑：1c 置頂時整棵側欄被搬進 Document PiP 的小視窗，
+     那個文件的 URL 是 about:blank，相對路徑會解析到 about:blank 底下，點下去必定失敗。
+     基準取**主文件**的 baseURI（render-shared 跑在主視窗，document 就是主文件）。 */
+  function chronicDocHref(file) {
+    const rel = encodeURIComponent(CHRONIC_DOC_DIR) + '/' + encodeURIComponent(file);
+    try { return new URL(rel, document.baseURI).href; } catch (err) { return rel; }
+  }
+
+  /* 主題最上方的官方條文連結。放在速判摘要之前是刻意的：這幾條速查條目本身沒有任何
+     機器可驗的權威來源（見 chronic_care.json 的 _schema），能反駁它的東西就是原始條文，
+     所以原始條文要是第一眼看得到的東西，不是註腳。 */
+  function chronicDocsEl(topic) {
+    const docs = (topic && Array.isArray(topic.docs) ? topic.docs : []).filter((d) => d && d.file);
+    if (!docs.length) return null;
+    const box = el('section', 'chronic-docs');
+    box.appendChild(el('h3', 'chronic-docs-title', '官方條文 PDF'));
+    const list = el('ul', 'chronic-doc-list');
+    for (const doc of docs) {
+      const li = el('li', 'chronic-doc');
+      const a = el('a', 'chronic-doc-link', doc.label || doc.file);
+      a.href = chronicDocHref(doc.file);
+      a.target = '_blank';
+      a.rel = 'noopener';
+      /* 點不開時唯一的線索就是這行 title：檔案該在哪、為什麼可能不在。 */
+      a.title = CHRONIC_DOC_DIR + '／' + doc.file
+        + '（隨診間包一起寄送，須與 icd10.html 解壓在同一層才點得開）';
+      li.appendChild(a);
+      if (doc.version) li.appendChild(el('span', 'chronic-doc-version', doc.version));
+      if (doc.where) li.appendChild(el('span', 'chronic-doc-where', doc.where));
+      list.appendChild(li);
+    }
+    box.appendChild(list);
+    return box;
+  }
+
   function renderChronic(overlay, ctx) {
     const key = ctx.store.getState().chronicTopic;
     const title = overlay.querySelector('#chronic-title');
@@ -977,6 +1017,8 @@
     const short = (topic && topic.short) || key.toUpperCase();
     title.textContent = label + '（' + short + '）';
     const today = chronicToday();
+    const docs = chronicDocsEl(topic);
+    if (docs) body.appendChild(docs);
     /* 速判摘要：使用者是「看到異常數值」才打開這個面板的，第一眼要能判斷
        這個數字算不算不達標／夠不夠格開藥，不必先捲過整段治療目標。 */
     if (topic && topic.headline) {
@@ -1005,6 +1047,13 @@
   const CCR_DISCLAIMER = 'Cockcroft-Gault 估計值，僅適用腎功能穩定者。'
     + '可能高估 GFR 10–20%，體重過輕或肥胖時更不準；實際劑量請依藥品仿單與臨床判斷。';
 
+  /* 入口鈕掛在「健保規範條文」那一排（血脂計算機右邊），不在 header。原本排在 header 的
+     「日期」右邊，但那是「開始看這一診」的位置；CCr 是查到腎功能才會用的偶發工具，
+     與血脂試算同性質，兩個計算機放在一起使用者只要記一個位置。
+
+     **不要宣稱這樣 header 就變矮了**：實測 .dock-tools 需要的寬度 249.3→218.1，
+     可用只有 163，搬走之後仍然折成兩列，1c 的 .dock-head 一樣是 92px。
+     真正省到的只有 231–262px 這一段寬度（見 docs/dense-ui-principle.md）。 */
   function ccrButtonEl(compact) {
     const b = el('button', 'btn btn-secondary ccr-btn' + (compact ? ' seg-btn--sm' : ''), 'CCr');
     b.type = 'button';
@@ -1531,10 +1580,12 @@
     return out.join('\n');
   }
 
-  /* 血脂給付試算的入口鈕。排在「CCr」右邊——兩者都是「輸入數值換一個判斷」的工具，
-     放在一起使用者只要記一個位置。1c 窄欄用 seg-btn--sm 與鄰居同尺寸。 */
+  /* 血脂給付試算的入口鈕。排在「健保規範條文」右邊、「CCr」左邊——兩個計算機都是
+     「輸入數值換一個判斷」的工具，放在一起使用者只要記一個位置。
+     標籤寫全名「血脂計算機」：與同排的「健保規範條文」只差一個字時（舊標籤是「血脂」），
+     很容易被當成「血脂的條文」而不是計算機。1c 窄欄用 seg-btn--sm 與鄰居同尺寸。 */
   function lipidButtonEl(compact) {
-    const b = el('button', 'btn btn-secondary lipid-btn' + (compact ? ' seg-btn--sm' : ''), '血脂');
+    const b = el('button', 'btn btn-secondary lipid-btn' + (compact ? ' seg-btn--sm' : ''), '血脂計算機');
     b.type = 'button';
     b.id = 'lipid-btn';
     b.setAttribute('aria-haspopup', 'dialog');
@@ -1590,8 +1641,8 @@
     ccrButtonEl, ccrOverlayEl, renderCcrResult, syncCcr, ccrResultText, ccrInputs,
     lipidButtonEl, lipidOverlayEl, renderLipidResult, syncLipid, lipidResultText, lipidInputs,
     syncLipidSexRows,
-    chronicToday, chronicTopics,
+    chronicToday, chronicTopics, chronicDocsEl, chronicDocHref,
     FORMAT_LABEL, MODE_LABEL, MODE_SHORT, PANELS_TITLE, MODE_HINT, LAYOUT_LABEL, LAYOUT_MIN_WIDTH,
-    CHRONIC_KIND, CCR_DISCLAIMER, CCR_BASIS_LABEL, LIPID_DISCLAIMER,
+    CHRONIC_KIND, CCR_DISCLAIMER, CCR_BASIS_LABEL, LIPID_DISCLAIMER, CHRONIC_DOC_DIR,
   };
 })(typeof self !== 'undefined' ? self : this);

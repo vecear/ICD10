@@ -48,14 +48,14 @@
     header.append(R.srHeading(1, 'ICD-10 門診導引'), R.el('div', 'app-brand', 'ICD-10'));
     // 「日期」＋看診模式三鈕並排在 header（1440 空間充足，用全名、不壓縮）
     refs.dateBtn = R.dateBtnEl(false);
-    refs.ccrBtn = R.ccrButtonEl(false);   // 「CCr」緊接在日期右邊
     refs.modeSwitch = R.modeSwitchEl(false);
-    header.append(refs.dateBtn, refs.ccrBtn, refs.modeSwitch);
+    header.append(refs.dateBtn, refs.modeSwitch);
 
-    /* 慢病速查（DM／HTN／LIPID）：1a 的 header 只有一列而且 1440 下大量留白（搜尋框是
-       flex:1，讓出 130px 仍有近 900px），所以這裡是三套版面中唯一把它常駐在固定 chrome 的
-       ——密度預算在這個寬度下不是稀缺資源。1c／1b 的空間帳完全不同，見那兩個檔的註解。
-       擺在模式三鈕之後、搜尋之前：控制項集中在左側，搜尋仍是那個會伸縮的元素。
+    /* 「健保規範條文／血脂計算機／CCr」：1a 的 header 只有一列而且 1440 下大量留白
+       （搜尋框是 flex:1，讓出 200px 仍有八百多），所以這裡是三套版面中唯一把它常駐在
+       固定 chrome 的——密度預算在這個寬度下不是稀缺資源。1c／1b 的空間帳完全不同，
+       見那兩個檔的註解。擺在模式三鈕之後、搜尋之前：控制項集中在左側，
+       搜尋仍是那個會伸縮的元素。CCr 原本單獨排在「日期」右邊，現在跟著另一個計算機走。
        視覺上刻意與模式鈕不同（小、外框、無底色），免得被當成第四種看診模式。 */
     refs.chronicSwitch = R.chronicSwitchEl(false);
     header.appendChild(refs.chronicSwitch);

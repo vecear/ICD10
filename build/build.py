@@ -1,5 +1,5 @@
 """組裝單一離線 HTML：資料 gzip+base64 內嵌、字型 base64 內嵌、全部 CSS/JS inline。"""
-import base64, calendar, gzip, hashlib, io, json, re, sys
+import base64, calendar, gzip, hashlib, io, json, re, shutil, sys
 from datetime import date
 from pathlib import Path
 
@@ -8,6 +8,11 @@ from source_manifest import SOURCE_SHA256, SOURCE_VERSION
 ROOT = Path(__file__).resolve().parent.parent
 SRC, DATA, DIST = ROOT / "src", ROOT / "data", ROOT / "dist"
 ASSETS = ROOT / "assets"
+# 官方條文 PDF。單檔 HTML 的「零外部請求」不變（PDF 是使用者主動點開的另一份文件，
+# 不是頁面載入時的子資源），但它必須與 icd10.html 放在同一層才點得開——
+# 打包腳本負責診間那一份，這裡負責 dist/ 那一份，讓開發與 E2E 也點得開。
+NHI_DOC_DIR_NAME = "健保條文"
+NHI_DOCS = ROOT / NHI_DOC_DIR_NAME
 # (檔名, font-family, font-weight)：Latin 子集，中文不內嵌（見 src/styles/app.css 的字型堆疊註解）
 FONTS = [
     ("Barlow-400.woff2", "Barlow", 400),
@@ -203,6 +208,53 @@ def check_chronic_care(chronic, today=None):
     return {"warnings": warnings, "items": total, "oldest": oldest, "cutoff": cutoff}
 
 
+def check_chronic_docs(chronic):
+    """核對 chronic_care.json 的 docs[].file 都真的存在於 健保條文/。**對不上就丟例外。**
+
+    與 check_chronic_care() 只警告不同，這一關要讓建置失敗：檔名寫錯的表現是醫師在診間
+    點下連結、瀏覽器說找不到檔案——那是到了診間才會發現、而診間補不了的錯。而且這條檢查
+    本身是機器可驗的（檔案在不在是事實，不是判斷），沒有理由只給警告。
+
+    回傳實際被引用到的檔名集合。
+    """
+    used, missing = set(), []
+    for topic in chronic.get("topics") or []:
+        key = topic.get("key") or "(缺 key)"
+        for doc in topic.get("docs") or []:
+            name = str((doc or {}).get("file") or "").strip()
+            if not name:
+                missing.append(f"{key}：docs 有一筆沒寫 file")
+                continue
+            used.add(name)
+            if not (NHI_DOCS / name).is_file():
+                missing.append(f"{key}：{NHI_DOC_DIR_NAME}/{name} 不存在")
+    if missing:
+        raise ValueError(
+            "慢病速查引用的官方條文 PDF 找不到（診間點下去會是「找不到檔案」）：\n  "
+            + "\n  ".join(missing)
+            + f"\n請把檔案放進 {NHI_DOC_DIR_NAME}/，或修正 chronic_care.json 的 docs[].file。"
+        )
+    return used
+
+
+def copy_nhi_docs():
+    """把 健保條文/*.pdf 複製到 dist/，讓 dist/icd10.html 的連結在本機也點得開。
+
+    dist/健保條文/ 進 .gitignore：它是 健保條文/ 的拷貝而不是原始檔，兩份都進版控等於
+    同一批二進位存兩次。診間那一份由 tools/pack_for_clinic.py 直接從 健保條文/ 複製，
+    不經過 dist——少一段傳話，就少一種「dist 忘了重建所以寄出舊條文」的失敗方式。
+    """
+    out = DIST / NHI_DOC_DIR_NAME
+    if out.exists():
+        shutil.rmtree(out)
+    out.mkdir(parents=True)
+    copied = 0
+    for pdf in sorted(NHI_DOCS.glob("*.pdf")):
+        shutil.copy2(pdf, out / pdf.name)
+        copied += 1
+    return copied
+
+
 def format_chronic_report(report):
     """把 check_chronic_care() 的結果排成要印出來的文字（醒目，但不影響結束碼）。"""
     if not report["warnings"]:
@@ -301,6 +353,7 @@ def main():
     validate_curated(curated, db)
     labels = build_curated_labels(curated, {row[0]: row for row in db})
     chronic = load_chronic_care()
+    chronic_docs = check_chronic_docs(chronic)
     chronic_report = check_chronic_care(chronic)
     styles, font_bytes = build_styles()
     scripts = (
@@ -329,12 +382,15 @@ def main():
     out = DIST / "icd10.html"
     with io.open(out, "w", encoding="utf-8", newline="\n") as f:
         f.write(html)
+    copied_docs = copy_nhi_docs()
     print(
         f"輸出 {out}（{out.stat().st_size:,} bytes）\n"
         f"  字型：{len(FONTS)} 個 woff2，{font_bytes:,} bytes → base64 {(font_bytes + 2) // 3 * 4:,} bytes\n"
         f"  樣式：{' + '.join(STYLESHEETS)}，{len(styles):,} bytes（含字型）\n"
         f"  指令碼：{' → '.join(SOURCES)}\n"
         f"  CURATED_LABELS：{len(labels):,} 個精選碼\n"
+        f"  官方條文：{NHI_DOC_DIR_NAME}/ 引用 {len(chronic_docs)} 份，"
+        f"複製 {copied_docs} 個 PDF 到 dist/{NHI_DOC_DIR_NAME}/\n"
         f"  assert_offline：通過（零外部參照）"
     )
     # 時效警告排在最後印：它是要被看見的東西，夾在中間會被上面的統計淹掉

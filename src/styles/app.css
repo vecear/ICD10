@@ -393,8 +393,11 @@ b.cart-code {
      * 但書與「新版將於 X 日生效」走 --warn-* 系列：這兩件事都是「注意，這裡會咬人」，
        與紅旗同一個語意層級，不另立第三套顏色。
      * 出處／查證日期用 --color-neutral-700（深淺兩套都定義過，對比皆達正文門檻）。 */
-.chronic-switch { display: flex; align-items: center; gap: 4px; flex: none; min-width: 0; }
-.chronic-kicker { white-space: nowrap; }
+/* flex-wrap 不是裝飾：這一排現在有「健保規範條文」「血脂計算機」「CCr」三顆，
+   1c 的 164px 可用寬度放不下一整列，不換行就會水平溢出（test_no_hscroll 會抓）。 */
+.chronic-switch {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px; flex: none; min-width: 0;
+}
 .chronic-btn {
   flex: 0 0 auto; min-height: 24px; padding: 2px 8px;
   border: 1px solid var(--color-divider); background: transparent; color: var(--color-text);
@@ -539,6 +542,34 @@ b.cart-code {
 }
 .chronic-empty { margin: 0; font-size: 13px; line-height: 1.55; color: var(--color-neutral-700); }
 
+/* ── 主題最上方的官方條文 PDF ───────────────────────────────────────────────
+   這幾條速查條目沒有任何機器可驗的權威來源（見 chronic_care.json 的 _schema），
+   能反駁它們的只有原始條文，所以原始條文排在速判摘要之前。
+   視覺上刻意低調（無底色、小字）——它是「去查證」的出口，不是這一頁的主體。 */
+.chronic-docs { margin: 0 0 10px; }
+.chronic-docs-title {
+  margin: 0 0 3px; font-family: var(--font-heading); font-size: 11px;
+  font-weight: var(--font-heading-weight); letter-spacing: .08em;
+  color: var(--color-neutral-700);
+}
+.chronic-doc-list { margin: 0; padding: 0; list-style: none; }
+.chronic-doc {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 1px 8px;
+  padding: 4px 0; border-bottom: 1px dotted var(--color-divider);
+}
+.chronic-doc:last-child { border-bottom: 0; }
+.chronic-doc-link {
+  font-size: 13px; line-height: 1.4; color: var(--color-accent-800);
+  text-decoration: underline; text-underline-offset: 2px;
+}
+.chronic-doc-link:hover { color: var(--color-accent); }
+.chronic-doc-link:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+.chronic-doc-version { font-size: 11px; color: var(--color-neutral-700); white-space: nowrap; }
+/* 條號說明自己佔一整行：它常常比檔名還長，跟在連結後面會把版本日期擠到看不見。 */
+.chronic-doc-where {
+  flex: 1 1 100%; font-size: 11px; line-height: 1.45; color: var(--color-neutral-700);
+}
+
 /* ── CCr 計算機（Cockcroft-Gault） ──────────────────────────────────────────
    浮層骨架刻意與 .chronic-* 同型（同樣的遮罩、同樣的關閉出口），使用者只要學一次。
    差別在這個是**輸入**面板，所以主體是表單而不是捲動內文。 */
@@ -664,8 +695,8 @@ details.chronic-more[open] > .chronic-line .chronic-more-toggle { color: var(--c
    所以主體是可捲的表單而不是幾格數字。
 
    面板比 CCr 寬（480 vs 420）：勾選項目是兩欄，420 下會被擠成一欄再多捲一屏。 */
-/* 掛在慢病速查那一排尾巴，與 DM／HTN／LIPID 三顆鈕同高，但用次要樣式區隔
-   ——它們是「看規定」，這顆是「算數字」。 */
+/* 兩個計算機掛在「健保規範條文」右邊，用次要樣式區隔——那顆是「看規定」，
+   這兩顆是「算數字」。多的 4px 是這兩群之間的分界，不是視覺裝飾。 */
 .chronic-switch .lipid-btn { margin-left: 4px; }
 
 .lipid-overlay {

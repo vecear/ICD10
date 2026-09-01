@@ -5,6 +5,8 @@ DOM 契約見 .review/design-ref/impl-plan.md §4。1c 側掛窄欄與 1b 手機
 """
 import datetime
 import http.server, json, threading
+from urllib.parse import urlparse
+from urllib.request import url2pathname
 from functools import partial
 from pathlib import Path
 import pytest
@@ -1691,8 +1693,21 @@ def test_clear_cart_disabled_when_empty(page):
 # 錯了建置就失敗；健保給付規定沒有這種驗證。所以「出處與查證日期看得見」「換版當天顯示對的
 # 版本」不是加分項，是這個功能能不能用的前提。
 def open_chronic(pg, key):
-    pg.click(f"#chronic-btn-{key}")
+    """開某個主題＝先按入口鈕開浮層，再點該主題的分頁。
+
+    入口鈕會停在**上次看的**主題（chronicLast），所以光按它並不能斷定看到的是哪一頁；
+    測試要的是確定性，一律再點一次分頁（已經在該主題時點它是 no-op）。
+    """
+    if pg.locator("#chronic-overlay").is_hidden():
+        pg.click("#chronic-btn")
     expect(pg.locator("#chronic-overlay")).to_be_visible()
+    pg.click(f"#chronic-tab-{key}")
+    expect(pg.locator(f"#chronic-tab-{key}")).to_have_attribute("aria-pressed", "true")
+
+
+def chronic_doc_path(href):
+    """把畫面上的 file:// href 還原成本機路徑，用來驗「這個連結真的點得開」。"""
+    return Path(url2pathname(urlparse(href).path))
 
 
 def chronic_snapshot(pg):
@@ -1730,29 +1745,79 @@ def chronic_page(browser_ctx, page_url, today):
     return pg
 
 
-def test_chronic_three_buttons_sit_in_the_header_and_start_closed(page):
+def test_chronic_row_is_entry_then_two_calculators_and_starts_closed(page):
+    """這一排的組成與順序：健保規範條文 → 血脂計算機 → CCr。
+
+    順序不是美觀問題：第一顆是「看規定」，後兩顆是「算數字」，
+    而 CCr 是從 header 搬過來的——搬錯位置（例如排到入口鈕左邊）會讓兩群混在一起。
+    """
     reset(page)
-    btns = page.locator(".app-header #chronic-switch .chronic-btn")
-    expect(btns).to_have_count(3)
-    assert btns.all_text_contents() == [short for _k, short, _l in cf.buttons()]
-    for key, _short, label in cf.buttons():
-        b = page.locator(f"#chronic-btn-{key}")
-        expect(b).to_be_visible()
-        assert label in (b.get_attribute("title") or ""), "短標籤塞不下全名時，完整名稱要在 title"
-        expect(b).to_have_attribute("aria-expanded", "false")
+    row = page.locator(".app-header #chronic-switch")
+    expect(row.locator(".chronic-btn")).to_have_count(1)          # 負面：三顆主題鈕不再排在外面
+    order = page.evaluate("""() => Array.from(
+        document.getElementById('chronic-switch').children).map((n) => n.id)""")
+    assert order == ["chronic-btn", "lipid-btn", "ccr-btn"], order
+    assert page.locator("#chronic-btn").inner_text() == "健保規範條文"
+    assert page.locator("#lipid-btn").inner_text() == "血脂計算機"
+    assert page.locator("#ccr-btn").inner_text() == "CCr"
+    expect(page.locator("#chronic-btn")).to_have_attribute("aria-expanded", "false")
     expect(page.locator("#chronic-overlay")).to_be_hidden()      # 負面：預設不擋住工作區
 
 
-def test_chronic_each_button_opens_its_own_topic_and_only_that_one(page):
-    keys = [k for k, _s, _l in cf.buttons()]
-    for key, _short, label in cf.buttons():
-        reset(page)                       # 浮層是 modal：要從關閉狀態出發才點得到入口鈕
+def test_chronic_entry_reopens_the_topic_you_were_last_on(page):
+    """同一診裡通常反覆查同一個主題；每次都退回 DM 等於每次多按一下分頁。"""
+    reset(page)
+    last = cf.buttons()[-1]
+    open_chronic(page, last[0])
+    page.keyboard.press("Escape")
+    expect(page.locator("#chronic-overlay")).to_be_hidden()
+    page.click("#chronic-btn")
+    expect(page.locator("#chronic-overlay")).to_be_visible()
+    expect(page.locator("#chronic-title")).to_contain_text(last[2])
+    reset(page)
+
+
+def test_chronic_official_pdf_sits_at_the_top_and_the_file_really_exists(page):
+    """每個主題最上方是官方條文 PDF，而且真的點得開。
+
+    為什麼排在速判摘要之前：這幾條速查沒有任何機器可驗的權威來源（ICD 代碼有，給付規定沒有），
+    能反駁它的只有原始條文，所以原始條文要是第一眼看得到的東西、不是註腳。
+
+    為什麼要驗檔案存在：診間電腦不能上網也補不了檔，連結壞掉的表現是「點下去說找不到檔案」，
+    而且要到門診當天才會發現。href 也必須是絕對路徑——1c 置頂時整棵側欄在 about:blank 的
+    PiP 文件裡，相對路徑會解析到那邊去。
+    """
+    reset(page)
+    for key, _short, _label in cf.buttons():
         open_chronic(page, key)
+        docs = cf.docs(key)
+        assert docs, f"{key} 沒有登記官方條文"
+        first_class = page.evaluate(
+            "() => document.getElementById('chronic-body').firstElementChild.className")
+        assert "chronic-docs" in first_class, f"{key} 的條文區不在最上面：{first_class}"
+        links = page.locator("#chronic-body .chronic-doc-link")
+        expect(links).to_have_count(len(docs))
+        for i, doc in enumerate(docs):
+            href = links.nth(i).get_attribute("href")
+            assert href.startswith("file:///"), f"{key} 的連結不是絕對路徑：{href}"
+            got = chronic_doc_path(href)
+            assert got == ROOT / "dist" / "健保條文" / doc["file"], got
+            assert got.is_file(), f"{key} 的條文連結指到不存在的檔案：{got}"
+    reset(page)
+
+
+def test_chronic_each_tab_opens_its_own_topic_and_only_that_one(page):
+    reset(page)
+    keys = [k for k, _s, _l in cf.buttons()]
+    page.click("#chronic-btn")
+    expect(page.locator("#chronic-overlay")).to_be_visible()
+    expect(page.locator("#chronic-btn")).to_have_attribute("aria-expanded", "true")
+    for key, _short, label in cf.buttons():
+        page.click(f"#chronic-tab-{key}")
         expect(page.locator("#chronic-title")).to_contain_text(label)
-        expect(page.locator(f"#chronic-btn-{key}")).to_have_attribute("aria-expanded", "true")
         for other in keys:
-            if other != key:
-                expect(page.locator(f"#chronic-btn-{other}")).to_have_attribute("aria-expanded", "false")
+            expect(page.locator(f"#chronic-tab-{other}")).to_have_attribute(
+                "aria-pressed", "true" if other == key else "false")
     reset(page)
 
 
@@ -1771,7 +1836,7 @@ def test_chronic_panel_closes_three_ways(page, how):
         box = page.locator("#chronic-panel").bounding_box()
         page.mouse.click(box["x"] / 2, box["y"] + 200)
     expect(page.locator("#chronic-overlay")).to_be_hidden()
-    expect(page.locator(f"#chronic-btn-{key}")).to_have_attribute("aria-expanded", "false")
+    expect(page.locator("#chronic-btn")).to_have_attribute("aria-expanded", "false")
 
 
 def test_chronic_tabs_switch_topic_without_closing_the_panel(page):
@@ -1786,21 +1851,22 @@ def test_chronic_tabs_switch_topic_without_closing_the_panel(page):
     expect(page.locator("#chronic-title")).to_contain_text(last[2])
     expect(page.locator(f"#chronic-tab-{last[0]}")).to_have_attribute("aria-pressed", "true")
     expect(page.locator(f"#chronic-tab-{first[0]}")).to_have_attribute("aria-pressed", "false")
-    # 外面的入口鈕也要跟著走（關掉之後不能留著「展開中」的樣子）
-    expect(page.locator(f"#chronic-btn-{last[0]}")).to_have_attribute("aria-expanded", "true")
-    expect(page.locator(f"#chronic-btn-{first[0]}")).to_have_attribute("aria-expanded", "false")
+    # 外面的入口鈕維持「展開中」（它現在只表示浮層開著，不表示哪個主題）
+    expect(page.locator("#chronic-btn")).to_have_attribute("aria-expanded", "true")
     reset(page)
 
 
 def test_chronic_focus_moves_into_the_panel_and_returns_to_the_opener(page):
     """浮層蓋住整個工作區：焦點沒跟過去的話，Tab 會走進看不見的東西。"""
     reset(page)
-    key = cf.buttons()[0][0]
-    open_chronic(page, key)
+    # 這條要走**入口鈕**那條真實路徑：open_chronic() 會多點一次分頁，
+    # 焦點就停在分頁鈕上，量到的不是「開浮層時焦點跑去哪」。
+    page.click("#chronic-btn")
+    expect(page.locator("#chronic-overlay")).to_be_visible()
     assert page.evaluate("() => document.activeElement.id") == "chronic-close"
     page.keyboard.press("Escape")
     expect(page.locator("#chronic-overlay")).to_be_hidden()
-    assert page.evaluate("() => document.activeElement.id") == f"chronic-btn-{key}"
+    assert page.evaluate("() => document.activeElement.id") == "chronic-btn"
 
 
 def test_chronic_shows_source_and_checked_date_as_visible_text(page):

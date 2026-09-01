@@ -1099,8 +1099,12 @@ def test_clear_cart_disabled_when_empty(page):
 # 擺放位置是密度決定：44px 觸控目標是硬性邊界，一列常駐就是 844px 螢幕的 5%，
 # 而這是偶爾查閱的功能。放進捲動區＝永久成本 0px，按鈕本身仍是 44px。
 def open_chronic(pg, key):
-    pg.click(f"#chronic-btn-{key}")
+    """開某個主題＝先按入口鈕開浮層，再點該主題的分頁（入口鈕停在上次看的主題）。"""
+    if pg.locator("#chronic-overlay").is_hidden():
+        pg.click("#chronic-btn")
     expect(pg.locator("#chronic-overlay")).to_be_visible()
+    pg.click(f"#chronic-tab-{key}")
+    expect(pg.locator(f"#chronic-tab-{key}")).to_have_attribute("aria-pressed", "true")
 
 
 def chronic_snapshot(pg):
@@ -1134,22 +1138,35 @@ def chronic_page(browser_ctx, page_url, today):
 
 def test_chronic_buttons_sit_in_the_scroll_area_with_44px_targets(page):
     reset(page)
-    btns = page.locator("#chronic-switch .chronic-btn")
-    expect(btns).to_have_count(3)
-    assert btns.all_text_contents() == [short for _k, short, _l in cf.buttons()]
+    expect(page.locator("#chronic-switch .chronic-btn")).to_have_count(1)
+    order = page.evaluate("""() => Array.from(
+        document.getElementById('chronic-switch').children).map((n) => n.id)""")
+    assert order == ["chronic-btn", "lipid-btn", "ccr-btn"], order
     placement = page.evaluate("""() => {
         const row = document.getElementById('chronic-switch');
         return { inHeader: !!row.closest('.m-header'), inScroll: !!row.closest('.m-scroll') };
     }""")
     assert placement["inScroll"] and not placement["inHeader"], placement
-    for key, _short, label in cf.buttons():
-        b = page.locator(f"#chronic-btn-{key}")
+    for sel in ("#chronic-btn", "#lipid-btn", "#ccr-btn"):
+        b = page.locator(sel)
         expect(b).to_be_visible()
-        assert label in (b.get_attribute("title") or "")
         rect = box(b)
-        assert rect["height"] >= 43.5, f"{key} 只有 {rect['height']:.1f}px（觸控門檻 44）"
+        assert rect["height"] >= 43.5, f"{sel} 只有 {rect['height']:.1f}px（觸控門檻 44）"
     expect(page.locator("#chronic-overlay")).to_be_hidden()
-    assert_no_h_scroll(page, "慢病速查按鈕列")
+    assert_no_h_scroll(page, "健保規範條文按鈕列")
+
+
+def test_chronic_official_pdf_links_are_44px_touch_targets(page):
+    """條文連結在手機也是要按的東西，不能只有幾個字那麼高。"""
+    reset(page)
+    key = cf.buttons()[0][0]
+    open_chronic(page, key)
+    links = page.locator("#chronic-body .chronic-doc-link")
+    expect(links).to_have_count(len(cf.docs(key)))
+    assert box(links.first)["height"] >= 43.5
+    assert_no_h_scroll(page, "官方條文連結")
+    page.keyboard.press("Escape")
+    reset(page)
 
 
 @pytest.mark.parametrize("how", ["close-button", "escape"])
@@ -1167,7 +1184,7 @@ def test_chronic_panel_opens_and_closes(page, how):
     else:
         page.keyboard.press("Escape")
     expect(page.locator("#chronic-overlay")).to_be_hidden()
-    expect(page.locator(f"#chronic-btn-{key}")).to_have_attribute("aria-expanded", "false")
+    expect(page.locator("#chronic-btn")).to_have_attribute("aria-expanded", "false")
 
 
 def test_chronic_tabs_switch_topic_without_closing(page):

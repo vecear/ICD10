@@ -88,6 +88,52 @@ def test_source_never_carries_a_url():
     assert not bad, "source 不可放網址：\n" + "\n".join(bad)
 
 
+def test_every_topic_links_at_least_one_official_pdf_that_really_exists():
+    """`docs[].file` 必須指到 健保條文/ 底下真的存在的檔案。
+
+    這條與本檔其他測試的性質不同：給付規定沒有機器可驗的權威來源，但「檔案在不在」是事實，
+    所以它是**失敗**不是警告（`check_chronic_docs` 直接丟例外）。
+    寫錯的表現是醫師在診間點下連結、瀏覽器說找不到檔案——診間不能上網也補不了檔，
+    要等下一次門診才修得掉。
+    """
+    raw = load_raw()
+    for topic in raw["topics"]:
+        docs = topic.get("docs") or []
+        assert docs, f"{topic['key']} 沒有登記任何官方條文"
+        for doc in docs:
+            for field in ("file", "label", "version"):
+                assert str(doc.get(field) or "").strip(), f"{topic['key']} 的 docs 缺 {field}：{doc}"
+            path = ROOT / "健保條文" / doc["file"]
+            assert path.is_file(), f"{topic['key']} 指到不存在的檔案：{path}"
+    # 正向路徑：現況資料要過得了建置期守門
+    build_module.check_chronic_docs({k: v for k, v in raw.items() if k != "_schema"})
+
+
+def test_docs_file_never_carries_a_url():
+    """同 source：只放檔名。網址會被 assert_offline() 擋下，而且診間也連不出去。"""
+    bad = [
+        f"{topic['key']}：{doc.get('file')}"
+        for topic in load_raw()["topics"]
+        for doc in (topic.get("docs") or [])
+        if "http" in str(doc.get("file") or "").lower() or "//" in str(doc.get("file") or "")
+    ]
+    assert not bad, "docs[].file 只能是檔名：\n" + "\n".join(bad)
+
+
+def test_missing_official_pdf_fails_the_build_loudly():
+    """漏檔要讓建置整個停下來，而且訊息要指得出是哪一份。
+
+    只有這條在測「壞掉時會怎樣」——上一條測的是現況是好的，兩者少一個都不夠：
+    只驗現況，守門哪天被拿掉也沒人知道。
+    """
+    with pytest.raises(ValueError) as err:
+        build_module.check_chronic_docs({
+            "topics": [{"key": "dm", "docs": [{"file": "根本沒有這一份.pdf"}]}]
+        })
+    assert "根本沒有這一份.pdf" in str(err.value)
+    assert "健保條文" in str(err.value)
+
+
 def test_effective_window_start_is_not_after_its_end():
     bad = [
         f"{key}/{kind}：{item.get('effectiveFrom')} → {item.get('effectiveTo')}"

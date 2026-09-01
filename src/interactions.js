@@ -7,7 +7,8 @@
      #cart li 內：b.cart-code 複製單碼、.cart-primary 設為主診斷、.cart-fav ★、.cart-remove ✕
      #copy-date / #clear-cart / #settings-toggle / #theme-toggle / #shelf-toggle
      #mode-switch 內的 .mode-btn[data-mode]  header 的看診模式三鈕（一次點擊即切換）
-     [data-chronic]            慢病速查：顯示該主題（入口三鈕與浮層內的分頁共用同一個契約）
+     #chronic-btn              「健保規範條文」入口：開浮層，停在上次看的主題（chronicLast）
+     [data-chronic]            慢病速查：顯示該主題（浮層內的 DM／HTN／LIPID 分頁）
      #chronic-close / #chronic-overlay 本身  關閉慢病速查（關閉鈕／點面板以外；Esc 見下方）
      #seg-mode|#seg-format|#seg-layout 內的 .seg-btn
      #cart-toggle              點擊時呼叫 ctx.onCartToggle()——「切換清單面板」這個動作本身
@@ -187,14 +188,14 @@
     return (hit && hit.label) || key;
   }
 
-  function focusChronicButton(doc, key) {
-    const btn = doc.getElementById('chronic-btn-' + key);
+  function focusChronicButton(doc) {
+    const btn = doc.getElementById('chronic-btn');
     if (btn) btn.focus();
   }
 
-  /* 三顆入口鈕與浮層內的分頁走同一條路：**只負責「顯示這個主題」，不負責關閉。**
+  /* 入口鈕與浮層內的分頁走同一條路：**只負責「顯示這個主題」，不負責關閉。**
      關閉有三個明確出口（關閉鈕、Esc、點面板外）。曾經寫成「再點一次關閉」，但浮層是
-     modal——開著的時候外面那三顆鈕被遮罩蓋住，那條路徑根本按不到，是死碼。 */
+     modal——開著的時候外面那顆鈕被遮罩蓋住，那條路徑根本按不到，是死碼。 */
   function chooseChronic(ctx, key, node) {
     const doc = chronicDoc(node);
     const was = ctx.store.getState().chronicTopic;
@@ -212,7 +213,7 @@
     const was = ctx.store.getState().chronicTopic;
     if (!was) return false;
     ctx.store.setChronicTopic(null);
-    focusChronicButton(chronicDoc(node), was);
+    focusChronicButton(chronicDoc(node));
     announce('已關閉慢病速查');
     return true;
   }
@@ -415,8 +416,15 @@
         && !target.closest('#settings-popover') && !target.closest('#settings-toggle')) {
         store.setSettingsOpen(false);
       }
-      /* 慢病速查：入口三鈕與浮層內分頁（同一個 [data-chronic] 契約）、關閉鈕、以及點浮層
-         背景（`target.id` 恰為 overlay 本身＝點在面板以外）。要排在泛用 `button` 那條之前。 */
+      /* 慢病速查：入口鈕、浮層內分頁（[data-chronic]）、關閉鈕、以及點浮層背景
+         （`target.id` 恰為 overlay 本身＝點在面板以外）。要排在泛用 `button` 那條之前。
+
+         入口鈕開的是 chronicLast（上次看的主題），不是固定 DM：使用者在同一診裡通常
+         反覆查同一個主題，每次都要多按一下分頁是純粹的損耗。 */
+      if (target.closest('#chronic-btn')) {
+        chooseChronic(ctx, store.getState().chronicLast, target);
+        return;
+      }
       const chronicBtn = target.closest('[data-chronic]');
       if (chronicBtn) { chooseChronic(ctx, chronicBtn.getAttribute('data-chronic'), chronicBtn); return; }
 

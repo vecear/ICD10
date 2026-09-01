@@ -157,9 +157,8 @@
        spacer 吸收，置頂與設定仍靠右對齊。 */
     const tools = R.el('div', 'dock-tools');
     refs.dateBtn = R.dateBtnEl(true);        // 「日期」排在模式三鈕左邊
-    refs.ccrBtn = R.ccrButtonEl(true);       // 「CCr」緊接在日期右邊
     refs.modeSwitch = R.modeSwitchEl(true);
-    tools.append(refs.dateBtn, refs.ccrBtn, refs.modeSwitch);
+    tools.append(refs.dateBtn, refs.modeSwitch);
 
     const pin = R.el('button', 'dock-pin');
     pin.type = 'button';
@@ -201,13 +200,17 @@
     refs.panelsTitle = R.srHeading(3, '', 'panels-title');
     body.appendChild(refs.panelsTitle);
 
-    /* 慢病速查（DM／HTN／LIPID）擺在**捲動內容區的最上面**，不是 header。
+    /* 「健保規範條文／血脂計算機／CCr」擺在**捲動內容區的最上面**，不是 header。
        密度原則（docs/dense-ui-principle.md）：header 剛從三列壓成兩列，而 .dock-tools 那列
        在 176px 的寬度帳已經滿了（模式三鈕 ~89 ＋ 3 個間距 ＋ 置頂 ~24 ＋ 設定 ~40 ≈ 157／164），
-       塞不進第四組控制項；另闢一列固定 chrome 則要付 ~27px 的永久成本，而這功能的
+       塞不進第四組控制項；另闢一列固定 chrome 則要付 ~27px 的永久成本，而這三顆的
        使用頻率是「偶爾查一下」——密度原則對固定高度的要求正是「它每一次看診都被用到嗎」。
-       放在捲動區頂端：開機就看得到（使用者要的「上面三個按鈕」），往下選碼時它讓開，
-       永久成本 0px。1b 同理，1a 因為 header 有大量留白才常駐（見 render-wide.js）。 */
+       放在捲動區頂端：開機就看得到，往下選碼時它讓開，永久成本 0px。
+       CCr 是從 .dock-tools 搬下來的——那列在 176px 本來就超出可用寬度（249.3／163）
+       而折成兩列，搬走後 218.1 仍然折，所以 header **沒有**因此變矮（實測 92px 不變）。
+       搬它的理由是動線（兩個計算機放一起），不是省高度；密度帳見
+       docs/dense-ui-principle.md 的量測表。
+       1b 同理，1a 因為 header 有大量留白才常駐（見 render-wide.js）。 */
     refs.chronicSwitch = R.chronicSwitchEl(true);
     body.appendChild(refs.chronicSwitch);
 
@@ -533,7 +536,7 @@
         && !target.closest('#settings-popover') && !target.closest('#settings-toggle')) {
         store.setSettingsOpen(false);
       }
-      /* 慢病速查：三顆按鈕與浮層的關閉（關閉鈕／點面板外）。規則同樣共用
+      /* 慢病速查：入口鈕、浮層內分頁與關閉（關閉鈕／點面板外）。規則同樣共用
          interactions.js，這裡只是 PiP 期間的轉送。要排在泛用 `button` 那條之前。 */
       /* CCr 的性別鈕帶著 .seg-btn 類名，一定要排在下方泛用 `.seg-btn` 分支之前，
          否則會被它攔下（那條只認 data-mode／format／layoutOpt，結果是空轉）。 */
@@ -560,6 +563,12 @@
       if (target.closest('#lipid-reset')) { root.ICDInteractions.resetLipid(ctx, target); return; }
       if (target.closest('#lipid-btn')) { root.ICDInteractions.openLipid(ctx, target); return; }
 
+      /* 入口鈕沒有 data-chronic（它開的是 chronicLast，不是固定主題），所以要自己一條。
+         漏了這條的症狀是「一般視窗正常、一置頂就點了沒反應」——而診間用的正是置頂模式。 */
+      if (target.closest('#chronic-btn')) {
+        root.ICDInteractions.chooseChronic(ctx, store.getState().chronicLast, target);
+        return;
+      }
       const chronicBtn = target.closest('[data-chronic]');
       if (chronicBtn) {
         root.ICDInteractions.chooseChronic(ctx, chronicBtn.getAttribute('data-chronic'), chronicBtn);
