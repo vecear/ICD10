@@ -1873,7 +1873,7 @@ def test_lipid_very_high_risk_needs_the_pair_not_one_checkbox(pg):
 
 
 def test_lipid_menopause_row_only_for_female(pg):
-    """「已停經」只在舊表、且只對女性計入。男性不該看到它，切回男性時勾選要被清掉——
+    """「已停經」只在表二、且只對女性計入。男性不該看到它，切回男性時勾選要被清掉——
     否則會留下「畫面上看不到、計算卻仍生效」的鬼影。"""
     lipid_open(pg)
     row = pg.locator('[data-lipid-row="menopause"]')

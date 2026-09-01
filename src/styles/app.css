@@ -730,6 +730,10 @@ details.chronic-more[open] > .chronic-line .chronic-more-toggle { color: var(--c
 }
 .lipid-block.is-ok { border-left-color: var(--color-accent); background: var(--color-accent-100); }
 .lipid-block.is-no { border-left-color: var(--line-strong); }
+/* 表二是例外表：只有公告明列「不適用表一」的那批代碼要看它，所以視覺退一階（虛線、無底色）。
+   左緣顏色與判定字樣照留——開到那批代碼（含 atorvastatin、rosuvastatin）時仍要一眼看得出符合與否。 */
+.lipid-block.is-secondary { background: transparent; border-left-style: dashed; }
+.lipid-block.is-secondary .lipid-level { font-size: 13.5px; color: var(--color-neutral-700); }
 .lipid-block-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; }
 .lipid-block-title { font-size: 13px; letter-spacing: .01em; }
 .lipid-block-note { font-size: 11px; color: var(--color-neutral-700); }

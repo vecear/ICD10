@@ -358,18 +358,18 @@ test('lipidCoverage 表一：LDL-C ≧ 190 本身就是高風險', () => {
   assert.ok(r.one.why.indexOf('LDL-C ≧ 190') >= 0);
 });
 
-/* 新舊兩表的風險因子定義有三處不同，錯一處就換一級。 */
-test('lipidRiskFactors：HDL-C 女性新制 < 50、舊表 < 40', () => {
+/* 兩張表的風險因子定義有三處不同，錯一處就換一級。 */
+test('lipidRiskFactors：HDL-C 女性表一 < 50、表二 < 40', () => {
   const f = { sex: 'female', age: 30, hdl: 45 };
-  assert.ok(L.lipidRiskFactorsNew(f).indexOf('HDL-C < 50') >= 0, '新制女性 45 算低');
-  assert.deepEqual(L.lipidRiskFactorsOld(f), [], '舊表女性 45 不算低（門檻 40）');
+  assert.ok(L.lipidRiskFactorsNew(f).indexOf('HDL-C < 50') >= 0, '表一女性 45 算低');
+  assert.deepEqual(L.lipidRiskFactorsOld(f), [], '表二女性 45 不算低（門檻 40）');
 });
-test('lipidRiskFactors：「或停經者」只在舊表', () => {
+test('lipidRiskFactors：「或停經者」只在表二', () => {
   const f = { sex: 'female', age: 48, menopause: true };
-  assert.deepEqual(L.lipidRiskFactorsNew(f), [], '新制已刪除「或停經者」');
+  assert.deepEqual(L.lipidRiskFactorsNew(f), [], '表一無「或停經者」');
   assert.deepEqual(L.lipidRiskFactorsOld(f), ['女性 ≧ 55 歲或停經']);
 });
-test('lipidRiskFactors：代謝症候群只在新制', () => {
+test('lipidRiskFactors：代謝症候群只在表一', () => {
   const f = { sex: 'male', age: 30, metabolicSyndrome: true };
   assert.deepEqual(L.lipidRiskFactorsNew(f), ['代謝症候群']);
   assert.deepEqual(L.lipidRiskFactorsOld(f), []);
@@ -386,11 +386,11 @@ test('lipidCoverage 表二：TC 達標即可，不必 LDL 也達標', () => {
 });
 
 test('lipidCoverage 表二：分層由表一的勾選推導，且不含 PAD／CKD', () => {
-  // 舊表的「心血管疾病」不含 PAD，也不含 CKD
+  // 表二的「心血管疾病」不含 PAD，也不含 CKD
   const pad = L.lipidCoverage({ sex: 'male', age: 30, ldl: 200, padSymptomatic: true });
-  assert.equal(pad.two.tier, 'rf0', 'PAD 不落入舊表的心血管疾病');
+  assert.equal(pad.two.tier, 'rf0', 'PAD 不落入表二的心血管疾病');
   const ckd = L.lipidCoverage({ sex: 'male', age: 30, ldl: 200, ckd: true });
-  assert.equal(ckd.two.tier, 'rf0', 'CKD 不落入舊表的心血管疾病');
+  assert.equal(ckd.two.tier, 'rf0', 'CKD 不落入表二的心血管疾病');
   // 冠心病與缺血性腦血管疾病才落入
   assert.equal(L.lipidCoverage({ cad: true }).two.tier, 'cvd');
   assert.equal(L.lipidCoverage({ strokeTia: true }).two.tier, 'cvd');
@@ -412,15 +412,15 @@ test('lipidCoverage：極高／非常高／高可並行，中／低／0 項要�
   assert.equal(L.lipidCoverage({ sex: 'male', age: 50, htn: true }).one.parallel, false);
 });
 
-/* 換版：兩張表一律都算，因為 9/1 之後表二仍適用於公告所列健保代碼。 */
-test('lipidCoverage：換版前後都回傳兩張表，只標示表一有沒有生效', () => {
-  const before = L.lipidCoverage({ ldl: 200, today: '2026-08-31' });
-  const after = L.lipidCoverage({ ldl: 200, today: '2026-09-01' });
-  assert.equal(before.tableOneInForce, false);
-  assert.equal(after.tableOneInForce, true);
-  for (const r of [before, after]) {
-    assert.ok(r.one && r.two, '兩張表都要算——9/1 之後表二仍適用於公告所列代碼');
-  }
+/* 表一是主表，但表二仍適用於公告明列「不適用表一」的健保代碼，所以兩張一律都算。 */
+test('lipidCoverage：一律回傳兩張表，且判定不再受日期影響', () => {
+  const r = L.lipidCoverage({ ldl: 200 });
+  assert.ok(r.one && r.two, '兩張表都要算——表二仍適用於公告明列的健保代碼');
+  assert.equal(r.tableOneInForce, undefined, '表一的生效日開關已隨新制上路移除');
+  /* 負面：塞日期進去也不該改變任何判定（舊版會依 today 換主表）。 */
+  const dated = L.lipidCoverage({ ldl: 200, today: '2026-08-31' });
+  assert.deepEqual(dated.one, r.one);
+  assert.deepEqual(dated.two, r.two);
 });
 
 /* Fibrate：兩列的門檻都是 TG ≧ 200，決定要不要先做非藥物治療的是有無心血管疾病／糖尿病。 */

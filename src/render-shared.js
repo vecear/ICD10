@@ -1165,7 +1165,7 @@
     ['smoking', '抽菸'],
     ['familyHistory', '早發性冠心病家族史'],
     ['metabolicSyndrome', '代謝症候群'],
-    ['menopause', '已停經（僅舊表計入）'],
+    ['menopause', '已停經（僅表二計入）'],
   ];
 
   function lipidCheckEl(key, label) {
@@ -1281,7 +1281,6 @@
       tc: val('lipid-tc'),
       hdl: val('lipid-hdl'),
       tg: val('lipid-tg'),
-      today: chronicToday(),
     };
     for (const box of root2.querySelectorAll('[data-lipid-key]')) {
       out[box.dataset.lipidKey] = box.checked === true;
@@ -1339,18 +1338,18 @@
     const anyInput = r.ldl !== null || r.tc !== null || (r.fibrate && r.fibrate.ok);
     if (copy) copy.disabled = !anyInput;
     if (!anyInput) {
-      box.appendChild(el('p', 'lipid-hint', '輸入 LDL-C（或 TC／TG）並勾選病史後，這裡會列出兩張表各自的判定。'));
+      box.appendChild(el('p', 'lipid-hint', '輸入 LDL-C（或 TC／TG）並勾選病史後，這裡會列出表一的判定，以及表二品項的例外門檻。'));
       return;
     }
 
     box.appendChild(lipidTableBlock(
-      '表一（ASCVD 風險分級）',
-      r.tableOneInForce ? '現行' : r.tableOneFrom + ' 起生效',
-      r.one, r.ldl, null));
-    box.appendChild(lipidTableBlock(
-      '表二（舊表）',
-      r.tableOneInForce ? '限公告所列健保代碼' : '現行',
-      r.two, r.ldl, r.tc));
+      '表一（ASCVD 風險分級）', '主表，多數品項適用', r.one, r.ldl, null));
+    /* 表二退到次要：它只管公告明列「不適用表一」的那批代碼，
+       但那批代碼含 atorvastatin、rosuvastatin，常到不能不算，所以是降級不是移除。 */
+    const twoBlock = lipidTableBlock(
+      '表二（例外）', '限公告明列「不適用表一」之健保代碼', r.two, r.ldl, r.tc);
+    twoBlock.classList.add('is-secondary');
+    box.appendChild(twoBlock);
 
     /* 兩張表結論不同時要明講。這正是這個計算機最有價值的一刻——同一位病人，
        開 A 廠牌符合、開 B 廠牌不符合，差別只在健保代碼走哪一張表。 */
@@ -1360,9 +1359,9 @@
     }
 
     box.appendChild(el('p', 'lipid-rf',
-      '新制風險因子 ' + r.riskFactorsNew.length + ' 項'
+      '表一風險因子 ' + r.riskFactorsNew.length + ' 項'
       + (r.riskFactorsNew.length ? '（' + r.riskFactorsNew.join('、') + '）' : '')
-      + '｜舊表危險因子 ' + r.two.riskFactors.length + ' 項'
+      + '｜表二危險因子 ' + r.two.riskFactors.length + ' 項'
       + (r.two.riskFactors.length ? '（' + r.two.riskFactors.join('、') + '）' : '')));
 
     const f = r.fibrate;
@@ -1448,12 +1447,12 @@
     const profile = lipidProfileLine(r, c);
     if (profile) out.push(profile);
 
-    /* 現行的那一張排前面：病歷寫的是當下依據。 */
-    const primary = r.tableOneInForce
-      ? { name: LIPID_TABLE_ONE_NAME, info: r.one, other: { name: LIPID_TABLE_TWO_NAME, info: r.two },
-          otherNote: '（限公告所列健保代碼之品項）' }
-      : { name: LIPID_TABLE_TWO_NAME, info: r.two, other: { name: LIPID_TABLE_ONE_NAME, info: r.one },
-          otherNote: '（' + r.tableOneFrom + ' 生效）' };
+    /* 表一是主表，所以病歷先寫它；表二只在結論不同時當註記出現。 */
+    const primary = {
+      name: LIPID_TABLE_ONE_NAME, info: r.one,
+      other: { name: LIPID_TABLE_TWO_NAME, info: r.two },
+      otherNote: '（限公告明列「不適用表一」之健保代碼）',
+    };
 
     const risk = 'ASCVD 風險分級：' + r.one.label + '（' + r.one.why.join('；') + '）。';
     if (primary.info.meets === true) {
@@ -1467,7 +1466,9 @@
     } else if (primary.other.info.meets === true) {
       out.push('');
       for (const line of lipidMetLines(primary.other.name, primary.other.info, r, risk)) out.push(line);
-      out.push('　註：本例不符合「' + primary.name + '」之起始標準，僅該表品項適用。');
+      /* 「該表」指的是哪一張，病歷上不能靠上下文猜——兩張表都寫全名。 */
+      out.push('　註：本例不符合「' + primary.name + '」之起始標準；'
+        + '僅「' + primary.other.name + '」所列健保代碼之品項適用。');
     }
 
     const f = r.fibrate;
@@ -1510,7 +1511,7 @@
     return b;
   }
 
-  /* 「已停經」只在女性時有意義（舊表的危險因子是「女性 ≧ 55 歲**或停經者**」）。
+  /* 「已停經」只在女性時有意義（表二的危險因子是「女性 ≧ 55 歲**或停經者**」）。
      男性看到它只會困惑，所以直接藏起來——但藏的同時要清掉勾選，
      否則會留下「畫面上看不到、計算卻仍生效」的鬼影。 */
   function syncLipidSexRows(root2) {
