@@ -354,6 +354,9 @@
       doc.documentElement.dataset.theme = state.theme;
       for (const style of document.querySelectorAll('style')) doc.head.appendChild(style.cloneNode(true));
       doc.body.dataset.layout = 'dock';
+      /* 標記「這是置頂小視窗的文件」。用途是讓 dock.css 的限寬只套在主視窗：
+         小視窗的尺寸是使用者自己拉的，內容本來就該填滿它。 */
+      doc.body.dataset.pip = '1';
       doc.body.dataset.mode = state.mode;
       doc.body.dataset.db = state.dbState;
       doc.body.dataset.ready = '1';

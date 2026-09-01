@@ -1058,6 +1058,49 @@ def test_pin_dock_button_still_switches_when_pip_is_unavailable(browser_ctx, pag
     page.close()
 
 
+def test_unpinned_dock_stays_a_narrow_column_on_the_right(browser_ctx, page_url):
+    """解除置頂後側欄回到主視窗，不得攤成全視窗寬。
+
+    使用者 2026-09-01 回報：「解除置頂會變全視窗大小」。原因是網頁改不了主瀏覽器
+    視窗的大小（resizeTo 對一般分頁無效），所以最大化的視窗會把「側掛窄欄」攤成
+    一片全寬版面——那既不是窄欄、也不是工作台。上限 600px、靠右貼齊（那是「側掛」
+    的意思：把左邊讓給 HIS）。比上限窄的視窗完全不受影響。
+    """
+    page = browser_ctx.new_page()
+    page.goto(page_url)
+    page.wait_for_selector('body[data-ready="1"]', timeout=8000)
+    page.evaluate("() => window.ICDApp.store.setLayout('dock')")
+    page.wait_for_selector('body[data-layout="dock"]')
+
+    for width, expect_w in ((1920, 600), (1440, 600), (900, 600), (340, 340), (176, 176)):
+        page.set_viewport_size({"width": width, "height": 900})
+        page.wait_for_timeout(250)
+        box = page.locator("#layout-dock").bounding_box()
+        assert round(box["width"]) == expect_w, \
+            f"{width}px 下窄欄寬 {box['width']}，預期 {expect_w}"
+        assert abs(box["x"] + box["width"] - width) <= 1, \
+            f"{width}px 下窄欄沒有靠右：x={box['x']} 寬={box['width']}"
+        assert_no_hscroll(page, f"{width}px 窄欄限寬")
+    page.close()
+
+
+def test_pinned_window_content_is_not_width_capped(browser_ctx, page_url):
+    """置頂小視窗裡**不**套那個上限：那個視窗的尺寸是使用者自己拉的，內容該填滿它。
+
+    負面對照式的守門——限寬那條 CSS 若忘了 :not([data-pip])，使用者把小視窗拉寬到
+    超過 600px 時內容會縮在右半邊、左邊一片空白，而那是他刻意拉大的視窗。
+    """
+    page, pip = open_pinned(browser_ctx, page_url)
+    try:
+        assert pip.get_attribute("body", "data-pip") == "1", "小視窗文件要標記得出來"
+        pip.set_viewport_size({"width": 760, "height": 800})
+        pip.wait_for_timeout(300)
+        box = pip.locator("#layout-dock").bounding_box()
+        assert box["width"] >= 760 - 1, f"小視窗內容被限寬了：{box['width']} < 760"
+    finally:
+        page.close()
+
+
 def test_layout_switch_while_pinned_tears_down_pip(browser_ctx, page_url):
     """R2 C1（臨床安全）：換版面時舊 controller 一定要收到卸載通知並收回小視窗。
 

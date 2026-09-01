@@ -18,6 +18,23 @@ body[data-layout="dock"] #layout-dock {
   display: flex; flex-direction: column; height: 100vh; min-height: 0;
   overflow: hidden; background: var(--color-bg);
 }
+/* 限寬靠右（只在主視窗，不在置頂小視窗裡）。
+
+   為什麼需要：解除置頂時側欄會回到主瀏覽器視窗，而網頁改不了那個視窗的大小
+   （resizeTo 對一般分頁無效）。沒有上限的話，最大化的視窗會把「側掛窄欄」攤成
+   一片全寬版面——那既不是窄欄、也不是工作台。上限 600px 取自使用者實際把置頂
+   小視窗拉到的寬度（約 565px，見 test_only_pin_and_expand_labels_are_dropped…）。
+
+   靠右是因為它叫「側掛」：貼在螢幕右緣、把左邊讓給 HIS，就是這個版面的用途。
+   左緣加一條分隔線，讓留白讀起來是「刻意讓出去的空間」而不是版面壞掉。
+
+   :not([data-pip]) 把小視窗排除在外——那個視窗的尺寸是使用者自己拉的，
+   內容該填滿它（記號由 render-dock.js 的 dressPipDocument 寫入）。
+   340px（Ctrl+Alt+D 貼齊）與 176px 都遠小於上限，完全不受影響。 */
+body[data-layout="dock"]:not([data-pip]) #layout-dock {
+  max-width: 600px; margin-left: auto;
+  border-left: 1px solid var(--color-divider);
+}
 
 /* ── header（L232-262；密度原則見 docs/dense-ui-principle.md） ──
    兩列：搜尋框一列，「模式三鈕＋置頂＋設定」一列。合併前是三列（97px），合併後 67px。 */
