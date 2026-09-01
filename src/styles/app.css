@@ -542,6 +542,77 @@ b.cart-code {
 }
 .chronic-empty { margin: 0; font-size: 13px; line-height: 1.55; color: var(--color-neutral-700); }
 
+/* ── 表一風險分級階梯 ───────────────────────────────────────────────────────
+   給第一次查這張表的人看的：一級一級由高往低排，每一級把「判準／數字／能不能直接開藥」
+   並排。用 accent 而不是 warn——它不是警告，是這一頁的地圖。 */
+.chronic-ladder { margin: 10px 0 0; padding: 8px 10px; background: var(--color-accent-100); }
+.chronic-ladder-title {
+  margin: 0; font-family: var(--font-heading); font-size: 12px; letter-spacing: .06em;
+  color: var(--color-accent-800);
+}
+.chronic-ladder-lede { margin: 3px 0 0; font-size: 12px; line-height: 1.5; }
+.chronic-ladder-list { margin: 7px 0 0; padding: 0; list-style: none; }
+.chronic-ladder-level { margin: 0; padding: 6px 0; border-top: 1px solid var(--color-divider); }
+.chronic-ladder-level:first-child { border-top: 0; padding-top: 0; }
+.chronic-ladder-head {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; margin: 0;
+}
+.chronic-ladder-name { font-size: 13px; letter-spacing: .01em; color: var(--color-accent-800); }
+.chronic-ladder-num { font-size: 11.5px; font-variant-numeric: tabular-nums; }
+/* 「可並行」與「先做 3–6 個月」是這一級最實務的分野：能不能今天就開藥。 */
+.chronic-ladder-flag {
+  flex: none; padding: 0 5px; font-size: 10px; letter-spacing: .04em;
+  border: 1px solid var(--color-divider); color: var(--color-neutral-700);
+}
+.chronic-ladder-flag.is-parallel { border-color: var(--color-accent); color: var(--color-accent-800); }
+.chronic-ladder-how { margin: 3px 0 0; font-size: 11.5px; line-height: 1.45; color: var(--color-neutral-700); }
+.chronic-ladder-criteria {
+  margin: 2px 0 0; padding-left: 1.1em; font-size: 12px; line-height: 1.5;
+}
+.chronic-ladder-criteria li { margin: 1px 0 0; overflow-wrap: anywhere; }
+.chronic-ladder-note { margin: 6px 0 0; font-size: 11.5px; line-height: 1.5; color: var(--color-neutral-700); }
+.chronic-ladder-factors { margin: 8px 0 0; padding-top: 7px; border-top: 1px solid var(--color-divider); }
+.chronic-ladder-subtitle {
+  margin: 0; font-family: var(--font-heading); font-size: 11.5px; letter-spacing: .04em;
+  color: var(--color-accent-800);
+}
+
+/* ── 僅適用表二的成分（不適用表一）─────────────────────────────────────────
+   排在速判摘要之後、分段內容之前：它決定底下每一條門檻要讀表一還是表二，
+   是讀下面所有數字的前提。
+
+   走 --warn-* 而不是 accent：這是「注意，這裡會咬人」——同一位病人、同一組檢驗值，
+   換一個健保代碼就可能從符合變成不符合。與「新版將於 X 日生效」同一個語意層級。
+
+   每一項後面帶代碼數（`19 項`）是刻意的：只列成分名會被讀成「所有 simvastatin
+   都走表二」，而實際上同成分多數品項仍走表一。數字讓人看得出這是**代碼層級**的
+   例外清單。grid 自動填欄——1a 排得下三欄，176px 自己塌成一欄。 */
+.chronic-t2 {
+  margin: 10px 0 0; padding: 8px 10px;
+  background: var(--warn-surface); border-left: 3px solid var(--warn-line);
+}
+.chronic-t2-title {
+  margin: 0; font-family: var(--font-heading); font-size: 12px; letter-spacing: .06em;
+  color: var(--warn-ink);
+}
+.chronic-t2-lede { margin: 3px 0 0; font-size: 12px; line-height: 1.45; }
+.chronic-t2-list {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(13em, 100%), 1fr));
+  gap: 1px 12px; margin: 6px 0 0; padding: 0; list-style: none;
+}
+/* 刻意不是 flex row：複方那兩項在 176px 會折行，flex 會把「1 項」留在第一行右端、
+   成分名折到第二行，看起來像兩件事。改成一般文字流，數字就跟著名字走。 */
+.chronic-t2-item { font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.chronic-t2-codes {
+  margin-left: 5px; font-size: 10px; font-variant-numeric: tabular-nums;
+  white-space: nowrap; color: var(--color-neutral-700);
+}
+.chronic-t2-caution { margin: 6px 0 0; font-size: 11px; line-height: 1.5; color: var(--warn-ink); }
+.chronic-t2-meta {
+  display: flex; flex-wrap: wrap; gap: 2px 10px; margin: 4px 0 0;
+  font-size: 10px; line-height: 1.4; color: var(--color-neutral-700); overflow-wrap: anywhere;
+}
+
 /* ── 主題最上方的官方條文 PDF ───────────────────────────────────────────────
    這幾條速查條目沒有任何機器可驗的權威來源（見 chronic_care.json 的 _schema），
    能反駁它們的只有原始條文，所以原始條文排在速判摘要之前。
@@ -699,6 +770,15 @@ details.chronic-more[open] > .chronic-line .chronic-more-toggle { color: var(--c
    這兩顆是「算數字」。多的 4px 是這兩群之間的分界，不是視覺裝飾。 */
 .chronic-switch .lipid-btn { margin-left: 4px; }
 
+/* 計算機的表二區塊也要列出成分（使用者要求）。判定寫著「符合表二」時，
+   下一個問題必然是「我開的這個算不算表二」——不列出來就得跳去條文分頁再找一次。 */
+.lipid-t2-names {
+  margin: 5px 0 0; font-size: 11px; line-height: 1.5; overflow-wrap: anywhere;
+  color: var(--color-text);
+}
+.lipid-t2-lead { font-weight: 600; }
+.lipid-t2-caution { margin: 2px 0 0; font-size: 11px; line-height: 1.45; color: var(--warn-ink); }
+
 .lipid-overlay {
   position: fixed; inset: 0; z-index: 30;
   display: flex; align-items: center; justify-content: center; padding: 16px;
@@ -775,8 +855,14 @@ details.chronic-more[open] > .chronic-line .chronic-more-toggle { color: var(--c
 .lipid-threshold { margin: 2px 0 0; font-size: 12.5px; line-height: 1.45; font-variant-numeric: tabular-nums; }
 .lipid-verdict { margin: 3px 0 0; font-size: 13px; font-weight: 600; }
 .lipid-block.is-ok .lipid-verdict { color: var(--color-accent-800); }
-.lipid-why, .lipid-parallel, .lipid-proof {
+.lipid-parallel, .lipid-proof {
   margin: 2px 0 0; font-size: 12px; line-height: 1.45; color: var(--color-neutral-700);
+}
+/* 依據跟著分級走，所以是 .lipid-level 裡的行內文字而不是獨立一行——
+   「高風險」與「憑什麼是高風險」分成兩行時，掃視要多跳一次。 */
+.lipid-why {
+  margin-left: 7px; font-size: 12px; font-weight: 400; letter-spacing: 0;
+  color: var(--color-neutral-700);
 }
 /* 舉證要求是「申報時會被查的東西」，不是背景說明，所以不與其他附註同色 */
 .lipid-proof { color: var(--warn-ink); }

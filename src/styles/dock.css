@@ -384,6 +384,31 @@ body[data-layout="dock"] .chronic-kind-dot { font-size: 9px; padding: 0 3px; mar
 body[data-layout="dock"] .chronic-section[data-step="pitfall"],
 body[data-layout="dock"] .chronic-section[data-step="nocover"] { padding-left: 6px; }
 
+/* 風險分級階梯：176px 下每一級的三件事會自然折行（head 是 flex-wrap），
+   這裡只收字級。判準清單不縮——它就是「這位病人算哪一級」的答案。 */
+body[data-layout="dock"] .chronic-ladder { margin-top: 7px; padding: 6px 7px; }
+body[data-layout="dock"] .chronic-ladder-title { font-size: 11px; }
+body[data-layout="dock"] .chronic-ladder-lede { font-size: 11px; line-height: 1.45; }
+body[data-layout="dock"] .chronic-ladder-name { font-size: 12px; }
+body[data-layout="dock"] .chronic-ladder-num { font-size: 10.5px; }
+body[data-layout="dock"] .chronic-ladder-flag { font-size: 9px; padding: 0 3px; }
+body[data-layout="dock"] .chronic-ladder-how,
+body[data-layout="dock"] .chronic-ladder-note { font-size: 10px; line-height: 1.4; }
+body[data-layout="dock"] .chronic-ladder-criteria { font-size: 11px; line-height: 1.45; padding-left: 1em; }
+body[data-layout="dock"] .chronic-ladder-subtitle { font-size: 10.5px; }
+
+/* 僅適用表二的成分：176px 下 grid 自己塌成一欄（minmax 的 min(13em,100%) 已處理），
+   這裡只收字級與內距。清單本身不縮——它是「能不能開」那一層的資訊。 */
+body[data-layout="dock"] .chronic-t2 { margin-top: 7px; padding: 6px 7px; }
+body[data-layout="dock"] .chronic-t2-title { font-size: 11px; }
+body[data-layout="dock"] .chronic-t2-lede { font-size: 11px; line-height: 1.4; }
+body[data-layout="dock"] .chronic-t2-item { font-size: 11px; line-height: 1.45; }
+body[data-layout="dock"] .chronic-t2-codes { font-size: 9px; }
+body[data-layout="dock"] .chronic-t2-caution,
+body[data-layout="dock"] .chronic-t2-meta { font-size: 10px; line-height: 1.4; }
+body[data-layout="dock"] .lipid-t2-names,
+body[data-layout="dock"] .lipid-t2-caution { font-size: 10px; line-height: 1.4; }
+
 /* 官方條文 PDF：176px 下與其他次要 chrome 同一條字級下限（≥10px） */
 body[data-layout="dock"] .chronic-docs { margin-bottom: 7px; }
 body[data-layout="dock"] .chronic-docs-title { font-size: 10px; }

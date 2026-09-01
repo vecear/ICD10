@@ -257,6 +257,17 @@ body[data-layout="mobile"] .chronic-tab {
   flex: 1; min-width: 0; min-height: 44px; padding: 0 8px; font-size: 14px;
 }
 
+/* 風險分級階梯：390px 下判準是要逐條讀的內容，字級跟著內文（13px） */
+body[data-layout="mobile"] .chronic-ladder-lede,
+body[data-layout="mobile"] .chronic-ladder-criteria { font-size: 13px; }
+body[data-layout="mobile"] .chronic-ladder-how,
+body[data-layout="mobile"] .chronic-ladder-note { font-size: 12px; }
+
+/* 僅適用表二的成分：390px 下 grid 塌成一欄，字級跟著內文（13px）而不是 chrome */
+body[data-layout="mobile"] .chronic-t2-lede,
+body[data-layout="mobile"] .chronic-t2-item { font-size: 13px; }
+body[data-layout="mobile"] .chronic-t2-caution { font-size: 12px; }
+
 /* 官方條文 PDF 連結也是觸控目標：整行撐到 44px，不是只有那幾個字 */
 body[data-layout="mobile"] .chronic-doc-link {
   display: inline-flex; align-items: center; min-height: 44px; font-size: 14px;

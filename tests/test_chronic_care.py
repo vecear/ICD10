@@ -134,6 +134,132 @@ def test_missing_official_pdf_fails_the_build_loudly():
     assert "健保條文" in str(err.value)
 
 
+def test_risk_ladder_matches_the_thresholds_in_logic_js():
+    """階梯上的數字必須與 src/logic.js 的 LIPID_ONE 逐項相同。
+
+    這一頁與血脂計算機是同一套判定的兩個出口：一個給人讀、一個算給人看。
+    講的若不是同一套數字，比兩邊都沒有還糟——醫師會照頁面上的門檻開藥，
+    卻拿計算機的結果貼病歷。logic.js 是零 DOM 的純模組、讀不到資料檔，
+    只能兩邊各留一份，所以這裡比對（同 test_topic_keys_match_the_mirror_in_state_js）。
+
+    判準文字本身不比對：那是逐條照官方「ASCVD風險等級定義」寫的，
+    logic.js 那邊為了計算另有一套措辭，兩者不必逐字相同。
+    """
+    lipid = [t for t in load_raw()["topics"] if t["key"] == "lipid"][0]
+    ladder = lipid.get("riskLadder")
+    assert ladder, "lipid 主題要有 riskLadder"
+
+    src = (ROOT / "src" / "logic.js").read_text(encoding="utf-8")
+    block = re.search(r"const LIPID_ONE = \[(.*?)\];", src, re.S)
+    assert block, "logic.js 找不到 LIPID_ONE"
+    rows = re.findall(
+        r"label:\s*'([^']+)',\s*ldl:\s*(\d+),\s*nonHdl:\s*(\d+|null),\s*parallel:\s*(true|false)",
+        block.group(1))
+    assert len(rows) == len(ladder["levels"]), (
+        f"級數不一致：logic.js {len(rows)} 級、riskLadder {len(ladder['levels'])} 級")
+
+    for (label, ldl, non_hdl, parallel), lv in zip(rows, ladder["levels"]):
+        where = f"{label} vs {lv['label']}"
+        assert label == lv["label"], f"分級名稱或順序不一致：{where}"
+        assert int(ldl) == lv["ldl"], f"{where}：LDL-C 門檻 {ldl} != {lv['ldl']}"
+        expected_non_hdl = None if non_hdl == "null" else int(non_hdl)
+        assert expected_non_hdl == lv.get("nonHdl"), (
+            f"{where}：non-HDL-C {non_hdl} != {lv.get('nonHdl')}")
+        assert (parallel == "true") == bool(lv["parallel"]), f"{where}：可否並行不一致"
+
+    build_module.check_risk_ladder({k: v for k, v in load_raw().items() if k != "_schema"})
+
+
+def test_risk_ladder_lists_all_six_cardiovascular_risk_factors():
+    """中／低／0 項那三級要數的 6 項風險因子必須寫出來——不然「風險因子 2 項」是空話。"""
+    lipid = [t for t in load_raw()["topics"] if t["key"] == "lipid"][0]
+    factors = lipid["riskLadder"]["factors"]["items"]
+    assert len(factors) == 6, factors
+    for keyword in ("高血壓", "45", "家族史", "HDL-C", "抽菸", "代謝症候群"):
+        assert any(keyword in f for f in factors), f"6 項裡找不到「{keyword}」：{factors}"
+
+
+def test_broken_risk_ladder_fails_the_build():
+    with pytest.raises(ValueError) as err:
+        build_module.check_risk_ladder({"topics": [{
+            "key": "lipid",
+            "riskLadder": {"levels": [{"label": "極高風險", "ldl": "55", "criteria": ["x"]}]},
+        }]})
+    assert "ldl" in str(err.value) and "極高風險" in str(err.value)
+
+
+def test_table_two_only_list_is_complete_and_adds_up():
+    """LIPID 的「不適用表一」清單要完整、而且 codeCount 對得上各成分加總。
+
+    使用者要求把這批項目完整列出來（學名）。清單來源是健保署官方第二節 .docx 的
+    2.6.1 對照表逐列讀出，再與同一份 PDF 抽取交叉比對（116 個健保代碼兩邊一致，
+    2026-09-01）。這裡釘住的是**內部一致性**：畫面上會寫「限『不適用表一』的 N 個
+    健保代碼」，底下列的成分加起來就必須是 N，否則那句話自相矛盾。
+    """
+    lipid = [t for t in load_raw()["topics"] if t["key"] == "lipid"][0]
+    box = lipid.get("tableTwoOnly")
+    assert box, "lipid 主題要有 tableTwoOnly"
+    names = [i["name"] for i in box["ingredients"]]
+    assert len(names) == len(set(names)), f"成分重複：{names}"
+    assert sum(i["codeCount"] for i in box["ingredients"]) == box["codeCount"]
+    assert box["codeCount"] > 0 and ISO_DATE.match(box["checked"])
+    # 正向路徑：現況資料要過得了建置期守門
+    build_module.check_table_two_only({k: v for k, v in load_raw().items() if k != "_schema"})
+
+
+def test_table_two_only_has_no_standalone_fenofibrate():
+    """官方表裡沒有單方 fenofibrate，只有 pravastatin ＋ fenofibrate 複方。
+
+    這是 2026-09-01 對官方表核對時抓到的既有錯誤（舊資料把 fenofibrate 列成獨立成分）。
+    釘住它，因為這個錯誤的方向很危險：讓人以為開單方 fenofibrate 要對表二，
+    但那類品項其實走的是降三酸甘油酯那張表。
+    """
+    lipid = [t for t in load_raw()["topics"] if t["key"] == "lipid"][0]
+    names = [i["name"] for i in lipid["tableTwoOnly"]["ingredients"]]
+    assert "fenofibrate" not in names, names
+    assert any("fenofibrate" in n and "複方" in n for n in names), names
+
+
+def test_mismatched_code_count_fails_the_build():
+    """加總對不上要讓建置停下來，訊息要指得出是哪個主題。"""
+    with pytest.raises(ValueError) as err:
+        build_module.check_table_two_only({"topics": [{
+            "key": "lipid",
+            "tableTwoOnly": {"codeCount": 99,
+                             "ingredients": [{"name": "statin", "codeCount": 3}]},
+        }]})
+    assert "codeCount" in str(err.value) and "lipid" in str(err.value)
+
+
+def test_displayed_fields_carry_no_markdown_markers():
+    """會顯示的欄位裡不得有 ** —— 渲染層刻意不解析 markdown，寫了就是字面兩顆星。
+
+    不解析是有理由的：條文斷段有「textContent 必須逐字等於資料檔原文」的不變量
+    （splitSentences，E2E 直接比對），把 **…** 變成 <b> 就會破壞它。
+    所以規則是欄位存純文字、要強調就靠用字。
+
+    `_schema` 不在檢查範圍：它是給維護者看的欄位說明，build 會剝掉、不進 dist。
+    """
+    raw = load_raw()
+    fields = ("text", "detail", "headline", "lede", "caution", "title", "note")
+    bad = []
+
+    def walk(node, where):
+        if isinstance(node, dict):
+            for k, v in node.items():
+                if k in fields and isinstance(v, str) and "**" in v:
+                    bad.append(f"{where}.{k}：{v[:60]}")
+                else:
+                    walk(v, f"{where}.{k}")
+        elif isinstance(node, list):
+            for i, v in enumerate(node):
+                walk(v, f"{where}[{i}]")
+
+    walk(raw.get("topics"), "topics")
+    assert not bad, ("顯示欄位含 markdown 記號（畫面上會是字面星號）：\n  "
+                     + "\n  ".join(bad))
+
+
 def test_effective_window_start_is_not_after_its_end():
     bad = [
         f"{key}/{kind}：{item.get('effectiveFrom')} → {item.get('effectiveTo')}"

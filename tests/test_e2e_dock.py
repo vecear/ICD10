@@ -1825,6 +1825,15 @@ def test_chronic_official_pdf_links_show_up_at_the_top_of_each_topic(pg):
     pg.keyboard.press("Escape")
 
 
+def test_chronic_table_two_list_fits_the_narrow_column(pg):
+    """176px 下這份清單要完整、而且不得水平溢出（診間實際用的就是這個寬度）。"""
+    data = cf.table_two("lipid")
+    open_chronic(pg, "lipid")
+    expect(pg.locator("#chronic-body .chronic-t2-item")).to_have_count(len(data["ingredients"]))
+    assert_no_hscroll(pg, "僅適用表二的成分清單")
+    pg.keyboard.press("Escape")
+
+
 def test_chronic_tabs_switch_topic_without_closing(pg):
     first, last = cf.buttons()[0], cf.buttons()[-1]
     open_chronic(pg, first[0])

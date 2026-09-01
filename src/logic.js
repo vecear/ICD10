@@ -440,7 +440,9 @@
     if (tg >= 500) {
       /* 第三列：無心血管疾病也可並行，所以這裡不看 hasCvd。 */
       return { ok: true, meets: true, route: 'TG ≧ 500', target: 500, parallel: true,
-               why: ['TG ' + tg + ' ≧ 500，可單憑 TG 起始，且與藥物治療可並行'], needs: [] };
+               /* why 只放「依據」：可否並行是 parallel 旗標的事，兩者混在同一句話裡，
+                  畫面與病歷都沒辦法把「哪一級／憑什麼」和「能不能直接開藥」分行講。 */
+               why: ['TG ' + tg], needs: [] };
     }
     if (tg < 200) {
       return { ok: true, meets: false, route: 'TG < 200', target: 200, parallel: hasCvd,
@@ -449,7 +451,9 @@
     const ratio = (Number.isFinite(tc) && Number.isFinite(hdl) && hdl > 0) ? tc / hdl : null;
     const ratioHit = ratio !== null && ratio > 5;
     const hdlHit = Number.isFinite(hdl) && hdl < 40;
-    const why = ['TG ' + tg + ' ≧ 200'];
+    /* why 只放數值與另外那半個條件：「≧ 200」已經由 route（TG 200–499）表達，
+       重複寫等於同一件事講兩遍，而這段文字要貼進病歷。 */
+    const why = ['TG ' + tg];
     if (ratioHit) why.push('TC/HDL-C ' + (Math.round(ratio * 100) / 100) + ' > 5');
     if (hdlHit) why.push('HDL-C ' + hdl + ' < 40');
     if (!ratioHit && !hdlHit) {
@@ -493,7 +497,7 @@
     return {
       ok: true,
       /* 兩張表一律都算、都回傳。表一是主表，但公告明列一批「不適用表一」的健保代碼
-         （含 atorvastatin、rosuvastatin、fenofibrate 等常用品項）仍走表二，
+         （116 項，分布在 9 種成分，含 atorvastatin、rosuvastatin）仍走表二，
          而那份清單只有開立當下查得到，所以由醫師依實際品項代碼取用哪一張。 */
       ldl: hasLdl ? ldl : null,
       tc: hasTc ? tc : null,

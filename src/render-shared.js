@@ -1005,6 +1005,110 @@
     return box;
   }
 
+  /* 表一風險分級的階梯（只有 lipid 主題有）。使用者 2026-09-01 的原話是
+     「我就不知道風險分級：極高／非常高／高／中／低 是怎麼分級的，標準又是什麼」——
+     這份速查原本把判準塞在一條條目的「補充」裡（預設收合），等於預設讀者已經知道怎麼分。
+
+     每一級把三件事並排：判準、那一級的 LDL-C 數字、能不能直接開藥。
+     **數字只寫一次**：官方表裡「起始藥物治療血脂值」與「血脂目標值」是同一個數，
+     分兩欄寫只會讓人以為是兩個門檻。 */
+  function chronicLadder(key) {
+    const topic = chronicTopicOf(key);
+    const box = topic && topic.riskLadder;
+    if (!box || !Array.isArray(box.levels) || !box.levels.length) return null;
+    return box;
+  }
+
+  function chronicLadderEl(key) {
+    const data = chronicLadder(key);
+    if (!data) return null;
+    const box = el('section', 'chronic-ladder');
+    box.appendChild(el('h3', 'chronic-ladder-title', data.title || '風險分級'));
+    if (data.lede) box.appendChild(el('p', 'chronic-ladder-lede', String(data.lede)));
+
+    const list = el('ol', 'chronic-ladder-list');
+    for (const lv of data.levels) {
+      if (!lv || !lv.label) continue;
+      const li = el('li', 'chronic-ladder-level');
+      const head = el('p', 'chronic-ladder-head');
+      head.appendChild(el('b', 'chronic-ladder-name', lv.label));
+      /* 起始門檻與目標是同一個數字，所以寫「門檻＝目標」，不是兩個數。 */
+      head.appendChild(el('span', 'chronic-ladder-num',
+        'LDL-C 門檻＝目標 ' + lv.ldl + (lv.nonHdl ? '｜non-HDL-C ' + lv.nonHdl : '')));
+      head.appendChild(el('span', 'chronic-ladder-flag' + (lv.parallel ? ' is-parallel' : ''),
+        lv.parallel ? '可並行' : '先做 3–6 個月'));
+      li.appendChild(head);
+      if (lv.how) li.appendChild(el('p', 'chronic-ladder-how', String(lv.how)));
+      if (Array.isArray(lv.criteria) && lv.criteria.length) {
+        const ul = el('ul', 'chronic-ladder-criteria');
+        for (const c of lv.criteria) ul.appendChild(el('li', null, String(c)));
+        li.appendChild(ul);
+      }
+      list.appendChild(li);
+    }
+    box.appendChild(list);
+
+    if (data.note) box.appendChild(el('p', 'chronic-ladder-note', String(data.note)));
+
+    const f = data.factors;
+    if (f && Array.isArray(f.items) && f.items.length) {
+      const fb = el('section', 'chronic-ladder-factors');
+      if (f.title) fb.appendChild(el('h4', 'chronic-ladder-subtitle', String(f.title)));
+      const ul = el('ul', 'chronic-ladder-criteria');
+      for (const item of f.items) ul.appendChild(el('li', null, String(item)));
+      fb.appendChild(ul);
+      if (f.note) fb.appendChild(el('p', 'chronic-ladder-note', String(f.note)));
+      box.appendChild(fb);
+    }
+
+    const meta = el('p', 'chronic-t2-meta');
+    if (data.source) meta.appendChild(el('span', 'chronic-source', String(data.source)));
+    if (data.checked) meta.appendChild(el('span', 'chronic-checked', '查 ' + data.checked));
+    if (meta.childNodes.length) box.appendChild(meta);
+    return box;
+  }
+
+  /* 「僅適用表二」的成分清單（只有 lipid 主題有）。條文分頁與血脂計算機共用這一份，
+     不各存一份——兩份會慢慢分歧，而分歧的表現是同一件事在兩個畫面上講得不一樣。 */
+  function chronicTableTwo(key) {
+    const topic = chronicTopicOf(key);
+    const box = topic && topic.tableTwoOnly;
+    if (!box || !Array.isArray(box.ingredients) || !box.ingredients.length) return null;
+    return box;
+  }
+
+  const chronicTableTwoNames = (box) =>
+    box.ingredients.map((i) => (i && i.name) || '').filter(Boolean);
+
+  /* 使用者要求把「不適用表一」的項目完整列出來（寫學名就好）。
+     每一項後面帶該成分底下的代碼數，是刻意的：光看成分名會讀成「所有 atorvastatin
+     都走表二」，但實際上同成分多數品項仍走表一，只有這批特定代碼例外。
+     數字讓人一眼看出這是**代碼層級**的例外清單，不是成分層級。 */
+  function chronicTableTwoEl(key) {
+    const data = chronicTableTwo(key);
+    if (!data) return null;
+    const box = el('section', 'chronic-t2');
+    box.appendChild(el('h3', 'chronic-t2-title', data.title || '僅適用表二的成分'));
+    if (data.lede) box.appendChild(el('p', 'chronic-t2-lede', data.lede));
+    const list = el('ul', 'chronic-t2-list');
+    for (const item of data.ingredients) {
+      if (!item || !item.name) continue;
+      const li = el('li', 'chronic-t2-item');
+      li.appendChild(el('span', 'chronic-t2-name', item.name));
+      if (item.codeCount) {
+        li.appendChild(el('span', 'chronic-t2-codes', item.codeCount + ' 項'));
+      }
+      list.appendChild(li);
+    }
+    box.appendChild(list);
+    if (data.caution) box.appendChild(el('p', 'chronic-t2-caution', String(data.caution)));
+    const meta = el('p', 'chronic-t2-meta');
+    if (data.source) meta.appendChild(el('span', 'chronic-source', String(data.source)));
+    if (data.checked) meta.appendChild(el('span', 'chronic-checked', '查 ' + data.checked));
+    if (meta.childNodes.length) box.appendChild(meta);
+    return box;
+  }
+
   function renderChronic(overlay, ctx) {
     const key = ctx.store.getState().chronicTopic;
     const title = overlay.querySelector('#chronic-title');
@@ -1024,6 +1128,15 @@
     if (topic && topic.headline) {
       body.appendChild(el('p', 'chronic-headline', String(topic.headline)));
     }
+    /* 排在速判摘要之後、分段內容之前：它決定了底下每一條門檻該讀表一還是表二，
+       等於是讀下面所有數字的前提。放進「別踩雷」那一段就太深了——真正會踩到的人
+       正是還沒想到要往下捲的人。 */
+    /* 順序：怎麼分級（決定要看哪一列） → 哪些代碼走表二（決定要看哪一張表）。
+       兩者都是讀底下每一條門檻的前提，所以排在分段內容之前。 */
+    const ladder = chronicLadderEl(key);
+    if (ladder) body.appendChild(ladder);
+    const tableTwo = chronicTableTwoEl(key);
+    if (tableTwo) body.appendChild(tableTwo);
     let sections = 0;
     for (const group of chronicStepGroups(topic)) {
       const node = chronicStepEl(group, today);
@@ -1374,6 +1487,16 @@
 
   /* 一張表的結果區塊。刻意把「判定」「數值比較」「理由」分成三行：
      醫師要能一眼看出這個結論是怎麼來的，而不是接受一個黑箱。 */
+  /* 「可否並行」兩張表共用同一句話：表一講的是生活型態改變，表二條文寫「非藥物治療」，
+     指的是同一件事，用兩種說法只會讓人以為是兩種要求。 */
+  const lipidParallelText = (parallel) => (parallel
+    ? '可生活型態與藥物治療並行'
+    : '給藥前應有 3–6 個月生活型態改變');
+
+  /* 區塊內的順序照臨床思考流程走（使用者 2026-09-01 指定）：
+       這位病人是哪一級、憑什麼 → 能不能直接開藥 → 門檻與目標 → 結論
+     原本是「分級 → 門檻 → 結論 → 依據」：依據排在結論之後，等於要求醫師先接受一個
+     判定、再回頭找理由；而「能不能直接開藥」原本只有 fibrate 那一塊講。 */
   function lipidTableBlock(title, note, info, ldl, tc) {
     const box = el('section', 'lipid-block');
     if (info.meets === true) box.classList.add('is-ok');
@@ -1383,15 +1506,28 @@
     if (note) head.appendChild(el('span', 'lipid-block-note', note));
     box.appendChild(head);
 
-    box.appendChild(el('p', 'lipid-level', info.label));
+    // 1) 哪一級，憑什麼——依據跟著分級走，不再落到結論後面
+    const level = el('p', 'lipid-level', info.label);
+    if (info.why && info.why.length) {
+      level.appendChild(el('span', 'lipid-why', '（依據：' + info.why.join('、') + '）'));
+    }
+    box.appendChild(level);
 
+    // 2) 能不能直接開藥
+    box.appendChild(el('p', 'lipid-parallel', lipidParallelText(info.parallel)));
+
+    // 3) 門檻與目標。non-HDL-C 存在時 LDL-C 才標「主要」——沒有次要目標的表二
+    //    寫「主要目標」會讓人去找一個不存在的次要目標。
     const thr = info.threshold !== undefined ? info.threshold : info.ldl;
-    const parts = ['起始門檻 LDL-C ≧ ' + thr];
-    if (info.tc) parts.push('或 TC ≧ ' + info.tc);
-    if (info.target) parts.push('目標 < ' + info.target);
-    if (info.nonHdlTarget) parts.push('non-HDL-C < ' + info.nonHdlTarget);
+    const parts = ['起始門檻 LDL-C ≧ ' + thr + (info.tc ? ' 或 TC ≧ ' + info.tc : '')];
+    if (info.target) {
+      parts.push((info.nonHdlTarget ? '主要目標 ' : '目標 ') + 'LDL-C < ' + info.target
+        + (info.targetTc ? ' 或 TC < ' + info.targetTc : ''));
+    }
+    if (info.nonHdlTarget) parts.push('次要目標 non-HDL-C < ' + info.nonHdlTarget);
     box.appendChild(el('p', 'lipid-threshold', parts.join('｜')));
 
+    // 4) 結論
     const cmp = [];
     if (ldl !== null) cmp.push('LDL-C ' + ldl);
     if (tc !== null) cmp.push('TC ' + tc);
@@ -1399,12 +1535,6 @@
       LIPID_VERDICT[String(info.meets)] + (cmp.length ? '（' + cmp.join('、') + '）' : ''));
     box.appendChild(verdict);
 
-    if (info.why && info.why.length) {
-      box.appendChild(el('p', 'lipid-why', '依據：' + info.why.join('、')));
-    }
-    box.appendChild(el('p', 'lipid-parallel', info.parallel
-      ? '可與藥物治療並行，不必先做 3–6 個月'
-      : '給藥前應有 3–6 個月生活型態改變／非藥物治療'));
     for (const p of info.proof || []) box.appendChild(el('p', 'lipid-proof', '舉證：' + p));
     return box;
   }
@@ -1428,9 +1558,25 @@
       '表一（ASCVD 風險分級）', '主表，多數品項適用', r.one, r.ldl, null));
     /* 表二退到次要：它只管公告明列「不適用表一」的那批代碼，
        但那批代碼含 atorvastatin、rosuvastatin，常到不能不算，所以是降級不是移除。 */
+    const t2 = chronicTableTwo('lipid');
     const twoBlock = lipidTableBlock(
-      '表二（例外）', '限公告明列「不適用表一」之健保代碼', r.two, r.ldl, r.tc);
+      '表二（例外）',
+      t2 ? ('限「不適用表一」的 ' + t2.codeCount + ' 個健保代碼')
+         : '限公告明列「不適用表一」之健保代碼',
+      r.two, r.ldl, r.tc);
     twoBlock.classList.add('is-secondary');
+    /* 使用者要求計算機這邊也把成分完整列出來：判定寫著「符合表二」時，
+       下一個問題必然是「那我開的這個算不算表二」——不列出來就得跳去條文分頁再找一次。
+       只列學名並帶代碼數，理由同 chronicTableTwoEl 的註解。 */
+    if (t2) {
+      const names = el('p', 'lipid-t2-names');
+      names.appendChild(el('b', 'lipid-t2-lead', '這批成分：'));
+      names.appendChild(document.createTextNode(
+        t2.ingredients.map((i) => i.name + '（' + i.codeCount + '）').join('、')));
+      twoBlock.appendChild(names);
+      twoBlock.appendChild(el('p', 'lipid-t2-caution',
+        '同成分多數品項仍走表一，依健保代碼認定。'));
+    }
     box.appendChild(twoBlock);
 
     /* 兩張表結論不同時要明講。這正是這個計算機最有價值的一刻——同一位病人，
@@ -1450,37 +1596,47 @@
     if (f && f.ok) {
       const fb = el('section', 'lipid-block' + (f.meets ? ' is-ok' : ' is-no'));
       fb.appendChild(el('div', 'lipid-block-head')).appendChild(el('b', 'lipid-block-title', 'Fibrate'));
-      fb.appendChild(el('p', 'lipid-threshold', f.route + '｜目標 TG < ' + f.target));
-      fb.appendChild(el('p', 'lipid-verdict', f.meets ? '符合起始門檻' : '未達起始門檻'));
-      if (f.why && f.why.length) fb.appendChild(el('p', 'lipid-why', '依據：' + f.why.join('、')));
-      for (const n of f.needs || []) fb.appendChild(el('p', 'lipid-proof', '還缺：' + n));
-      /* 講清楚「為什麼可以並行」——TG ≧ 500 那一列是不論共病的，
-         寫成通則會讓人以為無心血管疾病就一定要先做 3–6 個月。 */
+      // 1) 走哪一列，憑什麼（fibrate 的「級」就是官方表的那三列）
+      const fLevel = el('p', 'lipid-level', f.route);
+      if (f.why && f.why.length) {
+        fLevel.appendChild(el('span', 'lipid-why', '（依據：' + f.why.join('、') + '）'));
+      }
+      fb.appendChild(fLevel);
+      /* 2) 能不能直接開藥。TG ≧ 500 那一列是**不論共病**的，寫成通則會讓人以為
+         無心血管疾病就一定要先做 3–6 個月（2026-08-27 使用者指出，附官方表影像）。 */
       fb.appendChild(el('p', 'lipid-parallel', f.parallel
         ? (f.route === 'TG ≧ 500'
            ? '可與藥物治療並行（TG ≧ 500 該列不論有無心血管疾病）'
            : '可與藥物治療並行（心血管疾病或糖尿病）')
-        : '無心血管疾病者，走 TG 200–499 該列給藥前應有 3–6 個月非藥物治療'));
+        : '無心血管疾病者，給藥前應有 3–6 個月非藥物治療'));
+      // 3) 目標　4) 結論
+      fb.appendChild(el('p', 'lipid-threshold', '目標 TG < ' + f.target));
+      fb.appendChild(el('p', 'lipid-verdict', f.meets ? '符合起始門檻' : '未達起始門檻'));
+      for (const n of f.needs || []) fb.appendChild(el('p', 'lipid-proof', '還缺：' + n));
       box.appendChild(fb);
     }
   }
 
-  /* 複製用的病歷文字。
+  /* 病歷文字。順序與畫面同一套思考流程（使用者 2026-09-01 指定）：
+       依哪一張表 → 哪一級、憑什麼 → 能不能直接開藥 → 門檻與本例數值 → 目標 → 註記
 
-     使用者的要求分兩次給：
-       (2026-08-26)「輸出成我可以直接貼在病歷裡面的樣式，要寫出符合哪些條文
-        （看病歷的人並不知道我有這個計算器），目的是避免被健保核刪」
-       (2026-08-27)「只要寫符合的那一條條文就好（符合哪個用藥、條文是哪個）」
+     用字精簡到帶標籤的短行，不再是兩段連續敘述——審查醫師要找的是那幾個數字，
+     不是讀一段文章。但**條文全名一定保留**：看病歷的人不知道有這個工具，
+     「表一」單獨出現沒有意義（2026-08-26 使用者原話）。
 
-     所以規則是：**只輸出達標的那一條，並且指名是哪個藥、依哪一條**。
-     不達標的那張表不寫——病歷寫一堆「未達」只會給審查醫師更多可挑的地方。
-
-     唯一的例外是「兩張表結論不同」：那時候必須寫出來哪一張不符合，
-     因為開錯健保代碼就會被核刪，而那正是這段文字要防的事。 */
+     使用者的三次要求都釘在這段：
+       (08-26)「要寫出符合哪些條文（看病歷的人並不知道我有這個計算器）」
+       (08-27)「只要寫符合的那一條條文就好」——不達標的那張表不寫進病歷
+       (09-01)「符合思考流程順序並精簡用字」
+     唯一寫「不符合」的時機仍然是兩張表結論不同：開錯健保代碼就會被核刪。 */
   const LIPID_TABLE_ONE_NAME = '全民健康保險降膽固醇藥物給付規定表一';
   const LIPID_TABLE_TWO_NAME = '全民健康保險降膽固醇藥物給付規定表二';
   const LIPID_TG_TABLE_NAME = '全民健康保險降三酸甘油酯藥物給付規定表';
   const LIPID_SOURCE_NOTE = '（依藥品給付規定第二節 2.6.1，115.8.21 版）';
+  const LIPID_TWO_SCOPE = '（限公告明列「不適用表一」之健保代碼）';
+
+  /* 標籤一律兩個全形字，貼進病歷後每一行的縮排才對得齊。 */
+  const lipidRow = (label, body) => '　' + label + '　' + body;
 
   function lipidProfileLine(r, input) {
     const bits = [];
@@ -1499,25 +1655,32 @@
     return bits.join('，');
   }
 
-  /* 達標那一條的敘述。刻意把「條文名稱→分層→門檻→本例數值→處方規定→目標」
-     串成一段連續文字：病歷裡是敘述，不是表格。 */
-  function lipidMetLines(name, info, r, extra) {
-    const thr = ['LDL-C ≧ ' + info.threshold + ' mg/dL'];
-    if (info.tc) thr.push('或 TC ≧ ' + info.tc + ' mg/dL');
+  /* 一張降膽固醇表的病歷段落。表一與表二共用——兩者的欄位形狀相同，
+     差別只在表二多了 TC 門檻與 TC 目標、少了 non-HDL-C。 */
+  function lipidChartRows(name, info, r) {
+    const rows = ['降膽固醇藥物：依「' + name + '」'];
+    rows.push(lipidRow('分級', info.label
+      + (info.why && info.why.length ? '（' + info.why.join('、') + '）' : '')));
+    rows.push(lipidRow('處方', lipidParallelText(info.parallel)));
+    const gate = 'LDL-C ≧ ' + info.threshold + (info.tc ? ' 或 TC ≧ ' + info.tc : '');
+    /* 只有一個數值時不重複標名稱（門檻那半句已經寫了 LDL-C）；
+       兩個數值並列時才標，否則「本例 95、180」看不出哪個是哪個。 */
     const got = [];
-    if (r.ldl !== null) got.push('LDL-C ' + r.ldl);
-    if (info.tc && r.tc !== null) got.push('TC ' + r.tc);
-    const lines = ['降膽固醇藥物：符合「' + name + '」之「' + info.label + '」，'
-      + '起始藥物治療血脂值 ' + thr.join(' ') + '，本例 ' + got.join('、') + ' mg/dL，已達。'];
-    lines.push('　' + (info.parallel
-      ? '依該表處方規定，與藥物治療可並行。'
-      : '依該表處方規定，給藥前應有 3–6 個月生活型態改變／非藥物治療。')
-      + '治療目標 LDL-C < ' + info.target + ' mg/dL'
-      + (info.targetTc ? ' 或 TC < ' + info.targetTc + ' mg/dL' : '')
-      + (info.nonHdlTarget ? '（次要目標 non-HDL-C < ' + info.nonHdlTarget + ' mg/dL）' : '') + '。');
-    if (extra) lines.push('　' + extra);
-    for (const p of info.proof || []) lines.push('　應檢附：' + p + '。');
-    return lines;
+    if (r.ldl !== null) got.push({ name: 'LDL-C', value: r.ldl });
+    if (info.tc && r.tc !== null) got.push({ name: 'TC', value: r.tc });
+    const shown = got.length === 1
+      ? String(got[0].value)
+      : got.map((g) => g.name + ' ' + g.value).join('、');
+    rows.push(lipidRow('門檻', gate
+      + (got.length ? ' → 本例 ' + shown + ' mg/dL' : '')
+      + '，' + (info.meets === true ? '已達' : '未達')));
+    if (info.target) {
+      rows.push(lipidRow('目標', 'LDL-C < ' + info.target
+        + (info.targetTc ? ' 或 TC < ' + info.targetTc : '')
+        + (info.nonHdlTarget ? '；次要 non-HDL-C < ' + info.nonHdlTarget : '')));
+    }
+    for (const p of info.proof || []) rows.push(lipidRow('檢附', p));
+    return rows;
   }
 
   function lipidResultText(r, input) {
@@ -1525,54 +1688,48 @@
     const c = input || {};
     if (r.ldl === null && r.tc === null && !(r.fibrate && r.fibrate.ok)) return '';
 
-    const out = ['【降血脂藥物給付依據】'];
     const profile = lipidProfileLine(r, c);
-    if (profile) out.push(profile);
+    const out = ['【降血脂給付依據】' + profile];
+    const one = r.one;
+    const two = r.two;
 
-    /* 表一是主表，所以病歷先寫它；表二只在結論不同時當註記出現。 */
-    const primary = {
-      name: LIPID_TABLE_ONE_NAME, info: r.one,
-      other: { name: LIPID_TABLE_TWO_NAME, info: r.two },
-      otherNote: '（限公告明列「不適用表一」之健保代碼）',
-    };
-
-    const risk = 'ASCVD 風險分級：' + r.one.label + '（' + r.one.why.join('；') + '）。';
-    if (primary.info.meets === true) {
+    /* 表一是主表，所以病歷先寫它；表二只在表一不符、而它符合時才登場。 */
+    if (one.meets === true) {
       out.push('');
-      for (const line of lipidMetLines(primary.name, primary.info, r, risk)) out.push(line);
+      for (const line of lipidChartRows(LIPID_TABLE_ONE_NAME, one, r)) out.push(line);
       /* 另一張表不符合時一定要寫：開錯健保代碼就會被核刪，那正是這段文字要防的事。 */
-      if (primary.other.info.meets === false) {
-        out.push('　註：本例不符合「' + primary.other.name + '」'
-          + primary.otherNote + '之起始標準，該表品項不適用。');
+      if (two.meets === false) {
+        out.push(lipidRow('註記', '本例不符合「' + LIPID_TABLE_TWO_NAME + '」'
+          + LIPID_TWO_SCOPE + '之起始標準，該表品項不適用'));
       }
-    } else if (primary.other.info.meets === true) {
+    } else if (two.meets === true) {
       out.push('');
-      for (const line of lipidMetLines(primary.other.name, primary.other.info, r, risk)) out.push(line);
+      for (const line of lipidChartRows(LIPID_TABLE_TWO_NAME, two, r)) out.push(line);
       /* 「該表」指的是哪一張，病歷上不能靠上下文猜——兩張表都寫全名。 */
-      out.push('　註：本例不符合「' + primary.name + '」之起始標準；'
-        + '僅「' + primary.other.name + '」所列健保代碼之品項適用。');
+      out.push(lipidRow('註記', '本例不符合「' + LIPID_TABLE_ONE_NAME + '」之起始標準；'
+        + '僅「' + LIPID_TABLE_TWO_NAME + '」所列健保代碼之品項適用'));
     }
 
     const f = r.fibrate;
-    /* 「未達」只在完全沒有任何一條符合時才寫。醫師在開 fibrate 時，
-       病歷多一行「降膽固醇藥物未達起始標準」是與本次處方無關的雜訊。 */
-    const anyMet = primary.info.meets === true || primary.other.info.meets === true
-      || !!(f && f.ok && f.meets);
+    /* 兩張表都不符時才寫降膽固醇那一段——醫師在開 fibrate 時，病歷多一行
+       「降膽固醇藥物未達起始標準」是與本次處方無關的雜訊。 */
+    const anyMet = one.meets === true || two.meets === true || !!(f && f.ok && f.meets);
     if (!anyMet && (r.ldl !== null || r.tc !== null)) {
       out.push('');
-      out.push('降膽固醇藥物：本例未達起始標準（' + risk.replace('。', '')
-        + '，起始藥物治療血脂值 LDL-C ≧ ' + primary.info.threshold + ' mg/dL）。');
+      for (const line of lipidChartRows(LIPID_TABLE_ONE_NAME, one, r)) out.push(line);
     }
+
     if (f && f.ok && f.meets) {
       out.push('');
-      out.push('降三酸甘油酯藥物：符合「' + LIPID_TG_TABLE_NAME + '」，'
-        + f.why.join('；') + '。');
-      out.push('　' + (f.parallel
+      out.push('降三酸甘油酯藥物：依「' + LIPID_TG_TABLE_NAME + '」');
+      out.push(lipidRow('適用', f.route + ' 該列'
+        + (f.why && f.why.length ? '（本例 ' + f.why.join('、') + '）' : '') + '，已達'));
+      out.push(lipidRow('處方', f.parallel
         ? (f.route === 'TG ≧ 500'
-           ? '依該表處方規定，TG ≧ 500 該列與藥物治療可並行（不論有無心血管疾病）。'
-           : '依該表處方規定，心血管疾病或糖尿病病人與藥物治療可並行。')
-        : '依該表處方規定，無心血管疾病病人給藥前應有 3–6 個月非藥物治療。')
-        + '治療目標 TG < ' + f.target + ' mg/dL。');
+           ? '可與藥物治療並行（該列不論有無心血管疾病）'
+           : '可與藥物治療並行（心血管疾病或糖尿病）')
+        : '無心血管疾病者，給藥前應有 3–6 個月非藥物治療'));
+      out.push(lipidRow('目標', 'TG < ' + f.target));
     }
 
     out.push('');
@@ -1642,6 +1799,8 @@
     lipidButtonEl, lipidOverlayEl, renderLipidResult, syncLipid, lipidResultText, lipidInputs,
     syncLipidSexRows,
     chronicToday, chronicTopics, chronicDocsEl, chronicDocHref,
+    chronicTableTwo, chronicTableTwoEl, chronicTableTwoNames,
+    chronicLadder, chronicLadderEl,
     FORMAT_LABEL, MODE_LABEL, MODE_SHORT, PANELS_TITLE, MODE_HINT, LAYOUT_LABEL, LAYOUT_MIN_WIDTH,
     CHRONIC_KIND, CCR_DISCLAIMER, CCR_BASIS_LABEL, LIPID_DISCLAIMER, CHRONIC_DOC_DIR,
   };

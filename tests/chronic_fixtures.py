@@ -35,6 +35,16 @@ def docs(key):
     return list(topic(key).get("docs") or [])
 
 
+def table_two(key):
+    """該主題的「僅適用表二」成分清單（只有 lipid 有；其餘回 None）。"""
+    return topic(key).get("tableTwoOnly")
+
+
+def risk_ladder(key):
+    """該主題的風險分級階梯（只有 lipid 有；其餘回 None）。"""
+    return topic(key).get("riskLadder")
+
+
 def items(key):
     for section in topic(key).get("sections") or []:
         for item in section.get("items") or []:

@@ -12,6 +12,13 @@ CURATED_DIR = ROOT / "src" / "curated"
 # 這類含數字的中文/英文標籤被誤認成代碼（≤8 字元＋開頭是「字母」＋含數字，全部成立）。
 CODE_SHAPE_RE = re.compile(r"^[A-Z]\d[A-Z0-9](\.[A-Z0-9]{1,4})?$")
 
+# 這個掃描器的啟發式是「字串陣列的第一個元素就是代碼」（給 [code, label] 用的）。
+# chronic_care.json 的結構是 topics→sections→items，**一個 ICD 代碼都沒有**，卻有大量
+# 中文字串陣列（風險分級判準、6 項心血管風險因子、僅適用表二的成分…），全部會被當成代碼。
+# build.py 也刻意把它排除在 CURATED_KEYS 之外（理由見該處註解），這裡跟上同一個契約；
+# 契約本身由 test_chronic_care.py::test_chronic_care_stays_out_of_the_icd_code_validation_path 守。
+NO_ICD_CODE_FILES = {"chronic_care.json"}
+
 @pytest.fixture(scope="module")
 def leafset():
     rows = json.loads((ROOT / "data" / "codes.min.json").read_text(encoding="utf-8"))
@@ -39,8 +46,11 @@ def iter_codes(obj):
                     yield from iter_codes(x)
 
 def test_all_curated_codes_are_billable_leaves(leafset):
-    files = sorted(CURATED_DIR.glob("*.json"))
+    files = [f for f in sorted(CURATED_DIR.glob("*.json"))
+             if f.name not in NO_ICD_CODE_FILES]
     assert files, "src/curated/ 下沒有 JSON"
+    assert len(files) < len(list(CURATED_DIR.glob("*.json"))), (
+        "NO_ICD_CODE_FILES 裡的檔名對不上實際檔案，等於這條排除從來沒生效")
     bad = []
     for f in files:
         data = json.loads(f.read_text(encoding="utf-8"))

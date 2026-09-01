@@ -1821,6 +1821,164 @@ def test_chronic_each_tab_opens_its_own_topic_and_only_that_one(page):
     reset(page)
 
 
+def test_chronic_risk_ladder_explains_how_the_levels_are_decided(page):
+    """LIPID 分頁要把「極高／非常高／高／中／低怎麼分」講出來。
+
+    使用者 2026-09-01 的原話：「我就不知道風險分級是怎麼分級的，標準又是什麼」。
+    在那之前判準塞在一條條目的收合補充裡，等於預設讀者已經知道怎麼分——
+    而這個工具的使用情境正好相反：不常看慢性病的醫師在看診當下查一眼。
+
+    釘住三件事：每一級都有判準、每一級都有門檻數字、6 項風險因子有列出來。
+    數字對資料檔比，資料檔本身另有一條測試對 logic.js 比（同一套數字兩個出口）。
+    """
+    reset(page)
+    data = cf.risk_ladder("lipid")
+    assert data, "chronic_care.json 的 lipid 主題要有 riskLadder"
+    open_chronic(page, "lipid")
+    levels = page.locator("#chronic-body .chronic-ladder-level")
+    expect(levels).to_have_count(len(data["levels"]))
+
+    shown = page.evaluate("""() => Array.from(
+        document.querySelectorAll('#chronic-body .chronic-ladder-level')).map((n) => ({
+            name: n.querySelector('.chronic-ladder-name').textContent.trim(),
+            num: n.querySelector('.chronic-ladder-num').textContent.trim(),
+            flag: n.querySelector('.chronic-ladder-flag').textContent.trim(),
+            criteria: n.querySelectorAll('.chronic-ladder-criteria li').length,
+        }))""")
+    for got, want in zip(shown, data["levels"]):
+        assert got["name"] == want["label"], (got, want)
+        assert str(want["ldl"]) in got["num"], f"{want['label']} 少了門檻數字：{got['num']}"
+        if want.get("nonHdl"):
+            assert str(want["nonHdl"]) in got["num"], f"{want['label']} 少了 non-HDL-C"
+        assert got["criteria"] >= 1, f"{want['label']} 沒有列判準"
+        # 「能不能今天就開藥」是這一級最實務的分野，不能只有數字
+        assert got["flag"] == ("可並行" if want["parallel"] else "先做 3–6 個月"), got
+
+    factors = page.locator("#chronic-body .chronic-ladder-factors .chronic-ladder-criteria li")
+    expect(factors).to_have_count(len(data["factors"]["items"]))
+
+    # 負面：DM／HTN 沒有這個區塊（表一是 2.6.1 專屬的東西）
+    for other in ("dm", "htn"):
+        open_chronic(page, other)
+        expect(page.locator("#chronic-body .chronic-ladder")).to_have_count(0)
+    reset(page)
+
+
+def test_lipid_result_follows_the_clinical_thinking_order(page):
+    """結果區每一塊都照「哪一級（憑什麼）→ 能不能直接開藥 → 門檻與目標 → 結論」排。
+
+    使用者 2026-09-01 指定的順序。原本是「分級 → 門檻 → 結論 → 依據」：
+    依據排在結論之後，等於要求先接受一個判定、再回頭找理由。
+    """
+    reset(page)
+    page.click("#lipid-btn")
+    expect(page.locator("#lipid-panel")).to_be_visible()
+    page.fill("#lipid-age", "60")
+    page.fill("#lipid-ldl", "190")
+    page.fill("#lipid-tg", "560")
+    page.check("#lipid-dm")
+    page.wait_for_timeout(300)
+
+    order = page.evaluate("""() => Array.from(
+        document.querySelectorAll('#lipid-result .lipid-block')).map((b) => Array.from(b.children)
+            .map((n) => n.className.split(' ')[0]))""")
+    assert len(order) >= 3, order          # 表一、表二、Fibrate
+    for block in order:
+        core = [c for c in block
+                if c in ('lipid-level', 'lipid-parallel', 'lipid-threshold', 'lipid-verdict')]
+        assert core == ['lipid-level', 'lipid-parallel', 'lipid-threshold', 'lipid-verdict'], core
+
+    # 依據跟著分級走，不是獨立一行落在結論後面
+    level = page.locator("#lipid-result .lipid-block").first.locator(".lipid-level")
+    assert "依據：" in level.inner_text(), level.inner_text()
+    assert page.locator("#lipid-result .lipid-block").first.locator(
+        ".lipid-level .lipid-why").count() == 1
+    page.keyboard.press("Escape")
+    reset(page)
+
+
+def test_lipid_copy_is_labelled_short_lines_in_the_same_order(page):
+    """剪貼簿走同一套順序，而且是帶標籤的短行——貼進病歷要能一眼掃到那幾個數字。
+
+    使用者 2026-09-01：「輸出到剪貼簿我希望也是符合思考流程順序並精簡用字」。
+    條文全名仍然保留：看病歷的人不知道有這個工具，「表一」單獨出現沒有意義。
+    """
+    reset(page)
+    page.click("#lipid-btn")
+    expect(page.locator("#lipid-panel")).to_be_visible()
+    page.fill("#lipid-age", "60")
+    page.fill("#lipid-ldl", "190")
+    page.check("#lipid-dm")
+    page.wait_for_timeout(250)
+    page.click("#lipid-copy")
+    page.wait_for_timeout(250)
+    text = page.evaluate("() => navigator.clipboard.readText()").replace("\r\n", "\n")
+
+    labels = [line.strip().split("　")[0]
+              for line in text.split("\n") if line.startswith("　")]
+    assert labels[:4] == ["分級", "處方", "門檻", "目標"], f"順序不對：{labels}／{text}"
+    assert "全民健康保險降膽固醇藥物給付規定表一" in text, "條文全名要在"
+    for line in text.split("\n"):
+        assert len(line) <= 120, f"這一行太長，貼進病歷會亂：{line}"
+    page.keyboard.press("Escape")
+    reset(page)
+
+
+def test_chronic_table_two_ingredient_list_is_complete(page):
+    """LIPID 分頁要把「不適用表一」的成分完整列出來（使用者要求：寫學名就好）。
+
+    為什麼值得一條測試：這份清單直接決定醫師該用哪張表的門檻——同一位病人、同一組
+    檢驗值，開表一品項符合、開表二品項不符合。少列一種成分就是少一種「會被核刪」的情境。
+    數量與名稱都對資料檔比，不寫死字串（換版時會改，寫死等於保證假紅燈）。
+
+    負面：DM／HTN 不得出現這個區塊——它是 2.6.1 專屬的東西，
+    出現在別的主題只會讓人以為降血糖藥也有兩張表。
+    """
+    reset(page)
+    data = cf.table_two("lipid")
+    assert data, "chronic_care.json 的 lipid 主題要有 tableTwoOnly"
+    open_chronic(page, "lipid")
+    items = page.locator("#chronic-body .chronic-t2-item")
+    expect(items).to_have_count(len(data["ingredients"]))
+    shown = page.evaluate("""() => Array.from(
+        document.querySelectorAll('#chronic-body .chronic-t2-name')).map((n) => n.textContent.trim())""")
+    assert shown == [i["name"] for i in data["ingredients"]], shown
+    codes = page.evaluate("""() => Array.from(
+        document.querySelectorAll('#chronic-body .chronic-t2-codes')).map((n) => n.textContent.trim())""")
+    assert codes == [f"{i['codeCount']} 項" for i in data["ingredients"]], codes
+    # 代碼總數要出現在畫面上——它是「這是代碼層級的例外」最直接的證據
+    assert str(data["codeCount"]) in page.locator(".chronic-t2").inner_text()
+
+    for other in ("dm", "htn"):
+        open_chronic(page, other)
+        expect(page.locator("#chronic-body .chronic-t2")).to_have_count(0)
+    reset(page)
+
+
+def test_lipid_calculator_also_lists_the_table_two_ingredients(page):
+    """計算機的表二區塊也要列出同一份成分。
+
+    判定寫著「符合表二」時，下一個問題必然是「我開的這個算不算表二」；
+    要跳去條文分頁再找一次，等於在看診當下多一次中斷。兩邊同源於 chronic_care.json，
+    所以這裡順便釘住「兩個畫面不會對同一件事講不同的話」。
+    """
+    reset(page)
+    data = cf.table_two("lipid")
+    page.click("#lipid-btn")
+    expect(page.locator("#lipid-panel")).to_be_visible()
+    page.fill("#lipid-age", "60")
+    page.fill("#lipid-ldl", "95")
+    page.wait_for_timeout(200)
+    text = page.locator(".lipid-t2-names").inner_text()
+    for ing in data["ingredients"]:
+        assert ing["name"] in text, f"計算機沒列出 {ing['name']}：{text[:160]}"
+        assert f"（{ing['codeCount']}）" in text, \
+            f"缺代碼數 {ing['codeCount']}：{text[:160]}"
+    assert str(data["codeCount"]) in page.locator(".lipid-block.is-secondary").inner_text()
+    page.keyboard.press("Escape")
+    reset(page)
+
+
 @pytest.mark.parametrize("how", ["close-button", "escape", "click-outside"])
 def test_chronic_panel_closes_three_ways(page, how):
     reset(page)

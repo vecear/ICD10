@@ -237,6 +237,80 @@ def check_chronic_docs(chronic):
     return used
 
 
+def check_risk_ladder(chronic):
+    """核對 riskLadder 的結構：每一級要有 label、正整數 ldl、至少一條 criteria。
+
+    數字對不對（與 logic.js 的 LIPID_ONE 一致）由 tests/test_chronic_care.py 比——
+    那需要讀 JS，不適合塞進建置。這裡擋的是「級數空掉」「門檻寫成字串」這類
+    會讓畫面直接壞掉的結構性錯誤。
+
+    回傳 {topic key: 級數}。
+    """
+    seen, bad = {}, []
+    for topic in chronic.get("topics") or []:
+        key = topic.get("key") or "(缺 key)"
+        box = topic.get("riskLadder")
+        if not box:
+            continue
+        levels = box.get("levels") or []
+        if not levels:
+            bad.append(f"{key}：riskLadder 沒有任何分級")
+        for lv in levels:
+            label = str((lv or {}).get("label") or "").strip()
+            if not label:
+                bad.append(f"{key}：有一級沒寫 label")
+            ldl = (lv or {}).get("ldl")
+            if not isinstance(ldl, int) or ldl < 1:
+                bad.append(f"{key}／{label or '(無名)'}：ldl 不是正整數（{ldl!r}）")
+            if not (lv or {}).get("criteria"):
+                bad.append(f"{key}／{label or '(無名)'}：沒有寫判準")
+        seen[key] = len(levels)
+    if bad:
+        raise ValueError("riskLadder 結構有問題：\n  " + "\n  ".join(bad))
+    return seen
+
+
+def check_table_two_only(chronic):
+    """核對 tableTwoOnly：codeCount 要等於各成分的 codes 加總。**對不上就丟例外。**
+
+    這是可機器驗證的算術（不像給付門檻只能靠人重查），而它錯了會很難看：畫面上會寫
+    「限『不適用表一』的 N 個健保代碼」，底下列的成分加起來卻不是 N。同 check_chronic_docs()
+    的判準——事實類的錯誤讓建置失敗，判斷類的才只給警告。
+
+    回傳 {topic key: 成分數}，沒有這個欄位的主題不列入。
+    """
+    seen, bad = {}, []
+    for topic in chronic.get("topics") or []:
+        key = topic.get("key") or "(缺 key)"
+        box = topic.get("tableTwoOnly")
+        if not box:
+            continue
+        items = box.get("ingredients") or []
+        if not items:
+            bad.append(f"{key}：tableTwoOnly 沒有列任何成分")
+            continue
+        total = 0
+        for item in items:
+            name = str((item or {}).get("name") or "").strip()
+            codes = (item or {}).get("codeCount")
+            if not name:
+                bad.append(f"{key}：有一項成分沒寫 name")
+            if not isinstance(codes, int) or codes < 1:
+                bad.append(f"{key}／{name or '(無名)'}：codeCount 不是正整數（{codes!r}）")
+            else:
+                total += codes
+        declared = box.get("codeCount")
+        if declared != total:
+            bad.append(f"{key}：codeCount {declared!r} 與各成分加總 {total} 不符")
+        seen[key] = len(items)
+    if bad:
+        raise ValueError(
+            "tableTwoOnly 的清單對不上（畫面會寫出一個自相矛盾的數字）：\n  "
+            + "\n  ".join(bad)
+        )
+    return seen
+
+
 def copy_nhi_docs():
     """把 健保條文/*.pdf 複製到 dist/，讓 dist/icd10.html 的連結在本機也點得開。
 
@@ -354,6 +428,8 @@ def main():
     labels = build_curated_labels(curated, {row[0]: row for row in db})
     chronic = load_chronic_care()
     chronic_docs = check_chronic_docs(chronic)
+    ladder = check_risk_ladder(chronic)
+    table_two = check_table_two_only(chronic)
     chronic_report = check_chronic_care(chronic)
     styles, font_bytes = build_styles()
     scripts = (
@@ -389,6 +465,10 @@ def main():
         f"  樣式：{' + '.join(STYLESHEETS)}，{len(styles):,} bytes（含字型）\n"
         f"  指令碼：{' → '.join(SOURCES)}\n"
         f"  CURATED_LABELS：{len(labels):,} 個精選碼\n"
+        f"  風險分級階梯："
+        + ("、".join(f"{k} {v} 級" for k, v in ladder.items()) or "（無）") + "\n"
+        f"  僅適用表二的成分："
+        + ("、".join(f"{k} {v} 種" for k, v in table_two.items()) or "（無）") + "\n"
         f"  官方條文：{NHI_DOC_DIR_NAME}/ 引用 {len(chronic_docs)} 份，"
         f"複製 {copied_docs} 個 PDF 到 dist/{NHI_DOC_DIR_NAME}/\n"
         f"  assert_offline：通過（零外部參照）"
