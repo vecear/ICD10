@@ -28,7 +28,17 @@ ROOT = Path(__file__).resolve().parent.parent
 CURATED = ROOT / "src" / "curated"
 INTERNAL = ("internal_outpatient.json", "internal_emergency.json")
 NEGATION = re.compile(r"未(?:伴有|伴|併發|提及)[^，,、；;。]*")
-ADJUNCT = re.compile(r"^(B9[567]|Z16|[VWXY])")
+
+
+def is_adjunct(code):
+    """與 tests/test_clinical_invariants.py 的 _is_adjunct 同一套判準：
+    病原體（B95–B97）、抗藥性（Z16）、外因碼（V／W／X／Y），
+    以及藥物不良作用碼（T36–T50 第六碼 5）——官方規定先碼表現，它永遠是次診斷。"""
+    if code.startswith(("B95", "B96", "B97", "Z16")) or code[:1] in "VWXY":
+        return True
+    flat = code.replace(".", "")
+    return (len(flat) == 7 and flat[0] == "T" and flat[5] == "5" and flat[6] in "ADS"
+            and flat[1:3].isdigit() and 36 <= int(flat[1:3]) <= 50)
 
 
 def load(path):
@@ -77,7 +87,7 @@ def main():
                 if code in known and known[code][0] != label:
                     bad.append(f'{where}:{code} 標籤「{label}」與現有「{known[code][0]}」'
                                f"（{known[code][1]}）不一致")
-                if ADJUNCT.match(code.replace(".", "")) and "附加碼" not in label:
+                if is_adjunct(code) and "附加碼" not in label:
                     bad.append(f"{where}:{code} 是附加碼，標籤要標明")
                 print(f"  {layer:<9} {code:<9} {label}")
                 print(f"  {'':<9} {'':<9} 官方：{row[3]}")

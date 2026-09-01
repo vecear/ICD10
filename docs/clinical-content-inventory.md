@@ -6,7 +6,7 @@
 標籤是看診時顯示在按鈕上的字，官方名是健保申報的正式名稱——
 兩者可以不同（標籤是速記），但**不能語意衝突**，否則會選錯碼。
 
-## 內科急診（7 個部位群組 / 20 張面板）
+## 內科急診（7 個部位群組 / 28 張面板）
 
 ### 全身／感染
 
@@ -105,6 +105,79 @@
 | `I26.09` | 肺栓塞併急性肺性心臟病（大範圍 PE） | 其他肺栓塞併急性肺性心臟病 | Other pulmonary embolism with acute cor pulmonale |
 | `I31.4` | 心包填塞 | 心包膜填塞 | Cardiac tamponade |
 | `E27.2` | 艾迪森氏危象（腎上腺危象） | 艾迪森氏危象 | Addisonian crisis |
+
+#### 中毒／藥物過量
+
+| 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
+|---|---|---|---|
+| **主訴** | | | |
+| `T50.901A` | 藥物中毒（意外） | 未明示藥物、藥物或生物物質意外中毒之初期照護 | Poisoning by unspecified drugs, medicaments and biological substances, accidental (unintentional), initial encounter |
+| `R45.851` | 自殺意念 | 自殺意念 | Suicidal ideations |
+| **常見疾病** | | | |
+| `T39.011A` | 阿斯匹靈中毒（意外、初期照護） | 乙醯水楊酸意外中毒之初期照護 | Poisoning by aspirin, accidental (unintentional), initial encounter |
+| `T39.312A` | 丙酸衍生物中毒（故意自我傷害、初期照護） | 初油酸衍生物故意自我傷害中毒之初期照護 | Poisoning by propionic acid derivatives, intentional self-harm, initial encounter |
+| `T42.4X1A` | 苯二氮平類中毒（意外） | 苯重氮基鹽藥物意外中毒之初期照護 | Poisoning by benzodiazepines, accidental (unintentional), initial encounter |
+| `T42.6X1A` | 其他抗癲癇及鎮靜安眠藥中毒（意外、初期照護） | 其他抗癲癇藥物及鎮靜－安眠藥物意外中毒之初期照護 | Poisoning by other antiepileptic and sedative-hypnotic drugs, accidental (unintentional), initial encounter |
+| `T43.591A` | 抗精神病及神經精神藥劑中毒（意外、初期照護） | 抗精神病藥劑及神經精神藥劑意外中毒之初期照護 | Poisoning by other antipsychotics and neuroleptics, accidental (unintentional), initial encounter |
+| `T40.2X1A` | 其他類鴉片中毒（意外、初期照護） | 其他類鴉片藥物意外中毒之初期照護 | Poisoning by other opioids, accidental (unintentional), initial encounter |
+| `T50.911A` | 多種未明示藥物中毒（意外、初期照護） | 多種未明示藥物、藥物或生物物質意外中毒之初期照護 | Poisoning by multiple unspecified drugs, medicaments and biological substances, accidental (unintentional), initial encounter |
+| `T51.0X1A` | 乙醇毒性作用（意外、初期照護） | 乙醇意外毒性作用之初期照護 | Toxic effect of ethanol, accidental (unintentional), initial encounter |
+| `F10.129` | 酒精濫用伴中毒 | 酒精濫用，有非特定的中毒 | Alcohol abuse with intoxication, unspecified |
+| `F10.929` | 急性酒精中毒 | 非特定的酒精使用，有非特定的中毒 | Alcohol use, unspecified with intoxication, unspecified |
+| `F10.239` | 酒精依賴伴戒斷 | 酒精依賴，有非特定的戒斷 | Alcohol dependence with withdrawal, unspecified |
+| `X78.9XXA` | 蓄意自我傷害—銳器（外因附加碼、初期照護） | 利用未明示銳利物件蓄意故意自我傷害之初期照護 | Intentional self-harm by unspecified sharp object, initial encounter |
+| `R40.20` | 昏迷 | 昏迷 | Unspecified coma |
+| `R41.82` | 精神狀態改變 | 精神狀態改變 | Altered mental status, unspecified |
+| `R56.9` | 痙攣（抽搐） | 痙攣 | Unspecified convulsions |
+| `J96.01` | 急性呼吸衰竭併缺氧 | 急性呼吸衰竭併缺氧 | Acute respiratory failure with hypoxia |
+| `N17.9` | 急性腎衰竭（AKI） | 急性腎衰竭 | Acute kidney failure, unspecified |
+| `M62.82` | 橫紋肌溶解症 | 橫紋肌溶解症 | Rhabdomyolysis |
+| `E87.1` | 低血鈉及低滲透壓 | 低滲壓及低血鈉 | Hypo-osmolality and hyponatremia |
+| `E16.2` | 低血糖 | 低血糖 | Hypoglycemia, unspecified |
+| `R57.9` | 休克（未明示型態） | 休克 | Shock, unspecified |
+| `Z79.899` | 長期藥物治療 | 長期 （現在之）藥物治療 | Other long term (current) drug therapy |
+| **優先排除（紅旗）** | | | |
+| `T50.902A` | 未明示藥物中毒（故意自我傷害、初期照護） | 未明示藥物、藥物或生物物質故意自我傷害中毒之初期照護 | Poisoning by unspecified drugs, medicaments and biological substances, intentional self-harm, initial encounter |
+| `T14.91XA` | 自殺企圖（初期照護） | 自殺企圖之初期照護 | Suicide attempt, initial encounter |
+| `T39.1X1A` | 乙醯胺酚中毒（意外、初期照護） | 4－胺酚衍生物意外中毒之初期照護 | Poisoning by 4-Aminophenol derivatives, accidental (unintentional), initial encounter |
+| `T43.011A` | 三環抗憂鬱劑中毒（意外、初期照護） | 三環抗憂鬱劑意外中毒之初期照護 | Poisoning by tricyclic antidepressants, accidental (unintentional), initial encounter |
+| `T40.601A` | 未明示麻醉劑中毒（意外、初期照護） | 未明示麻醉劑意外中毒之初期照護 | Poisoning by unspecified narcotics, accidental (unintentional), initial encounter |
+| `T58.91XA` | 一氧化碳中毒 | 未明示來源一氧化碳意外毒性作用之初期照護 | Toxic effect of carbon monoxide from unspecified source, accidental (unintentional), initial encounter |
+| `T65.0X1A` | 氰化物毒性作用（意外、初期照護） | 氰化物意外毒性作用之初期照護 | Toxic effect of cyanides, accidental (unintentional), initial encounter |
+
+#### 中暑／體溫過低
+
+| 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
+|---|---|---|---|
+| **主訴** | | | |
+| `T67.5XXA` | 熱衰竭（未明示、初期照護） | 未明示之熱衰竭之初期照護 | Heat exhaustion, unspecified, initial encounter |
+| `T68.XXXA` | 體溫過低（初期照護） | 體溫過低之初期照護 | Hypothermia, initial encounter |
+| **常見疾病** | | | |
+| `T67.1XXA` | 熱暈厥（初期照護） | 熱暈厥之初期照護 | Heat syncope, initial encounter |
+| `T67.4XXA` | 缺鹽性熱衰竭（初期照護） | 缺鹽性熱衰竭之初期照護 | Heat exhaustion due to salt depletion, initial encounter |
+| `T67.6XXA` | 暫時性熱疲勞（初期照護） | 暫時性熱疲勞之初期照護 | Heat fatigue, transient, initial encounter |
+| `T69.9XXA` | 溫度降低之影響（初期照護） | 溫度降低影響之初期照護 | Effect of reduced temperature, unspecified, initial encounter |
+| `R50.9` | 發燒 | 發燒 | Fever, unspecified |
+| `E86.0` | 脫水 | 脫水 | Dehydration |
+| `E87.1` | 低血鈉及低滲透壓 | 低滲壓及低血鈉 | Hypo-osmolality and hyponatremia |
+| `E87.6` | 低血鉀症 | 低血鉀症 | Hypokalemia |
+| `R41.82` | 精神狀態改變 | 精神狀態改變 | Altered mental status, unspecified |
+| `R40.20` | 昏迷 | 昏迷 | Unspecified coma |
+| `R55` | 暈厥及虛脫 | 暈厥及虛脫 | Syncope and collapse |
+| `R56.9` | 痙攣（抽搐） | 痙攣 | Unspecified convulsions |
+| `E03.9` | 甲狀腺功能低下 | 甲狀腺低下 | Hypothyroidism, unspecified |
+| `E16.2` | 低血糖 | 低血糖 | Hypoglycemia, unspecified |
+| `I95.9` | 低血壓 | 低血壓 | Hypotension, unspecified |
+| `R57.9` | 休克（未明示型態） | 休克 | Shock, unspecified |
+| `Z79.899` | 長期藥物治療 | 長期 （現在之）藥物治療 | Other long term (current) drug therapy |
+| **優先排除（紅旗）** | | | |
+| `T67.01XA` | 熱中暑／中暑 | 熱中暑及日中暑之初期照護 | Heatstroke and sunstroke, initial encounter |
+| `T67.02XA` | 勞動型中暑（初期照護） | 勞動型中暑之初期照護 | Exertional heatstroke, initial encounter |
+| `M62.82` | 橫紋肌溶解症 | 橫紋肌溶解症 | Rhabdomyolysis |
+| `N17.9` | 急性腎衰竭（AKI） | 急性腎衰竭 | Acute kidney failure, unspecified |
+| `G93.6` | 腦水腫 | 腦水腫 | Cerebral edema |
+| `A41.9` | 敗血症 | 敗血症，未明示病原體 | Sepsis, unspecified organism |
+| `R57.1` | 低血容性休克 | 低血容性休克 | Hypovolemic shock |
 
 ### 神經／頭頸
 
@@ -325,6 +398,42 @@
 | `I82.C19` | 頸內靜脈血栓（Lemierre） | 未明示側性頸內靜脈急性栓塞及血栓 | Acute embolism and thrombosis of unspecified internal jugular vein |
 | `M72.6` | 壞死性筋膜炎 | 壞死性筋膜炎 | Necrotizing fasciitis |
 
+#### 抽搐／癲癇發作
+
+| 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
+|---|---|---|---|
+| **主訴** | | | |
+| `R56.9` | 痙攣（抽搐） | 痙攣 | Unspecified convulsions |
+| **常見疾病** | | | |
+| `G40.911` | 癲癇重積狀態（難治型） | 癲癇，難治之癲癇，伴有癲癇重積狀態 | Epilepsy, unspecified, intractable, with status epilepticus |
+| `G40.909` | 癲癇（非難治，未伴重積） | 癲癇，非難治之癲癇，未伴有癲癇重積狀態 | Epilepsy, unspecified, not intractable, without status epilepticus |
+| `G40.919` | 癲癇（難治，未伴重積） | 癲癇，難治之癲癇，未伴有癲癇重積狀態 | Epilepsy, unspecified, intractable, without status epilepticus |
+| `G40.209` | 局部性癲癇伴複雜部分發作（非難治，未伴重積） | 有關侷限(局部)(部份)症狀性癲癇及癲癇症候群伴有複雜型部份發作，非難治之癲癇，未伴有癲癇重積狀態 | Localization-related (focal) (partial) symptomatic epilepsy and epileptic syndromes with complex partial seizures, not intractable, without status epilepticus |
+| `G40.309` | 廣泛性特發性癲癇（非難治，未伴重積） | 廣泛性特發性癲癇及癲癇症候群，非難治之癲癇，未伴有癲癇重積狀態 | Generalized idiopathic epilepsy and epileptic syndromes, not intractable, without status epilepticus |
+| `R56.1` | 創傷後發作 | 創傷後發作 | Post traumatic seizures |
+| `F44.5` | 心因性非癲癇發作（轉化症伴抽搐） | 有抽搐或痙攣的轉化症 | Conversion disorder with seizures or convulsions |
+| `R55` | 暈厥及虛脫 | 暈厥及虛脫 | Syncope and collapse |
+| `I63.9` | 急性缺血性腦中風 | 腦梗塞 | Cerebral infarction, unspecified |
+| `G93.40` | 腦病變 | 腦病變 | Encephalopathy, unspecified |
+| `G93.1` | 缺氧性腦損傷 | 缺氧性腦損傷，他處未歸類者 | Anoxic brain damage, not elsewhere classified |
+| `C71.9` | 腦惡性腫瘤 | 腦惡性腫瘤 | Malignant neoplasm of brain, unspecified |
+| `F10.239` | 酒精依賴伴戒斷 | 酒精依賴，有非特定的戒斷 | Alcohol dependence with withdrawal, unspecified |
+| `T50.901A` | 藥物中毒（意外） | 未明示藥物、藥物或生物物質意外中毒之初期照護 | Poisoning by unspecified drugs, medicaments and biological substances, accidental (unintentional), initial encounter |
+| `R41.82` | 精神狀態改變 | 精神狀態改變 | Altered mental status, unspecified |
+| `R40.20` | 昏迷 | 昏迷 | Unspecified coma |
+| `E86.0` | 脫水 | 脫水 | Dehydration |
+| `R50.9` | 發燒 | 發燒 | Fever, unspecified |
+| `A41.9` | 敗血症 | 敗血症，未明示病原體 | Sepsis, unspecified organism |
+| `Z79.899` | 長期藥物治療 | 長期 （現在之）藥物治療 | Other long term (current) drug therapy |
+| **優先排除（紅旗）** | | | |
+| `G40.901` | 癲癇重積狀態 | 癲癇，非難治之癲癇，伴有癲癇重積狀態 | Epilepsy, unspecified, not intractable, with status epilepticus |
+| `E16.2` | 低血糖 | 低血糖 | Hypoglycemia, unspecified |
+| `E87.1` | 低血鈉及低滲透壓 | 低滲壓及低血鈉 | Hypo-osmolality and hyponatremia |
+| `I60.9` | 蜘蛛膜下腔出血 | 非創傷性蜘蛛網膜下腔出血 | Nontraumatic subarachnoid hemorrhage, unspecified |
+| `I61.9` | 腦出血 | 非創傷性腦出血 | Nontraumatic intracerebral hemorrhage, unspecified |
+| `G03.9` | 腦膜炎 | 腦膜炎 | Meningitis, unspecified |
+| `G93.6` | 腦水腫 | 腦水腫 | Cerebral edema |
+
 ### 胸肺／心臟
 
 #### 胸痛／心悸
@@ -468,6 +577,39 @@
 | `E16.2` | 低血糖 | 低血糖 | Hypoglycemia, unspecified |
 | `I44.2` | 完全房室傳導阻斷 | 完全性房室傳導阻滯 | Atrioventricular block, complete |
 | `I35.0` | 非風濕性主動脈瓣狹窄 | 非風濕性主動脈瓣狹窄 | Nonrheumatic aortic (valve) stenosis |
+
+#### 咳血
+
+| 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
+|---|---|---|---|
+| **主訴** | | | |
+| `R04.2` | 咳血 | 咳血 | Hemoptysis |
+| **常見疾病** | | | |
+| `I26.99` | 其他肺栓塞（未伴急性肺性心臟病） | 其他肺栓塞未伴有急性肺性心臟病 | Other pulmonary embolism without acute cor pulmonale |
+| `J18.9` | 肺炎 | 肺炎，未明示病原體 | Pneumonia, unspecified organism |
+| `J47.9` | 支氣管擴張症（未併發） | 支氣管擴張症 | Bronchiectasis, uncomplicated |
+| `J44.1` | COPD 急性惡化 | 慢性阻塞性肺病伴有(急性)發作 | Chronic obstructive pulmonary disease with (acute) exacerbation |
+| `J44.9` | 慢性阻塞性肺病 COPD | 慢性阻塞性肺病 | Chronic obstructive pulmonary disease, unspecified |
+| `J20.9` | 急性支氣管炎 | 急性支氣管炎 | Acute bronchitis, unspecified |
+| `U07.1` | COVID-19 | 嚴重特殊傳染性肺炎 | COVID-19 |
+| `J93.0` | 張力性氣胸（自發性） | 自發性壓力性氣胸 | Spontaneous tension pneumothorax |
+| `R04.0` | 鼻出血 | 鼻出血 | Epistaxis |
+| `K92.0` | 吐血 | 吐血 | Hematemesis |
+| `R06.02` | 呼吸短促 | 呼吸短促 | Shortness of breath |
+| `R07.9` | 胸痛 | 胸痛 | Chest pain, unspecified |
+| `R50.9` | 發燒 | 發燒 | Fever, unspecified |
+| `D62` | 急性失血性貧血 | 急性出血後貧血 | Acute posthemorrhagic anemia |
+| `I50.9` | 心臟衰竭 HF | 心臟衰竭 | Heart failure, unspecified |
+| `Z79.01` | 長期服用抗凝血劑 | 長期（現在之）服用抗凝血劑 | Long term (current) use of anticoagulants |
+| `Z79.02` | 長期使用抗血小板藥 | 長期（現在之）服用抗血栓劑/抗血小板劑 | Long term (current) use of antithrombotics/antiplatelets |
+| `R91.8` | 肺部影像其他異常 | 肺部其他非特定性異常發現 | Other nonspecific abnormal finding of lung field |
+| **優先排除（紅旗）** | | | |
+| `I26.09` | 肺栓塞併急性肺性心臟病（大範圍 PE） | 其他肺栓塞併急性肺性心臟病 | Other pulmonary embolism with acute cor pulmonale |
+| `C34.90` | 肺／支氣管惡性腫瘤（未明示側） | 未明示側性支氣管或肺惡性腫瘤 | Malignant neoplasm of unspecified part of unspecified bronchus or lung |
+| `A15.0` | 肺結核 | 肺結核 | Tuberculosis of lung |
+| `J96.01` | 急性呼吸衰竭併缺氧 | 急性呼吸衰竭併缺氧 | Acute respiratory failure with hypoxia |
+| `D68.32` | 抗凝血物質所致出血性疾患 | 循環中抗凝血物質所致的出血性疾患 | Hemorrhagic disorder due to extrinsic circulating anticoagulants |
+| `I50.1` | 左心衰竭／急性肺水腫 | 左心衰竭 | Left ventricular failure, unspecified |
 
 ### 腹部／消化
 
@@ -655,6 +797,41 @@
 | `K26.5` | 十二指腸潰瘍併穿孔（慢性或未明示） | 慢性或未明示十二指腸潰瘍併穿孔 | Chronic or unspecified duodenal ulcer with perforation |
 | `K22.3` | 食道穿孔（Boerhaave） | 食道穿孔 | Perforation of esophagus |
 
+#### 血便／下消化道出血
+
+| 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
+|---|---|---|---|
+| **主訴** | | | |
+| `K62.5` | 肛門及直腸出血 | 肛門及直腸出血 | Hemorrhage of anus and rectum |
+| `K92.1` | 黑便 | 黑便 | Melena |
+| **常見疾病** | | | |
+| `K57.31` | 大腸憩室併出血 | 大腸憩室未伴有穿孔或膿瘍併出血 | Diverticulosis of large intestine without perforation or abscess with bleeding |
+| `K55.039` | 缺血性大腸炎 | 急性(可逆)大腸缺血，未明示程度 | Acute (reversible) ischemia of large intestine, extent unspecified |
+| `K51.911` | 潰瘍性結腸炎併直腸出血 | 潰瘍性結腸炎併直腸出血 | Ulcerative colitis, unspecified with rectal bleeding |
+| `K51.90` | 潰瘍性結腸炎（未伴併發症） | 潰瘍性結腸炎未伴有併發症 | Ulcerative colitis, unspecified, without complications |
+| `K50.90` | 克隆氏病（未伴併發症） | 克隆氏病未伴有併發症 | Crohn's disease, unspecified, without complications |
+| `K64.9` | 痔瘡 | 痔瘡 | Unspecified hemorrhoids |
+| `K64.2` | 第三級痔瘡 | 第三級痔瘡 | Third degree hemorrhoids |
+| `K60.2` | 肛門裂 | 肛門裂 | Anal fissure, unspecified |
+| `K62.1` | 直腸息肉 | 直腸息肉 | Rectal polyp |
+| `K62.6` | 肛門及直腸潰瘍 | 肛門及直腸潰瘍 | Ulcer of anus and rectum |
+| `C18.9` | 結腸惡性腫瘤 | 結腸惡性腫瘤 | Malignant neoplasm of colon, unspecified |
+| `C20` | 直腸惡性腫瘤 | 直腸惡性腫瘤 | Malignant neoplasm of rectum |
+| `A09` | 感染性腸胃炎 | 感染性胃腸炎及大腸炎 | Infectious gastroenteritis and colitis, unspecified |
+| `A04.72` | 艱難梭菌腸道感染 CDI（非復發型） | 艱難梭菌所致腸道感染，未明示為復發型 | Enterocolitis due to Clostridium difficile, not specified as recurrent |
+| `R19.5` | 其他大便異常 | 其他大便異常 | Other fecal abnormalities |
+| `R10.9` | 腹痛 | 腹痛 | Unspecified abdominal pain |
+| `Z79.01` | 長期服用抗凝血劑 | 長期（現在之）服用抗凝血劑 | Long term (current) use of anticoagulants |
+| `Z79.02` | 長期使用抗血小板藥 | 長期（現在之）服用抗血栓劑/抗血小板劑 | Long term (current) use of antithrombotics/antiplatelets |
+| **優先排除（紅旗）** | | | |
+| `K92.2` | 胃腸道出血 | 胃腸道出血 | Gastrointestinal hemorrhage, unspecified |
+| `R57.1` | 低血容性休克 | 低血容性休克 | Hypovolemic shock |
+| `D62` | 急性失血性貧血 | 急性出血後貧血 | Acute posthemorrhagic anemia |
+| `K55.049` | 急性大腸梗塞（未明示程度） | 急性大腸梗塞，未明示程度 | Acute infarction of large intestine, extent unspecified |
+| `K63.1` | 腸穿孔 | 腸穿孔(非創傷性) | Perforation of intestine (nontraumatic) |
+| `K59.31` | 毒性巨結腸症 | 毒性巨結腸症 | Toxic megacolon |
+| `D68.32` | 抗凝血物質所致出血性疾患 | 循環中抗凝血物質所致的出血性疾患 | Hemorrhagic disorder due to extrinsic circulating anticoagulants |
+
 ### 泌尿／生殖
 
 #### 排尿症狀
@@ -735,6 +912,41 @@
 | `C64.9` | 腎惡性腫瘤（腎盂除外、未明示側） | 未明示側性腎惡性腫瘤，腎盂除外 | Malignant neoplasm of unspecified kidney, except renal pelvis |
 | `N05.9` | 腎炎症候群（未特異性組織形態改變） | 非特異性的腎炎症候群伴有非特異性的組織形態改變 | Unspecified nephritic syndrome with unspecified morphologic changes |
 | `R33.9` | 尿滯留 | 尿滯留 | Retention of urine, unspecified |
+
+#### 腰腹絞痛／腎結石
+
+| 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
+|---|---|---|---|
+| **主訴** | | | |
+| `N23` | 腎絞痛 | 腎絞痛 | Unspecified renal colic |
+| `R10.9` | 腹痛 | 腹痛 | Unspecified abdominal pain |
+| **常見疾病** | | | |
+| `N20.0` | 腎結石 | 腎結石 | Calculus of kidney |
+| `N20.1` | 輸尿管結石 | 輸尿管結石 | Calculus of ureter |
+| `N20.2` | 腎結石伴輸尿管結石 | 腎結石伴有輸尿管結石 | Calculus of kidney with calculus of ureter |
+| `N21.0` | 膀胱內結石 | 膀胱內結石 | Calculus in bladder |
+| `N13.30` | 腎水腫 | 腎水腫 | Unspecified hydronephrosis |
+| `N39.0` | 泌尿道感染 UTI | 未明示部位之泌尿道感染症 | Urinary tract infection, site not specified |
+| `R31.9` | 血尿 | 血尿 | Hematuria, unspecified |
+| `R31.0` | 肉眼可見性血尿 | 肉眼可見性血尿 | Gross hematuria |
+| `R33.9` | 尿滯留 | 尿滯留 | Retention of urine, unspecified |
+| `N28.1` | 後天性腎囊腫 | 後天性腎囊腫 | Cyst of kidney, acquired |
+| `C64.9` | 腎惡性腫瘤（腎盂除外、未明示側） | 未明示側性腎惡性腫瘤，腎盂除外 | Malignant neoplasm of unspecified kidney, except renal pelvis |
+| `N18.9` | 慢性腎臟疾病 CKD | 慢性腎臟疾病 | Chronic kidney disease, unspecified |
+| `K80.20` | 膽囊結石（未伴膽囊炎、未伴阻塞） | 膽囊結石未伴有膽囊炎未伴有阻塞 | Calculus of gallbladder without cholecystitis without obstruction |
+| `K35.80` | 急性闌尾炎 | 急性闌尾炎 | Unspecified acute appendicitis |
+| `K56.609` | 腸阻塞 | 腸阻塞，未明示阻塞程度 | Unspecified intestinal obstruction, unspecified as to partial versus complete obstruction |
+| `N73.9` | 女性骨盆炎性疾病 PID | 女性骨盆炎性疾病 | Female pelvic inflammatory disease, unspecified |
+| `R11.2` | 噁心伴嘔吐 | 噁心伴有嘔吐 | Nausea with vomiting, unspecified |
+| `R50.9` | 發燒 | 發燒 | Fever, unspecified |
+| `E86.0` | 脫水 | 脫水 | Dehydration |
+| **優先排除（紅旗）** | | | |
+| `N13.6` | 腎盂蓄膿 | 腎盂蓄膿 | Pyonephrosis |
+| `N10` | 急性腎盂腎炎 APN | 急性腎盂腎炎 | Acute pyelonephritis |
+| `A41.9` | 敗血症 | 敗血症，未明示病原體 | Sepsis, unspecified organism |
+| `N17.9` | 急性腎衰竭（AKI） | 急性腎衰竭 | Acute kidney failure, unspecified |
+| `I71.30` | 腹主動脈瘤破裂 | 腹主動脈瘤，已破裂 | Abdominal aortic aneurysm, ruptured, unspecified |
+| `N44.00` | 睪丸扭轉 | 睪丸扭轉 | Torsion of testis, unspecified |
 
 ### 皮膚／軟組織
 
@@ -824,6 +1036,40 @@
 | `J45.901` | 氣喘急性發作 | 氣喘併(急性)發作 | Unspecified asthma with (acute) exacerbation |
 | `J96.00` | 急性呼吸衰竭 | 急性呼吸衰竭，未明示是否伴有缺氧或高碳酸血症 | Acute respiratory failure, unspecified whether with hypoxia or hypercapnia |
 
+#### 蜂窩性組織炎／軟組織感染
+
+| 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
+|---|---|---|---|
+| **主訴** | | | |
+| `L03.90` | 蜂窩組織炎 | 蜂窩組織炎 | Cellulitis, unspecified |
+| `R60.0` | 局部性水腫 | 局部性水腫 | Localized edema |
+| **常見疾病** | | | |
+| `L03.115` | 右下肢蜂窩組織炎 | 右側下肢蜂窩組織炎 | Cellulitis of right lower limb |
+| `L03.116` | 左下肢蜂窩組織炎 | 左側下肢蜂窩組織炎 | Cellulitis of left lower limb |
+| `A46` | 丹毒 | 丹毒 | Erysipelas |
+| `L02.419` | 肢體皮膚膿瘍 | 未明示肢體皮膚膿瘍 | Cutaneous abscess of limb, unspecified |
+| `L02.415` | 右下肢皮膚膿瘍 | 右側下肢皮膚膿瘍 | Cutaneous abscess of right lower limb |
+| `L02.416` | 左下肢皮膚膿瘍 | 左側下肢皮膚膿瘍 | Cutaneous abscess of left lower limb |
+| `L03.211` | 臉部蜂窩組織炎 | 臉部蜂窩組織炎 | Cellulitis of face |
+| `B95.61` | MSSA 為他處疾病之病因（附加碼） | 歸類於他處甲氧西林敏感性金黃色葡萄球菌感染所致的疾病 | Methicillin susceptible Staphylococcus aureus infection as the cause of diseases classified elsewhere |
+| `B95.62` | MRSA 為他處疾病之病因（附加碼） | 歸類於他處抗甲氧西林（抗藥性）金黃色葡萄球菌感染所致的疾病 | Methicillin resistant Staphylococcus aureus infection as the cause of diseases classified elsewhere |
+| `B95.0` | A 群鏈球菌 GAS（附加碼） | 歸類於他處A群鏈球菌所致的疾病 | Streptococcus, group A, as the cause of diseases classified elsewhere |
+| `E11.621` | 第二型糖尿病伴足部潰瘍 | 第二型糖尿病，伴有足部潰瘍 | Type 2 diabetes mellitus with foot ulcer |
+| `L97.509` | 足部慢性潰瘍（非壓迫性、未明示嚴重度） | 未明示側性足部其他部位非壓迫性慢性潰瘍，未明示嚴重程度 | Non-pressure chronic ulcer of other part of unspecified foot with unspecified severity |
+| `I83.029` | 左下肢靜脈曲張伴潰瘍（未明示部位） | 左側下肢靜脈曲張伴有未明示部位潰瘍 | Varicose veins of left lower extremity with ulcer of unspecified site |
+| `I80.209` | 下肢深部靜脈炎及血栓靜脈炎（未明示側） | 未明示四肢未明示深部血管靜脈炎及血栓靜脈炎 | Phlebitis and thrombophlebitis of unspecified deep vessels of unspecified lower extremity |
+| `R50.9` | 發燒 | 發燒 | Fever, unspecified |
+| `R21` | 皮疹 | 皮疹及其他非特定性皮膚出疹 | Rash and other nonspecific skin eruption |
+| `M79.89` | 其他特定軟組織疾患 | 其他特定軟組織疾患 | Other specified soft tissue disorders |
+| `R60.9` | 水腫 | 水腫 | Edema, unspecified |
+| **優先排除（紅旗）** | | | |
+| `M72.6` | 壞死性筋膜炎 | 壞死性筋膜炎 | Necrotizing fasciitis |
+| `A41.9` | 敗血症 | 敗血症，未明示病原體 | Sepsis, unspecified organism |
+| `M79.A21` | 右下肢非創傷性腔室症候群 | 右側下肢非創傷性腔室証症候群 | Nontraumatic compartment syndrome of right lower extremity |
+| `M00.9` | 化膿性關節炎 | 化膿性關節炎 | Pyogenic arthritis, unspecified |
+| `M86.9` | 骨髓炎 | 骨髓炎 | Osteomyelitis, unspecified |
+| `I82.409` | 下肢深部靜脈栓塞 DVT（急性、未明示側） | 未明示側性下肢未明示深部靜脈急性栓塞及血栓 | Acute embolism and thrombosis of unspecified deep veins of unspecified lower extremity |
+
 ### 肌肉骨骼
 
 #### 背痛／頸痛
@@ -910,7 +1156,40 @@
 | `M86.9` | 骨髓炎 | 骨髓炎 | Osteomyelitis, unspecified |
 | `M72.6` | 壞死性筋膜炎 | 壞死性筋膜炎 | Necrotizing fasciitis |
 
-## 內科門診（11 個部位群組 / 50 張面板）
+#### 單側肢體腫脹
+
+| 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
+|---|---|---|---|
+| **主訴** | | | |
+| `R22.42` | 左下肢局部腫脹／腫塊 | 左側下肢局部腫脹、腫塊及小腫塊 | Localized swelling, mass and lump, left lower limb |
+| `R60.0` | 局部性水腫 | 局部性水腫 | Localized edema |
+| **常見疾病** | | | |
+| `I82.4Y9` | 近端下肢深部靜脈急性栓塞（未明示側） | 未明示側性近端下肢未明示深部靜脈急性栓塞及血栓 | Acute embolism and thrombosis of unspecified deep veins of unspecified proximal lower extremity |
+| `I80.209` | 下肢深部靜脈炎及血栓靜脈炎（未明示側） | 未明示四肢未明示深部血管靜脈炎及血栓靜脈炎 | Phlebitis and thrombophlebitis of unspecified deep vessels of unspecified lower extremity |
+| `I80.211` | 右髂靜脈炎及血栓靜脈炎 | 右側髂靜脈炎及血栓靜脈炎 | Phlebitis and thrombophlebitis of right iliac vein |
+| `I80.212` | 左髂靜脈炎及血栓靜脈炎 | 左側髂靜脈炎及血栓靜脈炎 | Phlebitis and thrombophlebitis of left iliac vein |
+| `L03.115` | 右下肢蜂窩組織炎 | 右側下肢蜂窩組織炎 | Cellulitis of right lower limb |
+| `L03.116` | 左下肢蜂窩組織炎 | 左側下肢蜂窩組織炎 | Cellulitis of left lower limb |
+| `A46` | 丹毒 | 丹毒 | Erysipelas |
+| `I89.0` | 淋巴水腫 | 其他淋巴水腫，他處未歸類者 | Lymphedema, not elsewhere classified |
+| `I83.90` | 下肢靜脈曲張（無症狀、未明示側） | 未明示側性下肢無症狀靜脈曲張 | Asymptomatic varicose veins of unspecified lower extremity |
+| `I87.2` | 慢性靜脈功能不足 | 靜脈功能不足（慢性）（周邊） | Venous insufficiency (chronic) (peripheral) |
+| `M25.561` | 右膝痛 | 右側膝部關節痛 | Pain in right knee |
+| `M79.661` | 右下肢疼痛 | 右側小腿疼痛 | Pain in right lower leg |
+| `R22.43` | 雙下肢局部腫脹／腫塊 | 雙側下肢局部腫脹、腫塊及小腫塊 | Localized swelling, mass and lump, lower limb, bilateral |
+| `R60.9` | 水腫 | 水腫 | Edema, unspecified |
+| `M79.89` | 其他特定軟組織疾患 | 其他特定軟組織疾患 | Other specified soft tissue disorders |
+| `C50.919` | 乳房惡性腫瘤（未明示側、未明示部位） | 女性乳房未明示部位惡性腫瘤 | Malignant neoplasm of unspecified site of unspecified female breast |
+| `Z79.01` | 長期服用抗凝血劑 | 長期（現在之）服用抗凝血劑 | Long term (current) use of anticoagulants |
+| **優先排除（紅旗）** | | | |
+| `I82.409` | 下肢深部靜脈栓塞 DVT（急性、未明示側） | 未明示側性下肢未明示深部靜脈急性栓塞及血栓 | Acute embolism and thrombosis of unspecified deep veins of unspecified lower extremity |
+| `I26.09` | 肺栓塞併急性肺性心臟病（大範圍 PE） | 其他肺栓塞併急性肺性心臟病 | Other pulmonary embolism with acute cor pulmonale |
+| `M79.A21` | 右下肢非創傷性腔室症候群 | 右側下肢非創傷性腔室証症候群 | Nontraumatic compartment syndrome of right lower extremity |
+| `M79.A22` | 左下肢非創傷性腔室症候群 | 左側下肢非創傷性腔室証症候群 | Nontraumatic compartment syndrome of left lower extremity |
+| `M72.6` | 壞死性筋膜炎 | 壞死性筋膜炎 | Necrotizing fasciitis |
+| `A41.9` | 敗血症 | 敗血症，未明示病原體 | Sepsis, unspecified organism |
+
+## 內科門診（11 個部位群組 / 68 張面板）
 
 ### 常用
 
@@ -1318,6 +1597,36 @@
 | `Z13.1` | 糖尿病篩檢 | 來院接受糖尿病篩檢 | Encounter for screening for diabetes mellitus |
 | `Z23` | 預防接種 | 來院接受疫苗接種 | Encounter for immunization |
 
+#### 痛風／高尿酸
+
+| 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
+|---|---|---|---|
+| **主訴** | | | |
+| `M10.9` | 痛風 | 痛風 | Gout, unspecified |
+| `E79.0` | 高尿酸血症（未伴發炎性關節炎及痛風石） | 高尿酸血症未伴有關節炎及痛風石 | Hyperuricemia without signs of inflammatory arthritis and tophaceous disease |
+| **常見疾病** | | | |
+| `M10.00` | 特發性痛風（未明示部位） | 未明示部位特發性痛風 | Idiopathic gout, unspecified site |
+| `M10.041` | 右手特發性痛風 | 右側手部特發性痛風 | Idiopathic gout, right hand |
+| `M10.061` | 右膝特發性痛風 | 右側膝部特發性痛風 | Idiopathic gout, right knee |
+| `M10.071` | 右踝／足特發性痛風 | 右側踝部及足部特發性痛風 | Idiopathic gout, right ankle and foot |
+| `M10.072` | 左踝／足特發性痛風 | 左側踝部及足部特發性痛風 | Idiopathic gout, left ankle and foot |
+| `M1A.9XX0` | 慢性痛風（未伴痛風石） | 慢性痛風，未伴有痛風石 | Chronic gout, unspecified, without tophus (tophi) |
+| `M1A.00X0` | 特發性慢性痛風（未明示部位、未伴痛風石） | 未明示部位特發性慢性痛風，未伴有痛風石 | Idiopathic chronic gout, unspecified site, without tophus (tophi) |
+| `M11.9` | 結晶性關節病變 | 結晶性關節病變 | Crystal arthropathy, unspecified |
+| `N20.0` | 腎結石 | 腎結石 | Calculus of kidney |
+| `N18.30` | 第三期慢性腎臟疾病 | 慢性腎臟疾病stage 3 | Chronic kidney disease, stage 3 unspecified |
+| `N18.4` | 第四期慢性腎臟疾病（重度） | 第四期慢性腎臟疾病(重度) | Chronic kidney disease, stage 4 (severe) |
+| `I10` | 本態性高血壓 | 本態性(原發性)高血壓 | Essential (primary) hypertension |
+| `E78.5` | 高血脂症 | 高血脂症 | Hyperlipidemia, unspecified |
+| `E11.9` | 第二型糖尿病（未伴併發症） | 第二型糖尿病，未伴有併發症 | Type 2 diabetes mellitus without complications |
+| `E66.9` | 肥胖 | 肥胖 | Obesity, unspecified |
+| `E66.3` | 過重 | 體重過重 | Overweight |
+| `K76.0` | 脂肪肝 | 脂肪肝(變化)，他處未歸類者 | Fatty (change of) liver, not elsewhere classified |
+| `I25.10` | 冠狀動脈粥狀硬化性心臟病（未伴心絞痛） | 自體的冠狀動脈粥樣硬化心臟病未伴有心絞痛 | Atherosclerotic heart disease of native coronary artery without angina pectoris |
+| `Z72.4` | 不適當之飲食習慣 | 不適當之飲食習慣 | Inappropriate diet and eating habits |
+| `Z71.3` | 飲食諮詢衛教 | 飲食諮詢與監測 | Dietary counseling and surveillance |
+| `Z79.899` | 長期藥物治療 | 長期 （現在之）藥物治療 | Other long term (current) drug therapy |
+
 ### 全身／感染
 
 #### 發燒／寒顫
@@ -1432,6 +1741,35 @@
 | `C77.9` | 淋巴結續發性惡性腫瘤（轉移） | 未明示部位淋巴結之續發性及未明性惡性腫瘤 | Secondary and unspecified malignant neoplasm of lymph node, unspecified |
 | `D86.1` | 淋巴結類肉瘤病 | 淋巴結類肉瘤病 | Sarcoidosis of lymph nodes |
 | `M32.9` | 全身性紅斑性狼瘡 SLE | 全身性紅斑性狼瘡 | Systemic lupus erythematosus, unspecified |
+
+#### 過敏／蕁麻疹
+
+| 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
+|---|---|---|---|
+| **主訴** | | | |
+| `R21` | 皮疹 | 皮疹及其他非特定性皮膚出疹 | Rash and other nonspecific skin eruption |
+| `T78.40XA` | 過敏反應（初期照護） | 過敏之初期照護 | Allergy, unspecified, initial encounter |
+| **常見疾病** | | | |
+| `L50.9` | 蕁麻疹 | 蕁麻疹 | Urticaria, unspecified |
+| `L50.0` | 過敏性蕁麻疹 | 過敏性蕁麻疹 | Allergic urticaria |
+| `L50.1` | 特發性蕁麻疹 | 特發性蕁麻疹 | Idiopathic urticaria |
+| `L50.8` | 其他蕁麻疹 | 其他蕁麻疹 | Other urticaria |
+| `T78.3XXA` | 血管性水腫 | 血管神經性水腫之初期照護 | Angioneurotic edema, initial encounter |
+| `T78.2XXA` | 過敏性休克 | 過敏性休克之初期照護 | Anaphylactic shock, unspecified, initial encounter |
+| `T78.49XA` | 其他過敏反應 | 其他過敏之初期照護 | Other allergy, initial encounter |
+| `T78.1XXA` | 食物不良反應 | 其他有害食物反應，他處未歸類之初期照護 | Other adverse food reactions, not elsewhere classified, initial encounter |
+| `L27.0` | 全身性藥物疹 | 內服藥所致之全身性皮疹 | Generalized skin eruption due to drugs and medicaments taken internally |
+| `L27.1` | 局部性藥物疹 | 內服藥所致之局部性皮疹 | Localized skin eruption due to drugs and medicaments taken internally |
+| `T88.7XXA` | 藥物不良反應 | 藥物或藥劑未明示之不良作用之初期照護 | Unspecified adverse effect of drug or medicament, initial encounter |
+| `L23.9` | 過敏性接觸性皮膚炎 | 過敏性接觸性皮膚炎，未明示原因 | Allergic contact dermatitis, unspecified cause |
+| `L20.9` | 異位性皮膚炎 | 異位性皮膚炎 | Atopic dermatitis, unspecified |
+| `J30.9` | 過敏性鼻炎 | 過敏性鼻炎 | Allergic rhinitis, unspecified |
+| `J45.909` | 氣喘（無併發症） | 氣喘,無併發症 | Unspecified asthma, uncomplicated |
+| `Z91.010` | 花生過敏 | 花生過敏 | Allergy to peanuts |
+| `Z91.018` | 其他食物過敏 | 其他食物過敏 | Allergy to other foods |
+| `Z88.0` | 盤尼西林過敏狀態 | 對盤尼西林過敏狀態 | Allergy status to penicillin |
+| `Z91.048` | 其他非藥用物質過敏狀態 | 其他非藥用物質過敏狀態 | Other nonmedicinal substance allergy status |
+| `D89.9` | 涉及免疫機轉之疾患 | 涉及免疫機轉之疾患 | Disorder involving the immune mechanism, unspecified |
 
 ### 感染科追蹤
 
@@ -1814,6 +2152,108 @@
 | `G20` | 巴金森氏症 | 巴金森氏症 | Parkinson's disease |
 | `M79.7` | 纖維肌痛 | 纖維肌痛 | Fibromyalgia |
 
+#### 癲癇／抽搐
+
+| 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
+|---|---|---|---|
+| **主訴** | | | |
+| `R56.9` | 痙攣（抽搐） | 痙攣 | Unspecified convulsions |
+| **常見疾病** | | | |
+| `G40.909` | 癲癇（非難治，未伴重積） | 癲癇，非難治之癲癇，未伴有癲癇重積狀態 | Epilepsy, unspecified, not intractable, without status epilepticus |
+| `G40.919` | 癲癇（難治，未伴重積） | 癲癇，難治之癲癇，未伴有癲癇重積狀態 | Epilepsy, unspecified, intractable, without status epilepticus |
+| `G40.209` | 局部性癲癇伴複雜部分發作（非難治，未伴重積） | 有關侷限(局部)(部份)症狀性癲癇及癲癇症候群伴有複雜型部份發作，非難治之癲癇，未伴有癲癇重積狀態 | Localization-related (focal) (partial) symptomatic epilepsy and epileptic syndromes with complex partial seizures, not intractable, without status epilepticus |
+| `G40.219` | 局部性癲癇伴複雜部分發作（難治，未伴重積） | 有關侷限(局部)(部份)症狀性癲癇及癲癇症候群伴有複雜型部份發作，難治之癲癇，未伴有癲癇重積狀態 | Localization-related (focal) (partial) symptomatic epilepsy and epileptic syndromes with complex partial seizures, intractable, without status epilepticus |
+| `G40.109` | 局部性癲癇伴單純部分發作（非難治，未伴重積） | 有關侷限(局部)(部份)症狀性癲癇及癲癇症候群伴有單純型部份發作，非難治之癲癇，未伴有癲癇重積狀態 | Localization-related (focal) (partial) symptomatic epilepsy and epileptic syndromes with simple partial seizures, not intractable, without status epilepticus |
+| `G40.309` | 廣泛性特發性癲癇（非難治，未伴重積） | 廣泛性特發性癲癇及癲癇症候群，非難治之癲癇，未伴有癲癇重積狀態 | Generalized idiopathic epilepsy and epileptic syndromes, not intractable, without status epilepticus |
+| `G40.409` | 其他廣泛性癲癇（非難治，未伴重積） | 其他廣泛性癲癇及癲癇症候群，非難治之癲癇，未伴有癲癇重積狀態 | Other generalized epilepsy and epileptic syndromes, not intractable, without status epilepticus |
+| `G40.A09` | 失神性癲癇（非難治，未伴重積） | 失神性癲癇症候群，非難治之癲癇，未伴有癲癇重積狀態 | Absence epileptic syndrome, not intractable, without status epilepticus |
+| `G40.B09` | 青少年肌陣攣性癲癇（非難治，未伴重積） | 青少年肌陣攣性癲癇，非難治之癲癇，未伴有癲癇重積狀態 | Juvenile myoclonic epilepsy, not intractable, without status epilepticus |
+| `R56.1` | 創傷後發作 | 創傷後發作 | Post traumatic seizures |
+| `R94.01` | 腦波檢查異常 | 腦波檢查結果異常 | Abnormal electroencephalogram [EEG] |
+| `F44.5` | 心因性非癲癇發作（轉化症伴抽搐） | 有抽搐或痙攣的轉化症 | Conversion disorder with seizures or convulsions |
+| `G25.3` | 肌躍症 | 肌躍症 | Myoclonus |
+| `E16.2` | 低血糖 | 低血糖 | Hypoglycemia, unspecified |
+| `E87.1` | 低血鈉及低滲透壓 | 低滲壓及低血鈉 | Hypo-osmolality and hyponatremia |
+| `E87.6` | 低血鉀症 | 低血鉀症 | Hypokalemia |
+| `F10.239` | 酒精依賴伴戒斷 | 酒精依賴，有非特定的戒斷 | Alcohol dependence with withdrawal, unspecified |
+| `F19.939` | 其他精神作用物質使用伴戒斷 | 非特定的其他精神作用物質使用，有非特定的戒斷 | Other psychoactive substance use, unspecified with withdrawal, unspecified |
+| `I63.9` | 急性缺血性腦中風 | 腦梗塞 | Cerebral infarction, unspecified |
+| `I69.30` | 腦中風後遺症 | 腦梗塞後遺症 | Unspecified sequelae of cerebral infarction |
+| `G93.40` | 腦病變 | 腦病變 | Encephalopathy, unspecified |
+| `G93.1` | 缺氧性腦損傷 | 缺氧性腦損傷，他處未歸類者 | Anoxic brain damage, not elsewhere classified |
+| `C71.9` | 腦惡性腫瘤 | 腦惡性腫瘤 | Malignant neoplasm of brain, unspecified |
+| `R55` | 暈厥及虛脫 | 暈厥及虛脫 | Syncope and collapse |
+| `Z86.69` | 神經系統疾病個人史 | 中樞神經系統和感覺器官之其他疾病之個人史 | Personal history of other diseases of the nervous system and sense organs |
+| `Z79.899` | 長期藥物治療 | 長期 （現在之）藥物治療 | Other long term (current) drug therapy |
+
+#### 顫抖／動作障礙
+
+| 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
+|---|---|---|---|
+| **主訴** | | | |
+| `R25.1` | 震顫 | 震顫 | Tremor, unspecified |
+| `R25.9` | 異常不自主運動 | 異常不自主運動 | Unspecified abnormal involuntary movements |
+| **常見疾病** | | | |
+| `G25.0` | 本態性顫抖 | 本態性顫抖 | Essential tremor |
+| `G20` | 巴金森氏症 | 巴金森氏症 | Parkinson's disease |
+| `G21.11` | 抗精神病藥引發之巴金森氏症 | 抗精神病藥引發的巴金森氏症 | Neuroleptic induced parkinsonism |
+| `G21.19` | 其他藥物引發之續發性巴金森氏症 | 其他藥物引發的續發性巴金森氏症 | Other drug induced secondary parkinsonism |
+| `G25.1` | 藥物引發之顫抖 | 藥物引發的顫抖 | Drug-induced tremor |
+| `G25.81` | 腿不寧症候群 | 腿不寧症候群 | Restless legs syndrome |
+| `G25.3` | 肌躍症 | 肌躍症 | Myoclonus |
+| `G25.5` | 其他舞蹈症 | 其他舞蹈症 | Other chorea |
+| `G24.01` | 藥物引發之亞急性動作異常 | 藥物引發的亞急性運動異動 | Drug induced subacute dyskinesia |
+| `G24.4` | 原發性口顏面肌張力異常 | 原發性口面部肌張力異常 | Idiopathic orofacial dystonia |
+| `G23.1` | 進行性核上麻痺 | 進行性核上麻痺 [Steele-Richardson-Olszewski氏病] | Progressive supranuclear ophthalmoplegia [Steele-Richardson-Olszewski] |
+| `G23.2` | 紋狀體黑質退化 | 紋狀體黑質退化 | Striatonigral degeneration |
+| `G31.83` | 路易氏體神經認知障礙 | 路易氏體神經認知障礙 | Neurocognitive disorder with Lewy bodies |
+| `R27.0` | 運動失調 | 共濟失調 | Ataxia, unspecified |
+| `G11.9` | 遺傳性共濟失調 | 遺傳性共濟失調 | Hereditary ataxia, unspecified |
+| `R26.0` | 共濟失調性步態 | 共濟失調性步態 | Ataxic gait |
+| `R26.89` | 其他步態及移動性異常 | 其他步態及移動性異常 | Other abnormalities of gait and mobility |
+| `R29.6` | 重覆性跌倒 | 重覆性跌倒 | Repeated falls |
+| `E05.90` | 甲狀腺毒症／甲亢（未伴危象或風暴） | 未明示之甲狀腺毒症，未伴有甲狀腺毒性危象或風暴 | Thyrotoxicosis, unspecified without thyrotoxic crisis or storm |
+| `E03.9` | 甲狀腺功能低下 | 甲狀腺低下 | Hypothyroidism, unspecified |
+| `F41.9` | 焦慮症 | 非特定的焦慮症 | Anxiety disorder, unspecified |
+| `F10.239` | 酒精依賴伴戒斷 | 酒精依賴，有非特定的戒斷 | Alcohol dependence with withdrawal, unspecified |
+| `Z79.899` | 長期藥物治療 | 長期 （現在之）藥物治療 | Other long term (current) drug therapy |
+
+#### 記憶減退／認知功能
+
+| 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
+|---|---|---|---|
+| **主訴** | | | |
+| `R41.3` | 其他失憶症 | 其他失憶症 | Other amnesia |
+| `R41.81` | 年齡相關認知能力下降 | 年齡相關的認知能力下降 | Age-related cognitive decline |
+| `R41.0` | 定向力障礙 | 定向力障礙 | Disorientation, unspecified |
+| **常見疾病** | | | |
+| `G31.84` | 輕度認知障礙 | 病因不明之輕型認知障礙 | Mild cognitive impairment of uncertain or unknown etiology |
+| `F03.90` | 失智症（未明示嚴重度、無行為障礙） | 非特定的失智症，未明示嚴重度，無行為、精神病症、情緒困擾及焦慮症狀 | Unspecified dementia, unspecified severity, without behavioral disturbance, psychotic disturbance, mood disturbance, and anxiety |
+| `G30.9` | 阿茲海默氏病 | 非特定的阿茲海默氏病 | Alzheimer's disease, unspecified |
+| `G30.0` | 早發型阿茲海默氏病 | 早發型阿茲海默氏病 | Alzheimer's disease with early onset |
+| `G30.1` | 晚發型阿茲海默氏病 | 晚發型阿茲海默氏病 | Alzheimer's disease with late onset |
+| `F01.50` | 血管性失智症（未明示嚴重度、無行為障礙） | 血管性失智症，未明示嚴重度，無行為、精神病症、情緒困擾及焦慮症狀 | Vascular dementia, unspecified severity, without behavioral disturbance, psychotic disturbance, mood disturbance, and anxiety |
+| `G31.83` | 路易氏體神經認知障礙 | 路易氏體神經認知障礙 | Neurocognitive disorder with Lewy bodies |
+| `G31.09` | 其他額顳葉神經認知障礙 | 其它額顳葉神經認知障礙 | Other frontotemporal neurocognitive disorder |
+| `F02.80` | 他處分類疾病所致失智症（未明示嚴重度、無行為障礙） | 歸類於他處其他疾病所致之失智症，未明示嚴重度，無行為、精神病症、情緒困擾及焦慮症狀 | Dementia in other diseases classified elsewhere, unspecified severity, without behavioral disturbance, psychotic disturbance, mood disturbance, and anxiety |
+| `F10.27` | 酒精依賴伴持續性失智症 | 酒精依賴，有酒精引發的持續失智症 | Alcohol dependence with alcohol-induced persisting dementia |
+| `G91.2` | 常壓性水腦症 | (原發性)正常腦壓性水腦症 | (Idiopathic) normal pressure hydrocephalus |
+| `E03.9` | 甲狀腺功能低下 | 甲狀腺低下 | Hypothyroidism, unspecified |
+| `E53.8` | 其他特定維生素 B 群缺乏症 | 其他特定維生素B群缺乏症 | Deficiency of other specified B group vitamins |
+| `E51.2` | Wernicke 氏腦病變 | Wernicke氏腦病變 | Wernicke's encephalopathy |
+| `D51.0` | 維生素 B12 缺乏性貧血（惡性貧血） | 內因子缺乏所致的維生素Ｂ12缺乏性貧血 | Vitamin B12 deficiency anemia due to intrinsic factor deficiency |
+| `F32.9` | 鬱症（首次發作） | 鬱症，首次發作，非特定 | Major depressive disorder, single episode, unspecified |
+| `F41.9` | 焦慮症 | 非特定的焦慮症 | Anxiety disorder, unspecified |
+| `I63.9` | 急性缺血性腦中風 | 腦梗塞 | Cerebral infarction, unspecified |
+| `I69.30` | 腦中風後遺症 | 腦梗塞後遺症 | Unspecified sequelae of cerebral infarction |
+| `A52.17` | 神經性梅毒（全身性輕癱） | 全身性輕癱症 | General paresis |
+| `B20` | HIV 疾病 | 人類免疫不全病毒疾病 | Human immunodeficiency virus [HIV] disease |
+| `R47.01` | 失語症 | 失語症 | Aphasia |
+| `R54` | 年齡相關身體衰弱 | 年齡相關的身體衰弱 | Age-related physical debility |
+| `R29.6` | 重覆性跌倒 | 重覆性跌倒 | Repeated falls |
+| `Z74.3` | 需要持續監督 | 需要持續監督 | Need for continuous supervision |
+| `Z91.83` | 他處分類疾病之徬徨（走失） | 他處分類疾病之徬徨 | Wandering in diseases classified elsewhere |
+
 ### 眼耳鼻喉
 
 #### 紅眼／眼部不適
@@ -1943,6 +2383,76 @@
 | `J38.3` | 聲帶其他疾病 | 聲帶之其他疾病 | Other diseases of vocal cords |
 | `R13.10` | 吞嚥困難 | 吞嚥困難 | Dysphagia, unspecified |
 | `J02.8` | 其他特定病原體急性咽炎 | 其他特定病原體所致急性咽炎 | Acute pharyngitis due to other specified organisms |
+
+#### 口腔／舌與牙齦
+
+| 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
+|---|---|---|---|
+| **主訴** | | | |
+| `K14.6` | 舌痛 | 舌痛 | Glossodynia |
+| `R68.2` | 口乾 | 口乾 | Dry mouth, unspecified |
+| `R43.2` | 味覺倒錯 | 味覺倒錯 | Parageusia |
+| **常見疾病** | | | |
+| `K12.0` | 復發性口瘡（口腔潰瘍） | 復發性口瘡 | Recurrent oral aphthae |
+| `K12.1` | 其他類型口腔炎 | 其他類型口腔炎 | Other forms of stomatitis |
+| `K12.30` | 口腔黏膜炎（潰瘍性） | 口腔黏膜炎（潰瘍性) | Oral mucositis (ulcerative), unspecified |
+| `B37.0` | 念珠菌性口炎 | 念珠菌性口炎 | Candidal stomatitis |
+| `A69.0` | 壞死性潰瘍性口炎 | 壞死性潰瘍性口炎 | Necrotizing ulcerative stomatitis |
+| `K12.2` | 口腔蜂窩組織炎（Ludwig） | 口腔蜂窩組織炎及膿瘍 | Cellulitis and abscess of mouth |
+| `K13.0` | 唇部疾病 | 唇部疾病 | Diseases of lips |
+| `K14.0` | 舌炎 | 舌炎 | Glossitis |
+| `K14.3` | 舌乳頭肥大 | 舌乳頭肥大 | Hypertrophy of tongue papillae |
+| `K13.21` | 口腔黏膜白斑症（含舌部） | 口腔黏膜白斑症，包括舌部 | Leukoplakia of oral mucosa, including tongue |
+| `K13.29` | 其他口腔上皮病變（含舌部） | 其他口腔上皮病變，包括舌部 | Other disturbances of oral epithelium, including tongue |
+| `K13.70` | 口腔黏膜病灶 | 口腔黏膜的病灶 | Unspecified lesions of oral mucosa |
+| `K13.79` | 其他口腔黏膜病灶 | 其他口腔黏膜病灶 | Other lesions of oral mucosa |
+| `K05.00` | 急性齒齦炎（牙菌斑所致） | 急性齒齦炎，牙菌斑導致之 | Acute gingivitis, plaque induced |
+| `K05.10` | 慢性齒齦炎（牙菌斑所致） | 慢性齒齦炎，牙菌斑導致之 | Chronic gingivitis, plaque induced |
+| `K06.9` | 牙齦及無齒性齒槽骨疾患 | 牙齦及無齒性齒槽骨的疾患 | Disorder of gingiva and edentulous alveolar ridge, unspecified |
+| `K08.9` | 牙齒及其支持組織疾患 | 牙齒及其支持組織之疾患 | Disorder of teeth and supporting structures, unspecified |
+| `K11.20` | 唾液腺炎 | 唾液腺炎 | Sialoadenitis, unspecified |
+| `K11.7` | 唾液分泌障礙 | 唾液分泌障礙 | Disturbances of salivary secretion |
+| `D10.1` | 舌良性腫瘤 | 舌良性腫瘤 | Benign neoplasm of tongue |
+| `C06.9` | 口腔惡性腫瘤 | 口惡性腫瘤 | Malignant neoplasm of mouth, unspecified |
+| `B00.2` | 疱疹病毒性齦口炎及咽扁桃體炎 | 疱疹病毒性齦口炎及咽扁桃體炎 | Herpesviral gingivostomatitis and pharyngotonsillitis |
+| `R43.8` | 其他嗅覺及味覺障礙 | 其他嗅覺及味覺障礙 | Other disturbances of smell and taste |
+| `D64.9` | 貧血 | 貧血 | Anemia, unspecified |
+| `E03.9` | 甲狀腺功能低下 | 甲狀腺低下 | Hypothyroidism, unspecified |
+| `E11.9` | 第二型糖尿病（未伴併發症） | 第二型糖尿病，未伴有併發症 | Type 2 diabetes mellitus without complications |
+
+#### 視力模糊／視力下降
+
+| 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
+|---|---|---|---|
+| **主訴** | | | |
+| `H53.8` | 其他特定視覺障礙（視力模糊） | 其他特定之視覺障礙 | Other visual disturbances |
+| `H54.7` | 視力喪失 | 視力喪失 | Unspecified visual loss |
+| `H53.40` | 視野缺損 | 視野缺損 | Unspecified visual field defects |
+| **常見疾病** | | | |
+| `H25.9` | 老年性白內障 | 老年性白內障 | Unspecified age-related cataract |
+| `H26.9` | 白內障 | 白內障 | Unspecified cataract |
+| `H52.4` | 老花眼 | 老花眼 | Presbyopia |
+| `H52.13` | 雙側近視 | 雙側近視 | Myopia, bilateral |
+| `H52.03` | 雙側遠視 | 雙側遠視 | Hypermetropia, bilateral |
+| `H04.129` | 乾眼症 | 未明示側性之淚腺乾眼症 | Dry eye syndrome of unspecified lacrimal gland |
+| `H35.30` | 黃斑部退化 | 黃斑部退化 | Unspecified macular degeneration |
+| `E11.319` | 第二型糖尿病伴視網膜病變（未伴黃斑部水腫） | 第二型糖尿病，伴有糖尿病的視網膜病變，未伴有黃斑部水腫 | Type 2 diabetes mellitus with unspecified diabetic retinopathy without macular edema |
+| `H35.039` | 高血壓性視網膜病變（未明示側） | 未明示側性高血壓性視網膜病變 | Hypertensive retinopathy, unspecified eye |
+| `H34.9` | 視網膜血管阻塞 | 視網膜血管阻塞 | Unspecified retinal vascular occlusion |
+| `H33.20` | 漿液性視網膜剝離（未明示側） | 未明示側性漿液性視網膜剝離 | Serous retinal detachment, unspecified eye |
+| `H43.9` | 玻璃體疾患 | 玻璃體疾患 | Unspecified disorder of vitreous body |
+| `H40.9` | 青光眼 | 青光眼 | Unspecified glaucoma |
+| `H40.219` | 急性隅角閉鎖性青光眼（未明示側） | 未明示側性急性隅角閉鎖性青光眼 | Acute angle-closure glaucoma, unspecified eye |
+| `H47.20` | 視神經萎縮 | 視神經萎縮 | Unspecified optic atrophy |
+| `H18.899` | 其他特定角膜疾患（未明示側） | 未明示側性之其他特定角膜疾患 | Other specified disorders of cornea, unspecified eye |
+| `H53.2` | 複視 | 複視 | Diplopia |
+| `H53.469` | 同側雙邊視野缺損（未明示側） | 未明示側性同側雙邊視野缺損 | Homonymous bilateral field defects, unspecified side |
+| `H53.10` | 自覺性視覺障礙 | 自覺性視覺障礙 | Unspecified subjective visual disturbances |
+| `H55.00` | 眼球震顫 | 眼球震顫 | Unspecified nystagmus |
+| `G45.9` | 短暫性腦缺血發作 TIA | 短暫性大腦缺血發作 | Transient cerebral ischemic attack, unspecified |
+| `I63.9` | 急性缺血性腦中風 | 腦梗塞 | Cerebral infarction, unspecified |
+| `G43.909` | 偏頭痛 | 偏頭痛，未明確定義型態，非頑固性，未伴有偏頭痛重積狀態 | Migraine, unspecified, not intractable, without status migrainosus |
+| `Z01.00` | 來院接受眼睛及視力檢查（無異常發現） | 來院接受眼睛及視力檢查無異常發現 | Encounter for examination of eyes and vision without abnormal findings |
 
 ### 胸肺／心臟
 
@@ -2094,6 +2604,65 @@
 | `E46` | 蛋白質熱量營養不良 | 蛋白質-熱量營養不良症 | Unspecified protein-calorie malnutrition |
 | `D64.9` | 貧血 | 貧血 | Anemia, unspecified |
 
+#### 打鼾／睡眠呼吸中止
+
+| 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
+|---|---|---|---|
+| **主訴** | | | |
+| `R06.83` | 打鼾 | 打鼾 | Snoring |
+| `G47.10` | 多眠症 | 非特定的多眠症 | Hypersomnia, unspecified |
+| **常見疾病** | | | |
+| `G47.33` | 阻塞型睡眠呼吸中止 OSA | 阻塞性睡眠呼吸中止 (成人) (小兒) | Obstructive sleep apnea (adult) (pediatric) |
+| `G47.30` | 睡眠呼吸中止 | 非特定的睡眠呼吸中止 | Sleep apnea, unspecified |
+| `G47.31` | 原發性中樞性睡眠呼吸中止 | 原發性中樞性睡眠呼吸中止 | Primary central sleep apnea |
+| `E66.2` | 病態性肥胖伴肺泡性換氣不足 | 病態性(重度)肥胖症伴有肺泡性換氣不足 | Morbid (severe) obesity with alveolar hypoventilation |
+| `E66.9` | 肥胖 | 肥胖 | Obesity, unspecified |
+| `G47.00` | 失眠 | 非特定的失眠症 | Insomnia, unspecified |
+| `G25.81` | 腿不寧症候群 | 腿不寧症候群 | Restless legs syndrome |
+| `J35.01` | 慢性扁桃腺炎 | 慢性扁桃腺炎 | Chronic tonsillitis |
+| `J34.2` | 鼻中隔彎曲 | 鼻中隔彎曲 | Deviated nasal septum |
+| `J30.9` | 過敏性鼻炎 | 過敏性鼻炎 | Allergic rhinitis, unspecified |
+| `I10` | 本態性高血壓 | 本態性(原發性)高血壓 | Essential (primary) hypertension |
+| `I48.91` | 心房顫動 | 心房顫動 | Unspecified atrial fibrillation |
+| `I50.9` | 心臟衰竭 HF | 心臟衰竭 | Heart failure, unspecified |
+| `E11.9` | 第二型糖尿病（未伴併發症） | 第二型糖尿病，未伴有併發症 | Type 2 diabetes mellitus without complications |
+| `E03.9` | 甲狀腺功能低下 | 甲狀腺低下 | Hypothyroidism, unspecified |
+| `J44.9` | 慢性阻塞性肺病 COPD | 慢性阻塞性肺病 | Chronic obstructive pulmonary disease, unspecified |
+| `F32.9` | 鬱症（首次發作） | 鬱症，首次發作，非特定 | Major depressive disorder, single episode, unspecified |
+| `R53.83` | 疲倦 | 其他疲勞 | Other fatigue |
+| `Z99.89` | 其他維生機械及裝置依賴（CPAP） | 其他維生機械及裝置依賴 | Dependence on other enabling machines and devices |
+| `Z79.899` | 長期藥物治療 | 長期 （現在之）藥物治療 | Other long term (current) drug therapy |
+
+#### 戒菸／菸害
+
+| 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
+|---|---|---|---|
+| **主訴** | | | |
+| `Z71.6` | 菸草濫用諮詢 | 菸草濫用之諮詢 | Tobacco abuse counseling |
+| `Z72.0` | 使用菸草 | 菸草 | Tobacco use |
+| **常見疾病** | | | |
+| `F17.200` | 尼古丁依賴（無併發症） | 非特定的尼古丁依賴，無併發症 | Nicotine dependence, unspecified, uncomplicated |
+| `F17.210` | 尼古丁依賴（香菸、未併發症） | 尼古丁依賴，香菸，無併發症 | Nicotine dependence, cigarettes, uncomplicated |
+| `F17.213` | 尼古丁依賴—香菸（有戒斷） | 尼古丁依賴，香菸，有戒斷 | Nicotine dependence, cigarettes, with withdrawal |
+| `Z87.891` | 尼古丁依賴病史 | 尼古丁依賴之個人史 | Personal history of nicotine dependence |
+| `J44.9` | 慢性阻塞性肺病 COPD | 慢性阻塞性肺病 | Chronic obstructive pulmonary disease, unspecified |
+| `J43.9` | 肺氣腫 | 肺氣腫 | Emphysema, unspecified |
+| `J41.0` | 單純性慢性支氣管炎 | 單純性慢性支氣管炎 | Simple chronic bronchitis |
+| `J45.909` | 氣喘（無併發症） | 氣喘,無併發症 | Unspecified asthma, uncomplicated |
+| `C34.90` | 肺／支氣管惡性腫瘤（未明示側） | 未明示側性支氣管或肺惡性腫瘤 | Malignant neoplasm of unspecified part of unspecified bronchus or lung |
+| `Z12.2` | 來院接受呼吸器官腫瘤篩檢 | 來院接受呼吸器官惡性腫瘤之篩檢 | Encounter for screening for malignant neoplasm of respiratory organs |
+| `I25.10` | 冠狀動脈粥狀硬化性心臟病（未伴心絞痛） | 自體的冠狀動脈粥樣硬化心臟病未伴有心絞痛 | Atherosclerotic heart disease of native coronary artery without angina pectoris |
+| `I70.209` | 四肢動脈粥狀硬化（未明示） | 未明示四肢動脈粥樣硬化 | Unspecified atherosclerosis of native arteries of extremities, unspecified extremity |
+| `I63.9` | 急性缺血性腦中風 | 腦梗塞 | Cerebral infarction, unspecified |
+| `I10` | 本態性高血壓 | 本態性(原發性)高血壓 | Essential (primary) hypertension |
+| `E78.5` | 高血脂症 | 高血脂症 | Hyperlipidemia, unspecified |
+| `E11.9` | 第二型糖尿病（未伴併發症） | 第二型糖尿病，未伴有併發症 | Type 2 diabetes mellitus without complications |
+| `K21.9` | 胃食道逆流 GERD（未伴食道炎） | 胃食道逆性疾病未伴有食道炎 | Gastro-esophageal reflux disease without esophagitis |
+| `F41.9` | 焦慮症 | 非特定的焦慮症 | Anxiety disorder, unspecified |
+| `F32.9` | 鬱症（首次發作） | 鬱症，首次發作，非特定 | Major depressive disorder, single episode, unspecified |
+| `R05.9` | 咳嗽 | 咳嗽 | Cough, unspecified |
+| `Z79.899` | 長期藥物治療 | 長期 （現在之）藥物治療 | Other long term (current) drug therapy |
+
 ### 腹部／消化
 
 #### 腹痛
@@ -2240,6 +2809,112 @@
 | `K62.89` | 肛門及直腸其他特定疾病 | 肛門及直腸其他特定疾病 | Other specified diseases of anus and rectum |
 | `Z12.11` | 來院接受結腸腫瘤篩檢 | 來院接受結腸惡性腫瘤之篩檢 | Encounter for screening for malignant neoplasm of colon |
 
+#### 肛門／痔瘡
+
+| 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
+|---|---|---|---|
+| **主訴** | | | |
+| `K62.5` | 肛門及直腸出血 | 肛門及直腸出血 | Hemorrhage of anus and rectum |
+| `L29.0` | 肛門搔癢症 | 肛門搔癢症 | Pruritus ani |
+| **常見疾病** | | | |
+| `K64.0` | 第一級痔瘡 | 第一級痔瘡 | First degree hemorrhoids |
+| `K64.1` | 第二級痔瘡 | 第二級痔瘡 | Second degree hemorrhoids |
+| `K64.2` | 第三級痔瘡 | 第三級痔瘡 | Third degree hemorrhoids |
+| `K64.3` | 第四級痔瘡 | 第四級痔瘡 | Fourth degree hemorrhoids |
+| `K64.4` | 痔瘡性殘留皮膚垂下物 | 痔瘡性殘留皮膚垂下物 | Residual hemorrhoidal skin tags |
+| `K64.8` | 其他痔瘡 | 其他痔瘡 | Other hemorrhoids |
+| `K64.9` | 痔瘡 | 痔瘡 | Unspecified hemorrhoids |
+| `K60.0` | 急性肛裂 | 急性肛裂 | Acute anal fissure |
+| `K60.2` | 肛門裂 | 肛門裂 | Anal fissure, unspecified |
+| `K60.3` | 肛門廔管 | 肛門廔管 | Anal fistula |
+| `K61.0` | 肛門膿瘍 | 肛門膿瘍 | Anal abscess |
+| `K62.6` | 肛門及直腸潰瘍 | 肛門及直腸潰瘍 | Ulcer of anus and rectum |
+| `K62.3` | 直腸脫垂 | 直腸脫垂 | Rectal prolapse |
+| `K62.1` | 直腸息肉 | 直腸息肉 | Rectal polyp |
+| `K62.82` | 肛門發育不良 | 肛門發育不良 | Dysplasia of anus |
+| `K62.89` | 肛門及直腸其他特定疾病 | 肛門及直腸其他特定疾病 | Other specified diseases of anus and rectum |
+| `K92.1` | 黑便 | 黑便 | Melena |
+| `K92.2` | 胃腸道出血 | 胃腸道出血 | Gastrointestinal hemorrhage, unspecified |
+| `K57.30` | 大腸憩室（未伴穿孔或膿瘍、無出血） | 大腸憩室未伴有穿孔或膿瘍無出血 | Diverticulosis of large intestine without perforation or abscess without bleeding |
+| `K51.90` | 潰瘍性結腸炎（未伴併發症） | 潰瘍性結腸炎未伴有併發症 | Ulcerative colitis, unspecified, without complications |
+| `K50.90` | 克隆氏病（未伴併發症） | 克隆氏病未伴有併發症 | Crohn's disease, unspecified, without complications |
+| `C18.9` | 結腸惡性腫瘤 | 結腸惡性腫瘤 | Malignant neoplasm of colon, unspecified |
+| `C20` | 直腸惡性腫瘤 | 直腸惡性腫瘤 | Malignant neoplasm of rectum |
+| `D12.6` | 結腸良性腫瘤 | 結腸良性腫瘤 | Benign neoplasm of colon, unspecified |
+| `K59.00` | 便秘 | 便秘 | Constipation, unspecified |
+| `R15.9` | 大便完全失禁 | 大便完全失禁 | Full incontinence of feces |
+| `Z12.11` | 來院接受結腸腫瘤篩檢 | 來院接受結腸惡性腫瘤之篩檢 | Encounter for screening for malignant neoplasm of colon |
+
+#### 黃疸／肝功能異常
+
+| 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
+|---|---|---|---|
+| **主訴** | | | |
+| `R17` | 黃疸 | 黃疸 | Unspecified jaundice |
+| `R74.01` | 肝指數上升（轉胺酶） | 轉胺基脢含量上升 | Elevation of levels of liver transaminase levels |
+| `R94.5` | 肝功能檢查異常 | 肝功能檢查結果異常 | Abnormal results of liver function studies |
+| **常見疾病** | | | |
+| `K76.0` | 脂肪肝 | 脂肪肝(變化)，他處未歸類者 | Fatty (change of) liver, not elsewhere classified |
+| `B18.1` | 慢性 B 型肝炎（未伴 D 型） | 慢性病毒性B型肝炎未伴有D 型肝炎病毒 | Chronic viral hepatitis B without delta-agent |
+| `B18.2` | 慢性 C 型肝炎 | 慢性病毒性C型肝炎 | Chronic viral hepatitis C |
+| `K75.4` | 自體免疫性肝炎 | 自體免疫性肝炎 | Autoimmune hepatitis |
+| `K71.9` | 毒性肝疾病（藥物性肝損傷） | 毒性肝疾病 | Toxic liver disease, unspecified |
+| `K70.10` | 酒精性肝炎（未伴腹水） | 酒精性肝炎未伴有腹水 | Alcoholic hepatitis without ascites |
+| `K70.30` | 酒精性肝硬化（未伴腹水） | 酒精性肝硬化未伴有腹水 | Alcoholic cirrhosis of liver without ascites |
+| `K74.60` | 肝硬化 | 肝硬化 | Unspecified cirrhosis of liver |
+| `K72.90` | 肝衰竭（未伴昏迷） | 肝衰竭未伴有昏迷 | Hepatic failure, unspecified without coma |
+| `K76.6` | 門脈高壓 | 門脈高壓 | Portal hypertension |
+| `R16.0` | 肝腫大 | 肝腫大，他處未歸類者 | Hepatomegaly, not elsewhere classified |
+| `R18.8` | 其他腹水 | 其他腹水 | Other ascites |
+| `K80.20` | 膽囊結石（未伴膽囊炎、未伴阻塞） | 膽囊結石未伴有膽囊炎未伴有阻塞 | Calculus of gallbladder without cholecystitis without obstruction |
+| `K80.50` | 膽管結石（未伴膽囊炎或膽管炎、未伴阻塞） | 膽管結石未伴有膽囊炎或膽管炎未伴有阻塞 | Calculus of bile duct without cholangitis or cholecystitis without obstruction |
+| `K83.09` | 急性膽管炎（其他膽管炎） | 其他膽管炎 | Other cholangitis |
+| `E80.6` | 其他膽紅素代謝疾患（Gilbert 症候群） | 其他膽紅素代謝疾患 | Other disorders of bilirubin metabolism |
+| `E83.110` | 遺傳性血色素沉著症 | 遺傳性血色素沉著症 | Hereditary hemochromatosis |
+| `D59.9` | 後天性溶血性貧血 | 後天性溶血性貧血 | Acquired hemolytic anemia, unspecified |
+| `C22.0` | 肝細胞癌 | 肝細胞癌 | Liver cell carcinoma |
+| `C25.9` | 胰臟惡性腫瘤 | 胰臟惡性腫瘤 | Malignant neoplasm of pancreas, unspecified |
+| `K86.1` | 其他慢性胰臟炎 | 其他慢性胰臟炎 | Other chronic pancreatitis |
+| `E11.9` | 第二型糖尿病（未伴併發症） | 第二型糖尿病，未伴有併發症 | Type 2 diabetes mellitus without complications |
+| `E78.5` | 高血脂症 | 高血脂症 | Hyperlipidemia, unspecified |
+| `E66.9` | 肥胖 | 肥胖 | Obesity, unspecified |
+| `Z79.899` | 長期藥物治療 | 長期 （現在之）藥物治療 | Other long term (current) drug therapy |
+
+#### 腹脹／消化不良
+
+| 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
+|---|---|---|---|
+| **主訴** | | | |
+| `R14.0` | 腹部鼓脹（氣源性） | 腹部鼓脹(氣源性) | Abdominal distension (gaseous) |
+| `R14.3` | 胃腸脹氣 | 胃腸脹氣 | Flatulence |
+| `R10.13` | 心窩部痛 | 心窩部痛 | Epigastric pain |
+| **常見疾病** | | | |
+| `K30` | 功能性消化不良 | 功能性消化不良 | Functional dyspepsia |
+| `K21.9` | 胃食道逆流 GERD（未伴食道炎） | 胃食道逆性疾病未伴有食道炎 | Gastro-esophageal reflux disease without esophagitis |
+| `K21.00` | 胃食道逆流伴食道炎（未伴出血） | 胃食道逆流性疾病伴有食道炎未伴有出血 | Gastro-esophageal reflux disease with esophagitis, without bleeding |
+| `K29.70` | 胃炎（未伴出血） | 胃炎未伴有出血 | Gastritis, unspecified, without bleeding |
+| `K25.9` | 胃潰瘍（未明示急慢性、未伴出血或穿孔） | 胃潰瘍，未明示急性或慢性，未伴有出血或穿孔 | Gastric ulcer, unspecified as acute or chronic, without hemorrhage or perforation |
+| `K26.9` | 十二指腸潰瘍（未明示急慢性、未伴出血或穿孔） | 十二指腸潰瘍，未明示急性或慢性，未伴有出血或穿孔 | Duodenal ulcer, unspecified as acute or chronic, without hemorrhage or perforation |
+| `B96.81` | 幽門螺旋桿菌（附加碼） | 歸類於他處幽門桿菌所致的疾病 | Helicobacter pylori [H. pylori] as the cause of diseases classified elsewhere |
+| `K31.84` | 胃輕癱 | 胃輕癱 | Gastroparesis |
+| `K58.9` | 腸躁症（未伴腹瀉） | 激躁性腸症候群未伴有腹瀉 | Irritable bowel syndrome without diarrhea |
+| `K59.00` | 便秘 | 便秘 | Constipation, unspecified |
+| `E73.9` | 乳糖不耐 | 乳糖耐受不良 | Lactose intolerance, unspecified |
+| `K90.0` | 乳糜瀉 | 乳糜瀉 | Celiac disease |
+| `K91.1` | 胃手術後徵候群 | 胃手術後徵候群 | Postgastric surgery syndromes |
+| `K57.30` | 大腸憩室（未伴穿孔或膿瘍、無出血） | 大腸憩室未伴有穿孔或膿瘍無出血 | Diverticulosis of large intestine without perforation or abscess without bleeding |
+| `K76.0` | 脂肪肝 | 脂肪肝(變化)，他處未歸類者 | Fatty (change of) liver, not elsewhere classified |
+| `K80.20` | 膽囊結石（未伴膽囊炎、未伴阻塞） | 膽囊結石未伴有膽囊炎未伴有阻塞 | Calculus of gallbladder without cholecystitis without obstruction |
+| `K86.1` | 其他慢性胰臟炎 | 其他慢性胰臟炎 | Other chronic pancreatitis |
+| `K56.609` | 腸阻塞 | 腸阻塞，未明示阻塞程度 | Unspecified intestinal obstruction, unspecified as to partial versus complete obstruction |
+| `R18.8` | 其他腹水 | 其他腹水 | Other ascites |
+| `R13.10` | 吞嚥困難 | 吞嚥困難 | Dysphagia, unspecified |
+| `R63.0` | 食慾不振 | 厭食 | Anorexia |
+| `R63.4` | 體重減輕 | 體重異常減輕 | Abnormal weight loss |
+| `C16.9` | 胃惡性腫瘤 | 胃惡性腫瘤 | Malignant neoplasm of stomach, unspecified |
+| `C18.9` | 結腸惡性腫瘤 | 結腸惡性腫瘤 | Malignant neoplasm of colon, unspecified |
+| `E11.9` | 第二型糖尿病（未伴併發症） | 第二型糖尿病，未伴有併發症 | Type 2 diabetes mellitus without complications |
+
 ### 泌尿／生殖
 
 #### 排尿症狀
@@ -2314,6 +2989,111 @@
 | `N13.30` | 腎水腫 | 腎水腫 | Unspecified hydronephrosis |
 | `A18.10` | 生殖泌尿系統結核 | 生殖泌尿系統結核 | Tuberculosis of genitourinary system, unspecified |
 | `Z79.01` | 長期服用抗凝血劑 | 長期（現在之）服用抗凝血劑 | Long term (current) use of anticoagulants |
+
+#### 陰道分泌物／外陰不適
+
+| 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
+|---|---|---|---|
+| **主訴** | | | |
+| `N89.8` | 陰道分泌物（其他非炎性疾患） | 陰道其他特定非炎性疾患 | Other specified noninflammatory disorders of vagina |
+| `L29.2` | 女陰搔癢症 | 女陰搔癢症 | Pruritus vulvae |
+| `N94.10` | 性交疼痛 | 性交疼痛 | Unspecified dyspareunia |
+| **常見疾病** | | | |
+| `N76.0` | 急性陰道炎 | 急性陰道炎 | Acute vaginitis |
+| `N76.1` | 亞急性及慢性陰道炎 | 亞急性及慢性陰道炎 | Subacute and chronic vaginitis |
+| `N76.2` | 急性外陰炎 | 急性女外陰炎 | Acute vulvitis |
+| `B37.31` | 女陰及陰道急性念珠菌病 | 女陰及陰道急性念珠菌病 | Acute candidiasis of vulva and vagina |
+| `B37.32` | 女陰及陰道慢性念珠菌病 | 女陰及陰道慢性念珠菌病 | Chronic candidiasis of vulva and vagina |
+| `A59.01` | 陰道滴蟲感染 | 滴蟲感染之女陰陰道炎 | Trichomonal vulvovaginitis |
+| `A56.02` | 披衣菌性外陰陰道炎 | 披衣菌性外陰道炎 | Chlamydial vulvovaginitis |
+| `A54.02` | 淋菌性外陰陰道炎 | 淋病雙球菌性外陰陰道炎 | Gonococcal vulvovaginitis, unspecified |
+| `A60.04` | 疱疹病毒性外陰陰道炎 | 疱疹病毒性外陰陰道炎 | Herpesviral vulvovaginitis |
+| `N95.2` | 停經後萎縮性陰道炎 | 停經後萎縮性陰道炎 | Postmenopausal atrophic vaginitis |
+| `N95.1` | 停經及更年期症狀 | 停經及女性更年期之病況 | Menopausal and female climacteric states |
+| `N73.9` | 女性骨盆炎性疾病 PID | 女性骨盆炎性疾病 | Female pelvic inflammatory disease, unspecified |
+| `A56.11` | 披衣菌性骨盆腔發炎疾病 | 披衣菌性骨盆腔發炎疾病 | Chlamydial female pelvic inflammatory disease |
+| `N90.4` | 外陰白斑症 | 女外陰白斑症 | Leukoplakia of vulva |
+| `A63.0` | 肛門生殖器疣 | 肛門生殖器疣 | Anogenital (venereal) warts |
+| `N87.9` | 子宮頸異常增生 | 子宮頸異常增生 | Dysplasia of cervix uteri, unspecified |
+| `R87.610` | 子宮頸抹片 ASC-US | 子宮頸細胞學抹片發現意義未明的非典型鱗狀上皮細胞 (ASC-US) | Atypical squamous cells of undetermined significance on cytologic smear of cervix (ASC-US) |
+| `C53.9` | 子宮頸惡性腫瘤 | 子宮頸惡性腫瘤 | Malignant neoplasm of cervix uteri, unspecified |
+| `Z12.4` | 來院接受子宮頸腫瘤篩檢 | 來院接受子宮頸惡性腫瘤篩檢 | Encounter for screening for malignant neoplasm of cervix |
+| `N92.0` | 月經量過多（規則週期） | 月經量過多及次數過多伴有規則週期 | Excessive and frequent menstruation with regular cycle |
+| `N92.6` | 月經不規則 | 月經不規則 | Irregular menstruation, unspecified |
+| `N91.2` | 無月經 | 無月經 | Amenorrhea, unspecified |
+| `N94.6` | 經痛 | 痛經症 | Dysmenorrhea, unspecified |
+| `N39.0` | 泌尿道感染 UTI | 未明示部位之泌尿道感染症 | Urinary tract infection, site not specified |
+| `E11.9` | 第二型糖尿病（未伴併發症） | 第二型糖尿病，未伴有併發症 | Type 2 diabetes mellitus without complications |
+
+#### 男性生殖器症狀
+
+| 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
+|---|---|---|---|
+| **主訴** | | | |
+| `N50.819` | 睪丸疼痛（未明示側） | 未明示側性睪丸疼痛 | Testicular pain, unspecified |
+| `N52.9` | 男性勃起障礙 | 男性勃起障礙 | Male erectile dysfunction, unspecified |
+| `R36.0` | 尿道分泌物（未伴血液） | 尿道分泌物未伴有血液 | Urethral discharge without blood |
+| **常見疾病** | | | |
+| `N45.1` | 副睪炎 | 副睪丸炎 | Epididymitis |
+| `N43.3` | 陰囊水腫 | 陰囊水腫 | Hydrocele, unspecified |
+| `N43.40` | 副睪丸精液囊腫 | 副睪丸精液囊腫 | Spermatocele of epididymis, unspecified |
+| `I86.1` | 陰囊靜脈曲張 | 陰囊靜脈曲張 | Scrotal varices |
+| `N47.1` | 包莖 | 包莖 | Phimosis |
+| `N48.1` | 龜頭炎 | 龜頭炎 | Balanitis |
+| `B37.42` | 念珠菌性龜頭炎 | 念珠菌性龜頭炎 | Candidal balanitis |
+| `N50.89` | 其他特定男性生殖器官疾患 | 其他特定男性生殖器官疾患 | Other specified disorders of the male genital organs |
+| `C62.90` | 睪丸惡性腫瘤（未明示側、未明示是否下降） | 未明示側性睪丸之惡性腫瘤，未明示是否下降或未下降 | Malignant neoplasm of unspecified testis, unspecified whether descended or undescended |
+| `N41.1` | 慢性攝護腺炎 | 慢性攝護腺炎 | Chronic prostatitis |
+| `N41.0` | 急性攝護腺炎 | 急性攝護腺炎 | Acute prostatitis |
+| `N40.1` | 攝護腺增生伴下泌尿道症狀 BPH | 良性攝護腺增生伴有下泌尿道症狀 | Benign prostatic hyperplasia with lower urinary tract symptoms |
+| `N40.0` | 攝護腺增生（未伴下泌尿道症狀） | 良性攝護腺增生未伴有下泌尿道症狀 | Benign prostatic hyperplasia without lower urinary tract symptoms |
+| `C61` | 攝護腺惡性腫瘤 | 攝護腺惡性腫瘤 | Malignant neoplasm of prostate |
+| `N34.1` | 非特異性尿道炎 | 非特定性的尿道炎 | Nonspecific urethritis |
+| `N34.2` | 其他尿道炎 | 其他尿道炎 | Other urethritis |
+| `A54.01` | 淋菌性膀胱炎及尿道炎 | 淋病雙球菌性膀胱炎及尿道炎，未明示 | Gonococcal cystitis and urethritis, unspecified |
+| `A56.01` | 披衣菌性膀胱炎及尿道炎 | 披衣菌性膀胱炎和尿道炎 | Chlamydial cystitis and urethritis |
+| `N39.0` | 泌尿道感染 UTI | 未明示部位之泌尿道感染症 | Urinary tract infection, site not specified |
+| `E11.9` | 第二型糖尿病（未伴併發症） | 第二型糖尿病，未伴有併發症 | Type 2 diabetes mellitus without complications |
+| `E78.5` | 高血脂症 | 高血脂症 | Hyperlipidemia, unspecified |
+| `I10` | 本態性高血壓 | 本態性(原發性)高血壓 | Essential (primary) hypertension |
+| `F32.9` | 鬱症（首次發作） | 鬱症，首次發作，非特定 | Major depressive disorder, single episode, unspecified |
+| `Z79.899` | 長期藥物治療 | 長期 （現在之）藥物治療 | Other long term (current) drug therapy |
+
+#### 性傳染病
+
+| 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
+|---|---|---|---|
+| **主訴** | | | |
+| `Z11.3` | 性傳染病篩檢 | 來院接受主要經由性傳播模式感染之篩檢 | Encounter for screening for infections with a predominantly sexual mode of transmission |
+| `Z20.2` | 性傳染病接觸或疑似曝露 | 主要經由性傳播模式感染之接觸或疑似曝露 | Contact with and (suspected) exposure to infections with a predominantly sexual mode of transmission |
+| **常見疾病** | | | |
+| `A54.00` | 下生殖泌尿道淋菌感染 | 下生殖泌尿道淋病雙球菌感染 | Gonococcal infection of lower genitourinary tract, unspecified |
+| `A54.01` | 淋菌性膀胱炎及尿道炎 | 淋病雙球菌性膀胱炎及尿道炎，未明示 | Gonococcal cystitis and urethritis, unspecified |
+| `A54.02` | 淋菌性外陰陰道炎 | 淋病雙球菌性外陰陰道炎 | Gonococcal vulvovaginitis, unspecified |
+| `A54.5` | 淋病雙球菌性咽炎 | 淋病雙球菌性咽炎 | Gonococcal pharyngitis |
+| `A54.9` | 淋病雙球菌感染 | 淋病雙球菌感染 | Gonococcal infection, unspecified |
+| `A56.01` | 披衣菌性膀胱炎及尿道炎 | 披衣菌性膀胱炎和尿道炎 | Chlamydial cystitis and urethritis |
+| `A56.02` | 披衣菌性外陰陰道炎 | 披衣菌性外陰道炎 | Chlamydial vulvovaginitis |
+| `A55` | 披衣菌性淋巴肉芽腫 | 披衣菌性淋巴肉芽腫 | Chlamydial lymphogranuloma (venereum) |
+| `A51.0` | 第一期生殖器梅毒 | 第一期(原發性)生殖器梅毒 | Primary genital syphilis |
+| `A51.39` | 其他第二期皮膚梅毒 | 其他第二期(續發性)皮膚梅毒 | Other secondary syphilis of skin |
+| `A51.9` | 早期梅毒 | 早期梅毒 | Early syphilis, unspecified |
+| `A53.0` | 潛伏性梅毒（未明示早晚期） | 未明示早期或晚期的潛伏性梅毒 | Latent syphilis, unspecified as early or late |
+| `A52.9` | 晚期梅毒 | 晚期梅毒 | Late syphilis, unspecified |
+| `A57` | 軟性下疳 | 軟性下疳 | Chancroid |
+| `A60.00` | 泌尿生殖系統疱疹病毒感染 | 泌尿生殖系統疱疹病毒性感染 | Herpesviral infection of urogenital system, unspecified |
+| `A60.09` | 其他生殖泌尿道疱疹感染 | 其他疱疹病毒性生殖泌尿道感染 | Herpesviral infection of other urogenital tract |
+| `A63.0` | 肛門生殖器疣 | 肛門生殖器疣 | Anogenital (venereal) warts |
+| `B97.7` | 乳突病毒 HPV（附加碼） | 歸類於他處乳突(頭)病毒所致的疾病 | Papillomavirus as the cause of diseases classified elsewhere |
+| `A59.01` | 陰道滴蟲感染 | 滴蟲感染之女陰陰道炎 | Trichomonal vulvovaginitis |
+| `B20` | HIV 疾病 | 人類免疫不全病毒疾病 | Human immunodeficiency virus [HIV] disease |
+| `Z21` | 無症狀 HIV 感染狀態 | 無症狀之人類免疫不全病毒感染狀態 | Asymptomatic human immunodeficiency virus [HIV] infection status |
+| `B18.1` | 慢性 B 型肝炎（未伴 D 型） | 慢性病毒性B型肝炎未伴有D 型肝炎病毒 | Chronic viral hepatitis B without delta-agent |
+| `B18.2` | 慢性 C 型肝炎 | 慢性病毒性C型肝炎 | Chronic viral hepatitis C |
+| `N34.1` | 非特異性尿道炎 | 非特定性的尿道炎 | Nonspecific urethritis |
+| `Z72.51` | 高危險異性戀性行為 | 高危險異性戀性行為 | High risk heterosexual behavior |
+| `Z72.52` | 高危險同性戀性行為 | 高危險同性戀性行為 | High risk homosexual behavior |
+| `Z72.53` | 高危險雙性戀性行為 | 高危險雙性戀性行為 | High risk bisexual behavior |
 
 ### 皮膚／軟組織
 
@@ -2543,6 +3323,38 @@
 | `Z79.4` | 長期使用胰島素 | 長期（現在之）服用胰島素 | Long term (current) use of insulin |
 | `Z16.24` | 多重抗生素抗藥性（附加碼） | 多種抗生素之抗藥性 | Resistance to multiple antibiotics |
 
+#### 落髮／指甲／痤瘡
+
+| 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
+|---|---|---|---|
+| **主訴** | | | |
+| `L65.9` | 非疤痕性掉髮 | 非疤痕性掉髮 | Nonscarring hair loss, unspecified |
+| `L60.9` | 指（趾）甲疾患 | 指（趾）甲疾患 | Nail disorder, unspecified |
+| `L70.9` | 痤瘡 | 痤瘡 | Acne, unspecified |
+| **常見疾病** | | | |
+| `L63.9` | 圓禿 | 圓禿 | Alopecia areata, unspecified |
+| `L64.9` | 雄性禿 | 雄性禿 | Androgenic alopecia, unspecified |
+| `L65.0` | 休止期落髮 | 休止期落髮 | Telogen effluvium |
+| `L66.9` | 疤痕性禿髮 | 疤痕性禿髮 | Cicatricial alopecia, unspecified |
+| `L68.0` | 男樣多毛症 | 男樣多毛症 | Hirsutism |
+| `L70.0` | 尋常性痤瘡 | 尋常性痤瘡 | Acne vulgaris |
+| `L71.9` | 酒渣 | 酒渣 | Rosacea, unspecified |
+| `L73.9` | 毛囊疾患 | 毛囊疾患 | Follicular disorder, unspecified |
+| `L21.0` | 頭皮脂漏 | 頭皮脂漏 | Seborrhea capitis |
+| `L21.9` | 脂漏性皮膚炎 | 脂漏性皮膚炎 | Seborrheic dermatitis, unspecified |
+| `L40.0` | 尋常性乾癬 | 尋常性乾癬 | Psoriasis vulgaris |
+| `B35.1` | 甲癬 | 甲癬 | Tinea unguium |
+| `B35.3` | 足癬 | 足癬 | Tinea pedis |
+| `L60.0` | 甲內生（嵌甲） | 指（趾）甲內生 | Ingrowing nail |
+| `L60.1` | 指（趾）甲剝離 | 指(趾)甲剝離 | Onycholysis |
+| `L84` | 雞眼及胼胝 | 雞眼及胼胝 | Corns and callosities |
+| `D50.9` | 缺鐵性貧血 | 缺鐵性貧血 | Iron deficiency anemia, unspecified |
+| `E03.9` | 甲狀腺功能低下 | 甲狀腺低下 | Hypothyroidism, unspecified |
+| `E05.90` | 甲狀腺毒症／甲亢（未伴危象或風暴） | 未明示之甲狀腺毒症，未伴有甲狀腺毒性危象或風暴 | Thyrotoxicosis, unspecified without thyrotoxic crisis or storm |
+| `E28.2` | 多囊卵巢症候群 | 多囊性卵巢症候群 | Polycystic ovarian syndrome |
+| `A51.39` | 其他第二期皮膚梅毒 | 其他第二期(續發性)皮膚梅毒 | Other secondary syphilis of skin |
+| `Z79.899` | 長期藥物治療 | 長期 （現在之）藥物治療 | Other long term (current) drug therapy |
+
 ### 肌肉骨骼
 
 #### 關節痛
@@ -2659,6 +3471,36 @@
 | `M35.00` | 修格蘭氏症候群（乾燥症） | sjogren's症候群 | Sjogren syndrome, unspecified |
 | `E11.9` | 第二型糖尿病（未伴併發症） | 第二型糖尿病，未伴有併發症 | Type 2 diabetes mellitus without complications |
 
+#### 足踝／足底疼痛
+
+| 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
+|---|---|---|---|
+| **主訴** | | | |
+| `M79.673` | 足部疼痛（未明示側） | 未明示側性足部疼痛 | Pain in unspecified foot |
+| `M25.579` | 踝部及足部關節痛（未明示側） | 未明示側性踝部及足部關節痛 | Pain in unspecified ankle and joints of unspecified foot |
+| **常見疾病** | | | |
+| `M72.2` | 足底筋膜炎（蹠筋膜纖維瘤症） | 蹠筋膜纖維瘤症 | Plantar fascial fibromatosis |
+| `M77.30` | 足跟骨骨刺（未明示側） | 未明示側性足跟骨骨刺 | Calcaneal spur, unspecified foot |
+| `M76.60` | 跟腱肌腱炎（未明示側） | 未明示側性小腿跟腱肌腱炎 | Achilles tendinitis, unspecified leg |
+| `M76.70` | 腓肌腱炎（未明示側） | 未明示側性小腿腓肌腱炎 | Peroneal tendinitis, unspecified leg |
+| `M77.40` | 足蹠骨痛（未明示側） | 未明示側性足蹠骨痛 | Metatarsalgia, unspecified foot |
+| `G57.60` | 蹠神經病灶（未明示側） | 未明示側性下肢蹠神經病灶 | Lesion of plantar nerve, unspecified lower limb |
+| `M20.10` | 拇趾外翻（後天性、未明示側） | 未明示側性足部拇趾外翻（後天性） | Hallux valgus (acquired), unspecified foot |
+| `M21.6X9` | 足部其他後天性變形（未明示側） | 未明示側性足部其他後天性變形 | Other acquired deformities of unspecified foot |
+| `M79.676` | 腳趾疼痛（未明示側） | 未明示側性腳趾疼痛 | Pain in unspecified toe(s) |
+| `M10.071` | 右踝／足特發性痛風 | 右側踝部及足部特發性痛風 | Idiopathic gout, right ankle and foot |
+| `M10.072` | 左踝／足特發性痛風 | 左側踝部及足部特發性痛風 | Idiopathic gout, left ankle and foot |
+| `M10.9` | 痛風 | 痛風 | Gout, unspecified |
+| `L84` | 雞眼及胼胝 | 雞眼及胼胝 | Corns and callosities |
+| `B35.3` | 足癬 | 足癬 | Tinea pedis |
+| `I73.9` | 末梢血管疾病 | 末梢血管疾病 | Peripheral vascular disease, unspecified |
+| `I83.90` | 下肢靜脈曲張（無症狀、未明示側） | 未明示側性下肢無症狀靜脈曲張 | Asymptomatic varicose veins of unspecified lower extremity |
+| `E11.42` | 第二型糖尿病伴多發神經病變 | 第二型糖尿病，伴有糖尿病的多發神經病變 | Type 2 diabetes mellitus with diabetic polyneuropathy |
+| `G62.9` | 多發神經病變 | 多發神經病變 | Polyneuropathy, unspecified |
+| `M79.609` | 肢體疼痛 | 肢體疼痛 | Pain in unspecified limb |
+| `M06.9` | 類風濕性關節炎 RA | 類風濕性關節炎 | Rheumatoid arthritis, unspecified |
+| `M79.2` | 神經痛 | 神經痛及神經炎 | Neuralgia and neuritis, unspecified |
+
 ### 代謝／檢驗
 
 #### 檢驗異常
@@ -2723,6 +3565,40 @@
 | `R94.31` | 心電圖檢查結果異常 | 心電圖檢查結果異常 | Abnormal electrocardiogram [ECG] [EKG] |
 | `R70.0` | 紅血球沉降速率上升 ESR | 紅血球沉降速率升高 | Elevated erythrocyte sedimentation rate |
 | `R79.82` | C-反應蛋白上升 CRP | C-反應蛋白升高 | Elevated C-reactive protein (CRP) |
+
+#### 健康檢查／預防保健
+
+| 代碼 | 介面標籤 | 健保官方中文名 | 官方英文名 |
+|---|---|---|---|
+| **主訴** | | | |
+| `Z00.00` | 來院接受一般醫學檢查（無異常發現） | 來院接受一般醫學檢查無異常發現 | Encounter for general adult medical examination without abnormal findings |
+| `Z00.01` | 來院接受一般醫學檢查（伴異常發現） | 來院接受一般醫學檢查伴有異常發現 | Encounter for general adult medical examination with abnormal findings |
+| **常見疾病** | | | |
+| `Z13.6` | 來院接受心臟血管疾患篩檢 | 來院接受心臟血管疾患之篩檢 | Encounter for screening for cardiovascular disorders |
+| `Z13.1` | 糖尿病篩檢 | 來院接受糖尿病篩檢 | Encounter for screening for diabetes mellitus |
+| `Z13.220` | 來院接受脂質異常篩檢 | 來院接受脂質異常篩檢 | Encounter for screening for lipoid disorders |
+| `Z12.11` | 來院接受結腸腫瘤篩檢 | 來院接受結腸惡性腫瘤之篩檢 | Encounter for screening for malignant neoplasm of colon |
+| `Z12.31` | 來院接受乳房攝影篩檢 | 來院接受乳房惡性腫瘤之乳房攝影篩檢 | Encounter for screening mammogram for malignant neoplasm of breast |
+| `Z12.4` | 來院接受子宮頸腫瘤篩檢 | 來院接受子宮頸惡性腫瘤篩檢 | Encounter for screening for malignant neoplasm of cervix |
+| `Z12.5` | 來院接受攝護腺腫瘤篩檢 | 來院接受攝護腺惡性腫瘤篩檢 | Encounter for screening for malignant neoplasm of prostate |
+| `Z12.2` | 來院接受呼吸器官腫瘤篩檢 | 來院接受呼吸器官惡性腫瘤之篩檢 | Encounter for screening for malignant neoplasm of respiratory organs |
+| `Z11.1` | 呼吸道結核篩檢 | 來院接受呼吸道結核病之篩檢 | Encounter for screening for respiratory tuberculosis |
+| `Z11.3` | 性傳染病篩檢 | 來院接受主要經由性傳播模式感染之篩檢 | Encounter for screening for infections with a predominantly sexual mode of transmission |
+| `Z13.31` | 來院接受憂鬱症篩檢 | 來院接受憂鬱症之篩檢 | Encounter for screening for depression |
+| `Z13.5` | 來院接受眼及耳疾患篩檢 | 來院接受眼及耳疾患之篩檢 | Encounter for screening for eye and ear disorders |
+| `Z13.89` | 來院接受其他疾患篩檢 | 來院接受其他疾患之篩檢 | Encounter for screening for other disorder |
+| `Z23` | 預防接種 | 來院接受疫苗接種 | Encounter for immunization |
+| `Z71.3` | 飲食諮詢衛教 | 飲食諮詢與監測 | Dietary counseling and surveillance |
+| `Z71.6` | 菸草濫用諮詢 | 菸草濫用之諮詢 | Tobacco abuse counseling |
+| `Z72.3` | 缺乏運動 | 缺乏運動 | Lack of physical exercise |
+| `Z72.4` | 不適當之飲食習慣 | 不適當之飲食習慣 | Inappropriate diet and eating habits |
+| `R73.03` | 糖尿病前期 | 糖尿病前期 | Prediabetes |
+| `E66.3` | 過重 | 體重過重 | Overweight |
+| `E66.9` | 肥胖 | 肥胖 | Obesity, unspecified |
+| `E78.5` | 高血脂症 | 高血脂症 | Hyperlipidemia, unspecified |
+| `R03.0` | 血壓讀數升高（未診斷高血壓） | 血壓上升，非診斷為高血壓者 | Elevated blood-pressure reading, without diagnosis of hypertension |
+| `E79.0` | 高尿酸血症（未伴發炎性關節炎及痛風石） | 高尿酸血症未伴有關節炎及痛風石 | Hyperuricemia without signs of inflammatory arthritis and tophaceous disease |
+| `R94.5` | 肝功能檢查異常 | 肝功能檢查結果異常 | Abnormal results of liver function studies |
 
 ## 外科（9 張面板）
 
@@ -3358,4 +4234,4 @@
 
 ---
 
-面板與快選代碼位置合計 2516 筆。
+面板與快選代碼位置合計 3202 筆。
