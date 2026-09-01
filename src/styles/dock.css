@@ -329,6 +329,10 @@ body[data-layout="dock"] #clear-cart:hover { background: var(--his-card); }
 body[data-layout="dock"] .chronic-switch {
   gap: 3px; padding: 5px 6px; border-bottom: 1px solid var(--color-divider);
 }
+/* 「全展開／全收合」靠右。用 margin 而不是塞一個 .dock-spacer：spacer 本身是一個
+   flex item，176px 下會被擠成獨立一列（實測這一排 58→83px）；margin 不佔寬度，
+   四顆鈕在 176px 仍折成兩列（58px 不變），寬一點時排成一列並貼右。 */
+body[data-layout="dock"] .expand-all-btn { margin-left: auto; }
 /* 22px 與同排的兩個計算機一致（它們吃 .seg-btn--sm 的 22px）；20 vs 22 那一格差
    在 163px 的一排裡看得出來是參差的。仍高於側掛（滑鼠操作）的 20px 下限。 */
 body[data-layout="dock"] .chronic-btn {

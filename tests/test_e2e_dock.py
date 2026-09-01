@@ -1759,7 +1759,17 @@ def test_chronic_buttons_live_in_the_scroll_area_not_the_header(pg):
     expect(pg.locator("#chronic-switch .chronic-btn")).to_have_count(1)
     order = pg.evaluate("""() => Array.from(
         document.getElementById('chronic-switch').children).map((n) => n.id)""")
-    assert order == ["chronic-btn", "lipid-btn", "ccr-btn"], order
+    # 「全展開／全收合」2026-09-02 加在這一排的尾巴，靠 margin-left:auto 貼右
+    assert order == ["chronic-btn", "lipid-btn", "ccr-btn", "expand-all-panels"], order
+    rows = pg.evaluate("""() => {
+        const row = document.getElementById('chronic-switch');
+        const btn = document.getElementById('expand-all-panels');
+        return { h: Math.round(row.getBoundingClientRect().height),
+                 right: Math.round(row.getBoundingClientRect().right
+                                   - btn.getBoundingClientRect().right) };
+    }""")
+    assert rows["h"] <= 58, f"這一排不得再長高（176px 下折兩列＝58px）：{rows}"
+    assert rows["right"] <= 8, f"全展開要貼在該列右緣：{rows}"
     placement = pg.evaluate("""() => {
         const row = document.getElementById('chronic-switch');
         return {
@@ -2354,5 +2364,75 @@ def test_pinned_every_overlay_entry_button_actually_opens(browser_ctx, page_url)
             assert panel.is_visible(), f"置頂時 #{item['id']} 點了沒開出 #{item['controls']}"
             pip.keyboard.press("Escape")
             pip.wait_for_timeout(200)
+    finally:
+        page.close()
+
+
+def _panel_state(pg):
+    return pg.evaluate("""() => {
+        const t = [...document.querySelectorAll('#dock-panels .panel-toggle')];
+        return {
+            total: t.length,
+            open: t.filter((b) => b.getAttribute('aria-expanded') === 'true').length,
+            label: document.getElementById('expand-all-panels').textContent.trim(),
+        };
+    }""")
+
+
+def test_expand_all_button_opens_and_closes_every_panel(pg):
+    """一顆鈕管全部（使用者 2026-09-02：「加個全展開 跟 全縮合（整合成一個按鈕）」）。
+
+    釘四件事：
+      1. 只要還有面板沒展開，鈕就是「全展開」，按下去該部位全開
+      2. 全開之後鈕變「全收合」，再按一次全部收回去
+      3. **只動目前這個部位那一批**——別的部位維持原狀（顯示全部部位時尤其重要）
+      4. 每個面板自己的展開鈕還在：這顆是加法，不是取代
+    """
+    before = _panel_state(pg)
+    assert before["total"] >= 5, before
+    assert before["open"] == 0 and before["label"] == "全展開", before
+
+    pg.click("#expand-all-panels")
+    pg.wait_for_timeout(200)
+    opened = _panel_state(pg)
+    assert opened["open"] == opened["total"], opened
+    assert opened["label"] == "全收合", opened
+
+    pg.click("#expand-all-panels")
+    pg.wait_for_timeout(200)
+    closed = _panel_state(pg)
+    assert closed["open"] == 0 and closed["label"] == "全展開", closed
+
+    # 換一個部位全開，再切回來——原部位不該被波及
+    pg.evaluate("() => window.ICDApp.store.setRegion(2)")
+    pg.wait_for_timeout(150)
+    pg.click("#expand-all-panels")
+    pg.wait_for_timeout(200)
+    other = _panel_state(pg)
+    assert other["open"] == other["total"] and other["label"] == "全收合", other
+    pg.evaluate("() => window.ICDApp.store.setRegion(0)")
+    pg.wait_for_timeout(150)
+    back = _panel_state(pg)
+    assert back["open"] == 0 and back["label"] == "全展開", back
+
+
+def test_expand_all_survives_pinning(browser_ctx, page_url):
+    """置頂小視窗裡這顆鈕也要有作用。
+
+    1c 置頂時整棵 DOM 被搬進 about:blank，主文件的事件委派搆不到——
+    新控制項沒在 render-dock.js 的 pipDelegate 註冊過，就會**只在置頂時**默默失效
+    （血脂鈕就這樣漏了一版）。而置頂正是他在診間的用法。
+    """
+    page, pip = open_pinned(browser_ctx, page_url)
+    try:
+        pip.wait_for_selector("#expand-all-panels", timeout=5000)
+        assert _panel_state(pip)["open"] == 0
+        pip.click("#expand-all-panels")
+        pip.wait_for_timeout(250)
+        st = _panel_state(pip)
+        assert st["open"] == st["total"] and st["label"] == "全收合", st
+        pip.click("#expand-all-panels")
+        pip.wait_for_timeout(250)
+        assert _panel_state(pip)["open"] == 0
     finally:
         page.close()

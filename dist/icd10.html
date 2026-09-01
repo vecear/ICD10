@@ -1888,6 +1888,10 @@ body[data-layout="dock"] #clear-cart:hover { background: var(--his-card); }
 body[data-layout="dock"] .chronic-switch {
   gap: 3px; padding: 5px 6px; border-bottom: 1px solid var(--color-divider);
 }
+/* 「全展開／全收合」靠右。用 margin 而不是塞一個 .dock-spacer：spacer 本身是一個
+   flex item，176px 下會被擠成獨立一列（實測這一排 58→83px）；margin 不佔寬度，
+   四顆鈕在 176px 仍折成兩列（58px 不變），寬一點時排成一列並貼右。 */
+body[data-layout="dock"] .expand-all-btn { margin-left: auto; }
 /* 22px 與同排的兩個計算機一致（它們吃 .seg-btn--sm 的 22px）；20 vs 22 那一格差
    在 163px 的一排裡看得出來是參差的。仍高於側掛（滑鼠操作）的 20px 下限。 */
 body[data-layout="dock"] .chronic-btn {
@@ -3613,6 +3617,24 @@ window.LIPID_PRODUCTS = {"checked":"2026-09-01","source":"健保署健保用藥�
     }
 
     const toggleExpanded = (panel) => toggleFlag('expanded', panel);
+
+    /* 一次展開／收合一批面板（1c 的「全展開／全收合」）。
+
+       收合是把這幾個名字從 map 拿掉，**不是整個清空**：顯示全部部位時使用者按的是
+       「收掉我現在看的這一批」，把別的部位也一起收掉是他沒要求的副作用。
+       壞值（非字串、空字串）逐一略過，不讓一個壞名字整批失效。 */
+    function setExpandedAll(panels, open) {
+      if (!Array.isArray(panels) || !panels.length) return;
+      const next = Object.assign({}, state.expanded);
+      let changed = false;
+      for (const name of panels) {
+        if (typeof name !== 'string' || !name) continue;
+        if (open) {
+          if (!next[name]) { next[name] = true; changed = true; }
+        } else if (next[name]) { delete next[name]; changed = true; }
+      }
+      if (changed) setState({ expanded: next });
+    }
     const toggleQuick = (title) => toggleFlag('quickOpen', title);
     const isExpanded = (panel) => !!state.expanded[panel];
     const isQuickOpen = (title) => !!state.quickOpen[title];
@@ -3680,7 +3702,7 @@ window.LIPID_PRODUCTS = {"checked":"2026-09-01","source":"健保署健保用藥�
       setMode, setRegion, toggleRegion, setLayout, setTheme, toggleTheme, setFormat,
       setPaneSize, resetPaneSizes, paneSizeFor, hasPaneSizes,
       toggleFav, isFav,
-      toggleExpanded, toggleQuick, isExpanded, isQuickOpen,
+      toggleExpanded, setExpandedAll, toggleQuick, isExpanded, isQuickOpen,
       setQuery, setRelatedCode, setCopied, setDbState,
       setSettingsOpen, toggleSettings, setShelfOpen, toggleShelf,
       setCartOpen, toggleCart, setPinned,
@@ -5598,6 +5620,16 @@ window.LIPID_PRODUCTS = {"checked":"2026-09-01","source":"健保署健保用藥�
     return b;
   }
 
+  /* 1c 的「全展開／全收合」。文字會隨當下狀態換（見 render-dock.js 的 U.panels），
+     所以這裡只給初值；不用圖示是因為兩個方向的圖示在 176px 分不出來。 */
+  function expandAllButtonEl() {
+    const b = el('button', 'btn btn-secondary seg-btn--sm expand-all-btn', '全展開');
+    b.type = 'button';
+    b.id = 'expand-all-panels';
+    b.title = '把目前這一批面板的常見疾病全部展開';
+    return b;
+  }
+
   function ccrFieldEl(id, label, unit, opts) {
     const wrap = el('label', 'ccr-field');
     wrap.append(el('span', 'ccr-label', label));
@@ -6417,6 +6449,7 @@ window.LIPID_PRODUCTS = {"checked":"2026-09-01","source":"健保署健保用藥�
     modeSwitchEl, syncModeSwitch,
     chronicSwitchEl, chronicTabsEl, syncChronicSwitch, chronicOverlayEl, renderChronic,
     ccrButtonEl, ccrOverlayEl, renderCcrResult, syncCcr, ccrResultText, ccrInputs,
+    expandAllButtonEl,
     lipidButtonEl, lipidOverlayEl, renderLipidResult, syncLipid, lipidResultText, lipidInputs,
     syncLipidSexRows,
     chronicToday, chronicTopics, chronicDocsEl, chronicDocHref,
@@ -7051,6 +7084,11 @@ window.LIPID_PRODUCTS = {"checked":"2026-09-01","source":"健保署健保用藥�
        docs/dense-ui-principle.md 的量測表。
        1b 同理，1a 因為 header 有大量留白才常駐（見 render-wide.js）。 */
     refs.chronicSwitch = R.chronicSwitchEl(true);
+    /* 「全展開／全收合」靠右擺在這一排的尾巴（使用者 2026-09-02 圈的位置）。
+       放這裡而不是每個面板頭上：它管的是「下面全部」，不屬於任何一個面板；
+       而這一排跟著內容捲動，常駐版面成本仍然是 0。 */
+    refs.expandAll = R.expandAllButtonEl();
+    refs.chronicSwitch.appendChild(refs.expandAll);
     body.appendChild(refs.chronicSwitch);
 
     const resultsCard = R.el('div');
@@ -7431,6 +7469,10 @@ window.LIPID_PRODUCTS = {"checked":"2026-09-01","source":"健保署健保用藥�
       }
       const panelToggle = target.closest('.panel-toggle');
       if (panelToggle) { store.toggleExpanded(panelToggle.dataset.panelToggle); return; }
+      if (target.closest('#expand-all-panels')) {
+        root.ICDInteractions.toggleAllPanels(ctx);
+        return;
+      }
 
       const cartCode = target.closest('b.cart-code');
       if (cartCode) { root.ICDInteractions.copyCartCode(cartCode); return; }
@@ -7614,7 +7656,18 @@ window.LIPID_PRODUCTS = {"checked":"2026-09-01","source":"健保署健保用藥�
           refs.panels.appendChild(box);
         }
       }
+      syncExpandAll();
     };
+
+    /* 這顆鈕的字要跟著面板狀態走，而它掛在 refs.panels 外面，所以由 U.panels 收尾時
+       一起更新——mode／region／expanded 三個鍵本來就都會重跑 U.panels，不必再開一條依賴。 */
+    function syncExpandAll() {
+      const open = root.ICDInteractions.allPanelsExpanded(ctx);
+      refs.expandAll.textContent = open ? '全收合' : '全展開';
+      refs.expandAll.title = open
+        ? '把目前這一批面板的常見疾病全部收起來'
+        : '把目前這一批面板的常見疾病全部展開';
+    }
 
     U.results = () => {
       R.renderResults(refs.resultsCard, refs.results, refs.resultNote, ctx);
@@ -8581,6 +8634,8 @@ window.LIPID_PRODUCTS = {"checked":"2026-09-01","source":"健保署健保用藥�
       const panelToggle = target.closest('.panel-toggle');
       if (panelToggle) { store.toggleExpanded(panelToggle.dataset.panelToggle); return; }
 
+      if (target.closest('#expand-all-panels')) { toggleAllPanels(ctx); return; }
+
       const quickToggle = target.closest('.quick-toggle');
       if (quickToggle) { store.toggleQuick(quickToggle.dataset.quickToggle); return; }
 
@@ -8763,12 +8818,35 @@ window.LIPID_PRODUCTS = {"checked":"2026-09-01","source":"健保署健保用藥�
     });
   }
 
+  /* 「全展開／全收合」：只動目前畫面上這一批（現在的模式＋部位），
+     而且只算有常見疾病的面板——沒有疾病的面板本來就沒有展開鈕，
+     把它算進去會讓「是不是全開了」永遠不成立，按鈕就再也切不到「全收合」。 */
+  function panelsWithDiseases(ctx) {
+    const s = ctx.store.getState();
+    return ctx.data.panelsFor(s.mode, s.region)
+      .filter((p) => p.diseases && p.diseases.length)
+      .map((p) => p.name);
+  }
+
+  function allPanelsExpanded(ctx) {
+    const names = panelsWithDiseases(ctx);
+    return names.length > 0 && names.every((n) => ctx.store.isExpanded(n));
+  }
+
+  function toggleAllPanels(ctx) {
+    const names = panelsWithDiseases(ctx);
+    if (!names.length) return;
+    const open = !allPanelsExpanded(ctx);
+    ctx.store.setExpandedAll(names, open);
+    announce(open ? '已展開全部常見疾病' : '已收合全部常見疾病');
+  }
+
   root.ICDInteractions = {
     wire, copyText, openFallbackCopy, closeFallbackCopy, isFallbackOpen, announce,
     activateChip, copyCartCode, setFeedbackDocument,
     // 1c 置頂時 main document 的委派搆不到側欄，render-dock.js 要用同一份實作代打
-    chooseMode, resetPanes,
     chooseMode, chooseAllRegions, resetPanes, chooseChronic, closeChronic,
+    toggleAllPanels, allPanelsExpanded,
     openCcr, closeCcr, recalcCcr, chooseCcrSex, resetCcr, copyCcr,
     openLipid, closeLipid, recalcLipid, chooseLipidSex, resetLipid, copyLipid,
   };

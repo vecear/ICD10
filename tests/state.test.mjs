@@ -298,6 +298,26 @@ test('展開／收合是不可變更新，且互不干擾', () => {
   assert.deepEqual(store.getState().expanded, {}, '快選與面板展開狀態不得互相影響');
 });
 
+test('setExpandedAll：只動指定的那一批，收合不清掉別的部位', () => {
+  const store = newStore();
+  store.toggleExpanded('頭痛');                       // 別的部位先開著
+  store.setExpandedAll(['發燒／寒顫', '腹痛'], true);
+  assert.deepEqual(store.getState().expanded,
+    { 頭痛: true, '發燒／寒顫': true, 腹痛: true });
+
+  /* 收合＝把這幾個名字拿掉，不是整個清空：顯示全部部位時使用者按的是
+     「收掉我現在看的這一批」，把別的部位一起收掉是他沒要求的副作用。 */
+  store.setExpandedAll(['發燒／寒顫', '腹痛'], false);
+  assert.deepEqual(store.getState().expanded, { 頭痛: true });
+
+  const before = store.getState().expanded;
+  store.setExpandedAll(['發燒／寒顫'], false);        // 本來就沒開
+  assert.equal(store.getState().expanded, before, '沒有實際變動就不該換物件（免得白重繪）');
+  store.setExpandedAll([], true);
+  store.setExpandedAll(['', null, 42], true);
+  assert.equal(store.getState().expanded, before, '空陣列與壞名字都不該動到狀態');
+});
+
 test('訂閱：只在真的變動時通知，並回報變動欄位；可取消訂閱', () => {
   const store = newStore();
   const seen = [];

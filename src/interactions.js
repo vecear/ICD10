@@ -467,6 +467,8 @@
       const panelToggle = target.closest('.panel-toggle');
       if (panelToggle) { store.toggleExpanded(panelToggle.dataset.panelToggle); return; }
 
+      if (target.closest('#expand-all-panels')) { toggleAllPanels(ctx); return; }
+
       const quickToggle = target.closest('.quick-toggle');
       if (quickToggle) { store.toggleQuick(quickToggle.dataset.quickToggle); return; }
 
@@ -649,12 +651,35 @@
     });
   }
 
+  /* 「全展開／全收合」：只動目前畫面上這一批（現在的模式＋部位），
+     而且只算有常見疾病的面板——沒有疾病的面板本來就沒有展開鈕，
+     把它算進去會讓「是不是全開了」永遠不成立，按鈕就再也切不到「全收合」。 */
+  function panelsWithDiseases(ctx) {
+    const s = ctx.store.getState();
+    return ctx.data.panelsFor(s.mode, s.region)
+      .filter((p) => p.diseases && p.diseases.length)
+      .map((p) => p.name);
+  }
+
+  function allPanelsExpanded(ctx) {
+    const names = panelsWithDiseases(ctx);
+    return names.length > 0 && names.every((n) => ctx.store.isExpanded(n));
+  }
+
+  function toggleAllPanels(ctx) {
+    const names = panelsWithDiseases(ctx);
+    if (!names.length) return;
+    const open = !allPanelsExpanded(ctx);
+    ctx.store.setExpandedAll(names, open);
+    announce(open ? '已展開全部常見疾病' : '已收合全部常見疾病');
+  }
+
   root.ICDInteractions = {
     wire, copyText, openFallbackCopy, closeFallbackCopy, isFallbackOpen, announce,
     activateChip, copyCartCode, setFeedbackDocument,
     // 1c 置頂時 main document 的委派搆不到側欄，render-dock.js 要用同一份實作代打
-    chooseMode, resetPanes,
     chooseMode, chooseAllRegions, resetPanes, chooseChronic, closeChronic,
+    toggleAllPanels, allPanelsExpanded,
     openCcr, closeCcr, recalcCcr, chooseCcrSex, resetCcr, copyCcr,
     openLipid, closeLipid, recalcLipid, chooseLipidSex, resetLipid, copyLipid,
   };

@@ -1304,6 +1304,16 @@
     return b;
   }
 
+  /* 1c 的「全展開／全收合」。文字會隨當下狀態換（見 render-dock.js 的 U.panels），
+     所以這裡只給初值；不用圖示是因為兩個方向的圖示在 176px 分不出來。 */
+  function expandAllButtonEl() {
+    const b = el('button', 'btn btn-secondary seg-btn--sm expand-all-btn', '全展開');
+    b.type = 'button';
+    b.id = 'expand-all-panels';
+    b.title = '把目前這一批面板的常見疾病全部展開';
+    return b;
+  }
+
   function ccrFieldEl(id, label, unit, opts) {
     const wrap = el('label', 'ccr-field');
     wrap.append(el('span', 'ccr-label', label));
@@ -2123,6 +2133,7 @@
     modeSwitchEl, syncModeSwitch,
     chronicSwitchEl, chronicTabsEl, syncChronicSwitch, chronicOverlayEl, renderChronic,
     ccrButtonEl, ccrOverlayEl, renderCcrResult, syncCcr, ccrResultText, ccrInputs,
+    expandAllButtonEl,
     lipidButtonEl, lipidOverlayEl, renderLipidResult, syncLipid, lipidResultText, lipidInputs,
     syncLipidSexRows,
     chronicToday, chronicTopics, chronicDocsEl, chronicDocHref,

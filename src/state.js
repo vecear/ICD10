@@ -449,6 +449,24 @@
     }
 
     const toggleExpanded = (panel) => toggleFlag('expanded', panel);
+
+    /* 一次展開／收合一批面板（1c 的「全展開／全收合」）。
+
+       收合是把這幾個名字從 map 拿掉，**不是整個清空**：顯示全部部位時使用者按的是
+       「收掉我現在看的這一批」，把別的部位也一起收掉是他沒要求的副作用。
+       壞值（非字串、空字串）逐一略過，不讓一個壞名字整批失效。 */
+    function setExpandedAll(panels, open) {
+      if (!Array.isArray(panels) || !panels.length) return;
+      const next = Object.assign({}, state.expanded);
+      let changed = false;
+      for (const name of panels) {
+        if (typeof name !== 'string' || !name) continue;
+        if (open) {
+          if (!next[name]) { next[name] = true; changed = true; }
+        } else if (next[name]) { delete next[name]; changed = true; }
+      }
+      if (changed) setState({ expanded: next });
+    }
     const toggleQuick = (title) => toggleFlag('quickOpen', title);
     const isExpanded = (panel) => !!state.expanded[panel];
     const isQuickOpen = (title) => !!state.quickOpen[title];
@@ -516,7 +534,7 @@
       setMode, setRegion, toggleRegion, setLayout, setTheme, toggleTheme, setFormat,
       setPaneSize, resetPaneSizes, paneSizeFor, hasPaneSizes,
       toggleFav, isFav,
-      toggleExpanded, toggleQuick, isExpanded, isQuickOpen,
+      toggleExpanded, setExpandedAll, toggleQuick, isExpanded, isQuickOpen,
       setQuery, setRelatedCode, setCopied, setDbState,
       setSettingsOpen, toggleSettings, setShelfOpen, toggleShelf,
       setCartOpen, toggleCart, setPinned,

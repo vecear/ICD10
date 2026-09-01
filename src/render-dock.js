@@ -212,6 +212,11 @@
        docs/dense-ui-principle.md 的量測表。
        1b 同理，1a 因為 header 有大量留白才常駐（見 render-wide.js）。 */
     refs.chronicSwitch = R.chronicSwitchEl(true);
+    /* 「全展開／全收合」靠右擺在這一排的尾巴（使用者 2026-09-02 圈的位置）。
+       放這裡而不是每個面板頭上：它管的是「下面全部」，不屬於任何一個面板；
+       而這一排跟著內容捲動，常駐版面成本仍然是 0。 */
+    refs.expandAll = R.expandAllButtonEl();
+    refs.chronicSwitch.appendChild(refs.expandAll);
     body.appendChild(refs.chronicSwitch);
 
     const resultsCard = R.el('div');
@@ -592,6 +597,10 @@
       }
       const panelToggle = target.closest('.panel-toggle');
       if (panelToggle) { store.toggleExpanded(panelToggle.dataset.panelToggle); return; }
+      if (target.closest('#expand-all-panels')) {
+        root.ICDInteractions.toggleAllPanels(ctx);
+        return;
+      }
 
       const cartCode = target.closest('b.cart-code');
       if (cartCode) { root.ICDInteractions.copyCartCode(cartCode); return; }
@@ -775,7 +784,18 @@
           refs.panels.appendChild(box);
         }
       }
+      syncExpandAll();
     };
+
+    /* 這顆鈕的字要跟著面板狀態走，而它掛在 refs.panels 外面，所以由 U.panels 收尾時
+       一起更新——mode／region／expanded 三個鍵本來就都會重跑 U.panels，不必再開一條依賴。 */
+    function syncExpandAll() {
+      const open = root.ICDInteractions.allPanelsExpanded(ctx);
+      refs.expandAll.textContent = open ? '全收合' : '全展開';
+      refs.expandAll.title = open
+        ? '把目前這一批面板的常見疾病全部收起來'
+        : '把目前這一批面板的常見疾病全部展開';
+    }
 
     U.results = () => {
       R.renderResults(refs.resultsCard, refs.results, refs.resultNote, ctx);
