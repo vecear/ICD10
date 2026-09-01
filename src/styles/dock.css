@@ -418,6 +418,9 @@ body[data-layout="dock"] .chronic-t2-caution,
 body[data-layout="dock"] .chronic-t2-meta { font-size: 10px; line-height: 1.4; }
 body[data-layout="dock"] .lipid-t2-names,
 body[data-layout="dock"] .lipid-t2-caution { font-size: 10px; line-height: 1.4; }
+body[data-layout="dock"] .lipid-drugs-title,
+body[data-layout="dock"] .lipid-drug-cover { font-size: 9px; }
+body[data-layout="dock"] .lipid-drug-group { font-size: 10.5px; line-height: 1.45; }
 
 /* 官方條文 PDF：176px 下與其他次要 chrome 同一條字級下限（≥10px） */
 body[data-layout="dock"] .chronic-docs { margin-bottom: 7px; }

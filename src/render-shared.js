@@ -1164,6 +1164,12 @@
     }
     box.appendChild(list);
     if (data.caution) box.appendChild(el('p', 'chronic-t2-caution', String(data.caution)));
+    /* 與上面那份「表一用的是哪些藥」的關係。不寫，同一個學名出現在兩塊裡
+       看起來就是自相矛盾（使用者 2026-09-01 問過）。 */
+    if (data.crossRef) box.appendChild(el('p', 'chronic-t2-crossref', String(data.crossRef)));
+    /* 為什麼會有這份清單。醫師看到「同一個學名有的走表一有的走表二」的第一個反應
+       是「憑什麼」——不講，這份清單看起來就是任意的（使用者 2026-09-01 問過）。 */
+    if (data.why) box.appendChild(el('p', 'chronic-t2-why', String(data.why)));
     const meta = el('p', 'chronic-t2-meta');
     if (data.source) meta.appendChild(el('span', 'chronic-source', String(data.source)));
     if (data.checked) meta.appendChild(el('span', 'chronic-checked', '查 ' + data.checked));
@@ -1625,6 +1631,36 @@
     return box;
   }
 
+  /* 表一結果下方的「適用藥物」。使用者要「學名就好」，所以把資料裡的括號補充
+     （劑量錨點、商品名）在這裡剝掉——條文分頁保留完整版，那裡有空間。
+     剝的是**顯示**不是資料：同一份 drugs 兩個畫面共用，剝在渲染層才不會分歧。 */
+  const lipidGenericName = (name) => String(name).replace(/（[^）]*）\s*$/, '').trim();
+
+  /* 給付狀態一定要跟學名並排：表一把 siRNA 與 ATP citrate lyase 抑制劑列為
+     未達標時可考慮的選項，但健保沒收載——只列學名不講這件事，
+     等於引導醫師去開一個病人要自費的藥。 */
+  function lipidDrugsEl() {
+    const data = chronicDrugs('lipid');
+    if (!data) return null;
+    const box = el('section', 'lipid-drugs');
+    box.appendChild(el('b', 'lipid-drugs-title', '適用藥物（台灣有的學名）'));
+    const list = el('ul', 'lipid-drug-list');
+    for (const g of data.groups) {
+      if (!g || !g.klass || !Array.isArray(g.items) || !g.items.length) continue;
+      const li = el('li', 'lipid-drug-group' + (g.covered === false ? ' is-selfpay' : ''));
+      li.appendChild(el('b', 'lipid-drug-klass', g.klass));
+      if (g.cover) {
+        li.appendChild(el('span',
+          'lipid-drug-cover' + (g.covered === false ? ' is-selfpay' : ''), String(g.cover)));
+      }
+      li.appendChild(el('span', 'lipid-drug-names',
+        g.items.map(lipidGenericName).join('、')));
+      list.appendChild(li);
+    }
+    box.appendChild(list);
+    return box;
+  }
+
   function renderLipidResult(root2, ctx) {
     const box = root2.querySelector('#lipid-result');
     if (!box) return;
@@ -1640,8 +1676,14 @@
       return;
     }
 
-    box.appendChild(lipidTableBlock(
-      '表一（ASCVD 風險分級）', '主表，多數品項適用', r.one, r.ldl, null));
+    const oneBlock = lipidTableBlock(
+      '表一（ASCVD 風險分級）', '主表，多數品項適用', r.one, r.ldl, null);
+    /* 適用藥物掛在表一區塊裡面（使用者 2026-09-01 要求「結果下方」）：
+       表一的「處方規定」欄只寫類別（statin、ezetimibe、PCSK9…），
+       不知道對應到哪些藥就等於沒寫。 */
+    const drugs = lipidDrugsEl();
+    if (drugs) oneBlock.appendChild(drugs);
+    box.appendChild(oneBlock);
     /* 表二退到次要：它只管公告明列「不適用表一」的那批代碼，
        但那批代碼含 atorvastatin、rosuvastatin，常到不能不算，所以是降級不是移除。 */
     const t2 = chronicTableTwo('lipid');
@@ -1739,8 +1781,8 @@
 
   /* 一張降膽固醇表的病歷段落。表一與表二共用——兩者的欄位形狀相同，
      差別只在表二多了 TC 門檻與 TC 目標、少了 non-HDL-C。 */
-  function lipidChartRows(name, info, r) {
-    const rows = ['降膽固醇藥物：依「' + name + '」'];
+  function lipidChartRows(name, info, r, scope) {
+    const rows = ['降膽固醇藥物：依「' + name + '」' + (scope || '')];
     rows.push(lipidRow('分級', info.label
       + (info.why && info.why.length ? '（' + info.why.join('、') + '）' : '')));
     rows.push(lipidRow('處方', lipidParallelText(info.parallel)));
@@ -1775,32 +1817,30 @@
     const one = r.one;
     const two = r.two;
 
-    /* 表一是主表，所以病歷先寫它；表二只在表一不符、而它符合時才登場。 */
-    if (one.meets === true) {
+    /* 兩張表都寫（使用者 2026-09-01：「右鍵輸出裡我希望也要有表二的判讀結果」）。
+
+       這推翻了 08-27 的「只寫符合的那一條」——當時的理由是「一堆未達只會給審查醫師
+       更多可挑的地方」。改的理由更強：**同一位病人在兩張表可能結論不同**，而走哪一張
+       只看你開的品項健保代碼；病歷只寫一張，等於把「換個代碼就不符合」這件事藏起來，
+       而那正是會被核刪的地方。表一先寫（主表），表二接著寫並標明它的適用範圍。 */
+    if (r.ldl !== null || r.tc !== null) {
       out.push('');
       for (const line of lipidChartRows(LIPID_TABLE_ONE_NAME, one, r)) out.push(line);
-      /* 另一張表不符合時一定要寫：開錯健保代碼就會被核刪，那正是這段文字要防的事。 */
-      if (two.meets === false) {
-        out.push(lipidRow('註記', '本例不符合「' + LIPID_TABLE_TWO_NAME + '」'
-          + LIPID_TWO_SCOPE + '之起始標準，該表品項不適用'));
-      }
-    } else if (two.meets === true) {
       out.push('');
-      for (const line of lipidChartRows(LIPID_TABLE_TWO_NAME, two, r)) out.push(line);
-      /* 「該表」指的是哪一張，病歷上不能靠上下文猜——兩張表都寫全名。 */
-      out.push(lipidRow('註記', '本例不符合「' + LIPID_TABLE_ONE_NAME + '」之起始標準；'
-        + '僅「' + LIPID_TABLE_TWO_NAME + '」所列健保代碼之品項適用'));
+      for (const line of lipidChartRows(LIPID_TABLE_TWO_NAME, two, r, LIPID_TWO_SCOPE)) {
+        out.push(line);
+      }
+      /* 兩張表結論不同時再點一次名：上面兩段各自有已達／未達，但「所以該開哪一種」
+         要講出來——那正是這段文字要防的核刪。 */
+      if (one.meets !== null && two.meets !== null && one.meets !== two.meets) {
+        const okName = one.meets ? LIPID_TABLE_ONE_NAME : LIPID_TABLE_TWO_NAME;
+        const noName = one.meets ? LIPID_TABLE_TWO_NAME : LIPID_TABLE_ONE_NAME;
+        out.push(lipidRow('註記', '兩表結論不同：本例符合「' + okName + '」、'
+          + '不符合「' + noName + '」，請依所開品項之健保代碼適用之表別認定'));
+      }
     }
 
     const f = r.fibrate;
-    /* 兩張表都不符時才寫降膽固醇那一段——醫師在開 fibrate 時，病歷多一行
-       「降膽固醇藥物未達起始標準」是與本次處方無關的雜訊。 */
-    const anyMet = one.meets === true || two.meets === true || !!(f && f.ok && f.meets);
-    if (!anyMet && (r.ldl !== null || r.tc !== null)) {
-      out.push('');
-      for (const line of lipidChartRows(LIPID_TABLE_ONE_NAME, one, r)) out.push(line);
-    }
-
     if (f && f.ok && f.meets) {
       out.push('');
       out.push('降三酸甘油酯藥物：依「' + LIPID_TG_TABLE_NAME + '」');

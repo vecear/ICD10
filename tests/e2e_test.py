@@ -1942,6 +1942,99 @@ def test_lipid_result_follows_the_clinical_thinking_order(page):
     reset(page)
 
 
+def test_table_one_result_lists_the_drugs_available_in_taiwan(page):
+    """表一的判定下方要列出台灣有的適用藥物（學名）。
+
+    使用者 2026-09-01：「表一（ASCVD 風險分級）的結果我希望下方也要寫上台灣有的適用藥物」。
+    表一的「處方規定」欄只寫類別（statin、ezetimibe、PCSK9…），不知道對應到哪些藥
+    就等於沒寫。清單同源於 chronic_care.json 的 drugs，條文分頁用的是同一份。
+
+    **給付狀態必須跟學名並排**：siRNA 與 ATP citrate lyase 抑制劑被表一點名，
+    但健保沒收載——只列學名不講這件事，等於引導醫師去開一個病人要自費的藥。
+    """
+    reset(page)
+    data = cf.drugs("lipid")
+    assert data, "chronic_care.json 的 lipid 主題要有 drugs"
+    page.click("#lipid-btn")
+    expect(page.locator("#lipid-panel")).to_be_visible()
+    page.fill("#lipid-age", "60")
+    page.fill("#lipid-ldl", "200")
+    page.wait_for_timeout(300)
+
+    one = page.locator("#lipid-result .lipid-block").first
+    box = one.locator(".lipid-drugs")
+    expect(box).to_have_count(1), "用藥清單要掛在表一那一塊裡面"
+    groups = page.evaluate("""() => Array.from(
+        document.querySelectorAll('#lipid-result .lipid-drug-group')).map((n) => ({
+            klass: n.querySelector('.lipid-drug-klass').textContent.trim(),
+            cover: (n.querySelector('.lipid-drug-cover') || {}).textContent || '',
+            names: n.querySelector('.lipid-drug-names').textContent.trim(),
+            selfpay: n.classList.contains('is-selfpay'),
+        }))""")
+    assert len(groups) == len(data["groups"]), (len(groups), len(data["groups"]))
+    for got, want in zip(groups, data["groups"]):
+        assert got["klass"] == want["klass"], (got, want)
+        assert got["cover"].strip() == (want.get("cover") or ""), got
+        assert got["selfpay"] == (want.get("covered") is False), got
+        # 「學名就好」：資料裡的括號補充（劑量錨點、商品名）在計算機這邊剝掉
+        first = want["items"][0].split("（")[0].strip()
+        assert first in got["names"], (first, got["names"])
+    # 健保沒收載的那兩類要標出來，不能只列學名
+    assert any(g["selfpay"] for g in groups), groups
+    page.keyboard.press("Escape")
+    reset(page)
+
+
+def test_lipid_copy_always_includes_the_table_two_verdict(page):
+    """病歷文字一律含表二的判讀，不再只寫符合的那一張。
+
+    使用者 2026-09-01：「右鍵輸出裡我希望也要有表二的判讀結果」。
+    這推翻了 08-27 的「只寫符合的那一條」，理由更強：同一位病人在兩張表可能結論不同，
+    而走哪一張只看所開品項的健保代碼；病歷只寫一張，等於把「換個代碼就不符合」藏起來。
+    """
+    reset(page)
+    page.click("#lipid-btn")
+    expect(page.locator("#lipid-panel")).to_be_visible()
+    # 糖尿病、LDL-C 95、TC 180：表一門檻 100 未達，表二「或 TC ≧ 160」已達
+    page.fill("#lipid-age", "58")
+    page.fill("#lipid-ldl", "95")
+    page.fill("#lipid-tc", "180")
+    page.check("#lipid-dm")
+    page.wait_for_timeout(250)
+    page.click("#lipid-copy")
+    page.wait_for_timeout(250)
+    text = page.evaluate("() => navigator.clipboard.readText()").replace("\r\n", "\n")
+
+    assert "全民健康保險降膽固醇藥物給付規定表一" in text, text
+    assert "全民健康保險降膽固醇藥物給付規定表二" in text, text
+    assert "未達" in text and "已達" in text, f"兩張表的判讀都要在：{text}"
+    assert "限公告明列「不適用表一」之健保代碼" in text, "表二那段要標明適用範圍"
+    assert "兩表結論不同" in text, f"結論不同時要點名：{text}"
+    for line in text.split("\n"):
+        assert len(line) <= 130, f"這一行太長，貼進病歷會亂：{line}"
+    page.keyboard.press("Escape")
+    reset(page)
+
+
+def test_table_two_block_explains_why_it_exists_and_how_it_relates_to_the_drug_list(page):
+    """表二那一塊要講清楚兩件事：與表一用藥清單的關係、以及這份清單為什麼存在。
+
+    使用者連問兩次——「為何有些藥物同時出現在表一跟表二」「為何健保要保留那些藥物只能用表二」。
+    前者是層級混淆（成分 vs 健保代碼），後者是這份清單看起來很任意。
+    兩個都不講，這一塊讀起來就是自相矛盾又沒有道理。
+    """
+    reset(page)
+    open_chronic(page, "lipid")
+    data = cf.table_two("lipid")
+    assert data.get("crossRef") and data.get("why"), "資料要有 crossRef 與 why"
+    text = page.locator("#chronic-body .chronic-t2").inner_text()
+    assert "成分" in text and "健保代碼" in text, f"要點出兩份清單的層級差別：{text[:120]}"
+    assert "廠商同意調整支付價格" in text, "要寫出官方原文裡的緣由"
+    assert "推論" in text, "補集那一半是推論，措辭要標明，不可寫成官方說法"
+    assert "**" not in text, "顯示欄位不得留 markdown 記號"
+    reset(page)
+
+
 def test_metabolic_syndrome_is_five_checkboxes_not_one(page):
     """代謝症候群拆成 5 個細項讓使用者勾（使用者 2026-09-01）。
 
