@@ -1097,7 +1097,7 @@
     return box;
   }
 
-  function chronicDrugsEl(key) {
+  function chronicDrugsEl(key, ctx) {
     const data = chronicDrugs(key);
     if (!data) return null;
     const box = el('section', 'chronic-drugs');
@@ -1107,22 +1107,40 @@
     for (const g of data.groups) {
       if (!g || !g.klass) continue;
       const li = el('li', 'chronic-drug-group' + (g.covered === false ? ' is-selfpay' : ''));
-      const head = el('p', 'chronic-drug-head');
+      /* 每一類收合起來（使用者 2026-09-01）：五類各帶一段條件說明，全部攤開時
+         這一塊比整頁其他內容加起來還長，而多數時候只要看某一類的條件。
+         **給付狀態留在收合的那一行**：那是「開了病人要不要付錢」，不能藏起來。 */
+      const more = el('details', 'chronic-drug-more');
+      const key = 'klass\u0000' + g.klass;
+      more.open = LIPID_OPEN_GROUPS.has(key);
+      more.addEventListener('toggle', () => {
+        if (more.open) LIPID_OPEN_GROUPS.add(key);
+        else LIPID_OPEN_GROUPS.delete(key);
+      });
+      const head = document.createElement('summary');
+      head.className = 'chronic-drug-head';
       head.appendChild(el('b', 'chronic-drug-klass', g.klass));
       if (g.cover) {
         head.appendChild(el('span',
           'chronic-drug-cover' + (g.covered === false ? ' is-selfpay' : ''), String(g.cover)));
       }
-      li.appendChild(head);
+      more.appendChild(head);
       if (Array.isArray(g.items) && g.items.length) {
-        li.appendChild(el('p', 'chronic-drug-names', g.items.join('、')));
+        more.appendChild(el('p', 'chronic-drug-names', g.items.join('、')));
       }
-      if (g.note) li.appendChild(el('p', 'chronic-drug-note', String(g.note)));
+      if (g.note) more.appendChild(el('p', 'chronic-drug-note', String(g.note)));
+      li.appendChild(more);
       list.appendChild(li);
     }
     box.appendChild(list);
     if (data.doseNote) box.appendChild(el('p', 'chronic-drug-note', String(data.doseNote)));
     if (data.note) box.appendChild(el('p', 'chronic-drug-note', String(data.note)));
+    /* 類別講完之後接品項：類別回答「該開哪一類」，品項回答「我實際能開哪一個」。
+       與計算機用同一個元件，兩個畫面不會對同一件事給不同的細節。 */
+    if (ctx) {
+      const one = lipidProductListEl(ctx, 'one', '走表一的品項：商品名＋劑量');
+      if (one) box.appendChild(one);
+    }
     const meta = el('p', 'chronic-t2-meta');
     if (data.source) meta.appendChild(el('span', 'chronic-source', String(data.source)));
     if (data.checked) meta.appendChild(el('span', 'chronic-checked', '查 ' + data.checked));
@@ -1146,7 +1164,7 @@
      每一項後面帶該成分底下的代碼數，是刻意的：光看成分名會讀成「所有 atorvastatin
      都走表二」，但實際上同成分多數品項仍走表一，只有這批特定代碼例外。
      數字讓人一眼看出這是**代碼層級**的例外清單，不是成分層級。 */
-  function chronicTableTwoEl(key) {
+  function chronicTableTwoEl(key, ctx) {
     const data = chronicTableTwo(key);
     if (!data) return null;
     const box = el('section', 'chronic-t2');
@@ -1170,6 +1188,12 @@
     /* 為什麼會有這份清單。醫師看到「同一個學名有的走表一有的走表二」的第一個反應
        是「憑什麼」——不講，這份清單看起來就是任意的（使用者 2026-09-01 問過）。 */
     if (data.why) box.appendChild(el('p', 'chronic-t2-why', String(data.why)));
+    /* 上面那 9 行是官方對照表的結構（哪些成分上榜），這裡是實際能開的品項。
+       兩者都要：前者是權威依據，後者是處方單上會看到的東西。 */
+    if (ctx) {
+      const two = lipidProductListEl(ctx, 'two', '走表二的品項：商品名＋劑量');
+      if (two) box.appendChild(two);
+    }
     const meta = el('p', 'chronic-t2-meta');
     if (data.source) meta.appendChild(el('span', 'chronic-source', String(data.source)));
     if (data.checked) meta.appendChild(el('span', 'chronic-checked', '查 ' + data.checked));
@@ -1204,9 +1228,9 @@
     const ladder = chronicLadderEl(key);
     if (ladder) body.appendChild(ladder);
     /* 分完級之後的下一個問題就是「那要開什麼」，所以緊接在階梯後面。 */
-    const drugs = chronicDrugsEl(key);
+    const drugs = chronicDrugsEl(key, ctx);
     if (drugs) body.appendChild(drugs);
-    const tableTwo = chronicTableTwoEl(key);
+    const tableTwo = chronicTableTwoEl(key, ctx);
     if (tableTwo) body.appendChild(tableTwo);
     let sections = 0;
     for (const group of chronicStepGroups(topic)) {
@@ -1465,18 +1489,131 @@
   }
 
   function lipidFieldEl(id, label, opts) {
-    const wrap = el('label', 'lipid-field');
+    const wrap = el('label', 'lipid-field' + ((opts && opts.wide) ? ' lipid-field--wide' : ''));
     wrap.append(el('span', 'lipid-label', label));
     const input = document.createElement('input');
     input.id = id;
+    /* .lipid-input 這個類名是**行為契約**不只是樣式：interactions.js 的 input 委派與
+       render-dock.js 的 PiP 代打都認它。新欄位少了它，一般視窗會重算、置頂就不會。 */
     input.className = 'input lipid-input';
-    input.type = 'number';
-    input.inputMode = 'decimal';
     input.autocomplete = 'off';
-    input.step = (opts && opts.step) || '1';
+    if (opts && opts.text) {
+      input.type = 'text';
+    } else {
+      input.type = 'number';
+      input.inputMode = 'decimal';
+      input.step = (opts && opts.step) || '1';
+    }
     if (opts && opts.placeholder) input.placeholder = opts.placeholder;
     wrap.appendChild(input);
     return wrap;
+  }
+
+  /* 品項查詢的結果區塊。三種情境（使用者 2026-09-01 的三項要求）：
+       有打字        → 列出命中的品項與各自的表別
+       有打字＋有病人 → 每一筆再帶「以這位病人來說符不符合」
+       沒打字＋有病人 → 反過來列「符合的那張表底下有哪些藥可以用」
+     整合但**不合併成單一結論**：兩張表可能一符合一不符合，硬湊成「可不可以開」
+     會把「換個代碼就不符合」藏起來，而那正是會被核刪的地方。 */
+  const LIPID_TABLE_TAG = { one: '表一', two: '表二' };
+
+  function lipidProductRow(v) {
+    const li = el('li', 'lipid-hit'
+      + (v.listed === false ? ' is-dead' : '')
+      + (v.meets === true ? ' is-ok' : v.meets === false ? ' is-no' : ''));
+    const head = el('p', 'lipid-hit-head');
+    head.appendChild(el('b', 'lipid-hit-code', v.code));
+    /* 已停付要蓋過表別：對一個不給付的代碼說「走表一」是誤導。 */
+    if (v.listed === false) {
+      head.appendChild(el('span', 'lipid-hit-table is-dead', '已停付'));
+    } else if (v.tableLabel) {
+      head.appendChild(el('span', 'lipid-hit-table is-' + v.table, v.tableLabel));
+    }
+    head.appendChild(el('span', 'lipid-hit-name', v.name));
+    li.appendChild(head);
+    const bits = [];
+    if (v.ingredient) bits.push(v.ingredient);
+    /* 門檻只有在算得出來時才印：沒有病人資料時分級未定，門檻也就未定——
+       印「LDL-C ≧ null」比不印更糟。 */
+    /* typeof 而不是 Number.isFinite(Number(x))：Number(null) 是 0、也是有限數，
+       那個守衛完全不擋（實測印出「LDL-C ≧ null」）。 */
+    if (v.table && typeof v.threshold === 'number') {
+      bits.push('起始門檻 LDL-C ≧ ' + v.threshold
+        + (v.tc ? ' 或 TC ≧ ' + v.tc : ''));
+    }
+    if (bits.length) li.appendChild(el('p', 'lipid-hit-sub', bits.join('｜')));
+    if (v.note) li.appendChild(el('p', 'lipid-hit-note', v.note));
+    if (v.meets !== null && v.meets !== undefined) {
+      li.appendChild(el('p', 'lipid-hit-verdict',
+        (v.meets ? '本例符合' : '本例不符合') + '（' + v.tableLabel + ' '
+        + v.level + '，門檻 LDL-C ≧ ' + v.threshold + '）'));
+    }
+    return li;
+  }
+
+  function lipidLookupEl(root2, ctx, r) {
+    const box = el('section', 'lipid-lookup');
+    const input = root2.querySelector('#lipid-drug');
+    const query = input ? String(input.value || '').trim() : '';
+    const products = (root.LIPID_PRODUCTS && root.LIPID_PRODUCTS.products) || [];
+    if (!products.length) return null;
+    const coverage = (r && r.ok && (r.ldl !== null || r.tc !== null)) ? r : null;
+
+    if (query.length >= 2) {
+      const found = ctx.logic.lipidFindProducts(products, query, 12);
+      const live = found.hits.filter((p) => p.listed !== false).length
+        + (found.exact && found.exact.listed !== false ? 1 : 0);
+      box.appendChild(el('b', 'lipid-lookup-title',
+        '品項查詢「' + query + '」　命中 ' + found.total + ' 筆'
+        + (live < found.total ? '（給付中 ' + live + '，其餘已停付）' : '')));
+      if (!found.total) {
+        box.appendChild(el('p', 'lipid-lookup-empty',
+          '查無此代碼／品名／學名。這份清單只收現行有效的降血脂品項（ATC C10）；'
+          + '若確定是降膽固醇藥物而不在「不適用表一」清單上，依條文即適用表一。'));
+        return box;
+      }
+      const list = el('ul', 'lipid-hit-list');
+      const rows = (found.exact ? [found.exact] : []).concat(found.hits);
+      for (const p of rows) {
+        list.appendChild(lipidProductRow(ctx.logic.lipidProductVerdict(p, coverage)));
+      }
+      box.appendChild(list);
+      /* 截斷一定要講出來：醫師以為只有 12 個品項，實際上有 113 個。 */
+      if (found.capped) {
+        box.appendChild(el('p', 'lipid-lookup-more',
+          '只列前 ' + rows.length + ' 筆，另有 ' + (found.total - rows.length)
+          + ' 筆未列出——打得更精確（代碼或完整商品名）可以縮小範圍。'));
+      }
+      const sum = ctx.logic.lipidSummarize(
+        ctx.logic.lipidFindProducts(products, query, products.length).hits);
+      if (sum.length) {
+        box.appendChild(el('p', 'lipid-lookup-sum', '依學名彙總：'
+          + sum.map((s) => s.ingredient + '（表一 ' + s.one + '、表二 ' + s.two
+            + (s.other ? '、其他章節 ' + s.other : '') + '）').join('；')));
+      }
+      return box;
+    }
+
+    /* 沒打字：有病人資料時反過來列「符合的那張表底下有哪些藥」。 */
+    if (!coverage) return null;
+    box.appendChild(el('b', 'lipid-lookup-title', '這位病人可以用哪些藥'));
+    const all = ctx.logic.lipidSummarize(products.filter((p) => p.table));
+    for (const key of ['one', 'two']) {
+      const info = key === 'one' ? r.one : r.two;
+      if (info.meets === null) continue;
+      const line = el('p', 'lipid-avail' + (info.meets ? ' is-ok' : ' is-no'));
+      line.appendChild(el('b', 'lipid-hit-table is-' + key, LIPID_TABLE_TAG[key]));
+      const names = all.filter((s) => s[key] > 0)
+        .sort((a, b) => b[key] - a[key])
+        .map((s) => s.ingredient + ' ' + s[key]);
+      line.appendChild(document.createTextNode(
+        (info.meets ? '符合，可開這張表的品項：' : '不符合，這張表的品項本例不給付：')
+        + names.join('、')));
+      box.appendChild(line);
+    }
+    box.appendChild(el('p', 'lipid-lookup-sum',
+      '數字是品項數，不是劑量。同一個學名可能兩張表都有——開藥前用上面的欄位查代碼。'));
+    return box;
   }
 
   function lipidOverlayEl() {
@@ -1522,7 +1659,11 @@
       lipidGroupEl('心血管病史', LIPID_HISTORY),
       lipidGroupEl('共病', LIPID_COMORBID),
       lipidGroupEl('風險因子', LIPID_FACTORS),
-      lipidGroupEl('代謝症候群（下列 ≧ 3 項才算 1 個風險因子）', LIPID_METABOLIC));
+      lipidGroupEl('代謝症候群（下列 ≧ 3 項才算 1 個風險因子）', LIPID_METABOLIC),
+      /* 品項查詢排在勾選之後、結果之前：它回答的是「我開的這個走哪張表」，
+         與病人條件無關，但結果要跟病人的判定一起看。 */
+      lipidFieldEl('lipid-drug', '查品項',
+        { text: true, wide: true, placeholder: '健保代碼／商品名／學名' }));
 
     const result = el('div', 'lipid-result');
     result.id = 'lipid-result';
@@ -1557,6 +1698,7 @@
       tc: val('lipid-tc'),
       hdl: val('lipid-hdl'),
       tg: val('lipid-tg'),
+      drug: val('lipid-drug'),
     };
     for (const box of root2.querySelectorAll('[data-lipid-key]')) {
       out[box.dataset.lipidKey] = box.checked === true;
@@ -1631,30 +1773,53 @@
     return box;
   }
 
-  /* 表一結果下方的「適用藥物」。使用者要「學名就好」，所以把資料裡的括號補充
-     （劑量錨點、商品名）在這裡剝掉——條文分頁保留完整版，那裡有空間。
-     剝的是**顯示**不是資料：同一份 drugs 兩個畫面共用，剝在渲染層才不會分歧。 */
-  const lipidGenericName = (name) => String(name).replace(/（[^）]*）\s*$/, '').trim();
+  /* 哪幾個學名是展開的。刻意放在模組層而不是 store：這是「現在正在看」的暫態，
+     跟血脂輸入同一個道理不持久化；但**必須跨重繪保留**，否則每打一個數字就全縮回去。 */
+  const LIPID_OPEN_GROUPS = new Set();
+  /* 計算機與條文分頁共用同一份開合狀態（key 帶表別與學名）：在一邊展開 rosuvastatin，
+     切到另一邊也是展開的——那是同一個使用者意圖的延續，不是意外。
+     匯出清空的出口只給 E2E 用：測試之間不清，前一條展開的會漏到下一條，
+     變成「單獨跑綠、整批跑紅」那種假紅燈。 */
+  const lipidResetOpenGroups = () => { LIPID_OPEN_GROUPS.clear(); };
 
-  /* 給付狀態一定要跟學名並排：表一把 siRNA 與 ATP citrate lyase 抑制劑列為
-     未達標時可考慮的選項，但健保沒收載——只列學名不講這件事，
-     等於引導醫師去開一個病人要自費的藥。 */
-  function lipidDrugsEl() {
-    const data = chronicDrugs('lipid');
-    if (!data) return null;
+  /* 某一張表底下、現行給付中的品項清單（商品名＋劑量）。使用者 2026-09-01 要求
+     兩張表都要這個細節——處方單上是品名與劑量，不是「statin」或「成分 35 項」。
+     完整官方品名放 title：縮寫是為了掃視，要跟 HIS 對字時得看得到原名。 */
+  function lipidProductListEl(ctx, table, title) {
+    const products = (root.LIPID_PRODUCTS && root.LIPID_PRODUCTS.products) || [];
+    const groups = ctx.logic.lipidProductsByTable(products, table);
+    if (!groups.length) return null;
+    const total = groups.reduce((n, g) => n + g.items.length, 0);
     const box = el('section', 'lipid-drugs');
-    box.appendChild(el('b', 'lipid-drugs-title', '適用藥物（台灣有的學名）'));
+    box.appendChild(el('b', 'lipid-drugs-title', title + '（現行給付中 ' + total + ' 項）'));
     const list = el('ul', 'lipid-drug-list');
-    for (const g of data.groups) {
-      if (!g || !g.klass || !Array.isArray(g.items) || !g.items.length) continue;
-      const li = el('li', 'lipid-drug-group' + (g.covered === false ? ' is-selfpay' : ''));
-      li.appendChild(el('b', 'lipid-drug-klass', g.klass));
-      if (g.cover) {
-        li.appendChild(el('span',
-          'lipid-drug-cover' + (g.covered === false ? ' is-selfpay' : ''), String(g.cover)));
-      }
-      li.appendChild(el('span', 'lipid-drug-names',
-        g.items.map(lipidGenericName).join('、')));
+    for (const g of groups) {
+      const li = el('li', 'lipid-drug-group');
+      /* 預設收合，點學名才展開（使用者 2026-09-01）：165 個品名攤開是一面牆，
+         而多數時候只要看某一個學名底下有什麼。 */
+      const more = el('details', 'lipid-drug-more');
+      const key = table + '\u0000' + g.generic;
+      more.open = LIPID_OPEN_GROUPS.has(key);
+      /* toggle **不冒泡**，所以逐一掛而不是委派；記在模組層 Set 裡是因為
+         結果區每次輸入都整個重繪，不記就會「改一個數值、展開的又縮回去」。 */
+      more.addEventListener('toggle', () => {
+        if (more.open) LIPID_OPEN_GROUPS.add(key);
+        else LIPID_OPEN_GROUPS.delete(key);
+      });
+      const summary = document.createElement('summary');
+      summary.className = 'lipid-drug-toggle';
+      summary.append(el('b', 'lipid-drug-klass', g.generic),
+        el('span', 'lipid-drug-count', g.items.length + ' 項'));
+      more.appendChild(summary);
+      const names = el('p', 'lipid-drug-names');
+      g.items.forEach((item, i) => {
+        if (i) names.appendChild(document.createTextNode('、'));
+        const span = el('span', 'lipid-drug-item', item.short);
+        span.title = item.name + '（' + item.code + '）';
+        names.appendChild(span);
+      });
+      more.appendChild(names);
+      li.appendChild(more);
       list.appendChild(li);
     }
     box.appendChild(list);
@@ -1672,6 +1837,9 @@
     const anyInput = r.ldl !== null || r.tc !== null || (r.fibrate && r.fibrate.ok);
     if (copy) copy.disabled = !anyInput;
     if (!anyInput) {
+      /* 只查品項、不算病人也要能用（使用者要求 2）：所以查詢區塊排在這個 early return 之前。 */
+      const soloLookup = lipidLookupEl(root2, ctx, r);
+      if (soloLookup) box.appendChild(soloLookup);
       box.appendChild(el('p', 'lipid-hint', '輸入 LDL-C（或 TC／TG）並勾選病史後，這裡會列出表一的判定，以及表二品項的例外門檻。'));
       return;
     }
@@ -1681,8 +1849,17 @@
     /* 適用藥物掛在表一區塊裡面（使用者 2026-09-01 要求「結果下方」）：
        表一的「處方規定」欄只寫類別（statin、ezetimibe、PCSK9…），
        不知道對應到哪些藥就等於沒寫。 */
-    const drugs = lipidDrugsEl();
+    const drugs = lipidProductListEl(ctx, 'one', '適用藥物：商品名＋劑量');
     if (drugs) oneBlock.appendChild(drugs);
+    /* 類別層級只留這一句：PCSK9 走 2.6.4 有自己的條件、siRNA 與 ATP citrate lyase
+       台灣有藥但健保沒收載——它們不是表一品項，列進上面的清單會誤導，
+       但完全不提又等於讓人以為表一點名的東西都能開。 */
+    if (drugs) {
+      oneBlock.appendChild(el('p', 'lipid-drug-note',
+        '另：ezetimibe 與其複方走 2.6.2／2.6.3、PCSK9（evolocumab、alirocumab）走 2.6.4 '
+        + '須事前審查，各有自己的條件；inclisiran 與 bempedoic acid 台灣有藥但健保未收載，'
+        + '開了就是自費。'));
+    }
     box.appendChild(oneBlock);
     /* 表二退到次要：它只管公告明列「不適用表一」的那批代碼，
        但那批代碼含 atorvastatin、rosuvastatin，常到不能不算，所以是降級不是移除。 */
@@ -1696,14 +1873,12 @@
     /* 使用者要求計算機這邊也把成分完整列出來：判定寫著「符合表二」時，
        下一個問題必然是「那我開的這個算不算表二」——不列出來就得跳去條文分頁再找一次。
        只列學名並帶代碼數，理由同 chronicTableTwoEl 的註解。 */
+    const twoList = lipidProductListEl(ctx, 'two', '這張表的品項：商品名＋劑量');
+    if (twoList) twoBlock.appendChild(twoList);
     if (t2) {
-      const names = el('p', 'lipid-t2-names');
-      names.appendChild(el('b', 'lipid-t2-lead', '這批成分：'));
-      names.appendChild(document.createTextNode(
-        t2.ingredients.map((i) => i.name + '（' + i.codeCount + '）').join('、')));
-      twoBlock.appendChild(names);
       twoBlock.appendChild(el('p', 'lipid-t2-caution',
-        '同成分多數品項仍走表一，依健保代碼認定。'));
+        '同一個學名底下表一表二都有，且現行給付中是表二較多——依健保代碼認定，'
+        + '用下面的「查品項」對一次。'));
     }
     box.appendChild(twoBlock);
 
@@ -1719,6 +1894,9 @@
       + (r.riskFactorsNew.length ? '（' + r.riskFactorsNew.join('、') + '）' : '')
       + '｜表二危險因子 ' + r.two.riskFactors.length + ' 項'
       + (r.two.riskFactors.length ? '（' + r.two.riskFactors.join('、') + '）' : '')));
+
+    const lookup = lipidLookupEl(root2, ctx, r);
+    if (lookup) box.appendChild(lookup);
 
     const f = r.fibrate;
     if (f && f.ok) {
@@ -1919,6 +2097,7 @@
     chronicToday, chronicTopics, chronicDocsEl, chronicDocHref,
     chronicTableTwo, chronicTableTwoEl, chronicTableTwoNames,
     chronicLadder, chronicLadderEl, chronicDrugs, chronicDrugsEl,
+    lipidResetOpenGroups,
     FORMAT_LABEL, MODE_LABEL, MODE_SHORT, PANELS_TITLE, MODE_HINT, LAYOUT_LABEL, LAYOUT_MIN_WIDTH,
     CHRONIC_KIND, CCR_DISCLAIMER, CCR_BASIS_LABEL, LIPID_DISCLAIMER, CHRONIC_DOC_DIR,
   };

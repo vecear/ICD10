@@ -281,6 +281,9 @@ body[data-layout="mobile"] .chronic-doc-link {
 body[data-layout="mobile"] .chronic-doc-version,
 body[data-layout="mobile"] .chronic-doc-where { font-size: 12px; }
 
+/* 收合的學名是觸控目標：整條 summary 撐到 44px，不是只有那幾個字 */
+body[data-layout="mobile"] .lipid-drug-toggle { min-height: 44px; align-items: center; }
+
 /* 兩個計算機：手機一律 44px 觸控門檻（輸入框、按鈕都是）。
    它們帶 .seg-btn--sm（那是給 176px 窄欄的 22px／10px），在 390px 一定要蓋掉——
    血脂鈕原本就漏了這條，量到只有 22px 高、10px 字，是實測抓出來的觸控門檻破口。 */

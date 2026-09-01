@@ -523,6 +523,175 @@
              parallelWhy: parallelWhy.slice(), why, needs: [] };
   }
 
+  /* ── 降血脂品項反查 ────────────────────────────────────────────────────────
+     使用者 2026-09-01：「我希望計算機裡有個欄位讓我可以輸入健保代碼 或 商品名 或
+     學名 然後顯示是適用表一還是表二」。
+
+     為什麼非有不可：表一與表二的門檻差很多（極高風險 55 vs 70），而走哪一張
+     **只看健保代碼**——同一個 atorvastatin，A 廠走表一、B 廠走表二。醫師手上是商品名，
+     不是代碼清單，沒有反查就只能憑印象猜。
+
+     純函式、零 DOM：品項清單由呼叫端傳進來（瀏覽器是 window.LIPID_PRODUCTS，
+     node 測試直接餵陣列），這樣這一段能被單元測試釘住。 */
+
+  const LIPID_TABLE_LABEL = { one: '表一', two: '表二' };
+
+  /* 健保代碼：一個英文字母 ＋ 9 碼英數，共 10 碼（AC46402100、B024129100、K000123456）。
+     樣式是對著實際資料推的，不是憑印象——611 個品項全部符合，開頭字母有 A/B/K/Y。
+     用它判斷「使用者打的是代碼還是名字」：代碼要精準比對，名字才做模糊搜尋。 */
+  const LIPID_CODE_RE = /^[A-Z][A-Z0-9]{9}$/i;
+
+  function lipidNormalize(s) {
+    return String(s == null ? '' : s).trim().toUpperCase();
+  }
+
+  /* 搜尋：代碼完全相同排最前，其次是商品名／成分的子字串比對。
+     limit 是給畫面用的上限；回傳另帶 total，讓畫面能說「還有幾筆沒列出來」——
+     **靜默截斷是不行的**：醫師以為只有 3 個品項，實際上有 30 個。 */
+  function lipidFindProducts(products, query, limit) {
+    const list = Array.isArray(products) ? products : [];
+    const q = lipidNormalize(query);
+    const cap = Number.isFinite(limit) && limit > 0 ? limit : 20;
+    if (q.length < 2) return { query: q, exact: null, hits: [], total: 0, capped: false };
+
+    const exactCode = LIPID_CODE_RE.test(q)
+      ? list.filter((p) => lipidNormalize(p.code) === q)[0] || null
+      : null;
+
+    const hits = [];
+    for (const p of list) {
+      if (exactCode && p === exactCode) continue;
+      const hay = lipidNormalize(p.code) + '\u0000' + lipidNormalize(p.en)
+        + '\u0000' + String(p.zh || '') + '\u0000' + lipidNormalize(p.ingredient);
+      if (hay.indexOf(q) >= 0 || String(p.zh || '').indexOf(String(query).trim()) >= 0) {
+        hits.push(p);
+      }
+    }
+    /* 表二排前面：它是例外，而「我開的這個是不是例外」正是要查的那件事。 */
+    /* 給付中的排前面（已停付的查得到但不能開），其次表二優先——
+       「我開的這個是不是那個例外」正是要查的那件事。 */
+    hits.sort((a, b) => {
+      const dead = (x) => (x.listed === false ? 1 : 0);
+      const rank = (x) => (x.table === 'two' ? 0 : x.table === 'one' ? 1 : 2);
+      return dead(a) - dead(b) || rank(a) - rank(b)
+        || lipidNormalize(a.ingredient).localeCompare(lipidNormalize(b.ingredient))
+        || lipidNormalize(a.code).localeCompare(lipidNormalize(b.code));
+    });
+    return {
+      query: q,
+      exact: exactCode,
+      hits: hits.slice(0, cap),
+      total: hits.length + (exactCode ? 1 : 0),
+      capped: hits.length > cap,
+    };
+  }
+
+  /* 依成分彙總：查「atorvastatin」時要回答的是「幾個走表一、幾個走表二」，
+     不是丟 100 筆品項給人看。 */
+  /* 已停付（支付價 0）的代碼**不列入統計**：把它們算進去會得到相反的結論。
+     實測含死碼時「表一 255 / 表二 116」，只算給付中則是「表一 49 / 表二 116」——
+     前者會讓人以為「大多數走表一」，而那正是會少對代碼的那個誤解。
+     反查仍然找得到它們（見 lipidFindProducts），只是標成已停付。 */
+  const lipidListed = (p) => p && p.listed !== false;
+
+  function lipidSummarize(products) {
+    const list = (Array.isArray(products) ? products : []).filter(lipidListed);
+    const by = {};
+    for (const p of list) {
+      /* 用 generic（成分欄的第一個詞）分組，不用 ingredient：品項檔的鹽類寫法不一致，
+         照原樣分組會把同一個學名拆成好幾堆（見 fetch_lipid_products.py 的 generic()）。 */
+      const key = String(p.generic || p.ingredient || '（未標成分）');
+      if (!by[key]) by[key] = { ingredient: key, one: 0, two: 0, other: 0 };
+      if (p.table === 'one') by[key].one += 1;
+      else if (p.table === 'two') by[key].two += 1;
+      else by[key].other += 1;
+    }
+    return Object.keys(by).sort().map((k) => by[k]);
+  }
+
+  /* 把反查結果與病人的判定接起來（使用者要求 3）：
+     「有輸入病人資料時則整合結果，顯示有符合的表一或表二可以用的藥物有哪些」。
+
+     coverage＝lipidCoverage() 的回傳；沒有病人資料時傳 null，只回表別不下判定。
+     **不合併成一個結論**：兩張表可能一符合一不符合，硬湊成「可不可以開」會把
+     「換個代碼就不符合」這件事藏起來——那正是會被核刪的地方。 */
+  function lipidProductVerdict(product, coverage) {
+    if (!product) return null;
+    const table = product.table === 'one' || product.table === 'two' ? product.table : '';
+    const out = {
+      code: product.code,
+      name: product.en || product.zh || product.code,
+      ingredient: product.ingredient || '',
+      listed: product.listed !== false,
+      table,
+      tableLabel: LIPID_TABLE_LABEL[table] || '',
+      section: product.section || '',
+      meets: null,
+      threshold: null,
+      level: '',
+    };
+    /* 已停付的代碼要明講，而且要排在表別之前——「這個代碼走表一」對一個不給付的
+       品項來說是誤導。查得到但不能開，跟查無此代碼是兩件事。 */
+    if (!out.listed) {
+      out.note = '這個代碼的支付價是 0，已停止給付——查得到但不能開。'
+        + '同一個品名可能有另一個現行代碼，用品名再查一次。';
+      return out;
+    }
+    if (!table) {
+      /* 2.6.2／2.6.3／2.6.4 有自己的條件，不是表一／表二的問題；
+         品項檔沒標章節的也一樣不猜。 */
+      out.note = product.section
+        ? '這個品項走 ' + product.section + '，有自己的給付條件，不是表一／表二的判定'
+        : '品項檔未標給付規定章節，本工具不判斷它的表別';
+      return out;
+    }
+    if (!coverage || !coverage.ok) return out;
+    const info = table === 'one' ? coverage.one : coverage.two;
+    out.meets = info.meets;
+    out.threshold = info.threshold;
+    out.level = info.label;
+    out.target = info.target;
+    out.tc = info.tc || null;
+    return out;
+  }
+
+  /* 品名縮寫：把劑型字樣拿掉，留下「商品名＋劑量」。
+
+     **不得動到 XL、OD、SR、ER 與引號裡的廠標**——那些是同名不同品項的關鍵
+     （Lescol XL 80mg 與 Lescol 40mg 是兩回事；Tulip"SDZ" 走表一、Tulip 走表二）。
+     實測 165 個現行品項：162 筆縮短、3 筆原樣、0 筆掉了劑量或修飾字。
+     縮寫只用在顯示，完整品名仍要留給呼叫端放進 title。 */
+  const LIPID_FORM_RE = new RegExp(
+    '\\s*(?:film[\\s-]*coat(?:ed|ing)|f\\.?\\s?c\\.?|enteric[\\s-]*coated'
+    + '|sugar[\\s-]*coated|prolonged[\\s-]*release|extended[\\s-]*release|hard|soft)?'
+    + '\\s*(?:tablets?|tabs?|capsules?|caps?)\\b\\.?', 'ig');
+
+  function lipidShortName(name) {
+    const raw = String(name == null ? '' : name);
+    const out = raw.replace(LIPID_FORM_RE, ' ').replace(/\s{2,}/g, ' ').replace(/^[\s,-]+|[\s,-]+$/g, '');
+    return out || raw;
+  }
+
+  /* 某一張表底下、**現行給付中**的品項，依學名分組。
+     已停付的不列：那是這一輪修掉的錯——把死碼算進去會讓人以為某個學名有一堆選擇。 */
+  function lipidProductsByTable(products, table) {
+    const list = (Array.isArray(products) ? products : [])
+      .filter((p) => p && p.table === table && p.listed !== false);
+    const by = {};
+    const order = [];
+    for (const p of list) {
+      const key = String(p.generic || p.ingredient || '（未標成分）');
+      if (!by[key]) { by[key] = { generic: key, items: [] }; order.push(key); }
+      by[key].items.push({ code: p.code, name: p.en || p.zh || p.code,
+                           short: lipidShortName(p.en || p.zh || p.code) });
+    }
+    for (const key of order) {
+      by[key].items.sort((a, b) => a.short.localeCompare(b.short));
+    }
+    order.sort((a, b) => by[b].items.length - by[a].items.length || a.localeCompare(b));
+    return order.map((k) => by[k]);
+  }
+
   function lipidCoverage(input) {
     const c = input || {};
     const ldl = Number(c.ldl);
@@ -577,5 +746,7 @@
 
   return { buildIndex, search, family, formatCart, mergeRelated, rocDate, splitByEffective,
            splitSentences, splitLead, creatinineClearance,
-           lipidCoverage, lipidRiskFactorsNew, lipidRiskFactorsOld, lipidMetabolic };
+           lipidCoverage, lipidRiskFactorsNew, lipidRiskFactorsOld, lipidMetabolic,
+           lipidFindProducts, lipidSummarize, lipidProductVerdict,
+           lipidShortName, lipidProductsByTable };
 });

@@ -1,5 +1,5 @@
 """組裝單一離線 HTML：資料 gzip+base64 內嵌、字型 base64 內嵌、全部 CSS/JS inline。"""
-import base64, calendar, gzip, hashlib, io, json, re, shutil, sys
+import base64, calendar, collections, gzip, hashlib, io, json, re, shutil, sys
 from datetime import date
 from pathlib import Path
 
@@ -47,6 +47,12 @@ CURATED_KEYS = {
 # topics → sections → items），走進那條路徑不是崩潰就是噴出一整片假錯誤。
 # 它有自己的檢查：結構欄位齊全、日期格式、以及 checked 的時效警告（見 check_chronic_care）。
 CHRONIC_CARE_FILE = "chronic_care.json"
+# 降血脂品項反查（代碼／商品名／學名 → 表一或表二）。同樣**不進 CURATED_KEYS**：
+# 它一個 ICD 代碼都沒有，走 validate_curated() 只會噴假錯誤。
+# 由 build/fetch_lipid_products.py 從兩個官方來源產生；它比慢病速查更會過期
+# （品項檔每月更新），所以門檻設得比 CHRONIC_CHECK_MAX_MONTHS 短。
+LIPID_PRODUCTS_FILE = "lipid_products.json"
+LIPID_PRODUCTS_MAX_MONTHS = 3
 # checked 日期超過這個月數就印醒目警告。
 # **警告不是失敗**：過期的給付規定會誤導醫師，但讓建置失敗等於門診當天沒工具可用，那更糟。
 CHRONIC_CHECK_MAX_MONTHS = 6
@@ -206,6 +212,58 @@ def check_chronic_care(chronic, today=None):
             f"{sorted(CHRONIC_TOPIC_KEYS)} 不一致——按鈕會點了沒反應"
         )
     return {"warnings": warnings, "items": total, "oldest": oldest, "cutoff": cutoff}
+
+
+def load_lipid_products():
+    """讀 lipid_products.json，剝掉 _schema 再內嵌（同 load_chronic_care 的理由）。"""
+    raw = json.loads((SRC / "curated" / LIPID_PRODUCTS_FILE).read_text(encoding="utf-8"))
+    return {k: v for k, v in raw.items() if k != "_schema"}
+
+
+def check_lipid_products(data, today=None):
+    """品項檔的結構與時效檢查。結構錯誤丟例外，過舊只警告。
+
+    分兩種的理由同 check_chronic_docs／check_chronic_care：
+      - 「欄位缺漏、表別值不合法」是機器可驗的事實 → 失敗
+      - 「資料太舊」是判斷 → 警告（讓建置失敗等於門診當天沒工具可用，那更糟）
+    """
+    products = data.get("products") or []
+    if not products:
+        raise ValueError("lipid_products.json 沒有任何品項（跑 build/fetch_lipid_products.py 產生）")
+    allowed = {"one", "two", ""}
+    bad = []
+    seen = set()
+    for p in products:
+        code = str((p or {}).get("code") or "").strip()
+        if not code:
+            bad.append("有一筆沒有代碼")
+            continue
+        if code in seen:
+            bad.append(f"{code}：代碼重複")
+        seen.add(code)
+        if str(p.get("table", "")) not in allowed:
+            bad.append(f"{code}：table 值不合法（{p.get('table')!r}）")
+        if not str(p.get("en") or p.get("zh") or "").strip():
+            bad.append(f"{code}：中英文品名都是空的，查不到就等於沒收錄")
+    if bad:
+        detail = "\n  ".join(bad[:10])
+        more = "" if len(bad) <= 10 else f"\n  （另有 {len(bad) - 10} 筆）"
+        raise ValueError(f"lipid_products.json 有 {len(bad)} 筆問題：\n  {detail}{more}")
+
+    warnings = []
+    today = today or date.today()
+    cutoff = _months_before(today, LIPID_PRODUCTS_MAX_MONTHS)
+    try:
+        checked = date.fromisoformat(str(data.get("checked")))
+    except (TypeError, ValueError):
+        warnings.append(f"checked 缺漏或不是 YYYY-MM-DD（{data.get('checked')!r}）")
+        checked = None
+    if checked and checked < cutoff:
+        warnings.append(
+            f"品項檔查證 {checked}，已超過 {LIPID_PRODUCTS_MAX_MONTHS} 個月"
+            "（健保用藥品項每月更新，跑 build/fetch_lipid_products.py 重抓）")
+    counts = collections.Counter(str(p.get("table") or "other") for p in products)
+    return {"warnings": warnings, "total": len(products), "counts": counts, "checked": checked}
 
 
 def check_chronic_docs(chronic):
@@ -462,6 +520,8 @@ def main():
     validate_curated(curated, db)
     labels = build_curated_labels(curated, {row[0]: row for row in db})
     chronic = load_chronic_care()
+    products = load_lipid_products()
+    products_report = check_lipid_products(products)
     chronic_docs = check_chronic_docs(chronic)
     ladder = check_risk_ladder(chronic)
     drug_groups = check_drugs(chronic)
@@ -478,6 +538,10 @@ def main():
         + "   validate_curated() 的代碼驗證；它的守門是 check_chronic_care()（結構與 checked 時效）\n"
         + "   加上 assert_offline()（source 一旦夾帶網址就整個建置失敗）。維護方式見 README。 */\n"
         + "window.CHRONIC_CARE = " + json.dumps(chronic, ensure_ascii=False, separators=(",", ":")) + ";\n</script>\n"
+        + "<script>\n/* 降血脂品項反查：代碼／商品名／學名 → 適用表一或表二。\n"
+        + "   來源是健保署品項檔（每月更新）＋2.6.1 的「不適用表一」對照表，\n"
+        + "   由 build/fetch_lipid_products.py 產生，守門是 check_lipid_products()。 */\n"
+        + "window.LIPID_PRODUCTS = " + json.dumps(products, ensure_ascii=False, separators=(",", ":")) + ";\n</script>\n"
         + "\n".join(
             "<script>\n" + (SRC / rel).read_text(encoding="utf-8") + "\n</script>"
             for rel in SOURCES
@@ -503,6 +567,10 @@ def main():
         f"  CURATED_LABELS：{len(labels):,} 個精選碼\n"
         f"  表一用藥："
         + ("、".join(f"{k} {v} 類" for k, v in drug_groups.items()) or "（無）") + "\n"
+        f"  降血脂品項：{products_report['total']:,} 個"
+        + f"（表一 {products_report['counts'].get('one', 0)}、"
+        + f"表二 {products_report['counts'].get('two', 0)}、"
+        + f"其他章節 {products_report['counts'].get('other', 0)}）\n"
         f"  風險分級階梯："
         + ("、".join(f"{k} {v} 級" for k, v in ladder.items()) or "（無）") + "\n"
         f"  僅適用表二的成分："
@@ -513,6 +581,8 @@ def main():
     )
     # 時效警告排在最後印：它是要被看見的東西，夾在中間會被上面的統計淹掉
     print(format_chronic_report(chronic_report))
+    for line in products_report["warnings"]:
+        print(f"【警告】降血脂品項：{line}")
 
 if __name__ == "__main__":
     main()

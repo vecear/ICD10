@@ -20,3 +20,5 @@ tools/Au.*
 # dist/健保條文/：由 build.py 從 健保條文/ 複製過來，讓 dist/icd10.html 在本機也點得開條文。
 # 原始檔在 健保條文/，同一批 PDF 不進版控兩次。
 dist/健保條文/
+# 抓官方來源檔的快取（96 MB 的品項檔等），不是原始碼
+build/.cache/

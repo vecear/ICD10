@@ -4,6 +4,7 @@ DOM 契約見 .review/design-ref/impl-plan.md §4。1c 側掛窄欄與 1b 手機
 放在各自的檔案（tests/e2e_dock_test.py／e2e_mobile_test.py），本檔只涵蓋 wide 版面。
 """
 import datetime
+import re
 import http.server, json, threading
 from urllib.parse import urlparse
 from urllib.request import url2pathname
@@ -118,6 +119,17 @@ def reset(pg):
         s.setLipidOpen(false);   // 同理：血脂試算面板也是全幅浮層
         s.resetPaneSizes();      // 窗格高度也會寫 localStorage，殘留會讓其他測試量到別條測試拖出來的高度
         s.setState({ favs: [], recent: [], expanded: {}, quickOpen: {}, copied: false });
+        /* 血脂試算的輸入是**存在 DOM 裡**的（刻意不進 store：那是這一位病人的資料）。
+           store 重設不會碰它們，所以上一條測試填的 LDL-C、勾的病史、打的品項查詢
+           會原樣留給下一條——實測讓「沒有病人資料時不下判定」那條測試在整批跑時變紅，
+           單獨跑卻是綠的。這一類假紅／假綠比測試本身更貴，所以在這裡一次清乾淨。 */
+        document.querySelectorAll('.lipid-input').forEach((n) => { n.value = ''; });
+        document.querySelectorAll('[data-lipid-key]').forEach((n) => { n.checked = false; });
+        /* 品項清單的開合狀態也是模組層的暫態（計算機與條文分頁共用），
+           不清會漏到下一條測試——同上，這類假紅燈比測試本身更貴。 */
+        if (window.ICDRender && window.ICDRender.lipidResetOpenGroups) {
+            window.ICDRender.lipidResetOpenGroups();
+        }
     }""")
     pg.fill("#search", "")
 
@@ -1942,12 +1954,262 @@ def test_lipid_result_follows_the_clinical_thinking_order(page):
     reset(page)
 
 
-def test_table_one_result_lists_the_drugs_available_in_taiwan(page):
-    """表一的判定下方要列出台灣有的適用藥物（學名）。
+def test_both_tables_list_products_with_brand_and_strength(page):
+    """兩張表都要列出**現行給付中**的品項（商品名＋劑量），細節一樣。
 
-    使用者 2026-09-01：「表一（ASCVD 風險分級）的結果我希望下方也要寫上台灣有的適用藥物」。
-    表一的「處方規定」欄只寫類別（statin、ezetimibe、PCSK9…），不知道對應到哪些藥
-    就等於沒寫。清單同源於 chronic_care.json 的 drugs，條文分頁用的是同一份。
+    使用者 2026-09-01：「表一就請寫有給付的品項（商品名跟劑量），
+    表二請寫詳細的商品名跟劑量（要跟表二提到的藥物寫的一樣詳細）」。
+    原本表一列的是類別（statin、ezetimibe…）、表二列的是成分與筆數，
+    兩邊都不是處方單上會看到的東西。
+
+    順便釘住那個關鍵案例：Tulip"SDZ" 走表一、Tulip 走表二；
+    CRESTOR 10MG 走表一、CRESTOR 20MG 與 Crestor 5mg 走表二。
+    """
+    reset(page)
+    page.click("#lipid-btn")
+    expect(page.locator("#lipid-panel")).to_be_visible()
+    page.fill("#lipid-age", "62")
+    page.fill("#lipid-ldl", "200")
+    page.wait_for_timeout(400)
+
+    blocks = page.evaluate("""() => Array.from(
+        document.querySelectorAll('#lipid-result .lipid-block')).slice(0, 2).map((b) => ({
+            title: (b.querySelector('.lipid-drugs-title') || {}).textContent || '',
+            items: Array.from(b.querySelectorAll('.lipid-drug-item')).map((n) => n.textContent),
+            titles: Array.from(b.querySelectorAll('.lipid-drug-item')).map((n) => n.title),
+            generics: Array.from(b.querySelectorAll('.lipid-drug-klass')).map((n) => n.textContent),
+        }))""")
+    one, two = blocks[0], blocks[1]
+    assert "現行給付中" in one["title"] and "現行給付中" in two["title"], blocks
+    assert len(one["items"]) >= 20 and len(two["items"]) >= 50, (
+        f"兩張表都要列到品項層級：表一 {len(one['items'])}、表二 {len(two['items'])}")
+    # 每一筆都要帶劑量，而完整官方品名與代碼留在 title（要跟 HIS 對字時用）
+    assert sum(1 for x in one["items"] if any(c.isdigit() for c in x)) >= len(one["items"]) - 2
+    code_re = re.compile(r"[A-Z][A-Z0-9]{9}")
+    assert all(code_re.search(t) for t in one["titles"]), (
+        f"title 要帶健保代碼，要跟 HIS 對字時才用得上：{one['titles'][:3]}")
+
+    joined_one = "、".join(one["items"])
+    joined_two = "、".join(two["items"])
+    assert 'Tulip"SDZ"' in joined_one, joined_one
+    assert "Tulip 10mg" in joined_two, joined_two
+    assert "CRESTOR 10MG" in joined_one, joined_one
+    assert "CRESTOR 20MG" in joined_two and "Crestor 5mg" in joined_two, joined_two
+    # 類別層級只留一句：PCSK9／ezetimibe 走別的條、自費的那兩類不是表一品項
+    note = page.locator("#lipid-result .lipid-drug-note").first.inner_text()
+    assert "2.6.4" in note and "自費" in note, note
+    page.keyboard.press("Escape")
+    reset(page)
+
+
+def test_product_lists_are_collapsed_until_you_click_the_generic(page):
+    """品項預設收合，點學名才展開；而且展開狀態要撐過重繪。
+
+    使用者 2026-09-01：「我希望品項預設是縮合隱藏的，使用者點擊學名後才展開」。
+    165 個品名攤開是一面牆，而多數時候只要看某一個學名底下有什麼。
+
+    **重繪那一條是重點**：結果區每打一個數字就整個重建，原生 <details> 的 open
+    會跟著 DOM 消失——展開之後改一個數值就縮回去，等於這個功能沒做。
+    所以開合狀態記在模組層並在重建時還原。
+
+    用原生 <details> 而不是自己接 click：不必經過 interactions.js 的委派，
+    置頂（Document PiP）時也不會失效——那條白名單是這個專案踩過兩次的坑。
+    """
+    reset(page)
+    page.click("#lipid-btn")
+    expect(page.locator("#lipid-panel")).to_be_visible()
+    page.fill("#lipid-age", "62")
+    page.fill("#lipid-ldl", "200")
+    page.wait_for_timeout(400)
+
+    groups = page.locator("#lipid-result details.lipid-drug-more")
+    assert groups.count() >= 10, groups.count()
+    names = page.locator("#lipid-result .lipid-drug-names").first
+    expect(names).to_be_hidden()                      # 負面：預設不得攤開
+    # 收合時看得到的是學名與筆數
+    head = page.locator("#lipid-result .lipid-drug-toggle").first.inner_text()
+    assert "rosuvastatin" in head and "項" in head, head
+
+    page.locator("#lipid-result .lipid-drug-toggle").first.click()
+    page.wait_for_timeout(200)
+    expect(names).to_be_visible()
+    assert page.evaluate(
+        "() => [...document.querySelectorAll('#lipid-result details.lipid-drug-more')]"
+        ".filter((d) => d.open).length") == 1, "只該展開被點的那一組"
+
+    # 重繪：改一個數值，展開的那一組要還在
+    page.fill("#lipid-ldl", "210")
+    page.wait_for_timeout(450)
+    still = page.evaluate(
+        "() => [...document.querySelectorAll('#lipid-result details.lipid-drug-more')]"
+        ".filter((d) => d.open).map((d) => d.querySelector('.lipid-drug-klass').textContent)")
+    assert still == ["rosuvastatin"], f"重繪後展開狀態沒留住：{still}"
+    page.keyboard.press("Escape")
+    reset(page)
+
+
+def test_drug_lookup_answers_which_table_without_patient_data(page):
+    """情境 2：沒輸入病人資料，只查一個品項也要能看到表別。
+
+    使用者 2026-09-01 的三項要求之一。這個查詢與病人條件無關——
+    「我開的這個走哪張表」是品項的屬性，不是病人的。
+    """
+    reset(page)
+    page.click("#lipid-btn")
+    expect(page.locator("#lipid-panel")).to_be_visible()
+    page.fill("#lipid-drug", "crestor")
+    page.wait_for_timeout(350)
+    box = page.locator("#lipid-result .lipid-lookup")
+    expect(box).to_have_count(1)
+    rows = page.evaluate("""() => Array.from(
+        document.querySelectorAll('#lipid-result .lipid-hit')).map((n) => ({
+            code: n.querySelector('.lipid-hit-code').textContent.trim(),
+            table: (n.querySelector('.lipid-hit-table') || {}).textContent || '',
+            verdict: (n.querySelector('.lipid-hit-verdict') || {}).textContent || '',
+        }))""")
+    assert len(rows) >= 2, rows
+    tags = {r["table"] for r in rows}
+    assert {"表一", "表二"} <= tags, f"CRESTOR 同名不同代碼，兩張表都該出現：{rows}"
+    # 已停付的代碼查得到但要標出來，而且排在給付中的後面
+    assert "已停付" in tags, f"支付價 0 的舊代碼要標成已停付：{rows}"
+    live = [i for i, r in enumerate(rows) if r["table"] != "已停付"]
+    dead = [i for i, r in enumerate(rows) if r["table"] == "已停付"]
+    assert max(live) < min(dead), f"給付中的要排在已停付之前：{rows}"
+    # 沒有病人資料就不下判定，也不能印出 null 門檻
+    assert all(not r["verdict"] for r in rows), rows
+    assert "null" not in box.inner_text(), box.inner_text()
+    page.keyboard.press("Escape")
+    reset(page)
+
+
+def test_drug_lookup_merges_with_the_patient_verdict(page):
+    """情境 1：有病人資料時，每一筆品項要帶「以這位病人來說符不符合」。
+
+    這是整個功能最有價值的一刻：同一個 CRESTOR 20MG，
+    代碼 B024129100 走表一（極高風險門檻 55）→ 符合；
+    代碼 BC24129100 走表二（門檻 100）→ 不符合。LDL-C 75 剛好落在兩者之間。
+    """
+    reset(page)
+    page.click("#lipid-btn")
+    expect(page.locator("#lipid-panel")).to_be_visible()
+    page.fill("#lipid-age", "62")
+    page.fill("#lipid-ldl", "75")
+    page.check("#lipid-cad")
+    page.check("#lipid-miWithin1y")
+    page.fill("#lipid-drug", "crestor")
+    page.wait_for_timeout(400)
+    rows = page.evaluate("""() => Array.from(
+        document.querySelectorAll('#lipid-result .lipid-hit')).map((n) => ({
+            code: n.querySelector('.lipid-hit-code').textContent.trim(),
+            table: (n.querySelector('.lipid-hit-table') || {}).textContent || '',
+            verdict: (n.querySelector('.lipid-hit-verdict') || {}).textContent || '',
+            note: (n.querySelector('.lipid-hit-note') || {}).textContent || '',
+        }))""")
+    by_code = {r["code"]: r for r in rows}
+    # 兩個都是現行給付中的代碼（B0… 那批支付價 0，早就停付了）
+    assert by_code["BC24131100"]["table"] == "表一", by_code["BC24131100"]
+    assert "本例符合" in by_code["BC24131100"]["verdict"], by_code["BC24131100"]
+    assert by_code["BC24129100"]["table"] == "表二", by_code["BC24129100"]
+    assert "本例不符合" in by_code["BC24129100"]["verdict"], by_code["BC24129100"]
+    # 已停付的代碼不得給判定——對一個不給付的品項說「符合表一」是誤導
+    dead = by_code["B024129100"]
+    assert dead["table"] == "已停付", dead
+    assert not dead["verdict"], dead
+    assert "已停止給付" in dead["note"], dead
+    page.keyboard.press("Escape")
+    reset(page)
+
+
+def test_drug_lookup_lists_what_this_patient_can_be_given(page):
+    """情境 3：有病人資料、沒打字時，反過來列符合的那張表底下有哪些藥。
+
+    使用者 2026-09-01：「有輸入病人資料時則整合結果，顯示有符合的表一或表二
+    可以用的藥物有哪些」。刻意**不合併成單一結論**：兩張表可能一符合一不符合，
+    硬湊成「可不可以開」會把「換個代碼就不符合」藏起來。
+    """
+    reset(page)
+    page.click("#lipid-btn")
+    expect(page.locator("#lipid-panel")).to_be_visible()
+    # reset() 只動 store，不清 DOM 欄位——上一條測試打的品項查詢會留著，
+    # 那樣走的是「有查詢」分支而不是這條要測的「沒查詢」分支。按「清除」才乾淨。
+    page.click("#lipid-reset")
+    page.wait_for_timeout(120)
+    page.fill("#lipid-age", "62")
+    page.fill("#lipid-ldl", "75")
+    page.check("#lipid-cad")
+    page.check("#lipid-miWithin1y")
+    page.wait_for_timeout(400)
+    assert page.input_value("#lipid-drug") == "", "查詢欄要是空的，否則走的是查詢分支"
+    lines = page.evaluate("""() => Array.from(
+        document.querySelectorAll('#lipid-result .lipid-avail')).map((n) => n.textContent.trim())""")
+    assert len(lines) == 2, f"兩張表各一行：{lines}"
+    joined = "\n".join(lines)
+    assert "表一符合，可開這張表的品項：" in joined, joined
+    assert "表二不符合，這張表的品項本例不給付：" in joined, joined
+    assert "atorvastatin" in joined and "rosuvastatin" in joined, joined
+    page.keyboard.press("Escape")
+    reset(page)
+
+
+def test_chronic_panel_also_lists_products_and_collapses_them(page):
+    """條文分頁的用藥資訊也要到品項層級，而且預設收合。
+
+    使用者 2026-09-01：「健保規範條文分頁也要改」——接在計算機那兩塊改成
+    「品項層級＋預設收合」之後。原本這一頁是類別／成分層級而且永遠攤開，
+    兩個畫面對同一件事給的細節不一樣，而這一頁反而是醫師會停下來讀的那一頁。
+
+    釘四件事：
+      1. 兩張表的品項清單都在（與計算機同一個元件，數字一致）
+      2. 全部預設收合——攤開的話這一塊比整頁其他內容加起來還長
+      3. 類別收合後**給付狀態仍看得見**：那是「開了病人要不要付錢」，不能藏
+      4. 官方 9 個成分的摘要沒有被品項清單取代——它是「哪些成分上榜」的權威依據
+    """
+    reset(page)
+    open_chronic(page, "lipid")
+
+    info = page.evaluate("""() => ({
+        klass: document.querySelectorAll('#chronic-body details.chronic-drug-more').length,
+        klassOpen: [...document.querySelectorAll('#chronic-body details.chronic-drug-more')]
+            .filter((d) => d.open).length,
+        covers: [...document.querySelectorAll('#chronic-body .chronic-drug-cover')]
+            .map((n) => n.textContent.trim()),
+        lists: [...document.querySelectorAll('#chronic-body .lipid-drugs-title')]
+            .map((n) => n.textContent),
+        groups: document.querySelectorAll('#chronic-body details.lipid-drug-more').length,
+        groupsOpen: [...document.querySelectorAll('#chronic-body details.lipid-drug-more')]
+            .filter((d) => d.open).length,
+        officialIngredients: document.querySelectorAll('#chronic-body .chronic-t2-item').length,
+    })""")
+
+    assert info["klass"] == 5, info
+    assert info["klassOpen"] == 0, f"類別要預設收合：{info}"
+    # 收合狀態下給付標籤仍要看得到——「自費」藏起來等於引導醫師開一個病人要付錢的藥
+    assert any("自費" in c for c in info["covers"]), info["covers"]
+    assert any("事前審查" in c for c in info["covers"]), info["covers"]
+
+    assert len(info["lists"]) == 2, f"表一表二各要一份品項清單：{info['lists']}"
+    assert any("表一" in x and "現行給付中" in x for x in info["lists"]), info["lists"]
+    assert any("表二" in x and "現行給付中" in x for x in info["lists"]), info["lists"]
+    assert info["groups"] >= 10 and info["groupsOpen"] == 0, f"品項也要預設收合：{info}"
+
+    assert info["officialIngredients"] == len(cf.table_two("lipid")["ingredients"]), (
+        "官方 9 個成分的摘要不能被品項清單取代——那是哪些成分上榜的權威依據")
+
+    # 點開一組，內容要出得來
+    names = page.locator("#chronic-body .lipid-drug-names").first
+    expect(names).to_be_hidden()
+    page.locator("#chronic-body .lipid-drug-toggle").first.click()
+    page.wait_for_timeout(200)
+    expect(names).to_be_visible()
+    reset(page)
+
+
+def test_chronic_panel_lists_the_drug_classes_with_coverage_status(page):
+    """條文分頁列的是表一點名的**藥理類別**與各自的給付狀態。
+
+    這與計算機那邊列的「現行給付中的品項（商品名＋劑量）」是兩個不同的問題：
+    這一頁回答「表一叫我開什麼類別的藥」，計算機回答「那我實際能開哪一個品項」。
+    2026-09-01 使用者要求計算機改列品項後，類別層級只剩這一頁完整保留。
 
     **給付狀態必須跟學名並排**：siRNA 與 ATP citrate lyase 抑制劑被表一點名，
     但健保沒收載——只列學名不講這件事，等於引導醫師去開一個病人要自費的藥。
@@ -1955,20 +2217,12 @@ def test_table_one_result_lists_the_drugs_available_in_taiwan(page):
     reset(page)
     data = cf.drugs("lipid")
     assert data, "chronic_care.json 的 lipid 主題要有 drugs"
-    page.click("#lipid-btn")
-    expect(page.locator("#lipid-panel")).to_be_visible()
-    page.fill("#lipid-age", "60")
-    page.fill("#lipid-ldl", "200")
-    page.wait_for_timeout(300)
-
-    one = page.locator("#lipid-result .lipid-block").first
-    box = one.locator(".lipid-drugs")
-    expect(box).to_have_count(1), "用藥清單要掛在表一那一塊裡面"
+    open_chronic(page, "lipid")
     groups = page.evaluate("""() => Array.from(
-        document.querySelectorAll('#lipid-result .lipid-drug-group')).map((n) => ({
-            klass: n.querySelector('.lipid-drug-klass').textContent.trim(),
-            cover: (n.querySelector('.lipid-drug-cover') || {}).textContent || '',
-            names: n.querySelector('.lipid-drug-names').textContent.trim(),
+        document.querySelectorAll('#chronic-body .chronic-drug-group')).map((n) => ({
+            klass: n.querySelector('.chronic-drug-klass').textContent.trim(),
+            cover: (n.querySelector('.chronic-drug-cover') || {}).textContent || '',
+            names: (n.querySelector('.chronic-drug-names') || {}).textContent || '',
             selfpay: n.classList.contains('is-selfpay'),
         }))""")
     assert len(groups) == len(data["groups"]), (len(groups), len(data["groups"]))
@@ -1976,12 +2230,9 @@ def test_table_one_result_lists_the_drugs_available_in_taiwan(page):
         assert got["klass"] == want["klass"], (got, want)
         assert got["cover"].strip() == (want.get("cover") or ""), got
         assert got["selfpay"] == (want.get("covered") is False), got
-        # 「學名就好」：資料裡的括號補充（劑量錨點、商品名）在計算機這邊剝掉
-        first = want["items"][0].split("（")[0].strip()
-        assert first in got["names"], (first, got["names"])
+        assert want["items"][0] in got["names"], (want["items"][0], got["names"])
     # 健保沒收載的那兩類要標出來，不能只列學名
     assert any(g["selfpay"] for g in groups), groups
-    page.keyboard.press("Escape")
     reset(page)
 
 
@@ -1995,6 +2246,10 @@ def test_lipid_copy_always_includes_the_table_two_verdict(page):
     reset(page)
     page.click("#lipid-btn")
     expect(page.locator("#lipid-panel")).to_be_visible()
+    # reset() 只動 store，不清 DOM——上一條測試勾的心血管病史會留著，
+    # 把這位 58 歲糖尿病病人變成極高風險，兩張表就都符合了。
+    page.click("#lipid-reset")
+    page.wait_for_timeout(120)
     # 糖尿病、LDL-C 95、TC 180：表一門檻 100 未達，表二「或 TC ≧ 160」已達
     page.fill("#lipid-age", "58")
     page.fill("#lipid-ldl", "95")
@@ -2168,12 +2423,15 @@ def test_chronic_table_two_ingredient_list_is_complete(page):
     reset(page)
 
 
-def test_lipid_calculator_also_lists_the_table_two_ingredients(page):
-    """計算機的表二區塊也要列出同一份成分。
+def test_lipid_calculator_table_two_block_covers_every_listed_generic(page):
+    """計算機的表二區塊要涵蓋官方清單上的每一個學名。
 
     判定寫著「符合表二」時，下一個問題必然是「我開的這個算不算表二」；
-    要跳去條文分頁再找一次，等於在看診當下多一次中斷。兩邊同源於 chronic_care.json，
-    所以這裡順便釘住「兩個畫面不會對同一件事講不同的話」。
+    要跳去條文分頁再找一次，等於在看診當下多一次中斷。
+
+    2026-09-01 這一塊從「成分＋代碼數」改成「品名＋劑量」（使用者要求同表一一樣詳細），
+    所以這裡改比學名的涵蓋度：官方那 9 個成分名，每一個都要出現在計算機的分組裡。
+    分組名用的是品項檔成分欄的第一個詞，所以比第一個詞。
     """
     reset(page)
     data = cf.table_two("lipid")
@@ -2181,12 +2439,15 @@ def test_lipid_calculator_also_lists_the_table_two_ingredients(page):
     expect(page.locator("#lipid-panel")).to_be_visible()
     page.fill("#lipid-age", "60")
     page.fill("#lipid-ldl", "95")
-    page.wait_for_timeout(200)
-    text = page.locator(".lipid-t2-names").inner_text()
+    page.wait_for_timeout(300)
+
+    shown = page.evaluate("""() => Array.from(document.querySelectorAll(
+        '#lipid-result .lipid-block.is-secondary .lipid-drug-klass')).map((n) => n.textContent)""")
+    assert shown, "表二區塊要列出品項分組"
     for ing in data["ingredients"]:
-        assert ing["name"] in text, f"計算機沒列出 {ing['name']}：{text[:160]}"
-        assert f"（{ing['codeCount']}）" in text, \
-            f"缺代碼數 {ing['codeCount']}：{text[:160]}"
+        head = ing["name"].split(" ")[0].split("＋")[0].strip().lower()
+        assert any(head in s.lower() for s in shown), (
+            f"表二沒列到 {ing['name']}（分組：{shown}）")
     assert str(data["codeCount"]) in page.locator(".lipid-block.is-secondary").inner_text()
     page.keyboard.press("Escape")
     reset(page)

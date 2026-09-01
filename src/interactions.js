@@ -327,7 +327,8 @@
 
   function resetLipid(ctx, node) {
     const doc = lipidDoc(node);
-    for (const id of ['lipid-age', 'lipid-ldl', 'lipid-tc', 'lipid-hdl', 'lipid-tg']) {
+    for (const id of ['lipid-age', 'lipid-ldl', 'lipid-tc', 'lipid-hdl', 'lipid-tg',
+                      'lipid-drug']) {
       const input = doc.getElementById(id);
       if (input) input.value = '';
     }

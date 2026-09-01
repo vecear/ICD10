@@ -596,7 +596,7 @@
       "tableTwoOnly": {
         "title": "僅適用表二的成分（不適用表一）",
         "lede": "這 9 種成分底下共 116 個健保代碼走表二，其餘品項一律走表一。",
-        "caution": "是代碼層級，不是成分層級：同一種 statin 大多數品項仍走表一，只有這批特定代碼例外。開藥前對健保代碼，不要只看成分。",
+        "caution": "是代碼層級，不是成分層級：同一個學名底下，有的代碼走表一、有的走表二，開藥前對健保代碼，不要只看成分。而且不能假設「大多數走表一」——就現行給付中的品項而言，2.6.1 底下表二 116 個、表一 49 個，每一種 statin 都是表二較多（2026-09-01 對健保品項檔實際計數；先前寫成「多數走表一」是把已停止給付的舊代碼算進去才得到的，方向剛好相反）。",
         "codeCount": 116,
         "ingredients": [
           {
@@ -754,7 +754,7 @@
           "kind": "caution",
           "items": [
             {
-              "text": "同成分不同廠牌可能適用不同表：預設適用表一（較寬鬆）；但公告明列 116 個健保代碼「不適用表一，僅適用表二」，分布在 simvastatin、lovastatin、pravastatin、fluvastatin、atorvastatin、rosuvastatin、pitavastatin、pravastatin ＋ fenofibrate 複方、atorvastatin ＋ amlodipine 複方 這 9 種成分（清單見本頁上方）；同成分多數品項仍走表一，開藥前依健保代碼查當期公告",
+              "text": "同成分不同廠牌可能適用不同表：預設適用表一（較寬鬆）；但公告明列 116 個健保代碼「不適用表一，僅適用表二」，分布在 simvastatin、lovastatin、pravastatin、fluvastatin、atorvastatin、rosuvastatin、pitavastatin、pravastatin ＋ fenofibrate 複方、atorvastatin ＋ amlodipine 複方 這 9 種成分（清單見本頁上方）；同一個學名底下表一表二都有，且現行給付中的品項是表二較多（116 vs 49），開藥前依健保代碼查當期公告",
               "detail": "預設適用表一（較寬鬆），但公告明列 116 個健保代碼「不適用表一，僅適用表二」，即沿用表二門檻。成分分布（括號為該成分底下的代碼數）：simvastatin 19、lovastatin 3、pravastatin 12、fluvastatin 3、atorvastatin 35、rosuvastatin 25、pitavastatin 14、pravastatin ＋ fenofibrate 複方 1、atorvastatin ＋ amlodipine 複方 4——沒有單方 fenofibrate（舊版本表誤植，2026-09-01 對官方表更正）。另有一批品項降價換取適用表一。代碼與品名共 116 列變動頻繁，本表只收到成分層級，細到哪一個代碼請以當期公告附件為準。具體風險：極高風險病人 LDL-C 62 mg/dL，開表一品項可給付（≧ 55），開表二品項則不符（表二門檻 ≧ 70）——同一診斷、同一檢驗值，換個健保代碼就可能被核刪。表一／表二的判斷責任在開立者。",
               "source": "健保審字第 1150671962 號公告 附件1、附件2（115-07-28 發文，115/9/1 生效）（內容已併入藥品給付規定 115.8.21 版正文，本次據以核對）",
               "checked": "2026-09-01",

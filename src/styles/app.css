@@ -595,9 +595,18 @@ b.cart-code {
 .chronic-drug-list { margin: 7px 0 0; padding: 0; list-style: none; }
 .chronic-drug-group { margin: 0; padding: 6px 0; border-top: 1px solid var(--color-divider); }
 .chronic-drug-group:first-child { border-top: 0; padding-top: 0; }
+/* summary 而不是 p：整條都是收合的靶（三角形在 176px 下只有幾個 px 寬）。 */
 .chronic-drug-head {
   display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; margin: 0;
+  cursor: pointer; list-style: none;
 }
+.chronic-drug-head::-webkit-details-marker { display: none; }
+.chronic-drug-head::before {
+  content: '▸'; flex: none; font-size: 9px; color: var(--color-neutral-700);
+}
+details.chronic-drug-more[open] > .chronic-drug-head::before { content: '▾'; }
+.chronic-drug-head:hover .chronic-drug-klass { text-decoration: underline; }
+.chronic-drug-head:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
 .chronic-drug-klass { font-size: 12.5px; letter-spacing: .01em; overflow-wrap: anywhere; }
 /* flex: 0 1 auto ＋ min-width: 0 而不是 flex: none：176px 下這顆徽章比可用寬度還寬，
    不給收縮就會整條連鎖溢出（實測 164 塞進 140，連 SECTION 一起爆）。 */
@@ -913,6 +922,46 @@ details.chronic-more[open] > .chronic-line .chronic-more-toggle { color: var(--c
 }
 /* 舉證要求是「申報時會被查的東西」，不是背景說明，所以不與其他附註同色 */
 .lipid-proof { color: var(--warn-ink); }
+/* ── 品項查詢（代碼／商品名／學名 → 表一或表二）─────────────────────────────
+   表一與表二的門檻差很多，而走哪一張只看健保代碼——同一個 CRESTOR 20MG，
+   B024129100 走表一、BC24129100 走表二。醫師手上是商品名不是代碼清單，
+   沒有反查就只能憑印象猜。 */
+.lipid-field--wide { flex: 1 1 100%; }
+.lipid-field--wide .lipid-input { width: 100%; min-width: 0; }
+.lipid-lookup {
+  margin: 0; padding: 7px 9px;
+  background: var(--color-neutral-100); border-left: 2px solid var(--color-divider);
+}
+.lipid-lookup-title { display: block; font-size: 12px; letter-spacing: .02em; }
+.lipid-hit-list { margin: 5px 0 0; padding: 0; list-style: none; }
+.lipid-hit { margin: 4px 0 0; padding: 4px 0 0; border-top: 1px dotted var(--color-divider); }
+.lipid-hit:first-child { border-top: 0; padding-top: 0; margin-top: 0; }
+.lipid-hit-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; margin: 0; }
+.lipid-hit-code { font-size: 12px; font-variant-numeric: tabular-nums; }
+/* 表別是這一列最重要的資訊，所以是標籤不是內文 */
+.lipid-hit-table {
+  flex: none; padding: 0 4px; font-size: 10px; letter-spacing: .04em;
+  border: 1px solid var(--color-divider); color: var(--color-neutral-700);
+}
+.lipid-hit-table.is-two { border-color: var(--warn-line); color: var(--warn-ink); }
+/* 已停付：整列壓灰，標籤反白——查得到但不能開，跟「查無此代碼」是兩件事，
+   所以不是隱藏而是標示。 */
+.lipid-hit-table.is-dead { border-color: var(--color-neutral-700); background: var(--color-neutral-100); }
+.lipid-hit.is-dead .lipid-hit-code,
+.lipid-hit.is-dead .lipid-hit-name { color: var(--color-neutral-700); }
+.lipid-hit-name { font-size: 11.5px; overflow-wrap: anywhere; }
+.lipid-hit-sub, .lipid-hit-note {
+  margin: 1px 0 0; font-size: 11px; line-height: 1.45; color: var(--color-neutral-700);
+}
+.lipid-hit-verdict { margin: 1px 0 0; font-size: 11.5px; font-weight: 600; }
+.lipid-hit.is-ok .lipid-hit-verdict { color: var(--color-accent-800); }
+.lipid-hit.is-no .lipid-hit-verdict { color: var(--warn-ink); }
+.lipid-lookup-empty, .lipid-lookup-more, .lipid-lookup-sum {
+  margin: 5px 0 0; font-size: 11px; line-height: 1.5; color: var(--color-neutral-700);
+}
+.lipid-avail { margin: 5px 0 0; font-size: 11.5px; line-height: 1.5; overflow-wrap: anywhere; }
+.lipid-avail .lipid-hit-table { margin-right: 5px; }
+
 /* ── 表一結果下方的適用藥物 ─────────────────────────────────────────────────
    表一的「處方規定」欄只寫類別，不知道對應到哪些藥就等於沒寫（使用者 2026-09-01）。
    給付狀態與學名並排：siRNA 與 ATP citrate lyase 抑制劑被表一點名，但健保沒收載，
@@ -923,6 +972,21 @@ details.chronic-more[open] > .chronic-line .chronic-more-toggle { color: var(--c
 }
 .lipid-drug-list { margin: 3px 0 0; padding: 0; list-style: none; }
 .lipid-drug-group { margin: 3px 0 0; font-size: 11.5px; line-height: 1.5; overflow-wrap: anywhere; }
+/* 收合的靶是整條 summary，不是那個三角形——三角形在 176px 下只有幾個 px 寬。
+   原生 marker 藏掉，改用自己的箭頭（同 .chronic-more 的作法）。 */
+.lipid-drug-toggle {
+  display: flex; align-items: baseline; gap: 6px;
+  cursor: pointer; list-style: none; padding: 1px 0;
+}
+.lipid-drug-toggle::-webkit-details-marker { display: none; }
+.lipid-drug-toggle::before {
+  content: '▸'; flex: none; font-size: 9px; color: var(--color-neutral-700);
+}
+details.lipid-drug-more[open] > .lipid-drug-toggle::before { content: '▾'; }
+.lipid-drug-toggle:hover .lipid-drug-klass { text-decoration: underline; }
+.lipid-drug-toggle:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+.lipid-drug-count { font-size: 10px; color: var(--color-neutral-700); font-variant-numeric: tabular-nums; }
+.lipid-drug-more .lipid-drug-names { margin: 2px 0 0; padding-left: 1.1em; }
 .lipid-drug-klass { margin-right: 5px; }
 /* 自費那兩類走 warn：它們是「開了病人要付錢」，與其他警示同一個語意層級。 */
 .lipid-drug-cover {

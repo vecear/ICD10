@@ -492,6 +492,122 @@ test('lipidCoverage fibrate：TG 200–499 那一列才看有無心血管疾病�
    使用者 2026-09-01：只有糖尿病就寫（糖尿病），兩個都有寫（心血管疾病及糖尿病）。 */
 /* 代謝症候群是表一 6 項風險因子裡唯一要「數」的，數錯就換一級門檻。
    使用者 2026-09-01 要求拆成細項勾選，所以五取三的邊界要有測試。 */
+/* 品項反查。使用者 2026-09-01：「輸入健保代碼 或 商品名 或 學名 然後顯示是適用表一還是表二」。
+   資料由呼叫端傳進來（瀏覽器是 window.LIPID_PRODUCTS），所以這裡餵固定樣本，
+   不依賴那份會隨健保署每月更新而變的檔案——否則這些測試會在資料更新那天無故變紅。 */
+const LIPID_SAMPLE = [
+  { code: 'B024129100', en: 'CRESTOR 20MG FILM-COATED TABLETS', zh: '冠脂妥膜衣錠20毫克',
+    ingredient: 'ROSUVASTATIN CALCIUM', generic: 'rosuvastatin', section: '2.6.1.', table: 'one' },
+  { code: 'BC24129100', en: 'CRESTOR 20MG FILM-COATED TABLETS', zh: '冠脂妥膜衣錠20毫克',
+    ingredient: 'ROSUVASTATIN CALCIUM', generic: 'rosuvastatin', section: '2.6.1.', table: 'two' },
+  { code: 'B024058100', en: 'EZETROL TABLETS 10MG', zh: '維妥力錠10毫克',
+    ingredient: 'EZETIMIBE', generic: 'ezetimibe', section: '2.6.2.', table: '' },
+  { code: 'AC46402100', en: 'Simvatin film coating tablets 20mg', zh: '心可穩膜衣錠',
+    ingredient: 'SIMVASTATIN', generic: 'simvastatin', section: '2.6.1.', table: 'two' },
+];
+
+/* 使用者 2026-09-01：「表一就請寫有給付的品項（商品名跟劑量），
+   表二請寫詳細的商品名跟劑量」。縮寫只是為了掃視，**不得改變品項身分**。 */
+test('lipidShortName：拿掉劑型字樣，但 XL／OD／廠標與劑量一個都不能掉', () => {
+  assert.equal(L.lipidShortName('LIPITOR FILM-COATED TABLETS 10MG'), 'LIPITOR 10MG');
+  assert.equal(L.lipidShortName('Roty F.C. Tablets 20mg'), 'Roty 20mg');
+  assert.equal(L.lipidShortName('Rotlip film-coated Tablets 10mg'), 'Rotlip 10mg');
+  // XL 與 OD 是同名不同品項的關鍵：Lescol XL 80mg 與 Lescol 40mg 不是同一件事
+  assert.equal(L.lipidShortName('LESCOL XL FILM-COATED TABLETS 80MG'), 'LESCOL XL 80MG');
+  assert.equal(L.lipidShortName('LIVALO OD Tablets 2mg'), 'LIVALO OD 2mg');
+  // 廠標決定走哪張表：Tulip"SDZ" 走表一、Tulip 走表二
+  assert.equal(L.lipidShortName('Tulip"SDZ" Film Coated Tablet 20mg'), 'Tulip"SDZ" 20mg');
+  assert.equal(L.lipidShortName('Caduet 5mg/10mg tablet'), 'Caduet 5mg/10mg');
+  // 整個名字就是劑型時不能刪成空字串
+  assert.equal(L.lipidShortName('SANCOS TABLETS'), 'SANCOS');
+  assert.equal(L.lipidShortName(''), '');
+});
+
+test('lipidProductsByTable：只列現行給付中的，依學名分組、多的排前面', () => {
+  const sample = [
+    { code: 'A100000001', en: 'Alpha Tablets 10mg', generic: 'atorvastatin',
+      table: 'one', listed: true },
+    { code: 'A100000002', en: 'Beta F.C. Tablets 20mg', generic: 'atorvastatin',
+      table: 'one', listed: true },
+    { code: 'A100000003', en: 'Gamma Tablets 5mg', generic: 'rosuvastatin',
+      table: 'one', listed: true },
+    { code: 'A100000004', en: 'Dead Tablets 10mg', generic: 'atorvastatin',
+      table: 'one', listed: false },
+    { code: 'A100000005', en: 'Other Tablets 10mg', generic: 'simvastatin',
+      table: 'two', listed: true },
+  ];
+  const one = L.lipidProductsByTable(sample, 'one');
+  assert.deepEqual(one.map((g) => g.generic), ['atorvastatin', 'rosuvastatin']);
+  assert.deepEqual(one[0].items.map((i) => i.short), ['Alpha 10mg', 'Beta 20mg'],
+    '已停付的 Dead 不列——把死碼算進去會讓人以為某個學名有一堆選擇');
+  assert.equal(one[0].items[0].code, 'A100000001', '要帶代碼，畫面才放得進 title');
+  assert.deepEqual(L.lipidProductsByTable(sample, 'two').map((g) => g.generic), ['simvastatin']);
+  assert.deepEqual(L.lipidProductsByTable(sample, 'nope'), []);
+});
+
+test('lipidFindProducts：代碼要精準命中，太短的字串不搜（免得整份都命中）', () => {
+  const hit = L.lipidFindProducts(LIPID_SAMPLE, 'BC24129100', 10);
+  assert.equal(hit.exact.code, 'BC24129100');
+  assert.equal(hit.total, 1);
+  assert.equal(L.lipidFindProducts(LIPID_SAMPLE, 'a', 10).total, 0, '1 個字不搜');
+  assert.equal(L.lipidFindProducts(LIPID_SAMPLE, '', 10).total, 0);
+});
+
+test('lipidFindProducts：商品名（中英）與學名都查得到，表二排前面', () => {
+  const en = L.lipidFindProducts(LIPID_SAMPLE, 'crestor', 10);
+  assert.equal(en.total, 2);
+  assert.equal(en.hits[0].table, 'two', '表二是例外，要排前面');
+  assert.equal(L.lipidFindProducts(LIPID_SAMPLE, '冠脂妥', 10).total, 2, '中文商品名');
+  assert.equal(L.lipidFindProducts(LIPID_SAMPLE, 'rosuvastatin', 10).total, 2, '學名');
+});
+
+test('lipidFindProducts：截斷要回報，不能靜默只給前幾筆', () => {
+  const many = [];
+  for (let i = 0; i < 30; i += 1) {
+    many.push({ code: 'A' + String(100000000 + i), en: 'Statin ' + i,
+      zh: '', ingredient: 'SIMVASTATIN', generic: 'simvastatin',
+      section: '2.6.1.', table: 'one' });
+  }
+  const r = L.lipidFindProducts(many, 'statin', 5);
+  assert.equal(r.hits.length, 5);
+  assert.equal(r.total, 30, 'total 要是真實筆數，畫面才說得出還有幾筆沒列');
+  assert.equal(r.capped, true);
+});
+
+test('lipidProductVerdict：同一個商品名，代碼不同就走不同的表、結論可以相反', () => {
+  // 極高風險（表一門檻 55）、心血管疾病（表二門檻 100），LDL-C 75 落在兩者之間
+  const cov = L.lipidCoverage({ age: 62, sex: 'male', ldl: 75, cad: true, miWithin1y: true });
+  const one = L.lipidProductVerdict(LIPID_SAMPLE[0], cov);
+  const two = L.lipidProductVerdict(LIPID_SAMPLE[1], cov);
+  assert.equal(one.tableLabel, '表一');
+  assert.equal(one.threshold, 55);
+  assert.equal(one.meets, true);
+  assert.equal(two.tableLabel, '表二');
+  assert.equal(two.threshold, 100);
+  assert.equal(two.meets, false);
+});
+
+test('lipidProductVerdict：2.6.2／2.6.3／2.6.4 的品項不猜表別', () => {
+  const cov = L.lipidCoverage({ age: 62, ldl: 200 });
+  const v = L.lipidProductVerdict(LIPID_SAMPLE[2], cov);
+  assert.equal(v.table, '');
+  assert.equal(v.meets, null);
+  assert.ok(v.note.indexOf('2.6.2') >= 0, v.note);
+});
+
+test('lipidProductVerdict：沒有病人資料時只回表別，不下判定', () => {
+  const v = L.lipidProductVerdict(LIPID_SAMPLE[1], null);
+  assert.equal(v.tableLabel, '表二');
+  assert.equal(v.meets, null);
+  assert.equal(v.threshold, null, '分級未定，門檻也未定——不能印 null 給人看');
+});
+
+test('lipidSummarize：依學名彙總，鹽類寫法不同不該拆成好幾堆', () => {
+  const sum = L.lipidSummarize(LIPID_SAMPLE);
+  const rosu = sum.filter((s) => s.ingredient === 'rosuvastatin')[0];
+  assert.deepEqual({ one: rosu.one, two: rosu.two }, { one: 1, two: 1 });
+});
+
 test('lipidMetabolic：五取三，兩項不算、三項才算', () => {
   assert.equal(L.lipidMetabolic({ msWaist: true, msBp: true }).meets, false);
   const three = L.lipidMetabolic({ msWaist: true, msBp: true, msGlucose: true });
