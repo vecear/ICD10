@@ -197,21 +197,40 @@ def first_panel_chip(page):
 
 
 # ---- 版面切換 ----
-def test_switch_layout_from_settings(browser_ctx, page_url):
-    """從 1a 的設定 popover 切到 1c，再縮到 176 寬——完整的使用者路徑。"""
+def test_switch_layout_from_header_button(browser_ctx, page_url):
+    """從 1a 的「側掛置頂」一顆鈕走完整條路：小視窗 → 關掉它側欄回到主視窗 →
+    176px 不溢出 → 重新整理仍是側掛。
+
+    原本要「先進設定選側掛窄欄、再按置頂」兩步，使用者回報太繁瑣；現在是 header 一顆鈕。
+    注意按下之後 `#layout-dock` **不在主視窗**——側欄已經被搬進 PiP 小視窗，
+    主視窗只剩 placeholder。關掉小視窗才會回來（restoreFromPip），那也是使用者
+    真的會做的事，所以順著測下去而不是繞過。
+    """
     page = browser_ctx.new_page()
     page.set_viewport_size(dict(WIDE))
     page.goto(page_url)
     page.wait_for_selector('body[data-ready="1"]')
     page.evaluate("() => window.ICDApp.store.setLayout('wide')")
     page.wait_for_selector('body[data-layout="wide"]')
+    if not page.evaluate(PIP_PROBE):
+        page.close()
+        pytest.skip("此瀏覽器沒有 Document Picture-in-Picture，降級路徑另有測試")
 
-    page.click("#settings-toggle")
-    page.wait_for_selector("#settings-popover:not([hidden])")
-    page.click('#seg-layout [data-layout-opt="dock"]')
+    before = set(browser_ctx.pages)
+    page.click("#go-dock")
     page.wait_for_selector('body[data-layout="dock"]')
-    expect(page.locator("#layout-dock")).to_have_count(1)
+    page.wait_for_timeout(1500)
     expect(page.locator("#layout-wide")).to_have_count(0)
+
+    fresh = [p for p in browser_ctx.pages if p not in before]
+    assert len(fresh) == 1, "側掛置頂應該一併開出小視窗"
+    assert page.locator("#layout-dock").count() == 0, "側欄這時人在小視窗，不該還留在主視窗"
+
+    # 關掉小視窗：側欄回到主視窗（pagehide → restoreFromPip）
+    fresh[0].close()
+    page.wait_for_timeout(800)
+    expect(page.locator("#layout-dock")).to_have_count(1)
+    assert page.evaluate("() => window.ICDApp.store.getState().pinned") is False
 
     page.set_viewport_size(dict(DOCK))
     page.wait_for_timeout(300)
@@ -510,7 +529,8 @@ def test_settings_popover_fits_and_switches_mode(pg):
         f"popover 蓋住了開它的那顆鈕：popover={pop} toggle={toggle_box}"
 
     segs = pg.locator("#settings-popover .seg-btn")
-    assert segs.count() == 5            # 版面 2 ＋ 格式 3（看診模式已移出設定，只留 header 三鈕）
+    # 只剩複製格式 3 顆：看診模式在 header 三鈕、版面切換在 header 的展開／置頂鈕
+    assert segs.count() == 3
     for i in range(segs.count()):
         box = segs.nth(i).bounding_box()
         assert box["x"] >= 0 and box["x"] + box["width"] <= DOCK["width"] + 0.5, f"segmented 溢出：{box}"
@@ -520,6 +540,8 @@ def test_settings_popover_fits_and_switches_mode(pg):
 
     # 看診模式已移出設定面板：header 三鈕是唯一入口，設定裡不該再有第二份
     assert pg.locator("#seg-mode").count() == 0, "設定面板不該再有看診模式 segmented"
+    # 版面切換同理：入口是 header 的「展開」，設定裡不該再有一份
+    assert pg.locator("#seg-layout").count() == 0, "設定面板不該再有版面 segmented"
     pg.click("#settings-toggle")
     expect(pg.locator("#settings-popover")).to_be_hidden()
 
@@ -652,7 +674,8 @@ def test_header_one_row_at_340(browser_ctx, page_url):
     page.evaluate("() => window.ICDApp.store.setLayout('dock')")
     page.wait_for_selector('body[data-layout="dock"]')
 
-    sels = ("#copy-date", '#mode-switch [data-mode="outpatient"]', "#pin-toggle", "#settings-toggle")
+    sels = ("#copy-date", '#mode-switch [data-mode="outpatient"]',
+            "#go-wide", "#pin-toggle", "#settings-toggle")
     centers = {s: round(page.locator(s).bounding_box()["y"]
                         + page.locator(s).bounding_box()["height"] / 2, 1) for s in sels}
     assert max(centers.values()) - min(centers.values()) <= 1, f"340px 下沒有排成一列：{centers}"
@@ -660,11 +683,12 @@ def test_header_one_row_at_340(browser_ctx, page_url):
     page.close()
 
 
-def test_pin_label_is_the_only_text_dropped_and_only_when_narrowest(browser_ctx, page_url):
-    """置頂那兩個字是整列唯一塞不下、因此被讓掉的東西（算式見 dock.css 的 media query）。
+def test_only_pin_and_expand_labels_are_dropped_and_only_when_narrowest(browser_ctx, page_url):
+    """「置頂」與「展開」那幾個字是整列唯一塞不下、因此被讓掉的東西
+    （算式見 dock.css 的 media query）。
 
     砍文字是最後手段，所以這條測試把界線釘死：
-      * 176px：置頂只留 icon，但完整說明必須留在 title，狀態另有 aria-pressed；
+      * 176px：兩顆都只留 icon，但可讀名稱必須留在 aria-label 與 title；
       * 模式三鈕與「設定」的文字**任何寬度都不准砍**；
       * 使用者實際在用的 PiP 寬度（約 565px）文字必須回來。
     """
@@ -680,6 +704,10 @@ def test_pin_label_is_the_only_text_dropped_and_only_when_narrowest(browser_ctx,
     expect(page.locator("#pin-toggle .icn")).to_be_visible()
     assert "置頂" in page.get_attribute("#pin-toggle", "title")
     expect(page.locator("#pin-toggle")).to_have_attribute("aria-pressed", "false")
+    # 展開鈕同樣只留 icon，但名稱不能只靠 title——它是置頂狀態下唯一的回頭路
+    expect(page.locator("#go-wide .layout-toggle-label")).to_be_hidden()
+    expect(page.locator("#go-wide .icn")).to_be_visible()
+    assert page.get_attribute("#go-wide", "aria-label") == "展開"
     # 沒被砍的那些
     expect(page.locator("#settings-toggle")).to_have_text("設定")
     for key, label in (("outpatient", "門診"), ("emergency", "急診"), ("surg", "外科")):
@@ -690,6 +718,7 @@ def test_pin_label_is_the_only_text_dropped_and_only_when_narrowest(browser_ctx,
     page.wait_for_timeout(120)
     expect(page.locator("#pin-toggle .dock-pin-label")).to_be_visible()
     expect(page.locator("#pin-toggle .dock-pin-label")).to_have_text("置頂")
+    expect(page.locator("#go-wide .layout-toggle-label")).to_have_text("展開")
     assert_no_hscroll(page, "565px 置頂文字回來")
     page.close()
 
@@ -912,18 +941,6 @@ def open_pinned(browser_ctx, page_url):
     return page, fresh[0]
 
 
-def pip_click_settings(pip, selector):
-    """在小視窗裡走完整動線：開設定 popover → 點裡面的鈕。
-
-    小視窗是另一個 document，沒有自己的 window.ICDApp（指令碼只在主視窗），所以狀態
-    操作一律用真實點擊走 render-dock.js 的 pipDelegate 代打，不能 pip.evaluate。
-    """
-    pip.click("#settings-toggle")
-    pip.wait_for_selector("#settings-popover:not([hidden])")
-    pip.click(selector)
-    pip.wait_for_timeout(300)
-
-
 def pip_set_mode(pip, button_id):
     """小視窗裡切看診模式。模式已移出設定面板，改點 header 三鈕
     （走的仍是 render-dock.js 的 pipDelegate 代打，不是主文件的委派）。"""
@@ -943,6 +960,104 @@ def duplicate_ids(page):
     }""")
 
 
+def test_pin_dock_button_switches_and_pins_in_one_click(browser_ctx, page_url):
+    """1a 的「側掛置頂」要在**同一次點擊**裡換版面並開出置頂小視窗。
+
+    使用者的原話是「要先進設定選側掛窄欄、再選置頂，步驟頗繁瑣」。一顆鈕做兩件事
+    有個硬性限制：documentPictureInPicture.requestWindow() 需要 transient user
+    activation，隔一個 tick 就失效。所以這條一定要用**真的滑鼠點擊**，不能用
+    store 直接改狀態——那樣測不到手勢有沒有斷。
+    """
+    page = browser_ctx.new_page()
+    page.set_viewport_size(dict(WIDE))
+    page.goto(page_url)
+    page.wait_for_selector('body[data-ready="1"]', timeout=8000)
+    page.evaluate("() => window.ICDApp.store.setLayout('wide')")
+    page.wait_for_selector('body[data-layout="wide"]')
+    if not page.evaluate(PIP_PROBE):
+        page.close()
+        pytest.skip("此瀏覽器沒有 Document Picture-in-Picture，降級路徑另有測試")
+
+    # 負面對照：只換版面**不會**置頂——這個耦合只存在於 app.js 的 switchLayout()。
+    # 沒有這條對照，把 pinned 寫死在 setLayout 裡也會讓下面的正面斷言通過。
+    page.evaluate("() => window.ICDApp.store.setLayout('dock')")
+    page.wait_for_selector('body[data-layout="dock"]')
+    page.wait_for_timeout(400)
+    assert page.evaluate("() => window.ICDApp.store.getState().pinned") is False, \
+        "setLayout 本身不該置頂，置頂是那顆鈕的語意"
+    page.evaluate("() => window.ICDApp.store.setLayout('wide')")
+    page.wait_for_selector('body[data-layout="wide"]')
+
+    before = set(browser_ctx.pages)
+    page.click("#go-dock")
+    page.wait_for_selector('body[data-layout="dock"]', timeout=5000)
+    page.wait_for_timeout(1500)
+    fresh = [p for p in browser_ctx.pages if p not in before]
+
+    assert len(fresh) == 1, f"一鍵側掛置頂沒開出小視窗（手勢斷了？）：{[p.url for p in browser_ctx.pages]}"
+    assert page.evaluate("() => window.ICDApp.store.getState().pinned") is True
+    assert "置頂小視窗" in page.locator("#app").inner_text(), "主視窗要留下「已移到置頂小視窗」"
+    assert fresh[0].locator("#layout-dock").count() == 1, "側欄應該人在小視窗裡"
+    page.close()
+
+
+def test_pinned_expand_button_is_reachable_from_the_pip_window(browser_ctx, page_url):
+    """置頂時「展開」必須點得動——它是那個狀態下唯一的回頭路。
+
+    側欄被搬進 PiP 小視窗後就不在主文件那棵樹裡，interactions.js 的委派完全搆不到；
+    render-dock.js 有一份白名單式的代打，新控制項沒登記進去就是**靜默失效**。
+    血脂試算就是這樣漏接過一版。這條與 test_layout_switch_while_pinned_tears_down_pip
+    看起來像，但守的是不同東西：那條守的是殭屍 controller 的安全不變量，
+    這條守的是「這顆鈕有沒有接上線」。
+    """
+    page, pip = open_pinned(browser_ctx, page_url)
+    try:
+        btn = pip.locator("#go-wide")
+        assert btn.count() == 1, "小視窗裡找不到展開鈕"
+        assert btn.is_visible(), "展開鈕在小視窗裡不可見"
+        assert btn.get_attribute("aria-label") == "展開", "文字被 CSS 藏起來時名稱要留在 aria-label"
+
+        btn.click(no_wait_after=True)
+        page.wait_for_selector('body[data-layout="wide"]', timeout=5000)
+        page.wait_for_timeout(600)
+        assert pip.is_closed(), "展開之後小視窗要一併關掉"
+        assert page.evaluate("() => window.ICDApp.store.getState().pinned") is False
+    finally:
+        page.close()
+
+
+def test_pin_dock_button_still_switches_when_pip_is_unavailable(browser_ctx, page_url):
+    """PiP 被擋下或不支援時，「側掛置頂」仍要把版面換過去，並說明為什麼沒有小視窗。
+
+    不這樣做的話，在 PiP 永遠不可用的環境裡使用者就完全進不了側掛窄欄——
+    設定裡那組切換已經移除，這顆鈕是唯一入口。
+    """
+    page = browser_ctx.new_page()
+    page.set_viewport_size(dict(WIDE))
+    page.add_init_script(
+        "Object.defineProperty(window, 'documentPictureInPicture',"
+        " { value: undefined, configurable: true });"
+    )
+    page.goto(page_url)
+    page.wait_for_selector('body[data-ready="1"]', timeout=8000)
+    page.evaluate("() => window.ICDApp.store.setLayout('wide')")
+    page.wait_for_selector('body[data-layout="wide"]')
+    assert page.evaluate(PIP_PROBE) is False
+
+    page.click("#go-dock")
+    page.wait_for_selector('body[data-layout="dock"]', timeout=5000)
+
+    assert page.locator("#layout-dock").count() == 1, "PiP 失敗不該擋住換版面"
+    assert page.evaluate("() => window.ICDApp.store.getState().pinned") is False
+    note = page.locator("#pin-note")
+    expect(note).to_be_visible()
+    assert "不支援" in note.inner_text(), f"要說明為什麼沒有小視窗：{note.inner_text()}"
+    # 回得去：展開鈕在窄欄 header 上，不必進設定
+    page.click("#go-wide")
+    page.wait_for_selector('body[data-layout="wide"]', timeout=5000)
+    page.close()
+
+
 def test_layout_switch_while_pinned_tears_down_pip(browser_ctx, page_url):
     """R2 C1（臨床安全）：換版面時舊 controller 一定要收到卸載通知並收回小視窗。
 
@@ -959,11 +1074,9 @@ def test_layout_switch_while_pinned_tears_down_pip(browser_ctx, page_url):
     pip_set_mode(pip, "mode-er")
     assert pip.locator("#dock-panels .chip--warn").count() > 0, "急診模式下側欄應有紅旗"
 
-    # 設定鈕也一起搬進小視窗，所以「在小視窗裡切版面」是自然動線，不是刁鑽操作。
+    # 「展開」就在小視窗自己的 header 上，這是置頂狀態下的正常回頭路。
     # 這一下會讓小視窗自己被收掉，所以點完不能再對它做任何等待（Target closed）。
-    pip.click("#settings-toggle")
-    pip.wait_for_selector("#settings-popover:not([hidden])")
-    pip.click('#seg-layout .seg-btn[data-layout-opt="wide"]', no_wait_after=True)
+    pip.click("#go-wide", no_wait_after=True)
     page.wait_for_selector('body[data-layout="wide"]', timeout=5000)
     page.wait_for_timeout(800)
 

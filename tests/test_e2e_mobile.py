@@ -537,9 +537,11 @@ def test_settings_sheet_opens_below_header(page):
     assert b["y"] >= toggle["y"] + toggle["height"] - 0.5, \
         f"sheet 蓋住了開它的那顆鈕：sheet={b} toggle={toggle}"
     assert b["y"] <= toggle["y"] + toggle["height"] + 12, f"sheet 離 header 太遠：{b}"
-    # 桌機才有意義的兩項（版面切換、常用列）在手機藏起來
-    expect(page.locator("#seg-layout")).to_be_hidden()
+    # 常用列在手機沒有對應 UI，藏起來
     expect(page.locator("#shelf-toggle")).to_be_hidden()
+    # 版面切換整組已從設定移除，改成 1a／1c 各一顆直接鈕——手機兩顆都不該存在
+    assert page.locator("#seg-layout").count() == 0
+    assert page.locator("[data-layout-go]").count() == 0
     expect(page.locator("#db-note")).to_contain_text("96,802")
 
     # 模式切換：header 三鈕與面板一起換（設定 sheet 裡已無第二份模式選單）

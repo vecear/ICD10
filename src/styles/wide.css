@@ -25,6 +25,17 @@
 #layout-wide .mode-btn:not(.is-on):hover { background: var(--color-accent-200); }
 #layout-wide #search { flex: 1; min-width: 0; min-height: 40px; font-size: 16px; background: transparent; }
 #layout-wide #settings-toggle { min-height: 40px; font-size: 13px; letter-spacing: .05em; white-space: nowrap; }
+/* 「側掛置頂」與「設定」是 header 右側的同一組控制，同高同字級。 */
+#layout-wide #go-dock { min-height: 40px; font-size: 13px; letter-spacing: .05em; white-space: nowrap; }
+/* header 是 nowrap，搜尋框（flex:1／min-width:0）是唯一會伸縮的元素——所以這顆鈕的
+   文字是直接跟搜尋框借的寬度，不會造成水平溢出，但會把搜尋框壓掉。
+   實測搜尋框寬度：1920→1119、1440→639、1100→299、900→99px（900 是 wide 的下限，
+   也是 test_no_horizontal_overflow 在測的寬度）。「側掛置頂」四個字約 90px，
+   在 900px 會把搜尋框壓到幾乎為 0。所以 ≤1239px 只留 icon，名稱走 aria-label／title
+   ——與 1c 置頂鈕在 ≤239px 的作法是同一套，不另外發明第二種收縮方式。 */
+@media (max-width: 1239px) {
+  #layout-wide #go-dock .layout-toggle-label { display: none; }
+}
 /* top 跟著 header 下緣走，不寫死（.app-header 是 position:relative 的包含塊）。
    原本寫死的 56px 在 header 實高 63px 時已經有 7px 重疊，header 只要再多一列就會第三次
    重演「popover 蓋住開它的那顆設定鈕、點兩次關不掉」——1c 的 46/64/93px 與 1b 的 60px

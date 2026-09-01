@@ -111,7 +111,7 @@ def main():
     # 所以只在「同一行沒有提到移除」時才算數。
     manual_text = manual.read_text(encoding="utf-8")
     for line in manual_text.splitlines():
-        for gone in ("複製並貼入 HIS", "「全部」鈕"):
+        for gone in ("複製並貼入 HIS", "「全部」鈕", "桌機版面"):
             if gone in line and "移除" not in line:
                 raise SystemExit(f"使用說明還在教使用者按已移除的「{gone}」：\n  {line.strip()}\n"
                                  "請先更新 tools/診間使用說明.txt")

@@ -991,24 +991,28 @@ def test_clipboard_fallback_dialog(fresh_page, page_url):
 
 
 def test_layout_preference_persists(fresh_page, page_url):
-    """設定裡的桌機版面偏好要持久化，而且要真的生效。
+    """「側掛置頂」設下的版面偏好要持久化，而且要真的生效。
 
     P4a 掛上 window.ICDDock 之後，resolveLayout() 不再退回 wide：選了側掛窄欄就要
-    真的換成 #layout-dock，重新整理後也維持。持久化程式碼從 P3 起未動過。
+    真的換成側欄，重新整理後也維持。持久化程式碼從 P3 起未動過。
+
+    注意按下之後 `#layout-dock` **不在主視窗**——側欄被搬進置頂小視窗了，主視窗只剩
+    placeholder。重新整理會關掉小視窗、側欄回到主視窗，而這條要驗的持久化正是
+    重新整理之後那一段，所以節點斷言全部放在 reload 之後。
     """
     fresh_page.goto(page_url)
     fresh_page.wait_for_selector('body[data-ready="1"]', timeout=8000)
-    open_settings(fresh_page)
-    fresh_page.click('#seg-layout button[data-layout-opt="dock"]')
+    fresh_page.click("#go-dock")
     assert fresh_page.evaluate("() => window.ICDApp.store.getState().layout") == "dock"
     # 偏好一改就要立刻換版面，不是等重新整理
     assert fresh_page.get_attribute("body", "data-layout") == "dock"
-    assert fresh_page.locator("#layout-dock").count() == 1
+    assert fresh_page.locator("#layout-wide").count() == 0
     fresh_page.reload()
     fresh_page.wait_for_selector('body[data-ready="1"]', timeout=8000)
     assert fresh_page.evaluate("() => window.ICDApp.store.getState().layout") == "dock"
-    open_settings(fresh_page)
-    expect(fresh_page.locator('#seg-layout button[data-layout-opt="dock"]')).to_have_attribute("aria-pressed", "true")
+    # 回頭路在窄欄自己的 header 上，不必再進設定
+    expect(fresh_page.locator("#go-wide")).to_have_count(1)
+    assert fresh_page.locator("#seg-layout").count() == 0, "設定裡不該再有版面切換"
     # body[data-layout] 永遠等於實際掛載的版面
     assert fresh_page.get_attribute("body", "data-layout") == "dock"
     assert fresh_page.locator("#layout-dock").count() == 1
@@ -1018,7 +1022,7 @@ def test_layout_preference_persists(fresh_page, page_url):
 def test_layout_note_explains_downgrade_to_mobile(fresh_page, page_url):
     """偏好工作台但視窗過窄時，設定面板要說明「現在其實是手機版面、為什麼、怎麼回去」。
 
-    沒有這行說明，seg-layout 上「工作台」是選中的、畫面卻是手機版，使用者只會當成壞掉
+    沒有這行說明，使用者剛按過「側掛置頂」、畫面卻是手機版，只會當成按鈕壞掉
     （已實際回報過）。一致時則必須不出現，免得變成常駐雜訊。
     """
     fresh_page.set_viewport_size({"width": 800, "height": 900})

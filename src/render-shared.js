@@ -20,6 +20,11 @@
     star: '<path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/>',
     chevronRight: '<path d="m9 18 6-6-6-6"/>',
     chevronDown: '<path d="m6 9 6 6 6-6"/>',
+    // 側掛：一個框、右側切出一條窄欄——就是這個動作要得到的畫面
+    panelRight: '<rect width="18" height="18" x="3" y="3" rx="1"/><path d="M15 3v18"/>',
+    // 展開：四角向外，回到滿版工作台
+    expand: '<path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/>'
+      + '<path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/>',
   };
 
   function icon(name, size) {
@@ -385,8 +390,35 @@
   // ---- 設定 popover ----
   const MODE_DEFS = [['outpatient', '內科門診', 'mode-op'], ['emergency', '內科急診', 'mode-er'], ['surg', '外科', 'mode-surg']];
   const FORMAT_DEFS = [['lines', '每行一碼'], ['comma', '逗號分隔'], ['names', '碼＋名稱']];
-  const LAYOUT_DEFS = [['wide', '工作台'], ['dock', '側掛窄欄']];
   const LAYOUT_LABEL = { wide: '工作台', dock: '側掛窄欄', mobile: '手機版面' };
+
+  /* 版面切換鈕。1a 是「側掛置頂」（切窄欄＋開置頂小視窗，一次到位），1c 是「展開」
+     （回工作台）。原本這是設定裡的一組 segmented，要「先進設定選側掛窄欄、再按置頂」
+     兩步；診間每天要切好幾次，所以改成兩邊各一顆直接鈕。
+
+     兩顆是同一個角色，共用這一份結構：icon ＋ 一個可被 CSS 藏起來的文字標籤。
+     空間不夠時藏文字、可讀名稱改由 title 提供——與 .dock-pin 同一套機制，
+     不另外發明第二種收縮方式。data-layout-go 讓事件委派一條分支就接得住兩顆。 */
+  const LAYOUT_TOGGLE = {
+    dock: { id: 'go-dock', icon: 'panelRight', label: '側掛置頂',
+            title: '側掛置頂：切成側掛窄欄，並開啟永遠在最上層的小視窗' },
+    wide: { id: 'go-wide', icon: 'expand', label: '展開',
+            title: '展開：回到工作台版面（置頂小視窗會一併關閉）' },
+  };
+
+  function layoutToggleEl(kind, small) {
+    const def = LAYOUT_TOGGLE[kind];
+    const b = el('button', small ? 'dock-tool layout-toggle' : 'btn btn-secondary layout-toggle');
+    b.type = 'button';
+    b.id = def.id;
+    b.title = def.title;
+    /* 文字在窄寬度會被 CSS 藏起來（display:none 會一併從無障礙樹移除），
+       所以名稱另外釘在 aria-label 上，不只靠 title。 */
+    b.setAttribute('aria-label', def.label);
+    b.dataset.layoutGo = kind;
+    b.append(icon(def.icon, small ? 12 : 14), el('span', 'layout-toggle-label', def.label));
+    return b;
+  }
   /* 生效版面的分界寬度。app.js 的 resolveLayout() 直接讀這個值，說明文案與實際判斷
      才不會各寫一個數字而慢慢分歧。 */
   const LAYOUT_MIN_WIDTH = 900;
@@ -416,16 +448,18 @@
     const pop = el('div', 'settings-popover');
     pop.id = 'settings-popover';
     pop.hidden = true;
-    /* #layout-note 刻意放在「桌機版面」區塊之外：手機版面會把整個桌機版面區塊
-       標成 .is-desktop-only 藏起來，而「視窗太窄自動改用手機版面」恰恰只在手機
-       版面生效時才要講——放進去就永遠看不到。 */
+    /* 版面切換不放進設定：1a 的「側掛置頂」與 1c 的「展開」已經是一次點擊就到位的
+       主動線，設定裡再放一份 segmented 只是同一件事的第二個入口。
+
+       #layout-note 留著，而且比以前更需要：它講的是「生效版面 ≠ 你的偏好」
+       （視窗未達 LAYOUT_MIN_WIDTH 時自動改用手機版面）。偏好現在由按鈕設定，
+       沒有這段說明的話，在窄視窗按了側掛置頂卻跑出手機版面就只會像壞掉。 */
     const layoutNote = el('div', 'settings-alert', '');
     layoutNote.id = 'layout-note';
     layoutNote.hidden = true;
     /* 看診模式不放進設定：header 的三顆鈕已經是一次點擊就切換的主動線，
        設定裡再放一份 segmented 只是同一件事的第二個入口，兩處都要維護狀態同步。 */
     pop.append(
-      section('桌機版面', segRow('seg-layout', LAYOUT_DEFS, 'data-layout-opt', small)),
       layoutNote,
       section('複製格式', segRow('seg-format', FORMAT_DEFS, 'data-format', small))
     );
@@ -497,8 +531,8 @@
   /* 生效版面 ≠ 偏好版面時的說明；一致時回空字串（呼叫端據此隱藏）。
 
      resolveLayout() 有兩種降級：視窗未達 LAYOUT_MIN_WIDTH 時偏好 wide 會變 mobile，
-     以及偏好的版面模組不存在時退回 wide。兩種都會讓 seg-layout 顯示的選中項與眼前
-     畫面對不上，沒有說明的話使用者只會覺得設定壞了。 */
+     以及偏好的版面模組不存在時退回 wide。兩種都會讓眼前的畫面與剛才按的那顆鈕
+     對不上，沒有說明的話使用者只會覺得按鈕壞了。 */
   /* 生效版面（wide|dock|mobile）。app.js 掛載後一定會寫進 body[data-layout]，且永遠等於
      實際掛載的版面——這裡不重算一次寬度，免得兩邊判斷分歧。1c 被搬進 PiP 小視窗時，
      主文件的 body 仍標著 dock，取到的值依然正確。 */
@@ -522,7 +556,6 @@
     const s = ctx.store.getState();
     setPressed(root2.querySelector('#seg-mode'), 'data-mode', s.mode);
     setPressed(root2.querySelector('#seg-format'), 'data-format', s.format);
-    setPressed(root2.querySelector('#seg-layout'), 'data-layout-opt', s.layout);
     const theme = root2.querySelector('#theme-toggle');
     if (theme) theme.textContent = s.theme === 'dark' ? '日間模式' : '夜間模式';
     const shelf = root2.querySelector('#shelf-toggle');
@@ -1551,6 +1584,7 @@
     renderResults, relatedGroups, renderRelated,
     cartItemEl, renderCart, syncClearBtn, hisText, renderHis, renderShelf,
     settingsPopoverEl, syncSettings, dbNoteText, layoutNoteText, effectiveLayout, setPressed,
+    layoutToggleEl,
     modeSwitchEl, syncModeSwitch,
     chronicSwitchEl, chronicTabsEl, syncChronicSwitch, chronicOverlayEl, renderChronic,
     ccrButtonEl, ccrOverlayEl, renderCcrResult, syncCcr, ccrResultText, ccrInputs,

@@ -485,11 +485,16 @@
         return;
       }
 
+      /* 版面切換鈕（1a 的「側掛置頂」／1c 的「展開」）。走 ctx.switchLayout 而不是
+         store.setLayout：切到 dock 時還要接著開置頂小視窗，而那個 controller 只有
+         app.js 拿得到。1c 置頂時這條委派搆不到，render-dock.js 有一份同樣的代打。 */
+      const layoutGo = target.closest('[data-layout-go]');
+      if (layoutGo) { ctx.switchLayout(layoutGo.dataset.layoutGo); return; }
+
       const seg = target.closest('.seg-btn');
       if (seg) {
         if (seg.dataset.mode) store.setMode(seg.dataset.mode);
         else if (seg.dataset.format) store.setFormat(seg.dataset.format);
-        else if (seg.dataset.layoutOpt) store.setLayout(seg.dataset.layoutOpt);
         return;
       }
 

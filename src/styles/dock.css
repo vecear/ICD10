@@ -48,29 +48,37 @@ body[data-layout="dock"] .mode-switch { display: flex; width: auto; flex: none; 
 body[data-layout="dock"] .mode-btn {
   flex: 0 0 auto; min-width: 0; letter-spacing: .02em;
 }
-body[data-layout="dock"] #pin-toggle {
+/* 展開鈕與置頂鈕相鄰、同一組語意（換一種擺法），所以共用同一份外觀。 */
+body[data-layout="dock"] #pin-toggle,
+body[data-layout="dock"] .dock-tool {
   display: inline-flex; align-items: center; justify-content: center; gap: 3px; flex: none;
   min-height: 22px; min-width: 24px; padding: 0 4px; font: inherit; font-size: 11px;
   border: 1px solid var(--color-divider); border-radius: 0;
   background: transparent; color: var(--color-text); cursor: pointer; white-space: nowrap;
 }
-body[data-layout="dock"] #pin-toggle:hover { border-color: var(--color-accent); }
+body[data-layout="dock"] #pin-toggle:hover,
+body[data-layout="dock"] .dock-tool:hover { border-color: var(--color-accent); }
 body[data-layout="dock"] #pin-toggle.is-on,
 body[data-layout="dock"] #pin-toggle[aria-pressed="true"] {
   border-color: var(--sel-bg); background: var(--sel-bg); color: var(--sel-ink);
 }
-body[data-layout="dock"] #pin-toggle .icn { display: flex; }
+body[data-layout="dock"] #pin-toggle .icn,
+body[data-layout="dock"] .dock-tool .icn { display: flex; }
 body[data-layout="dock"] #settings-toggle {
   flex: none; min-height: 22px; padding: 0 4px; font-size: 11px; letter-spacing: .02em;
 }
-/* 極窄（PiP 預設 200px、最小測試寬 176px）：整列的寬度帳是
-   模式三鈕 ~89 ＋ 3 個 3px 間距 ＋ 置頂 ＋ 設定 ≤ 164。
-   置頂帶 icon＋「置頂中」要 47px，加起來 177 > 164——先壓過內距（6→4）與字級
-   （seg-btn--sm 已是 10px）仍差 13px，唯一還能讓的就是置頂那兩個字。
-   所以 ≤239px 時只留 pin icon，完整說明改由 title 提供（U.pin 會隨 pinned 更新 title），
-   狀態另有 aria-pressed ＋ 反白底色兩條線索。模式鈕與「設定」的文字一律不砍。 */
+/* 極窄（PiP 預設 200px、最小測試寬 176px）。實測這一列在 176px 就是兩行
+   （可用 164px、gap 3px、flex-wrap: wrap）：
+     第一行 日期 36.5 ＋ CCr 28.2 ＋ 模式三鈕 89.2 ＝ 159.9
+     第二行 spacer ＋ 展開 ＋ 置頂 ＋ 設定 32.5
+   展開與置頂各自帶文字時是 48px，兩顆都留字第二行要 ~132，雖然塞得下，但
+   「置頂／置頂中」會在 47↔48 之間跳動而把設定鈕推來推去。所以 ≤239px 兩顆都只留 icon
+   （各 24px，第二行 86.5／164，仍是同一行），名稱改由 aria-label／title 提供；
+   置頂另有 aria-pressed ＋ 反白底色兩條狀態線索（U.pin 會隨 pinned 更新 title）。
+   模式鈕與「設定」的文字一律不砍。 */
 @media (max-width: 239px) {
-  body[data-layout="dock"] .dock-pin-label { display: none; }
+  body[data-layout="dock"] .dock-pin-label,
+  body[data-layout="dock"] .layout-toggle-label { display: none; }
 }
 /* PiP 不支援／被擋下時的提示：絕不靜默失敗（設計 L240 的 10px 灰字）。
    成功那一則在 render-dock.js 設了逾時會自己消失（一次性說明不該永久占一列）；

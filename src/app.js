@@ -96,6 +96,25 @@
         return true;
       }
 
+      /* 版面切換的唯一入口。「側掛置頂」要一次做兩件事——換版面，然後開置頂小視窗。
+
+         順序不能顛倒也不能拆到兩個 task：documentPictureInPicture.requestWindow()
+         需要 transient user activation，隔一個 tick 就失效。setState → notify → mount()
+         全程同步，所以在 click handler 裡呼叫這個函式時，setLayout 回來時新的 dock
+         controller 已經掛好，緊接著的 openPip() 仍在同一次點擊的手勢裡。
+
+         openPip 只有 dock controller 有，而 current 只有 app.js 持有——這個邊界不讓
+         interactions.js 伸手進來，所以包成 ctx 上的一個函式往下傳。
+         開不起來時 openPip 自己會顯示降級提示（不支援／被擋下），版面照樣已經切好，
+         使用者至少拿得到窄欄。 */
+      ctx.switchLayout = function switchLayout(layout, opts) {
+        if (!store.setLayout(layout)) return false;
+        const pin = opts && typeof opts.pin === 'boolean' ? opts.pin : layout === 'dock';
+        const controller = current && current.controller;
+        if (pin && controller && typeof controller.openPip === 'function') controller.openPip();
+        return true;
+      };
+
       document.documentElement.dataset.theme = store.getState().theme;
       document.body.dataset.mode = store.getState().mode;
       document.body.dataset.db = store.getState().dbState;

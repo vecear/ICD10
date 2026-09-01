@@ -157,9 +157,9 @@ sticky 重複利用的是本來就存在的那一列，量測前後 `scrollHeigh
 
 - `tests/test_e2e_dock.py::test_header_controls_share_one_row`
   ——五個控制項同列、模式鈕是文字寬、不溢出、文字不被裁切、header ≤ 72px。
-- `tests/test_e2e_dock.py::test_pin_label_is_the_only_text_dropped_and_only_when_narrowest`
-  ——176px 只有「置頂」兩個字被藏起（且 `title` 補上），模式鈕與「設定」的文字任何寬度都在；
-  565px 文字必須回來。
+- `tests/test_e2e_dock.py::test_only_pin_and_expand_labels_are_dropped_and_only_when_narrowest`
+  ——176px 只有「置頂」與「展開」的文字被藏起（`aria-label` 與 `title` 補上），
+  模式鈕與「設定」的文字任何寬度都在；565px 文字必須回來。
 - `tests/test_e2e_dock.py::test_pin_note_success_auto_dismisses_failure_stays`
   ——成功提示會自己消失、失敗提示不會。
 - `tests/test_e2e_dock.py::test_no_horizontal_overflow`（日／夜 × 三模式）與

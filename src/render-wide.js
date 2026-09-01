@@ -70,6 +70,16 @@
     refs.search = search;
     header.appendChild(search);
 
+    /* 「側掛置頂」：一鍵切成側掛窄欄並開啟置頂小視窗。擺在設定鈕左邊——它取代的正是
+       設定裡那組「桌機版面」，位置接近，肌肉記憶不用重學。
+
+       header 是 nowrap 且搜尋框 flex:1／min-width:0，所以多這一顆不會水平溢出，
+       是**吃搜尋框的寬度**。實測搜尋框：1920px→1119、1440px→639、1100px→299、
+       900px→99（900 是 wide 的下限，也是 test_no_horizontal_overflow 在測的寬度）。
+       所以 ≤1239px 時由 wide.css 把文字藏起來只留 icon，名稱走 title——
+       與 1c 的置頂鈕同一套機制。 */
+    header.appendChild(R.layoutToggleEl('dock', false));
+
     const settingsToggle = R.el('button', 'btn btn-secondary', '設定');
     settingsToggle.type = 'button';
     settingsToggle.id = 'settings-toggle';

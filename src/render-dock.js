@@ -128,12 +128,15 @@
     const dock = R.el('div');
     dock.id = 'layout-dock';
 
-    /* ── header：搜尋 →（模式三鈕＋置頂＋設定 同一列）→ 提示 → 設定 popover ──────
-       密度原則（docs/dense-ui-principle.md）：模式三鈕不再等寬撐滿，縮成跟文字一樣寬，
-       與置頂／設定併成同一列，header 從三列變兩列。176px 下的寬度帳（可用 164px）：
-       三顆短標籤鈕約 89 ＋ 三個 3px 間距 ＋ 置頂 ＋ 設定；置頂在 ≤239px 時只留 pin icon
-       （dock.css 的 media query），完整說明留在 title——那是唯一塞不下的一項，
-       算式與取捨見 docs/dense-ui-principle.md。 */
+    /* ── header：搜尋 →（日期＋CCr＋模式三鈕＋展開＋置頂＋設定）→ 提示 → 設定 popover ──
+       密度原則（docs/dense-ui-principle.md）：模式三鈕不再等寬撐滿，縮成跟文字一樣寬。
+
+       176px 的實測寬度帳（可用 164px，gap 3px，這一列是 flex-wrap: wrap）：
+         日期 36.5 ＋ CCr 28.2 ＋ 模式三鈕 89.2 ＝ 159.9  → 第一列剛好塞滿
+         spacer ＋ 展開 24 ＋ 置頂 24 ＋ 設定 32.5      ＝ 86.5 → 第二列還很鬆
+       也就是這一列在 176px 本來就是兩行（.dock-head 高 92px；要到 239px 才收成單行
+       的 67px）。加「展開」之前第二列只用 59.5，加完 86.5，**不會多出第三行**。
+       ≤239px 時展開與置頂都只留 icon（dock.css 的 media query），名稱走 title。 */
     /* <header> 而不是 <div>：這一列與 1a／1b 的 header 是同一個角色（banner 地標），
        三套版面的地標組成要一致。頁面唯一的 H1 掛在這裡（sr-only，176px 寬容不下可見標題）。 */
     const head = R.el('header', 'dock-head');
@@ -173,7 +176,8 @@
     settingsToggle.id = 'settings-toggle';
     settingsToggle.setAttribute('aria-expanded', 'false');
     settingsToggle.setAttribute('aria-haspopup', 'true');
-    tools.append(R.el('span', 'dock-spacer'), pin, settingsToggle);
+    /* 「展開」排在置頂左邊：兩顆都是「換一種擺法」，放一起；設定仍在最右。 */
+    tools.append(R.el('span', 'dock-spacer'), R.layoutToggleEl('wide', true), pin, settingsToggle);
     head.appendChild(tools);
 
     refs.pinNote = R.el('div', 'dock-pin-note');
@@ -561,11 +565,15 @@
         announce('已移除 ' + code);
         return;
       }
+      /* 「展開」一定要登記在這份白名單裡：置頂時整條窄欄在 PiP 小視窗那個**另一個
+         文件**，主文件的委派完全搆不到，漏掉的症狀是「按了沒反應」而且只在置頂時
+         發生——血脂試算就是這樣漏掉過一次。而它偏偏是置頂狀態下唯一的回頭路。 */
+      const layoutGo = target.closest('[data-layout-go]');
+      if (layoutGo) { ctx.switchLayout(layoutGo.dataset.layoutGo); return; }
       const seg = target.closest('.seg-btn');
       if (seg) {
         if (seg.dataset.mode) store.setMode(seg.dataset.mode);
         else if (seg.dataset.format) store.setFormat(seg.dataset.format);
-        else if (seg.dataset.layoutOpt) store.setLayout(seg.dataset.layoutOpt);
         return;
       }
       const btn = target.closest('button');
@@ -790,7 +798,10 @@
       refs.paneGroup.applyAll();
     }
 
-    return { root: dock, refs, update, teardown };
+    /* openPip 對外開放：1a 的「側掛置頂」要在同一次點擊裡換版面**再**開小視窗，
+       而 requestWindow() 需要 transient user activation，隔一個 tick 就失效。
+       呼叫者是 app.js 的 switchLayout()——只有它握有 current.controller。 */
+    return { root: dock, refs, update, teardown, openPip };
   }
 
   root.ICDDock = { mount };

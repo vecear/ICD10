@@ -81,13 +81,14 @@
     settingsToggle.setAttribute('aria-expanded', 'false');
     settingsToggle.setAttribute('aria-haspopup', 'true');
 
-    /* 共用 popover（同一份 id 與 syncSettings），但「桌機版面」與「常用列」兩項在手機
-       沒有對應 UI：版面切到 dock 會讓 390px 的畫面變成 176px 窄欄且無路可回，
-       常用列則手機版根本沒有。標上類名交給 CSS 藏起來——用自己建的類名而不是
-       :has() 或 :first-child，免得共用層改順序就靜默失效（C1-2）。 */
+    /* 共用 popover（同一份 id 與 syncSettings），但「常用列」在手機沒有對應 UI。
+       標上類名交給 CSS 藏起來——用自己建的類名而不是 :has() 或 :first-child，
+       免得共用層改順序就靜默失效（C1-2）。
+
+       版面切換原本也要藏（切到 dock 會讓 390px 變成 176px 窄欄且無路可回），
+       現在整組已從設定裡移除，改成 1a／1c 各一顆直接鈕，手機兩顆都不存在，
+       所以這裡不必再處理。 */
     const pop = R.settingsPopoverEl(false);
-    const layoutSeg = pop.querySelector('#seg-layout');
-    if (layoutSeg && layoutSeg.parentNode) layoutSeg.parentNode.classList.add('is-desktop-only');
     const shelfBtn = pop.querySelector('#shelf-toggle');
     if (shelfBtn) shelfBtn.classList.add('is-desktop-only');
 
