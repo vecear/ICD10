@@ -161,7 +161,7 @@ def ensure_expanded(toggle):
 
 # 門診的快選掛在部位底下（使用者 2026-09-01），要先切到那個部位才看得到。
 # 急診／外科的快選沒有對應部位，仍然是面板上方那顆收合鈕。
-QUICK_REGION = {"常用慢性病": "常用", "常見感染": "感染科追蹤", "病原體附加碼／抗藥性": "感染科追蹤"}
+QUICK_REGION = {"常用慢性病": "常用", "常見感染": "全身／感染", "病原體附加碼／抗藥性": "全身／感染"}
 
 
 def quick_chip(pg, group, code):
@@ -589,9 +589,9 @@ def test_panel_diseases_are_listed_without_a_click(page):
 def test_quick_groups_hang_under_their_region_and_are_already_open(page):
     """門診的三組快選掛在部位底下，順序照使用者指定，而且不必再點一次展開。
 
-    使用者 2026-09-01：「常用慢性病請留在"常用"分頁裡，"感染科常用"請改名"常見感染"
-    請放到感染科追蹤分頁裡的最上面數來第二個，病原體附加碼／抗藥性也請放到感染科追蹤
-    分頁裡最上面數來第一個。這三項請跟其他次分類一樣都直接展開不用折疊」。
+使用者 2026-09-01：「常用慢性病請留在"常用"分頁裡……這三項請跟其他次分類一樣
+    都直接展開不用折疊」；2026-09-02 改口把兩組感染的放到「全身／感染」而不是
+    「感染科追蹤」——後者是 HIV／結核／OPAT 那種長期追蹤，跟臨時要編一個感染碼是兩件事。
 
     釘三件事：掛對部位、部位裡的順序、以及**面板上方那一區已經空了**——
     兩邊都畫就會讓同一組碼在同一個畫面出現兩次。
@@ -605,11 +605,15 @@ def test_quick_groups_hang_under_their_region_and_are_already_open(page):
         (n) => n.dataset.quick || n.dataset.panel)""") == ["常用慢性病", "高血壓／血壓管理"], \
         "「常用慢性病」要排在「常用」部位的第一個"
 
-    page.click('.region-btn[data-region="感染科追蹤"]')
+    page.click('.region-btn[data-region="全身／感染"]')
     assert page.evaluate("""() => [...document.querySelectorAll(
         '#panels .quick-card, #panels .symptom-card')].slice(0, 3).map(
         (n) => n.dataset.quick || n.dataset.panel)""") == [
-        "病原體附加碼／抗藥性", "常見感染", "HIV 感染追蹤"], "感染科追蹤裡的順序不對"
+        "病原體附加碼／抗藥性", "常見感染", "發燒／寒顫"], "全身／感染裡的順序不對"
+    # 負面：不該還留在「感染科追蹤」
+    page.click('.region-btn[data-region="感染科追蹤"]')
+    assert page.locator("#panels .quick-card").count() == 0, "感染科追蹤底下不該有快選卡"
+    page.click('.region-btn[data-region="全身／感染"]')
 
     # 直接展開：不必先點任何東西就點得到碼
     expect(page.locator('.quick-card[data-quick="常見感染"] .chip[data-code="N39.0"]')).to_be_visible()

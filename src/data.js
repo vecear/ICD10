@@ -208,8 +208,8 @@
           g('病原體附加碼／抗藥性', null, curated.pathogens)];
       }
       return [g('常用慢性病', '常用', curated.chronic),
-        g('病原體附加碼／抗藥性', '感染科追蹤', curated.pathogens),
-        g('常見感染', '感染科追蹤', curated.infectious)];
+        g('病原體附加碼／抗藥性', '全身／感染', curated.pathogens),
+        g('常見感染', '全身／感染', curated.infectious)];
     }
 
     // ---- 全庫延遲載入 ----
