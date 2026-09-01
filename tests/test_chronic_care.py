@@ -170,6 +170,26 @@ def test_risk_ladder_matches_the_thresholds_in_logic_js():
     build_module.check_risk_ladder({k: v for k, v in load_raw().items() if k != "_schema"})
 
 
+def test_every_risk_level_spells_out_the_non_drug_column():
+    """每一級都要寫出官方「非藥物治療」欄的原文，不能只留一個徽章。
+
+    使用者 2026-09-01 的原話：「可併行什麼? 3-6個月什麼? 請寫清楚」。
+    官方那一欄有三種寫法（極高／非常高一種、高風險一種、中／低／0 項一種），
+    壓成兩個字就把「並行的是什麼」「要先做的是什麼」都丟掉了。
+    """
+    lipid = [t for t in load_raw()["topics"] if t["key"] == "lipid"][0]
+    for lv in lipid["riskLadder"]["levels"]:
+        nd = lv.get("nonDrug") or ""
+        assert nd, f"{lv['label']} 沒有寫非藥物治療"
+        assert lv.get("nonDrugPlain"), f"{lv['label']} 沒有白話結論"
+        if lv["parallel"]:
+            assert "與藥物治療並行" in nd, f"{lv['label']}：{nd}"
+        else:
+            assert "3–6 個月" in nd and "生活型態" in nd, f"{lv['label']}：{nd}"
+    # 官方那一欄只有三種寫法，不該長出第四種
+    assert len({lv["nonDrug"] for lv in lipid["riskLadder"]["levels"]}) == 3
+
+
 def test_risk_ladder_lists_all_six_cardiovascular_risk_factors():
     """中／低／0 項那三級要數的 6 項風險因子必須寫出來——不然「風險因子 2 項」是空話。"""
     lipid = [t for t in load_raw()["topics"] if t["key"] == "lipid"][0]

@@ -1035,10 +1035,24 @@
       /* 起始門檻與目標是同一個數字，所以寫「門檻＝目標」，不是兩個數。 */
       head.appendChild(el('span', 'chronic-ladder-num',
         'LDL-C 門檻＝目標 ' + lv.ldl + (lv.nonHdl ? '｜non-HDL-C ' + lv.nonHdl : '')));
+      /* 徽章只放結論「今天能不能開藥」，官方原文另起一行——原本徽章寫「可並行」
+         「先做 3–6 個月」，並行什麼、做什麼都沒講（2026-09-01 使用者指出）。 */
       head.appendChild(el('span', 'chronic-ladder-flag' + (lv.parallel ? ' is-parallel' : ''),
-        lv.parallel ? '可並行' : '先做 3–6 個月'));
+        lv.parallel ? '可當天開藥' : '不可當天開藥'));
       li.appendChild(head);
-      if (lv.how) li.appendChild(el('p', 'chronic-ladder-how', String(lv.how)));
+      if (lv.nonDrug) {
+        const nd = el('p', 'chronic-ladder-nondrug');
+        nd.appendChild(el('b', 'chronic-ladder-nondrug-label', '非藥物治療'));
+        nd.appendChild(document.createTextNode('　' + lv.nonDrug
+          + (lv.nonDrugPlain ? '（' + lv.nonDrugPlain + '）' : '')));
+        li.appendChild(nd);
+      }
+      if (lv.how) {
+        const howEl = el('p', 'chronic-ladder-how');
+        howEl.appendChild(el('b', 'chronic-ladder-nondrug-label', '判準'));
+        howEl.appendChild(document.createTextNode('　' + String(lv.how)));
+        li.appendChild(howEl);
+      }
       if (Array.isArray(lv.criteria) && lv.criteria.length) {
         const ul = el('ul', 'chronic-ladder-criteria');
         for (const c of lv.criteria) ul.appendChild(el('li', null, String(c)));
@@ -1490,8 +1504,8 @@
   /* 「可否並行」兩張表共用同一句話：表一講的是生活型態改變，表二條文寫「非藥物治療」，
      指的是同一件事，用兩種說法只會讓人以為是兩種要求。 */
   const lipidParallelText = (parallel) => (parallel
-    ? '可生活型態與藥物治療並行'
-    : '給藥前應有 3–6 個月生活型態改變');
+    ? '可與藥物治療並行（生活型態改變同時進行，當天就能開藥）'
+    : '給藥前應有 3–6 個月生活型態改變／非藥物治療（做滿才給付）');
 
   /* 區塊內的順序照臨床思考流程走（使用者 2026-09-01 指定）：
        這位病人是哪一級、憑什麼 → 能不能直接開藥 → 門檻與目標 → 結論

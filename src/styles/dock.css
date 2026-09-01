@@ -393,6 +393,7 @@ body[data-layout="dock"] .chronic-ladder-name { font-size: 12px; }
 body[data-layout="dock"] .chronic-ladder-num { font-size: 10.5px; }
 body[data-layout="dock"] .chronic-ladder-flag { font-size: 9px; padding: 0 3px; }
 body[data-layout="dock"] .chronic-ladder-how,
+body[data-layout="dock"] .chronic-ladder-nondrug,
 body[data-layout="dock"] .chronic-ladder-note { font-size: 10px; line-height: 1.4; }
 body[data-layout="dock"] .chronic-ladder-criteria { font-size: 11px; line-height: 1.45; padding-left: 1em; }
 body[data-layout="dock"] .chronic-ladder-subtitle { font-size: 10.5px; }

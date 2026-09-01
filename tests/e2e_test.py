@@ -1843,6 +1843,7 @@ def test_chronic_risk_ladder_explains_how_the_levels_are_decided(page):
             name: n.querySelector('.chronic-ladder-name').textContent.trim(),
             num: n.querySelector('.chronic-ladder-num').textContent.trim(),
             flag: n.querySelector('.chronic-ladder-flag').textContent.trim(),
+            nonDrug: n.querySelector('.chronic-ladder-nondrug').textContent.trim(),
             criteria: n.querySelectorAll('.chronic-ladder-criteria li').length,
         }))""")
     for got, want in zip(shown, data["levels"]):
@@ -1852,7 +1853,10 @@ def test_chronic_risk_ladder_explains_how_the_levels_are_decided(page):
             assert str(want["nonHdl"]) in got["num"], f"{want['label']} 少了 non-HDL-C"
         assert got["criteria"] >= 1, f"{want['label']} 沒有列判準"
         # 「能不能今天就開藥」是這一級最實務的分野，不能只有數字
-        assert got["flag"] == ("可並行" if want["parallel"] else "先做 3–6 個月"), got
+        assert got["flag"] == ("可當天開藥" if want["parallel"] else "不可當天開藥"), got
+        # 徽章只給結論，官方「非藥物治療」欄的原文要另外寫出來——
+        # 舊版只有「可並行」三個字，並行什麼沒有講（2026-09-01 使用者指出）
+        assert want["nonDrug"] in got["nonDrug"], (got["nonDrug"], want["nonDrug"])
 
     factors = page.locator("#chronic-body .chronic-ladder-factors .chronic-ladder-criteria li")
     expect(factors).to_have_count(len(data["factors"]["items"]))

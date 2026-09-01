@@ -264,6 +264,8 @@ def check_risk_ladder(chronic):
                 bad.append(f"{key}／{label or '(無名)'}：ldl 不是正整數（{ldl!r}）")
             if not (lv or {}).get("criteria"):
                 bad.append(f"{key}／{label or '(無名)'}：沒有寫判準")
+            if not str((lv or {}).get("nonDrug") or "").strip():
+                bad.append(f"{key}／{label or '(無名)'}：沒有寫非藥物治療（官方表那一欄）")
         seen[key] = len(levels)
     if bad:
         raise ValueError("riskLadder 結構有問題：\n  " + "\n  ".join(bad))

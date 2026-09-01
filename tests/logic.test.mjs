@@ -424,6 +424,39 @@ test('lipidCoverage：一律回傳兩張表，且判定不再受日期影響', (
 });
 
 /* Fibrate：兩列的門檻都是 TG ≧ 200，決定要不要先做非藥物治療的是有無心血管疾病／糖尿病。 */
+/* 使用者 2026-09-01：「符合的危險因子是什麼要寫出來」。
+   畫面上原本只寫「2 個以上危險因子」，醫師得自己回頭再數一次；
+   而審查看的正是病歷上寫得出來的那幾項。 */
+test('lipidCoverage：靠數因子分層時，要列出是哪幾項', () => {
+  const r = L.lipidCoverage({ age: 50, sex: 'male', ldl: 108, hdl: 55, htn: true });
+  assert.equal(r.one.label, '中風險');
+  const one = r.one.why.join('');
+  assert.ok(one.includes('高血壓') && one.includes('男性 ≧ 45 歲'), one);
+  assert.ok(one.includes('2 項'), '表一的分級名沒帶項數，why 要帶：' + one);
+  // 表二的分層名已經寫了項數，why 只列名字，避免「2 個以上危險因子（依據：危險因子 2 項（…））」
+  assert.deepEqual(r.two.why, ['高血壓', '男性 ≧ 45 歲']);
+});
+
+test('lipidCoverage：表二每一層都要有依據（原本整塊沒有 why）', () => {
+  const dm = L.lipidCoverage({ age: 40, ldl: 120, dm: true });
+  assert.equal(dm.two.label, '心血管疾病或糖尿病');
+  assert.deepEqual(dm.two.why, ['糖尿病']);
+
+  const cad = L.lipidCoverage({ age: 60, ldl: 120, cad: true, dm: true });
+  assert.deepEqual(cad.two.why, ['冠狀動脈粥狀硬化（冠心病）', '糖尿病']);
+
+  const acs = L.lipidCoverage({ age: 60, ldl: 120, acsHistory: true });
+  assert.ok(acs.two.why.indexOf('急性冠心症病史') >= 0, acs.two.why);
+});
+
+test('lipidCoverage：0 項那一級的名稱本身就是結論，不再重複一次依據', () => {
+  const r = L.lipidCoverage({ age: 30, sex: 'female', ldl: 150, hdl: 60 });
+  assert.equal(r.one.label, '0 項心血管風險因子');
+  assert.deepEqual(r.one.why, []);
+  assert.equal(r.two.label, '0 個危險因子');
+  assert.deepEqual(r.two.why, []);
+});
+
 test('lipidCoverage fibrate：TG 200–499 還要 ratio 或低 HDL', () => {
   const bare = L.lipidCoverage({ tg: 300, tc: 180, hdl: 50 }).fibrate;
   assert.equal(bare.meets, false);

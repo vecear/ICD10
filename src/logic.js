@@ -329,10 +329,17 @@
     if (Number.isFinite(ldl) && ldl >= 190) mod.push('LDL-C ≧ 190');
     if (mod.length) return { level: 'moderate', why: mod };
 
-    const n = c.riskFactorCountNew;
-    if (n >= 2) return { level: 'mid', why: ['心血管風險因子 ' + n + ' 項'] };
-    if (n === 1) return { level: 'low', why: ['心血管風險因子 1 項'] };
-    return { level: 'none', why: ['無心血管風險因子'] };
+    /* 分級是靠「數因子」得來的時候，要寫出**是哪幾項**——只寫「2 項」等於要醫師
+       自己回頭再數一次，而審查看的正是病歷上寫得出來的那幾項（使用者 2026-09-01）。 */
+    const names = Array.isArray(c.riskFactorNamesNew) ? c.riskFactorNamesNew : [];
+    const n = names.length || c.riskFactorCountNew || 0;
+    /* 依據在畫面上會被包成「（依據：…）」，所以這裡不要再自帶括號，否則變成套疊。
+       表一的分級名（中／低風險）看不出項數，所以項數留在這裡；名稱用冒號接。 */
+    const detail = names.length ? '：' + names.join('、') : '';
+    if (n >= 2) return { level: 'mid', why: ['心血管風險因子 ' + n + ' 項' + detail] };
+    if (n === 1) return { level: 'low', why: ['心血管風險因子 1 項' + detail] };
+    /* 0 項那一級的名稱本身就是結論，再寫一次「無心血管風險因子」是同義反覆。 */
+    return { level: 'none', why: [] };
   }
 
   /* 表一 6 項風險因子。年齡與 HDL-C 由數值自動判定，其餘勾選——
@@ -387,6 +394,15 @@
   function lipidTwoFlags(c) {
     const acs = lipBool(c.acsPciCabg) || lipBool(c.acsHistory) || lipBool(c.revasc);
     const cvd = lipBool(c.cvdOld) || lipBool(c.cad) || lipBool(c.strokeTia) || lipBool(c.carotid);
+    /* 觸發的是哪一項要回報出來：表二的分層名稱（如「心血管疾病或糖尿病」）本身
+       看不出這位病人是憑什麼落在那一層，而那正是病歷上要寫的東西。 */
+    const acsWhy = [];
+    if (lipBool(c.acsHistory)) acsWhy.push('急性冠心症病史');
+    if (lipBool(c.revasc) || lipBool(c.acsPciCabg)) acsWhy.push('接受血管再通術 PCI／CABG');
+    const cvdWhy = [];
+    if (lipBool(c.cad)) cvdWhy.push('冠狀動脈粥狀硬化（冠心病）');
+    if (lipBool(c.strokeTia)) cvdWhy.push('缺血性中風／TIA');
+    if (lipBool(c.carotid)) cvdWhy.push('症狀性頸動脈狹窄');
     const proof = [];
     if (lipBool(c.cad) || lipBool(c.acsHistory)) {
       proof.push('冠狀動脈粥狀硬化之診斷依據：心導管證實、缺氧性心電圖變化或負荷試驗陽性反應報告');
@@ -394,30 +410,40 @@
     if (lipBool(c.strokeTia) || lipBool(c.carotid)) {
       proof.push('暫時性腦缺血發作與症狀性頸動脈狹窄之診斷須由神經科醫師確立');
     }
-    return { acs, cvd, proof };
+    return { acs, cvd, proof, acsWhy, cvdWhy };
   }
 
   /* 表二分層。它的「心血管疾病」定義比表一窄：只含冠狀動脈粥狀硬化與
      缺血型腦血管疾病，**不含 PAD、不含 CKD**——最常被拿表一的印象去套錯。 */
-  function lipidTableTwo(c, oldCount) {
+  function lipidTableTwo(c, oldNames) {
+    /* 每一層都回 why：分層名稱（如「2 個以上危險因子」）看不出這位病人憑什麼落在那一層，
+       而審查看的正是病歷上寫得出來的那幾項（使用者 2026-09-01 指出）。 */
+    const names = Array.isArray(oldNames) ? oldNames : [];
+    const oldCount = names.length;
+
     if (lipBool(c.acsPciCabg)) {
       return { tier: 'acs', label: 'ACS 病史／PCI／CABG 之冠狀動脈粥狀硬化',
+               why: (c.acsWhy && c.acsWhy.length) ? c.acsWhy.slice() : [],
                ldl: 70, tc: null, target: 70, targetTc: null, parallel: true };
     }
     if (lipBool(c.cvdOld) || lipBool(c.dm)) {
-      return { tier: 'cvd', label: '心血管疾病或糖尿病', ldl: 100, tc: 160,
+      const why = (c.cvdWhy && c.cvdWhy.length) ? c.cvdWhy.slice() : [];
+      if (lipBool(c.dm)) why.push('糖尿病');
+      return { tier: 'cvd', label: '心血管疾病或糖尿病', why, ldl: 100, tc: 160,
                target: 100, targetTc: 160, parallel: true };
     }
     if (oldCount >= 2) {
-      return { tier: 'rf2', label: '2 個以上危險因子', ldl: 130, tc: 200,
-               target: 130, targetTc: 200, parallel: false };
+      /* 分層名稱已經寫了項數，why 只列是哪幾項——否則畫面會變成
+         「2 個以上危險因子（依據：危險因子 2 項（男性 ≧ 45 歲…））」。 */
+      return { tier: 'rf2', label: '2 個以上危險因子', why: names.slice(),
+               ldl: 130, tc: 200, target: 130, targetTc: 200, parallel: false };
     }
     if (oldCount === 1) {
-      return { tier: 'rf1', label: '1 個危險因子', ldl: 160, tc: 240,
-               target: 160, targetTc: 240, parallel: false };
+      return { tier: 'rf1', label: '1 個危險因子', why: names.slice(),
+               ldl: 160, tc: 240, target: 160, targetTc: 240, parallel: false };
     }
-    return { tier: 'rf0', label: '0 個危險因子', ldl: 190, tc: null,
-             target: 190, targetTc: null, parallel: false };
+    return { tier: 'rf0', label: '0 個危險因子', why: [],
+             ldl: 190, tc: null, target: 190, targetTc: null, parallel: false };
   }
 
   /* Fibrate（降三酸甘油酯表）。官方表是三列：
@@ -470,7 +496,8 @@
 
     const rfNew = lipidRiskFactorsNew(c);
     const rfOld = lipidRiskFactorsOld(c);
-    const risk = lipidRiskLevel(Object.assign({}, c, { riskFactorCountNew: rfNew.length }));
+    const risk = lipidRiskLevel(Object.assign({}, c,
+      { riskFactorCountNew: rfNew.length, riskFactorNamesNew: rfNew }));
     const row = LIPID_ONE.filter((r) => r.level === risk.level)[0];
 
     const hasLdl = Number.isFinite(ldl) && ldl > 0;
@@ -484,7 +511,10 @@
 
     const twoFlags = lipidTwoFlags(c);
     const base = lipidTableTwo(
-      Object.assign({}, c, { acsPciCabg: twoFlags.acs, cvdOld: twoFlags.cvd }), rfOld.length);
+      Object.assign({}, c, {
+        acsPciCabg: twoFlags.acs, cvdOld: twoFlags.cvd,
+        acsWhy: twoFlags.acsWhy, cvdWhy: twoFlags.cvdWhy,
+      }), rfOld);
     const twoMeets = (hasLdl && ldl >= base.ldl)
       || (base.tc !== null && hasTc && tc >= base.tc);
     const two = Object.assign({}, base, {

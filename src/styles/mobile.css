@@ -261,6 +261,7 @@ body[data-layout="mobile"] .chronic-tab {
 body[data-layout="mobile"] .chronic-ladder-lede,
 body[data-layout="mobile"] .chronic-ladder-criteria { font-size: 13px; }
 body[data-layout="mobile"] .chronic-ladder-how,
+body[data-layout="mobile"] .chronic-ladder-nondrug,
 body[data-layout="mobile"] .chronic-ladder-note { font-size: 12px; }
 
 /* 僅適用表二的成分：390px 下 grid 塌成一欄，字級跟著內文（13px）而不是 chrome */

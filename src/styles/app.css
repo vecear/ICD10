@@ -565,7 +565,12 @@ b.cart-code {
   border: 1px solid var(--color-divider); color: var(--color-neutral-700);
 }
 .chronic-ladder-flag.is-parallel { border-color: var(--color-accent); color: var(--color-accent-800); }
-.chronic-ladder-how { margin: 3px 0 0; font-size: 11.5px; line-height: 1.45; color: var(--color-neutral-700); }
+.chronic-ladder-how,
+.chronic-ladder-nondrug {
+  margin: 3px 0 0; font-size: 11.5px; line-height: 1.45; color: var(--color-neutral-700);
+}
+/* 「非藥物治療」是官方表的欄名，標出來才知道那句話是條文原文不是我的話 */
+.chronic-ladder-nondrug-label { font-weight: 600; color: var(--color-text); }
 .chronic-ladder-criteria {
   margin: 2px 0 0; padding-left: 1.1em; font-size: 12px; line-height: 1.5;
 }
