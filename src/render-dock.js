@@ -321,6 +321,11 @@
 
     // ── Document Picture-in-Picture（置頂小視窗） ───────────────────────
     let pipWin = null;
+    /* 解除置頂時要沿用的窄欄寬度。使用者原話：「不是應該維持側掛的寬度，只是沒
+       強制置頂嗎」——小視窗關掉之後側欄回到主視窗，寬度若跳到一個寫死的數字，
+       等於把他剛才調好的寬度丟掉。預設 PIP_SIZE.width（340，也是 Ctrl+Alt+D
+       貼齊的寬度），實際置頂過就換成那個小視窗當下的寬度。 */
+    let dockWidth = PIP_SIZE.width;
     let pinNote = '';
     let noteTimer = null;
     /* 這套 controller 是否還是生效版面。app.js 換版面時會呼叫 teardown() 把它設為 false，
@@ -393,6 +398,13 @@
 
     function restoreFromPip() {
       if (!pipWin) return;
+      /* 先量再清：pipWin 設成 null 之後就問不到寬度了。pagehide 觸發時小視窗還在，
+         量得到；真的量不到就沿用上一個值，不要讓它變成 0 或 NaN。 */
+      try {
+        const w = Math.round(pipWin.innerWidth);
+        if (Number.isFinite(w) && w > 0) dockWidth = w;
+      } catch (e) { /* 小視窗已消失，沿用上一個值 */ }
+      applyDockWidth();
       pipWin = null;
       root.ICDInteractions.setFeedbackDocument(null);
       if (refs.placeholder.parentNode) refs.placeholder.parentNode.removeChild(refs.placeholder);
@@ -417,6 +429,13 @@
       const w = pipWin;
       restoreFromPip();
       try { if (!w.closed) w.close(); } catch (e) { /* 已被使用者關掉 */ }
+    }
+
+    /* 寬度用自訂屬性交給 CSS，不寫 inline max-width：限寬那條規則本來就用
+       :not([data-pip]) 排除了置頂小視窗，所以這個值設了也只在主視窗生效，
+       不必在進出小視窗時清掉又補回來。 */
+    function applyDockWidth() {
+      dock.style.setProperty('--dock-w', dockWidth + 'px');
     }
 
     function openPip() {

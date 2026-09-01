@@ -1063,8 +1063,10 @@ def test_unpinned_dock_stays_a_narrow_column_on_the_right(browser_ctx, page_url)
 
     使用者 2026-09-01 回報：「解除置頂會變全視窗大小」。原因是網頁改不了主瀏覽器
     視窗的大小（resizeTo 對一般分頁無效），所以最大化的視窗會把「側掛窄欄」攤成
-    一片全寬版面——那既不是窄欄、也不是工作台。上限 600px、靠右貼齊（那是「側掛」
-    的意思：把左邊讓給 HIS）。比上限窄的視窗完全不受影響。
+    一片全寬版面——那既不是窄欄、也不是工作台。沒置頂過時用預設 340px
+    （Ctrl+Alt+D 貼齊的寬度）、靠右貼齊（那是「側掛」的意思：把左邊讓給 HIS）。
+    比上限窄的視窗完全不受影響。置頂過再解除的話沿用小視窗當下的寬度，
+    那條由 test_unpinning_keeps_the_width_the_pinned_window_had 守。
     """
     page = browser_ctx.new_page()
     page.goto(page_url)
@@ -1072,7 +1074,7 @@ def test_unpinned_dock_stays_a_narrow_column_on_the_right(browser_ctx, page_url)
     page.evaluate("() => window.ICDApp.store.setLayout('dock')")
     page.wait_for_selector('body[data-layout="dock"]')
 
-    for width, expect_w in ((1920, 600), (1440, 600), (900, 600), (340, 340), (176, 176)):
+    for width, expect_w in ((1920, 340), (1440, 340), (900, 340), (340, 340), (176, 176)):
         page.set_viewport_size({"width": width, "height": 900})
         page.wait_for_timeout(250)
         box = page.locator("#layout-dock").bounding_box()
@@ -1097,6 +1099,32 @@ def test_pinned_window_content_is_not_width_capped(browser_ctx, page_url):
         pip.wait_for_timeout(300)
         box = pip.locator("#layout-dock").bounding_box()
         assert box["width"] >= 760 - 1, f"小視窗內容被限寬了：{box['width']} < 760"
+    finally:
+        page.close()
+
+
+def test_unpinning_keeps_the_width_the_pinned_window_had(browser_ctx, page_url):
+    """解除置頂之後，窄欄要沿用小視窗當下的寬度，不是跳回預設值。
+
+    使用者原話：「不是應該維持側掛的寬度，只是沒強制置頂嗎」。第一版把上限寫死成
+    600px，等於把他剛才調好的小視窗寬度丟掉——而那個數字還是我從一條測試註解撈的，
+    不是他實際在用的寬度。所以這條要用「非預設」的寬度測，420 刻意不等於 340。
+    """
+    page, pip = open_pinned(browser_ctx, page_url)
+    try:
+        page.set_viewport_size({"width": 1440, "height": 900})
+        pip.set_viewport_size({"width": 420, "height": 800})
+        pip.wait_for_timeout(400)
+
+        pip.close()                     # 關掉小視窗＝解除置頂，側欄回到主視窗
+        page.wait_for_timeout(900)
+        assert page.evaluate("() => window.ICDApp.store.getState().pinned") is False
+
+        box = page.locator("#layout-dock").bounding_box()
+        assert round(box["width"]) == 420, \
+            f"沒沿用小視窗的寬度：{round(box['width'])}px，預期 420（預設 340 代表沒記住）"
+        assert abs(box["x"] + box["width"] - 1440) <= 1, f"仍要靠右貼齊：{box}"
+        assert_no_hscroll(page, "解除置頂後沿用寬度")
     finally:
         page.close()
 
