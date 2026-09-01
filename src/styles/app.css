@@ -561,7 +561,7 @@ b.cart-code {
 .chronic-ladder-num { font-size: 11.5px; font-variant-numeric: tabular-nums; }
 /* 「可並行」與「先做 3–6 個月」是這一級最實務的分野：能不能今天就開藥。 */
 .chronic-ladder-flag {
-  flex: none; padding: 0 5px; font-size: 10px; letter-spacing: .04em;
+  flex: 0 1 auto; min-width: 0; padding: 0 5px; font-size: 10px; letter-spacing: .04em;
   border: 1px solid var(--color-divider); color: var(--color-neutral-700);
 }
 .chronic-ladder-flag.is-parallel { border-color: var(--color-accent); color: var(--color-accent-800); }
@@ -581,6 +581,38 @@ b.cart-code {
   margin: 0; font-family: var(--font-heading); font-size: 11.5px; letter-spacing: .04em;
   color: var(--color-accent-800);
 }
+
+/* ── 表一用的是哪些藥 ───────────────────────────────────────────────────────
+   接在分級階梯後面：分完級的下一個問題就是「那要開什麼」。
+   給付狀態與學名並排，而且自費那兩類另外標色——表一把 siRNA 與 ATP citrate lyase
+   抑制劑列為可考慮的選項，健保卻沒收載，只列學名等於引導醫師開一個病人要自費的藥。 */
+.chronic-drugs { margin: 10px 0 0; padding: 8px 10px; background: var(--color-neutral-100); }
+.chronic-drugs-title {
+  margin: 0; font-family: var(--font-heading); font-size: 12px; letter-spacing: .06em;
+  color: var(--color-text);
+}
+.chronic-drugs-lede { margin: 3px 0 0; font-size: 12px; line-height: 1.5; }
+.chronic-drug-list { margin: 7px 0 0; padding: 0; list-style: none; }
+.chronic-drug-group { margin: 0; padding: 6px 0; border-top: 1px solid var(--color-divider); }
+.chronic-drug-group:first-child { border-top: 0; padding-top: 0; }
+.chronic-drug-head {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; margin: 0;
+}
+.chronic-drug-klass { font-size: 12.5px; letter-spacing: .01em; overflow-wrap: anywhere; }
+/* flex: 0 1 auto ＋ min-width: 0 而不是 flex: none：176px 下這顆徽章比可用寬度還寬，
+   不給收縮就會整條連鎖溢出（實測 164 塞進 140，連 SECTION 一起爆）。 */
+.chronic-drug-cover {
+  flex: 0 1 auto; min-width: 0; padding: 0 5px; font-size: 10px; letter-spacing: .02em;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--color-divider); color: var(--color-neutral-700);
+}
+/* 自費那兩類要一眼分得出來：它是這一塊最容易誤讀的地方 */
+.chronic-drug-cover.is-selfpay {
+  border-color: var(--warn-line); background: var(--warn-bg); color: var(--warn-ink);
+}
+.chronic-drug-names { margin: 3px 0 0; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.chronic-drug-group.is-selfpay .chronic-drug-names { color: var(--color-neutral-700); }
+.chronic-drug-note { margin: 3px 0 0; font-size: 11.5px; line-height: 1.5; color: var(--color-neutral-700); }
 
 /* ── 僅適用表二的成分（不適用表一）─────────────────────────────────────────
    排在速判摘要之後、分段內容之前：它決定底下每一條門檻要讀表一還是表二，
@@ -616,6 +648,11 @@ b.cart-code {
 .chronic-t2-meta {
   display: flex; flex-wrap: wrap; gap: 2px 10px; margin: 4px 0 0;
   font-size: 10px; line-height: 1.4; color: var(--color-neutral-700); overflow-wrap: anywhere;
+}
+/* 條目行的 .chronic-source 是 nowrap＋ellipsis（一行內塞得下才好掃視），
+   但這幾個區塊的出處長得多，截斷等於把「這份東西憑什麼可信」切掉。讓它換行。 */
+.chronic-t2-meta .chronic-source {
+  flex: 1 1 100%; overflow: visible; text-overflow: clip; white-space: normal;
 }
 
 /* ── 主題最上方的官方條文 PDF ───────────────────────────────────────────────

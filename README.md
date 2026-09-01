@@ -122,6 +122,14 @@ Document PiP 的 `about:blank` 文件裡，相對路徑會解析到那邊去。
 逐項比對（`tests/test_chronic_care.py::test_risk_ladder_matches_the_thresholds_in_logic_js`）
 ——這一頁與計算機是同一套判定的兩個出口，講的若不是同一套數字，比兩邊都沒有還糟。
 
+**表一用的是哪些藥**（階梯下方）：條文的「處方規定」欄只寫類別（statin、ezetimibe、
+PCSK9 單株抗體、siRNA、ATP citrate lyase 抑制劑），這裡把台灣實際有的學名對進去，
+並把**健保給付狀態與學名並排**——表一把 siRNA 與 ATP citrate lyase 抑制劑列為未達標時
+可考慮的 non-statin 選項，但健保沒有收載（2.6 全文檢索命中 0），只列學名等於引導醫師
+開一個病人要自費的藥。`covered` 少了或給付狀態沒寫，`build.py` 會讓建置失敗。
+fenofibrate 與 gemfibrozil 刻意不收：它們走降三酸甘油酯那張表，混進來會讓人拿表一的
+LDL-C 門檻去開 fibrate。
+
 **「不適用表一」的成分完整列在兩個地方**：LIPID 條文分頁（速判摘要下方）與血脂計算機的
 表二區塊，兩邊同源於 `chronic_care.json` 的 `topics[lipid].tableTwoOnly`，不各存一份。
 內容是 9 種成分共 116 個健保代碼（simvastatin 19、lovastatin 3、pravastatin 12、

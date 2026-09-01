@@ -398,6 +398,15 @@ body[data-layout="dock"] .chronic-ladder-note { font-size: 10px; line-height: 1.
 body[data-layout="dock"] .chronic-ladder-criteria { font-size: 11px; line-height: 1.45; padding-left: 1em; }
 body[data-layout="dock"] .chronic-ladder-subtitle { font-size: 10.5px; }
 
+/* 表一用藥：176px 下 head 自然折行，這裡只收字級 */
+body[data-layout="dock"] .chronic-drugs { margin-top: 7px; padding: 6px 7px; }
+body[data-layout="dock"] .chronic-drugs-title { font-size: 11px; }
+body[data-layout="dock"] .chronic-drugs-lede { font-size: 11px; line-height: 1.45; }
+body[data-layout="dock"] .chronic-drug-klass { font-size: 11.5px; }
+body[data-layout="dock"] .chronic-drug-cover { font-size: 9px; padding: 0 3px; }
+body[data-layout="dock"] .chronic-drug-names { font-size: 11px; line-height: 1.45; }
+body[data-layout="dock"] .chronic-drug-note { font-size: 10px; line-height: 1.4; }
+
 /* 僅適用表二的成分：176px 下 grid 自己塌成一欄（minmax 的 min(13em,100%) 已處理），
    這裡只收字級與內距。清單本身不縮——它是「能不能開」那一層的資訊。 */
 body[data-layout="dock"] .chronic-t2 { margin-top: 7px; padding: 6px 7px; }

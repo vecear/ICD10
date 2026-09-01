@@ -45,6 +45,11 @@ def risk_ladder(key):
     return topic(key).get("riskLadder")
 
 
+def drugs(key):
+    """該主題的用藥清單（只有 lipid 有；其餘回 None）。"""
+    return topic(key).get("drugs")
+
+
 def items(key):
     for section in topic(key).get("sections") or []:
         for item in section.get("items") or []:

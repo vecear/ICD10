@@ -264,6 +264,11 @@ body[data-layout="mobile"] .chronic-ladder-how,
 body[data-layout="mobile"] .chronic-ladder-nondrug,
 body[data-layout="mobile"] .chronic-ladder-note { font-size: 12px; }
 
+/* 表一用藥：390px 下學名是要逐個讀的內容，字級跟著內文 */
+body[data-layout="mobile"] .chronic-drugs-lede,
+body[data-layout="mobile"] .chronic-drug-names { font-size: 13px; }
+body[data-layout="mobile"] .chronic-drug-note { font-size: 12px; }
+
 /* 僅適用表二的成分：390px 下 grid 塌成一欄，字級跟著內文（13px）而不是 chrome */
 body[data-layout="mobile"] .chronic-t2-lede,
 body[data-layout="mobile"] .chronic-t2-item { font-size: 13px; }

@@ -1821,6 +1821,47 @@ def test_chronic_each_tab_opens_its_own_topic_and_only_that_one(page):
     reset(page)
 
 
+def test_chronic_drug_list_names_taiwan_drugs_and_flags_self_pay(page):
+    """表一用藥清單：學名要列出來，健保沒收載的要標成自費。
+
+    使用者 2026-09-01：「表一是用的藥物有哪些也寫出來（僅列台灣有的）」。
+    自費那兩類是這一塊最容易誤讀的地方——表一把它們列為未達標時可考慮的 non-statin
+    選項，但那是臨床路徑，健保並沒有收載。標錯就是引導醫師開一個病人要自費的藥。
+    """
+    reset(page)
+    data = cf.drugs("lipid")
+    assert data, "chronic_care.json 的 lipid 主題要有 drugs"
+    open_chronic(page, "lipid")
+    groups = page.locator("#chronic-body .chronic-drug-group")
+    expect(groups).to_have_count(len(data["groups"]))
+
+    shown = page.evaluate("""() => Array.from(
+        document.querySelectorAll('#chronic-body .chronic-drug-group')).map((n) => ({
+            klass: n.querySelector('.chronic-drug-klass').textContent.trim(),
+            names: n.querySelector('.chronic-drug-names').textContent.trim(),
+            cover: n.querySelector('.chronic-drug-cover').textContent.trim(),
+            selfpay: n.classList.contains('is-selfpay'),
+        }))""")
+    for got, want in zip(shown, data["groups"]):
+        assert got["klass"] == want["klass"], (got, want)
+        for name in want["items"]:
+            assert name in got["names"], f"{want['klass']} 少了 {name}：{got['names']}"
+        assert got["cover"] == want["cover"], (got, want)
+        assert got["selfpay"] is (want["covered"] is False), (got, want)
+
+    # 負面：fibrate 走的是另一張表，不該混進表一的用藥清單
+    block = page.locator("#chronic-body .chronic-drugs").inner_text()
+    names_only = "".join(g["names"] for g in shown)
+    for banned in ("fenofibrate", "gemfibrozil"):
+        assert banned not in names_only, f"{banned} 不該出現在表一用藥：{names_only}"
+    assert "fenofibrate" in block, "但要有一句說明它為什麼不在這裡"
+
+    for other in ("dm", "htn"):
+        open_chronic(page, other)
+        expect(page.locator("#chronic-body .chronic-drugs")).to_have_count(0)
+    reset(page)
+
+
 def test_chronic_risk_ladder_explains_how_the_levels_are_decided(page):
     """LIPID 分頁要把「極高／非常高／高／中／低怎麼分」講出來。
 
@@ -1898,6 +1939,81 @@ def test_lipid_result_follows_the_clinical_thinking_order(page):
     assert page.locator("#lipid-result .lipid-block").first.locator(
         ".lipid-level .lipid-why").count() == 1
     page.keyboard.press("Escape")
+    reset(page)
+
+
+def test_metabolic_syndrome_is_five_checkboxes_not_one(page):
+    """代謝症候群拆成 5 個細項讓使用者勾（使用者 2026-09-01）。
+
+    它是表一 6 項風險因子裡唯一要「數」的——一顆勾選鈕等於把最容易錯的一步推回給使用者，
+    而數錯就換一級門檻。這裡釘住：5 個細項都在、舊的單一勾選鈕不在、兩項不算三項才算。
+    """
+    reset(page)
+    page.click("#lipid-btn")
+    expect(page.locator("#lipid-panel")).to_be_visible()
+    keys = ["msWaist", "msBp", "msGlucose", "msTg", "msHdl"]
+    for k in keys:
+        expect(page.locator("#lipid-" + k)).to_have_count(1)
+    expect(page.locator("#lipid-metabolicSyndrome")).to_have_count(0)
+    # 標籤要帶官方的數字，醫師對著上面剛填的 TG／HDL-C 就能勾
+    labels = page.evaluate("""() => Array.from(
+        document.querySelectorAll('[data-lipid-row^="ms"]')).map((n) => n.textContent.trim())""")
+    assert any("≧ 90" in t for t in labels), labels
+    assert any("130/85" in t for t in labels), labels
+    assert any("≧ 150" in t for t in labels), labels
+
+    def factors():
+        page.wait_for_timeout(250)
+        return page.locator("#lipid-result .lipid-rf").inner_text()
+
+    page.click("#lipid-reset")
+    page.wait_for_timeout(120)
+    page.fill("#lipid-age", "50")
+    page.fill("#lipid-ldl", "150")
+    page.fill("#lipid-hdl", "55")
+    page.check("#lipid-msWaist")
+    page.check("#lipid-msBp")
+    assert "代謝症候群" not in factors(), "兩項不該計入"
+    page.check("#lipid-msGlucose")
+    assert "代謝症候群 3 項" in factors(), "三項要計入並帶項數"
+    page.keyboard.press("Escape")
+    reset(page)
+
+
+def test_fibrate_parallel_line_names_the_actual_comorbidity(page):
+    """Fibrate 的「可與藥物治療並行」要指名這位病人命中的是哪一個。
+
+    官方第一列寫「心血管疾病或糖尿病」，原樣抄過來等於要醫師自己回頭對一次，
+    而病歷上要寫的正是那一個（使用者 2026-09-01）。
+    畫面與病歷共用同一句（lipidFibrateParallelText），所以這裡順便驗兩邊一致。
+    """
+    reset(page)
+    # TG 325、TC 325、HDL-C 52 → TC/HDL-C 6.25 > 5，走 TG 200–499 那一列
+    cases = [(["dm"], "（糖尿病）"),
+             (["cad"], "（心血管疾病）"),
+             (["cad", "dm"], "（心血管疾病及糖尿病）")]
+    for checks, want in cases:
+        page.click("#lipid-btn")
+        expect(page.locator("#lipid-panel")).to_be_visible()
+        page.click("#lipid-reset")
+        page.wait_for_timeout(120)
+        for key, value in (("age", "60"), ("ldl", "164"), ("tc", "325"),
+                           ("hdl", "52"), ("tg", "325")):
+            page.fill("#lipid-" + key, value)
+        for c in checks:
+            page.check("#lipid-" + c)
+        page.wait_for_timeout(300)
+        line = page.evaluate("""() => {
+            const b = [...document.querySelectorAll('#lipid-result .lipid-block')].find(
+                (x) => x.querySelector('.lipid-block-title').textContent === 'Fibrate');
+            return b ? b.querySelector('.lipid-parallel').textContent : ''; }""")
+        assert line == "可與藥物治療並行" + want, (checks, line)
+        page.click("#lipid-copy")
+        page.wait_for_timeout(200)
+        text = page.evaluate("() => navigator.clipboard.readText()")
+        assert "可與藥物治療並行" + want in text, (checks, text)
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(120)
     reset(page)
 
 

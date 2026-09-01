@@ -488,6 +488,58 @@ test('lipidCoverage fibrate：TG 200–499 那一列才看有無心血管疾病�
   // 冠心病走推導：使用者勾的是 cad，不是 cvdOld
   assert.equal(L.lipidCoverage({ tg: 300, tc: 180, hdl: 35, cad: true }).fibrate.parallel, true);
 });
+/* 官方第一列寫「心血管疾病或糖尿病」，但病歷要寫的是這位病人命中的那一個。
+   使用者 2026-09-01：只有糖尿病就寫（糖尿病），兩個都有寫（心血管疾病及糖尿病）。 */
+/* 代謝症候群是表一 6 項風險因子裡唯一要「數」的，數錯就換一級門檻。
+   使用者 2026-09-01 要求拆成細項勾選，所以五取三的邊界要有測試。 */
+test('lipidMetabolic：五取三，兩項不算、三項才算', () => {
+  assert.equal(L.lipidMetabolic({ msWaist: true, msBp: true }).meets, false);
+  const three = L.lipidMetabolic({ msWaist: true, msBp: true, msGlucose: true });
+  assert.equal(three.meets, true);
+  assert.equal(three.count, 3);
+  assert.deepEqual(three.hit, ['腹部肥胖', '血壓偏高', '空腹血糖偏高']);
+  assert.equal(L.lipidMetabolic({}).meets, false);
+  assert.equal(L.lipidMetabolic(null).meets, false);
+});
+
+test('lipidMetabolic：舊的 metabolicSyndrome 布林仍然算數（呼叫端可直接宣告）', () => {
+  const r = L.lipidMetabolic({ metabolicSyndrome: true });
+  assert.equal(r.meets, true);
+  assert.equal(r.declared, true);
+  assert.equal(r.count, 0, '直接宣告時沒有細項可列');
+});
+
+test('lipidCoverage：代謝症候群滿三項才進風險因子，且帶項數不帶巢狀括號', () => {
+  const two = L.lipidCoverage({ age: 50, sex: 'male', ldl: 150, hdl: 55,
+    msWaist: true, msBp: true });
+  assert.equal(two.riskFactorsNew.indexOf('代謝症候群 2 項'), -1);
+  assert.ok(two.riskFactorsNew.every((f) => f.indexOf('代謝症候群') < 0), two.riskFactorsNew);
+
+  const three = L.lipidCoverage({ age: 50, sex: 'male', ldl: 150, hdl: 55,
+    msWaist: true, msBp: true, msGlucose: true });
+  assert.ok(three.riskFactorsNew.indexOf('代謝症候群 3 項') >= 0, three.riskFactorsNew);
+  assert.equal(three.one.label, '中風險', '多了一項風險因子就從低風險升到中風險');
+  // 表二那 5 項沒有代謝症候群，不得跟著跑進去
+  assert.ok(three.two.riskFactors.every((f) => f.indexOf('代謝症候群') < 0), three.two.riskFactors);
+});
+
+test('lipidCoverage fibrate：並行理由要指名是心血管疾病、糖尿病、還是兩者', () => {
+  const base = { tg: 325, tc: 325, hdl: 52 };          // TC/HDL-C 6.25 > 5，走 TG 200–499
+  assert.deepEqual(
+    L.lipidCoverage(Object.assign({ dm: true }, base)).fibrate.parallelWhy, ['糖尿病']);
+  assert.deepEqual(
+    L.lipidCoverage(Object.assign({ cad: true }, base)).fibrate.parallelWhy, ['心血管疾病']);
+  assert.deepEqual(
+    L.lipidCoverage(Object.assign({ strokeTia: true }, base)).fibrate.parallelWhy,
+    ['心血管疾病'], '缺血性中風也是表二定義的心血管疾病');
+  assert.deepEqual(
+    L.lipidCoverage(Object.assign({ cad: true, dm: true }, base)).fibrate.parallelWhy,
+    ['心血管疾病', '糖尿病'], '兩個都有就兩個都寫，順序固定');
+  const none = L.lipidCoverage(base).fibrate;
+  assert.equal(none.parallel, false);
+  assert.deepEqual(none.parallelWhy, []);
+});
+
 test('lipidCoverage fibrate：沒填 TG 就不判定（不猜）', () => {
   assert.equal(L.lipidCoverage({ ldl: 200 }).fibrate.ok, false);
 });

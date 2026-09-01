@@ -170,6 +170,57 @@ def test_risk_ladder_matches_the_thresholds_in_logic_js():
     build_module.check_risk_ladder({k: v for k, v in load_raw().items() if k != "_schema"})
 
 
+def test_table_one_drug_list_only_names_drugs_available_in_taiwan():
+    """表一用藥清單：每一類都要有學名、給付狀態與 covered 旗標。
+
+    使用者 2026-09-01：「表一是用的藥物有哪些也寫出來（僅列台灣有的）」。
+    條文的處方規定欄只寫類別（statin、ezetimibe、PCSK9 單株抗體、siRNA、
+    ATP citrate lyase 抑制劑），不知道對應哪些藥等於沒寫。
+
+    covered 是這一塊最要緊的欄位：表一把 siRNA 與 ATP citrate lyase 抑制劑
+    列為未達標時可考慮的選項，健保卻沒收載——只列學名不標狀態，
+    等於引導醫師開一個病人要自費的藥。
+    """
+    lipid = [t for t in load_raw()["topics"] if t["key"] == "lipid"][0]
+    drugs = lipid.get("drugs")
+    assert drugs, "lipid 主題要有 drugs"
+    klasses = [g["klass"] for g in drugs["groups"]]
+    assert len(klasses) == len(set(klasses)), klasses
+    for g in drugs["groups"]:
+        assert g["items"], f"{g['klass']} 沒有列學名"
+        assert str(g.get("cover") or "").strip(), f"{g['klass']} 沒有給付狀態"
+        assert isinstance(g.get("covered"), bool), f"{g['klass']} 的 covered 不是布林"
+    # 五類都要在：條文原文點名的就是這五類
+    joined = "／".join(klasses)
+    for kw in ("statin", "ezetimibe", "PCSK9", "siRNA", "ATP citrate lyase"):
+        assert kw in joined, f"表一點名的「{kw}」沒有列：{klasses}"
+    # 健保沒收載的那兩類要標成 covered=False
+    selfpay = {g["klass"] for g in drugs["groups"] if g["covered"] is False}
+    assert any("siRNA" in k for k in selfpay), selfpay
+    assert any("ATP citrate lyase" in k for k in selfpay), selfpay
+    build_module.check_drugs({k: v for k, v in load_raw().items() if k != "_schema"})
+
+
+def test_table_one_drug_list_keeps_fibrates_out():
+    """fenofibrate／gemfibrozil 不屬於表一——它們走降三酸甘油酯那張表。
+
+    混進來的話，醫師會拿表一的 LDL-C 門檻去開 fibrate，那是兩套完全不同的條件。
+    """
+    lipid = [t for t in load_raw()["topics"] if t["key"] == "lipid"][0]
+    names = " ".join(n for g in lipid["drugs"]["groups"] for n in g["items"])
+    for banned in ("fenofibrate", "gemfibrozil"):
+        assert banned not in names, f"表一用藥清單不該有 {banned}：{names}"
+
+
+def test_missing_coverage_status_fails_the_build():
+    with pytest.raises(ValueError) as err:
+        build_module.check_drugs({"topics": [{
+            "key": "lipid",
+            "drugs": {"groups": [{"klass": "siRNA", "items": ["inclisiran"]}]},
+        }]})
+    assert "給付狀態" in str(err.value) and "siRNA" in str(err.value)
+
+
 def test_every_risk_level_spells_out_the_non_drug_column():
     """每一級都要寫出官方「非藥物治療」欄的原文，不能只留一個徽章。
 

@@ -1082,6 +1082,54 @@
     return box;
   }
 
+  /* 表一點名的藥，對進台灣實際有的學名（只有 lipid 主題有）。
+     使用者 2026-09-01：「我希望表一是用的藥物有哪些也寫出來（僅列台灣有的）」。
+     條文的「處方規定」欄只寫類別（statin、ezetimibe、PCSK9 單株抗體、siRNA、
+     ATP citrate lyase 抑制劑），不知道對應到哪些藥就等於沒寫。
+
+     **給付狀態要跟學名並排**：表一把 siRNA 與 ATP citrate lyase 抑制劑列為未達標時
+     可考慮的選項，但那是臨床路徑，健保並沒有收載——只列學名不講這件事，
+     等於引導醫師去開一個病人要自費的藥。 */
+  function chronicDrugs(key) {
+    const topic = chronicTopicOf(key);
+    const box = topic && topic.drugs;
+    if (!box || !Array.isArray(box.groups) || !box.groups.length) return null;
+    return box;
+  }
+
+  function chronicDrugsEl(key) {
+    const data = chronicDrugs(key);
+    if (!data) return null;
+    const box = el('section', 'chronic-drugs');
+    box.appendChild(el('h3', 'chronic-drugs-title', data.title || '用藥'));
+    if (data.lede) box.appendChild(el('p', 'chronic-drugs-lede', String(data.lede)));
+    const list = el('ul', 'chronic-drug-list');
+    for (const g of data.groups) {
+      if (!g || !g.klass) continue;
+      const li = el('li', 'chronic-drug-group' + (g.covered === false ? ' is-selfpay' : ''));
+      const head = el('p', 'chronic-drug-head');
+      head.appendChild(el('b', 'chronic-drug-klass', g.klass));
+      if (g.cover) {
+        head.appendChild(el('span',
+          'chronic-drug-cover' + (g.covered === false ? ' is-selfpay' : ''), String(g.cover)));
+      }
+      li.appendChild(head);
+      if (Array.isArray(g.items) && g.items.length) {
+        li.appendChild(el('p', 'chronic-drug-names', g.items.join('、')));
+      }
+      if (g.note) li.appendChild(el('p', 'chronic-drug-note', String(g.note)));
+      list.appendChild(li);
+    }
+    box.appendChild(list);
+    if (data.doseNote) box.appendChild(el('p', 'chronic-drug-note', String(data.doseNote)));
+    if (data.note) box.appendChild(el('p', 'chronic-drug-note', String(data.note)));
+    const meta = el('p', 'chronic-t2-meta');
+    if (data.source) meta.appendChild(el('span', 'chronic-source', String(data.source)));
+    if (data.checked) meta.appendChild(el('span', 'chronic-checked', '查 ' + data.checked));
+    if (meta.childNodes.length) box.appendChild(meta);
+    return box;
+  }
+
   /* 「僅適用表二」的成分清單（只有 lipid 主題有）。條文分頁與血脂計算機共用這一份，
      不各存一份——兩份會慢慢分歧，而分歧的表現是同一件事在兩個畫面上講得不一樣。 */
   function chronicTableTwo(key) {
@@ -1149,6 +1197,9 @@
        兩者都是讀底下每一條門檻的前提，所以排在分段內容之前。 */
     const ladder = chronicLadderEl(key);
     if (ladder) body.appendChild(ladder);
+    /* 分完級之後的下一個問題就是「那要開什麼」，所以緊接在階梯後面。 */
+    const drugs = chronicDrugsEl(key);
+    if (drugs) body.appendChild(drugs);
     const tableTwo = chronicTableTwoEl(key);
     if (tableTwo) body.appendChild(tableTwo);
     let sections = 0;
@@ -1373,8 +1424,17 @@
     ['htn', '高血壓'],
     ['smoking', '抽菸'],
     ['familyHistory', '早發性冠心病家族史'],
-    ['metabolicSyndrome', '代謝症候群'],
     ['menopause', '已停經（僅表二計入）'],
+  ];
+  /* 代謝症候群拆成細項（使用者 2026-09-01）：它是 6 項風險因子裡唯一要「數」的，
+     一顆勾選鈕等於把最容易錯的一步推回給使用者。標籤帶上官方的數字，
+     醫師對著上面剛填的 TG／HDL-C 就能勾，不必另外查條文。 */
+  const LIPID_METABOLIC = [
+    ['msWaist', '腹部肥胖 男 ≧ 90／女 ≧ 80 cm'],
+    ['msBp', '血壓 ≧ 130/85 或使用降壓藥'],
+    ['msGlucose', '空腹血糖 ≧ 100 或使用糖尿病藥'],
+    ['msTg', '空腹 TG ≧ 150 或使用降 TG 藥'],
+    ['msHdl', 'HDL-C 男 < 40／女 < 50'],
   ];
 
   function lipidCheckEl(key, label) {
@@ -1455,7 +1515,8 @@
     form.append(sexRow, nums,
       lipidGroupEl('心血管病史', LIPID_HISTORY),
       lipidGroupEl('共病', LIPID_COMORBID),
-      lipidGroupEl('風險因子', LIPID_FACTORS));
+      lipidGroupEl('風險因子', LIPID_FACTORS),
+      lipidGroupEl('代謝症候群（下列 ≧ 3 項才算 1 個風險因子）', LIPID_METABOLIC));
 
     const result = el('div', 'lipid-result');
     result.id = 'lipid-result';
@@ -1503,6 +1564,17 @@
      醫師要能一眼看出這個結論是怎麼來的，而不是接受一個黑箱。 */
   /* 「可否並行」兩張表共用同一句話：表一講的是生活型態改變，表二條文寫「非藥物治療」，
      指的是同一件事，用兩種說法只會讓人以為是兩種要求。 */
+  /* Fibrate 的並行說明。兩個地方共用（結果區與病歷文字），措辭只能有一份。
+       TG ≧ 500 那一列是**不論共病**的，所以它的理由不是共病而是那一列本身
+       （2026-08-27 使用者指出，附官方表影像）；其餘走第一列的才寫命中哪一個共病。 */
+  function lipidFibrateParallelText(f) {
+    if (!f.parallel) return '無心血管疾病者，給藥前應有 3–6 個月非藥物治療';
+    if (f.route === 'TG ≧ 500') return '可與藥物治療並行（TG ≧ 500 該列不論有無心血管疾病）';
+    const why = Array.isArray(f.parallelWhy) ? f.parallelWhy : [];
+    /* 「及」不是「或」：兩個都有就寫兩個，病歷才看得出這位病人的實際狀況。 */
+    return '可與藥物治療並行（' + (why.length ? why.join('及') : '心血管疾病或糖尿病') + '）';
+  }
+
   const lipidParallelText = (parallel) => (parallel
     ? '可與藥物治療並行（生活型態改變同時進行，當天就能開藥）'
     : '給藥前應有 3–6 個月生活型態改變／非藥物治療（做滿才給付）');
@@ -1618,11 +1690,7 @@
       fb.appendChild(fLevel);
       /* 2) 能不能直接開藥。TG ≧ 500 那一列是**不論共病**的，寫成通則會讓人以為
          無心血管疾病就一定要先做 3–6 個月（2026-08-27 使用者指出，附官方表影像）。 */
-      fb.appendChild(el('p', 'lipid-parallel', f.parallel
-        ? (f.route === 'TG ≧ 500'
-           ? '可與藥物治療並行（TG ≧ 500 該列不論有無心血管疾病）'
-           : '可與藥物治療並行（心血管疾病或糖尿病）')
-        : '無心血管疾病者，給藥前應有 3–6 個月非藥物治療'));
+      fb.appendChild(el('p', 'lipid-parallel', lipidFibrateParallelText(f)));
       // 3) 目標　4) 結論
       fb.appendChild(el('p', 'lipid-threshold', '目標 TG < ' + f.target));
       fb.appendChild(el('p', 'lipid-verdict', f.meets ? '符合起始門檻' : '未達起始門檻'));
@@ -1738,11 +1806,7 @@
       out.push('降三酸甘油酯藥物：依「' + LIPID_TG_TABLE_NAME + '」');
       out.push(lipidRow('適用', f.route + ' 該列'
         + (f.why && f.why.length ? '（本例 ' + f.why.join('、') + '）' : '') + '，已達'));
-      out.push(lipidRow('處方', f.parallel
-        ? (f.route === 'TG ≧ 500'
-           ? '可與藥物治療並行（該列不論有無心血管疾病）'
-           : '可與藥物治療並行（心血管疾病或糖尿病）')
-        : '無心血管疾病者，給藥前應有 3–6 個月非藥物治療'));
+      out.push(lipidRow('處方', lipidFibrateParallelText(f)));
       out.push(lipidRow('目標', 'TG < ' + f.target));
     }
 
@@ -1814,7 +1878,7 @@
     syncLipidSexRows,
     chronicToday, chronicTopics, chronicDocsEl, chronicDocHref,
     chronicTableTwo, chronicTableTwoEl, chronicTableTwoNames,
-    chronicLadder, chronicLadderEl,
+    chronicLadder, chronicLadderEl, chronicDrugs, chronicDrugsEl,
     FORMAT_LABEL, MODE_LABEL, MODE_SHORT, PANELS_TITLE, MODE_HINT, LAYOUT_LABEL, LAYOUT_MIN_WIDTH,
     CHRONIC_KIND, CCR_DISCLAIMER, CCR_BASIS_LABEL, LIPID_DISCLAIMER, CHRONIC_DOC_DIR,
   };

@@ -13,7 +13,8 @@
       "step": "決定畫面上的分組與順序（與 kind 無關，kind 標的是可信度來源）：gate=能不能開（起始門檻）｜how=怎麼開（路徑、劑量、追蹤）｜pitfall=別踩雷（最常被核刪）｜nocover=不給付／自費｜target=治療目標。順序照臨床動線排：看到異常數值 → 能不能開 → 怎麼開 → 別踩雷 → 不給付 → 目標。",
       "docs": "主題最上方要連的官方 PDF 條文檔清單。file＝健保條文/ 資料夾裡的檔名（**只放檔名，不放網址**——同 source 的理由，離線守門會擋掉 http(s)）；label＝文件全名；where＝這份文件裡與本主題相關的是哪幾條；version＝該文件自己標的版本日期。檔名對不上 健保條文/ 的實際檔案時建置會失敗——診間點下去只會得到找不到檔案，那是到了診間才會發現的錯。下載網址記在 健保條文/README.md。",
       "tableTwoOnly": "（僅 lipid 主題）官方 2.6.1「不適用表一，僅適用表二」對照表的成分層級摘要。ingredients 依官方表格順序、codeCount 是該成分底下的健保代碼數（**不可命名為 codes**——在 curated JSON 裡那個鍵是「一串 ICD 代碼」的既有慣例，tests/test_curated.py 會照那個慣例去撈），codeCount 必須等於總和（build.py 會核對）。**刻意只收到成分層級**：代碼與品名共 116 列，變動頻繁，嵌進單檔就是製造一個會過期又看起來權威的東西；成分層級足以回答「我開的這個要對哪張表」，而細到哪一個代碼仍然要查當期公告。",
-      "riskLadder": "（僅 lipid 主題）表一 ASCVD 風險分級的階梯，寫給第一次查這張表的人看。levels 依官方由高到低的順序，ldl／nonHdl／parallel 必須與 src/logic.js 的 LIPID_ONE 一致（tests/test_chronic_care.py 會逐項比對——計算機與這一頁講的若不是同一套數字，比兩邊都沒有還糟）；criteria 逐條照官方「ASCVD風險等級定義」寫，不改寫、不合併。　nonDrug 逐字照官方表「非藥物治療」欄（三種寫法：極高／非常高一種、高風險一種、中／低／0 項一種）；nonDrugPlain 是同一件事的白話結論，畫面上徽章用它。"
+      "riskLadder": "（僅 lipid 主題）表一 ASCVD 風險分級的階梯，寫給第一次查這張表的人看。levels 依官方由高到低的順序，ldl／nonHdl／parallel 必須與 src/logic.js 的 LIPID_ONE 一致（tests/test_chronic_care.py 會逐項比對——計算機與這一頁講的若不是同一套數字，比兩邊都沒有還糟）；criteria 逐條照官方「ASCVD風險等級定義」寫，不改寫、不合併。　nonDrug 逐字照官方表「非藥物治療」欄（三種寫法：極高／非常高一種、高風險一種、中／低／0 項一種）；nonDrugPlain 是同一件事的白話結論，畫面上徽章用它。",
+      "drugs": "（僅 lipid 主題）表一「處方規定」欄點名的藥物類別，對進台灣實際有的學名。covered 決定畫面上的樣式：false 代表台灣有藥但健保沒收載（自費）——這一格是整塊最容易誤讀的地方，被表一點名不等於健保會付。學名只收 2.6 全段實際出現過的，以及全文檢索命中 0 但已知台灣上市的那兩類（來源寫在 source）。"
     },
     "不放什麼": "品項層級的例外（哪個健保代碼／廠牌適用哪張表）一律不嵌——那層變動最頻繁，嵌了就是製造一個會過期又看起來權威的東西。改用 caution 提示去查當期公告。",
     "headline": "主題最上面那一行速判摘要。內容摘自該主題底下的條目，不是新的臨床主張，所以不另標 source——出處在它底下每一條上。改條目時記得回來看這行還對不對。"
@@ -526,6 +527,70 @@
           "note": "審查看的是病歷上寫得出來的因子數，不是醫師心裡認定的。表二另有一套 5 項（多「或停經者」、HDL-C 男女同為 < 40、沒有代謝症候群），開表二品項時要換成那一套來數。"
         },
         "source": "藥品給付規定 第二節 2.6.1 全民健康保險降膽固醇藥物給付規定表一，及其後之「ASCVD 風險等級定義」與「心血管風險因子定義」（115/9/1；115.8.21 版）",
+        "checked": "2026-09-01"
+      },
+      "drugs": {
+        "title": "表一用的是哪些藥（僅列台灣有的學名）",
+        "lede": "表一的「處方規定」欄只寫類別，這裡把台灣實際有的學名對進去。被表一點名不等於健保會付——最後兩類台灣有藥，但健保沒收載。",
+        "groups": [
+          {
+            "klass": "statin（第一線）",
+            "items": [
+              "atorvastatin（高強度例：40 mg 以上）",
+              "rosuvastatin（高強度例：20 mg 以上）",
+              "pitavastatin",
+              "simvastatin",
+              "pravastatin",
+              "lovastatin",
+              "fluvastatin"
+            ],
+            "note": "健保給付；走表一或表二依健保代碼。表一起始就要「中至高強度」；6–8 週未達標時調到高強度或最大耐受劑量。",
+            "cover": "健保給付",
+            "covered": true
+          },
+          {
+            "klass": "ezetimibe",
+            "items": [
+              "ezetimibe 單方",
+              "ezetimibe ＋ statin 複方"
+            ],
+            "note": "健保給付，但 2.6.2／2.6.3 另有自己的條件：表一寫「或合併 ezetimibe」，但 2.6.2／2.6.3 另有自己的條件：須 statin 單一治療未達標，觀察期 6–8 週（部分健保代碼仍須滿 3 個月）。",
+            "cover": "健保給付＋條件",
+            "covered": true
+          },
+          {
+            "klass": "PCSK9 單株抗體",
+            "items": [
+              "evolocumab（Repatha）",
+              "alirocumab（Praluent）"
+            ],
+            "note": "健保給付，但須事前審查：限重大心血管事件後一年內、且已用最大耐受劑量 statin；須事前審查核准（附表二-D），每次核准 12 個月。",
+            "cover": "健保給付＋事前審查",
+            "covered": true
+          },
+          {
+            "klass": "siRNA",
+            "items": [
+              "inclisiran（Leqvio）"
+            ],
+            "note": "台灣已核准上市，健保未收載，開了就是自費。表一把它列為未達標時可考慮的 non-statin 選項——那是臨床路徑上的選項，不等於健保給付。",
+            "cover": "自費",
+            "covered": false
+          },
+          {
+            "klass": "ATP citrate lyase 抑制劑",
+            "items": [
+              "bempedoic acid（Nilemdo）",
+              "bempedoic acid ＋ ezetimibe 複方（Nustendi）"
+            ],
+            "note": "台灣已核准上市，健保未收載，開了就是自費。同 siRNA：表一點名，但健保沒收載。",
+            "cover": "自費",
+            "covered": false
+          }
+        ],
+        "doseNote": "條文裡唯一的強度錨點是 2.6.4 寫的「高強度 statin（如 rosuvastatin 20 mg 或 atorvastatin 40 mg（含）以上）」；表一本身沒有中／高強度的劑量對照表，那要看臨床指引。另外附表二-D 定了各 statin 的最低有效劑量（用於認定不耐受）：rosuvastatin 5 mg、atorvastatin 10 mg、pravastatin 10 mg、lovastatin 20 mg、fluvastatin 20 mg、pitavastatin 1 mg、simvastatin 5 mg。",
+        "note": "fenofibrate 與 gemfibrozil 不在這裡：它們走的是降三酸甘油酯那張表，不是表一。",
+        "source": "藥品給付規定 第二節 2.6.1 表一處方規定欄，及 2.6.2／2.6.3／2.6.4（115.8.21 版）；附表二-D（114.08.22）；inclisiran 與 bempedoic acid 之健保狀態依 2.6 全文檢索命中 0 與健保署健保用藥品項查詢（2026-08-10）",
         "checked": "2026-09-01"
       },
       "tableTwoOnly": {

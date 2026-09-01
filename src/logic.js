@@ -342,8 +342,28 @@
     return { level: 'none', why: [] };
   }
 
-  /* 表一 6 項風險因子。年齡與 HDL-C 由數值自動判定，其餘勾選——
-     代謝症候群本身是「五取三」的複合判準，不在這裡拆，由使用者依原文自行認定。 */
+  /* 代謝症候群是「五取三」的複合判準，也是表一 6 項風險因子裡**唯一要自己數的**——
+     數錯就換一級門檻，正是計算機該接手的機械判斷（使用者 2026-09-01 要求拆成細項勾選）。
+     細項逐字照官方「心血管風險因子定義」第六項。
+
+     舊的 metabolicSyndrome 布林保留：呼叫端可以直接說「就是有」而不逐項勾，
+     既有測試與外部呼叫不會因為這次拆分而失效。 */
+  const LIPID_MS_ITEMS = [
+    ['msWaist', '腹部肥胖'],
+    ['msBp', '血壓偏高'],
+    ['msGlucose', '空腹血糖偏高'],
+    ['msTg', '空腹 TG 偏高'],
+    ['msHdl', 'HDL-C 偏低'],
+  ];
+
+  function lipidMetabolic(c) {
+    const src = c || {};
+    const hit = LIPID_MS_ITEMS.filter((r) => lipBool(src[r[0]])).map((r) => r[1]);
+    const declared = lipBool(src.metabolicSyndrome);
+    return { hit, count: hit.length, declared, meets: declared || hit.length >= 3 };
+  }
+
+  /* 表一 6 項風險因子。年齡與 HDL-C 由數值自動判定，其餘勾選。 */
   function lipidRiskFactorsNew(c) {
     const hit = [];
     const female = c.sex === 'female';
@@ -358,7 +378,11 @@
       hit.push('HDL-C < ' + (female ? 50 : 40));
     }
     if (lipBool(c.smoking)) hit.push('抽菸');
-    if (lipBool(c.metabolicSyndrome)) hit.push('代謝症候群');
+    /* 命中時帶上項數（「代謝症候群 3 項」）而不是列出細項：這個名稱會被包進
+       「風險因子 2 項（…、…）」裡，再套一層括號就變成巢狀，讀起來像是兩層清單。
+       是哪三項在表單上勾著、看得見，不必在這裡再抄一次。 */
+    const ms = lipidMetabolic(c);
+    if (ms.meets) hit.push('代謝症候群' + (ms.count ? ' ' + ms.count + ' 項' : ''));
     return hit;
   }
 
@@ -462,17 +486,25 @@
     const tc = Number(c.tc);
     const hdl = Number(c.hdl);
     if (!Number.isFinite(tg) || tg <= 0) return { ok: false, reason: 'no-tg' };
-    const hasCvd = lipBool(c.cvdOld) || lipBool(c.dm) || lipBool(c.acsPciCabg);
+    /* 官方第一列的條件是「心血管疾病**或**糖尿病」。可否並行只要命中其一，
+       但畫面與病歷要寫的是**這位病人命中哪一個**——把條文的選言原樣抄過去，
+       等於要醫師自己回頭對一次（使用者 2026-09-01 指出）。 */
+    const cvdDisease = lipBool(c.cvdOld) || lipBool(c.acsPciCabg);
+    const parallelWhy = [];
+    if (cvdDisease) parallelWhy.push('心血管疾病');
+    if (lipBool(c.dm)) parallelWhy.push('糖尿病');
+    const hasCvd = parallelWhy.length > 0;
     if (tg >= 500) {
       /* 第三列：無心血管疾病也可並行，所以這裡不看 hasCvd。 */
       return { ok: true, meets: true, route: 'TG ≧ 500', target: 500, parallel: true,
+               parallelWhy: parallelWhy.slice(),
                /* why 只放「依據」：可否並行是 parallel 旗標的事，兩者混在同一句話裡，
                   畫面與病歷都沒辦法把「哪一級／憑什麼」和「能不能直接開藥」分行講。 */
                why: ['TG ' + tg], needs: [] };
     }
     if (tg < 200) {
       return { ok: true, meets: false, route: 'TG < 200', target: 200, parallel: hasCvd,
-               why: ['TG ' + tg + ' 未達 200'], needs: [] };
+               parallelWhy: parallelWhy.slice(), why: ['TG ' + tg + ' 未達 200'], needs: [] };
     }
     const ratio = (Number.isFinite(tc) && Number.isFinite(hdl) && hdl > 0) ? tc / hdl : null;
     const ratioHit = ratio !== null && ratio > 5;
@@ -483,10 +515,12 @@
     if (ratioHit) why.push('TC/HDL-C ' + (Math.round(ratio * 100) / 100) + ' > 5');
     if (hdlHit) why.push('HDL-C ' + hdl + ' < 40');
     if (!ratioHit && !hdlHit) {
-      return { ok: true, meets: false, route: 'TG 200–499', target: 200, parallel: hasCvd, why,
+      return { ok: true, meets: false, route: 'TG 200–499', target: 200, parallel: hasCvd,
+               parallelWhy: parallelWhy.slice(), why,
                needs: ['TG 200–499 還須同時 TC/HDL-C > 5 或 HDL-C < 40'] };
     }
-    return { ok: true, meets: true, route: 'TG 200–499', target: 200, parallel: hasCvd, why, needs: [] };
+    return { ok: true, meets: true, route: 'TG 200–499', target: 200, parallel: hasCvd,
+             parallelWhy: parallelWhy.slice(), why, needs: [] };
   }
 
   function lipidCoverage(input) {
@@ -543,5 +577,5 @@
 
   return { buildIndex, search, family, formatCart, mergeRelated, rocDate, splitByEffective,
            splitSentences, splitLead, creatinineClearance,
-           lipidCoverage, lipidRiskFactorsNew, lipidRiskFactorsOld };
+           lipidCoverage, lipidRiskFactorsNew, lipidRiskFactorsOld, lipidMetabolic };
 });

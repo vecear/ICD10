@@ -237,6 +237,39 @@ def check_chronic_docs(chronic):
     return used
 
 
+def check_drugs(chronic):
+    """核對 drugs：每一類都要有 klass、至少一個學名、給付狀態與 covered 旗標。
+
+    covered 特別要有：畫面靠它把「健保沒收載」標出來，漏了就會變成一份看起來
+    全部都給付的用藥清單——那正是這一塊最容易誤導的地方。
+
+    回傳 {topic key: 類別數}。
+    """
+    seen, bad = {}, []
+    for topic in chronic.get("topics") or []:
+        key = topic.get("key") or "(缺 key)"
+        box = topic.get("drugs")
+        if not box:
+            continue
+        groups = box.get("groups") or []
+        if not groups:
+            bad.append(f"{key}：drugs 沒有任何類別")
+        for g in groups:
+            klass = str((g or {}).get("klass") or "").strip()
+            if not klass:
+                bad.append(f"{key}：有一類沒寫 klass")
+            if not (g or {}).get("items"):
+                bad.append(f"{key}／{klass or '(無名)'}：沒有列學名")
+            if not str((g or {}).get("cover") or "").strip():
+                bad.append(f"{key}／{klass or '(無名)'}：沒有寫健保給付狀態")
+            if not isinstance((g or {}).get("covered"), bool):
+                bad.append(f"{key}／{klass or '(無名)'}：covered 不是布林值")
+        seen[key] = len(groups)
+    if bad:
+        raise ValueError("drugs 結構有問題：\n  " + "\n  ".join(bad))
+    return seen
+
+
 def check_risk_ladder(chronic):
     """核對 riskLadder 的結構：每一級要有 label、正整數 ldl、至少一條 criteria。
 
@@ -431,6 +464,7 @@ def main():
     chronic = load_chronic_care()
     chronic_docs = check_chronic_docs(chronic)
     ladder = check_risk_ladder(chronic)
+    drug_groups = check_drugs(chronic)
     table_two = check_table_two_only(chronic)
     chronic_report = check_chronic_care(chronic)
     styles, font_bytes = build_styles()
@@ -467,6 +501,8 @@ def main():
         f"  樣式：{' + '.join(STYLESHEETS)}，{len(styles):,} bytes（含字型）\n"
         f"  指令碼：{' → '.join(SOURCES)}\n"
         f"  CURATED_LABELS：{len(labels):,} 個精選碼\n"
+        f"  表一用藥："
+        + ("、".join(f"{k} {v} 類" for k, v in drug_groups.items()) or "（無）") + "\n"
         f"  風險分級階梯："
         + ("、".join(f"{k} {v} 級" for k, v in ladder.items()) or "（無）") + "\n"
         f"  僅適用表二的成分："
