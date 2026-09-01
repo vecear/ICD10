@@ -619,6 +619,13 @@ details.chronic-drug-more[open] > .chronic-drug-head::before { content: '▾'; }
 .chronic-drug-cover.is-selfpay {
   border-color: var(--warn-line); background: var(--warn-bg); color: var(--warn-ink);
 }
+/* 類別展開後是「學名 → 該學名底下的品項（依表別分段）」兩層 */
+.chronic-drug-generics { margin: 3px 0 0; padding: 0; list-style: none; }
+.chronic-drug-generic { margin: 4px 0 0; }
+.chronic-drug-generic:first-child { margin-top: 0; }
+.chronic-drug-generic-name { font-size: 11.5px; overflow-wrap: anywhere; }
+.chronic-drug-generic .chronic-drug-names { margin: 1px 0 0; padding-left: .8em; }
+.chronic-drug-generic .lipid-hit-table { margin-right: 5px; }
 .chronic-drug-names { margin: 3px 0 0; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
 .chronic-drug-group.is-selfpay .chronic-drug-names { color: var(--color-neutral-700); }
 .chronic-drug-note { margin: 3px 0 0; font-size: 11.5px; line-height: 1.5; color: var(--color-neutral-700); }

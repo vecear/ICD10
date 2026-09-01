@@ -107,7 +107,9 @@ body[data-layout="wide"] .region-heading {
   color: var(--color-accent-800); border-bottom: 1px solid var(--color-accent);
 }
 
-.symptom-card { padding: 12px 14px; background: transparent; }
+/* 快選卡與症狀卡外觀一致（使用者要它「跟其他次分類一樣」），但類名分開：
+   `.symptom-card` 在測試與選擇器裡代表「症狀面板」，混進來會讓部位的面板計數失真。 */
+.symptom-card, .quick-card { padding: 12px 14px; background: transparent; }
 .symptom-card-title {
   margin: -12px -14px 10px; padding: 6px 14px;
   font-family: var(--font-heading); font-size: 17px; letter-spacing: .02em;
@@ -125,6 +127,16 @@ body[data-layout="wide"] .panel-toggle {
 }
 body[data-layout="wide"] .panel-toggle .marker { transition: transform .12s ease; }
 body[data-layout="wide"] .panel-toggle[aria-expanded="true"] .marker { transform: rotate(90deg); }
+/* 快選卡的標題右邊掛筆數（症狀卡的標題只有一行字）。 */
+#layout-wide .quick-card .symptom-card-title { display: flex; gap: 6px; align-items: baseline; }
+#layout-wide .quick-card .quick-count { color: var(--color-neutral-700); font-size: 11px; }
+
+/* 常見疾病不收合之後，主訴碼與常見疾病之間需要一條分界（原本是那顆展開鈕在分）。
+   與 .redflag-label 同一個層級：小、灰、不搶戲。 */
+#layout-wide .disease-label {
+  margin-top: 6px; padding-top: 5px; border-top: 1px dotted var(--color-divider);
+  font-size: 11px; letter-spacing: .04em; color: var(--color-neutral-700);
+}
 .disease-group { padding-top: 4px; }
 
 /* 底部快選分組（L158-167，預設全收合） */

@@ -14,7 +14,7 @@
       "docs": "主題最上方要連的官方 PDF 條文檔清單。file＝健保條文/ 資料夾裡的檔名（**只放檔名，不放網址**——同 source 的理由，離線守門會擋掉 http(s)）；label＝文件全名；where＝這份文件裡與本主題相關的是哪幾條；version＝該文件自己標的版本日期。檔名對不上 健保條文/ 的實際檔案時建置會失敗——診間點下去只會得到找不到檔案，那是到了診間才會發現的錯。下載網址記在 健保條文/README.md。",
       "tableTwoOnly": "（僅 lipid 主題）官方 2.6.1「不適用表一，僅適用表二」對照表的成分層級摘要。ingredients 依官方表格順序、codeCount 是該成分底下的健保代碼數（**不可命名為 codes**——在 curated JSON 裡那個鍵是「一串 ICD 代碼」的既有慣例，tests/test_curated.py 會照那個慣例去撈），codeCount 必須等於總和（build.py 會核對）。**刻意只收到成分層級**：代碼與品名共 116 列，變動頻繁，嵌進單檔就是製造一個會過期又看起來權威的東西；成分層級足以回答「我開的這個要對哪張表」，而細到哪一個代碼仍然要查當期公告。　crossRef 講的是它與 drugs 那份清單的關係——兩份的層級不同（成分 vs 健保代碼），不寫清楚會被讀成自相矛盾（使用者 2026-09-01 問過）。　why 是「為什麼有些品項只能用表二」——官方修訂對照表沒有說明欄，所以那段話裡「降價換表一」有附件1 的原文可證，而「沒降價所以留表二」是補集推論，措辭上必須標出來，不可寫成官方說法。",
       "riskLadder": "（僅 lipid 主題）表一 ASCVD 風險分級的階梯，寫給第一次查這張表的人看。levels 依官方由高到低的順序，ldl／nonHdl／parallel 必須與 src/logic.js 的 LIPID_ONE 一致（tests/test_chronic_care.py 會逐項比對——計算機與這一頁講的若不是同一套數字，比兩邊都沒有還糟）；criteria 逐條照官方「ASCVD風險等級定義」寫，不改寫、不合併。　nonDrug 逐字照官方表「非藥物治療」欄（三種寫法：極高／非常高一種、高風險一種、中／低／0 項一種）；nonDrugPlain 是同一件事的白話結論，畫面上徽章用它。",
-      "drugs": "（僅 lipid 主題）表一「處方規定」欄點名的藥物類別，對進台灣實際有的學名。covered 決定畫面上的樣式：false 代表台灣有藥但健保沒收載（自費）——這一格是整塊最容易誤讀的地方，被表一點名不等於健保會付。學名只收 2.6 全段實際出現過的，以及全文檢索命中 0 但已知台灣上市的那兩類（來源寫在 source）。"
+      "drugs": "表一「處方規定」欄點名的藥理類別，對進台灣實際有的學名。match 決定這一類要列出品項檔裡的哪些品項——用表別／章節對應，不是猜學名：statin 走 2.6.1（表一表二都算）、ezetimibe 走 2.6.2／2.6.3、PCSK9 走 2.6.4。沒有 match 的類別（siRNA、ATP citrate lyase）在品項檔裡一個品項都沒有（健保未收載），只列學名——那正是它們存在的理由。match.labels（學名→標籤）與 match.bySection（章節→標籤）用來蓋掉品項檔的主成分欄——複方的主成分欄記的是排第一的成分，直接印會變成「statin 類底下有 amlodipine」。"
     },
     "不放什麼": "品項層級的例外（哪個健保代碼／廠牌適用哪張表）一律不嵌——那層變動最頻繁，嵌了就是製造一個會過期又看起來權威的東西。改用 caution 提示去查當期公告。",
     "headline": "主題最上面那一行速判摘要。內容摘自該主題底下的條目，不是新的臨床主張，所以不另標 source——出處在它底下每一條上。改條目時記得回來看這行還對不對。"
@@ -535,6 +535,15 @@
         "groups": [
           {
             "klass": "statin（第一線）",
+            "match": {
+              "tables": [
+                "one",
+                "two"
+              ],
+              "labels": {
+                "amlodipine": "statin ＋ amlodipine 複方"
+              }
+            },
             "items": [
               "atorvastatin（高強度例：40 mg 以上）",
               "rosuvastatin（高強度例：20 mg 以上）",
@@ -550,6 +559,16 @@
           },
           {
             "klass": "ezetimibe",
+            "match": {
+              "sections": [
+                "2.6.2",
+                "2.6.3"
+              ],
+              "bySection": {
+                "2.6.2": "ezetimibe 單方",
+                "2.6.3": "ezetimibe ＋ statin 複方"
+              }
+            },
             "items": [
               "ezetimibe 單方",
               "ezetimibe ＋ statin 複方"
@@ -560,6 +579,11 @@
           },
           {
             "klass": "PCSK9 單株抗體",
+            "match": {
+              "sections": [
+                "2.6.4"
+              ]
+            },
             "items": [
               "evolocumab（Repatha）",
               "alirocumab（Praluent）"

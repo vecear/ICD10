@@ -523,6 +523,48 @@ test('lipidShortName：拿掉劑型字樣，但 XL／OD／廠標與劑量一個�
   assert.equal(L.lipidShortName(''), '');
 });
 
+/* 類別對品項用表別／章節對應，不是比學名：statin+ezetimibe 複方的成分欄開頭是 statin，
+   照學名分會被算進 statin 那一類，但它走的是 2.6.3、有自己的條件。 */
+test('lipidProductsForClass：依表別／章節對應，並帶回每一筆的表別', () => {
+  const sample = [
+    { code: 'A100000001', en: 'Alpha Tablets 10mg', generic: 'atorvastatin',
+      section: '2.6.1.', table: 'one', listed: true },
+    { code: 'A100000002', en: 'Beta Tablets 20mg', generic: 'atorvastatin',
+      section: '2.6.1.', table: 'two', listed: true },
+    { code: 'A100000003', en: 'Combo Tablets 10/10mg', generic: 'atorvastatin',
+      section: '2.6.3.', table: '', listed: true },
+    { code: 'A100000004', en: 'Zet Tablets 10mg', generic: 'ezetimibe',
+      section: '2.6.2.', table: '', listed: true },
+    { code: 'A100000005', en: 'Dead Tablets 10mg', generic: 'atorvastatin',
+      section: '2.6.1.', table: 'one', listed: false },
+  ];
+  const statin = L.lipidProductsForClass(sample, { tables: ['one', 'two'] });
+  assert.deepEqual(statin.map((g) => g.generic), ['atorvastatin']);
+  assert.deepEqual(statin[0].items.map((i) => i.table), ['one', 'two'],
+    '表一排前面，且每一筆要帶自己的表別');
+  assert.deepEqual(statin[0].items.map((i) => i.short), ['Alpha 10mg', 'Beta 20mg'],
+    '2.6.3 的複方不算 statin 那一類；已停付的不列');
+
+  const ez = L.lipidProductsForClass(sample, { sections: ['2.6.2', '2.6.3'] });
+  assert.deepEqual(ez.map((g) => g.generic).sort(), ['atorvastatin', 'ezetimibe']);
+
+  /* 複方的主成分欄記的是排第一的成分，直接印會騙人（Caduet 記 AMLODIPINE、
+     ezetimibe 複方記 statin），所以標籤可以被章節或學名蓋掉。 */
+  const relabelled = L.lipidProductsForClass(sample, {
+    sections: ['2.6.2', '2.6.3'],
+    bySection: { '2.6.3': 'ezetimibe ＋ statin 複方' },
+  });
+  assert.deepEqual(relabelled.map((g) => g.generic).sort(),
+    ['ezetimibe', 'ezetimibe ＋ statin 複方'], '章節標籤蓋過主成分欄');
+  const byGeneric = L.lipidProductsForClass(sample, {
+    tables: ['one', 'two'], labels: { atorvastatin: 'statin ＋ amlodipine 複方' },
+  });
+  assert.deepEqual(byGeneric.map((g) => g.generic), ['statin ＋ amlodipine 複方']);
+  // 沒有 match 的類別（siRNA、ATP citrate lyase）回空陣列，畫面才會退回學名列
+  assert.deepEqual(L.lipidProductsForClass(sample, undefined), []);
+  assert.deepEqual(L.lipidProductsForClass(sample, {}), []);
+});
+
 test('lipidProductsByTable：只列現行給付中的，依學名分組、多的排前面', () => {
   const sample = [
     { code: 'A100000001', en: 'Alpha Tablets 10mg', generic: 'atorvastatin',

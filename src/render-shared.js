@@ -112,7 +112,7 @@
      E2E 的 data-region 定位、臨床內容清單都靠它。全名一律留在 title。
      外科的九個是情境不是部位，同樣縮成兩字（滑鼠停留看得到全名）。 */
   const REGION_SHORT = {
-    慢性疾病: '慢性', '全身／感染': '全身', 感染科追蹤: '感染',
+    '全身／感染': '全身', 感染科追蹤: '感染',
     '神經／精神': '神經', '神經／頭頸': '頭頸', 眼耳鼻喉: '頭頸',
     '胸肺／心臟': '心肺', '腹部／消化': '腹部', '泌尿／生殖': '泌尿',
     '皮膚／軟組織': '皮膚', 肌肉骨骼: '骨骼', '代謝／檢驗': '代謝',
@@ -593,7 +593,9 @@
   const MODE_SHORT = { outpatient: '門診', emergency: '急診', surg: '外科' };
   const PANELS_TITLE = { outpatient: '內科門診主訴', emergency: '內科急診主訴', surg: '常見情境（外科）' };
   const MODE_HINT = {
-    outpatient: '主訴優先，常見疾病收合在下',
+    /* 這句只有 1a 用得到（#mode-hint 只在 wide 的 header）。1a 的常見疾病
+       2026-09-01 起不收合了，原本寫「收合在下」是錯的。 */
+    outpatient: '每個部位最上面是常用碼，接著是主訴與常見疾病',
     emergency: '先看主訴，再複核優先排除項目',
     surg: '選擇傷口、外傷或術後情境',
   };
@@ -1097,6 +1099,14 @@
     return box;
   }
 
+  /* 學名那一行用條文整理過的寫法（帶劑量錨點），對不上就退回品項檔的學名。
+     比對用開頭：curated 是「atorvastatin（高強度例：40 mg 以上）」，品項檔是「atorvastatin」。 */
+  function curatedLabelFor(items, generic) {
+    const key = String(generic || '').toLowerCase();
+    const hit = (items || []).filter((s) => String(s).toLowerCase().indexOf(key) === 0)[0];
+    return hit || generic;
+  }
+
   function chronicDrugsEl(key, ctx) {
     const data = chronicDrugs(key);
     if (!data) return null;
@@ -1125,7 +1135,40 @@
           'chronic-drug-cover' + (g.covered === false ? ' is-selfpay' : ''), String(g.cover)));
       }
       more.appendChild(head);
-      if (Array.isArray(g.items) && g.items.length) {
+      /* 展開後直接列品項（使用者 2026-09-01 選的做法），不是只列學名——
+         處方單上是品名與劑量。每一筆帶表別，因為同一個學名底下兩張表都有。
+         劑量錨點（「高強度例：40 mg 以上」）留在學名那一行：它來自條文本身，
+         品項檔沒有這個資訊。 */
+      const byGeneric = ctx ? ctx.logic.lipidProductsForClass(
+        (root.LIPID_PRODUCTS && root.LIPID_PRODUCTS.products) || [], g.match) : [];
+      if (byGeneric.length) {
+        const ul = el('ul', 'chronic-drug-generics');
+        for (const grp of byGeneric) {
+          const gi = el('li', 'chronic-drug-generic');
+          gi.appendChild(el('b', 'chronic-drug-generic-name',
+            curatedLabelFor(g.items, grp.generic)));
+          for (const table of ['one', 'two', '']) {
+            const items = grp.items.filter((x) => (x.table || '') === table);
+            if (!items.length) continue;
+            const line = el('p', 'chronic-drug-names');
+            if (table) {
+              line.appendChild(el('span', 'lipid-hit-table is-' + table,
+                table === 'one' ? '表一' : '表二'));
+            }
+            items.forEach((item, i) => {
+              if (i) line.appendChild(document.createTextNode('、'));
+              const span = el('span', 'lipid-drug-item', item.short);
+              span.title = item.name + '（' + item.code + '）';
+              line.appendChild(span);
+            });
+            gi.appendChild(line);
+          }
+          ul.appendChild(gi);
+        }
+        more.appendChild(ul);
+      } else if (Array.isArray(g.items) && g.items.length) {
+        /* 品項檔裡一個都沒有的類別（siRNA、ATP citrate lyase）：保留學名列。
+           它們正是「表一點名了、健保沒收載」的那兩類，不列反而失去重點。 */
         more.appendChild(el('p', 'chronic-drug-names', g.items.join('、')));
       }
       if (g.note) more.appendChild(el('p', 'chronic-drug-note', String(g.note)));
@@ -1135,12 +1178,6 @@
     box.appendChild(list);
     if (data.doseNote) box.appendChild(el('p', 'chronic-drug-note', String(data.doseNote)));
     if (data.note) box.appendChild(el('p', 'chronic-drug-note', String(data.note)));
-    /* 類別講完之後接品項：類別回答「該開哪一類」，品項回答「我實際能開哪一個」。
-       與計算機用同一個元件，兩個畫面不會對同一件事給不同的細節。 */
-    if (ctx) {
-      const one = lipidProductListEl(ctx, 'one', '走表一的品項：商品名＋劑量');
-      if (one) box.appendChild(one);
-    }
     const meta = el('p', 'chronic-t2-meta');
     if (data.source) meta.appendChild(el('span', 'chronic-source', String(data.source)));
     if (data.checked) meta.appendChild(el('span', 'chronic-checked', '查 ' + data.checked));
@@ -1188,12 +1225,6 @@
     /* 為什麼會有這份清單。醫師看到「同一個學名有的走表一有的走表二」的第一個反應
        是「憑什麼」——不講，這份清單看起來就是任意的（使用者 2026-09-01 問過）。 */
     if (data.why) box.appendChild(el('p', 'chronic-t2-why', String(data.why)));
-    /* 上面那 9 行是官方對照表的結構（哪些成分上榜），這裡是實際能開的品項。
-       兩者都要：前者是權威依據，後者是處方單上會看到的東西。 */
-    if (ctx) {
-      const two = lipidProductListEl(ctx, 'two', '走表二的品項：商品名＋劑量');
-      if (two) box.appendChild(two);
-    }
     const meta = el('p', 'chronic-t2-meta');
     if (data.source) meta.appendChild(el('span', 'chronic-source', String(data.source)));
     if (data.checked) meta.appendChild(el('span', 'chronic-checked', '查 ' + data.checked));

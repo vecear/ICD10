@@ -249,10 +249,19 @@ test('紅旗只在急診模式出現，門診拿不到（臨床安全）', () =>
 
 test('quickGroupsFor：三種模式的快選分組', () => {
   const data = makeData();
-  assert.deepEqual(data.quickGroupsFor('outpatient').map((g) => g[0]), ['常用慢性病', '感染科常用', '病原體附加碼／抗藥性']);
-  assert.deepEqual(data.quickGroupsFor('emergency').map((g) => g[0]), ['急診常見評估', '感染科常用', '病原體附加碼／抗藥性']);
-  assert.deepEqual(data.quickGroupsFor('surg').map((g) => g[0]), ['外科常用', '病原體附加碼／抗藥性']);
-  assert.deepEqual(data.quickGroupsFor('outpatient')[0][1], CURATED.chronic);
+  const titles = (mode) => data.quickGroupsFor(mode).map((g) => g.title);
+  /* 門診的順序就是它在部位裡的顯示順序：感染科追蹤底下「病原體附加碼」第一、
+     「常見感染」第二（使用者指定）。 */
+  assert.deepEqual(titles('outpatient'), ['常用慢性病', '病原體附加碼／抗藥性', '常見感染']);
+  assert.deepEqual(titles('emergency'), ['急診常見評估', '常見感染', '病原體附加碼／抗藥性']);
+  assert.deepEqual(titles('surg'), ['外科常用', '病原體附加碼／抗藥性']);
+  assert.deepEqual(data.quickGroupsFor('outpatient')[0].items, CURATED.chronic);
+  /* region ＝ 掛在哪個部位底下。急診的部位分類裡沒有「感染科追蹤」，只能留在面板上方，
+     所以那兩個模式一律 null——寫死一個名字會把碼塞進不相干的部位。 */
+  assert.deepEqual(data.quickGroupsFor('outpatient').map((g) => g.region),
+    ['常用', '感染科追蹤', '感染科追蹤']);
+  assert.ok(data.quickGroupsFor('emergency').every((g) => g.region === null));
+  assert.ok(data.quickGroupsFor('surg').every((g) => g.region === null));
 });
 
 // ---- 相關碼 ----

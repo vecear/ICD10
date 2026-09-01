@@ -140,13 +140,15 @@
     head.append(refs.panelsTitle, refs.modeHint);
     sheet.appendChild(head);
 
-    refs.panels = R.el('div');
-    refs.panels.id = 'panels';
-    sheet.appendChild(refs.panels);
-
+    /* 快選排在面板之前（使用者 2026-09-01）：「常用慢性病」是內科門診最常用的一群碼，
+       原本要捲過十幾個面板才看得到。1c／1b 沒有這一區（只有 1a render 快選）。 */
     refs.quick = R.el('div');
     refs.quick.id = 'quick';
     sheet.appendChild(refs.quick);
+
+    refs.panels = R.el('div');
+    refs.panels.id = 'panels';
+    sheet.appendChild(refs.panels);
     bench.appendChild(sheet);
 
     // 右欄：清單 → 貼入 HIS → 相關碼
@@ -282,9 +284,25 @@
       R.clear(refs.panels);
       // panelGroupsFor() 在非急診模式一律回傳空的 redFlags——紅旗隔離只有這一個出口，
       // 渲染層不得自行從 window.CURATED 取 redFlags 繞過它（C5，臨床安全）。
+      const quick = ctx.data.quickGroupsFor(s.mode);
       for (const group of ctx.data.panelGroupsFor(s.mode, s.region)) {
         // group.region 只有「顯示全部部位」時才有值（見 data.js panelGroupsFor 的註解）
         if (group.region) refs.panels.appendChild(R.regionHeading(group.region));
+        /* 認領這個部位的快選排在面板之前，畫成一般卡片：使用者要它「跟其他次分類一樣
+           直接展開不用折疊」。急診／外科的快選 region 是 null，不會進到這裡。 */
+        for (const q of quick) {
+          if (q.region !== group.name) continue;
+          const card = R.el('article', 'quick-card blueprint');
+          card.dataset.quick = q.title;
+          R.blueprint(card);
+          const title = R.el('h4', 'symptom-card-title');
+          title.append(R.el('span', null, q.title),
+            R.el('span', 'quick-count', String(q.items.length)));
+          const body = R.el('div', 'quick-body chip-row');
+          for (const chip of R.chipsFromPairs(q.items, ctx)) body.appendChild(chip);
+          card.append(title, body);
+          refs.panels.appendChild(card);
+        }
         for (const panel of group.panels) {
           const card = R.el('article', 'symptom-card blueprint');
           card.dataset.panel = panel.name;
@@ -305,18 +323,14 @@
           }
 
           if (panel.diseases.length) {
-            const open = ctx.store.isExpanded(panel.name);
-            const toggle = R.el('button', 'panel-toggle');
-            toggle.type = 'button';
-            toggle.dataset.panelToggle = panel.name;
-            toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-            const marker = R.icon('chevronRight', 14);
-            marker.classList.add('marker');
-            toggle.append(marker, R.el('span', null, open ? '收合常見疾病' : '常見疾病 ' + panel.diseases.length));
+            /* 1a 不收合，全部列出來（使用者 2026-09-01）：1440 下橫向放得完，
+               而每點一次展開就是一次中斷。**1c／1b 仍然收合**——那兩套的空間帳完全不同，
+               全攤開會把捲軸拉到不可用（docs/dense-ui-principle.md）。
+               標題保留筆數：不然主訴碼與常見疾病之間看不出分界。 */
+            card.appendChild(R.el('div', 'disease-label', '常見疾病 ' + panel.diseases.length));
             const body = R.el('div', 'disease-group chip-row');
-            body.hidden = !open;
             for (const chip of R.chipsFromPairs(panel.diseases, ctx)) body.appendChild(chip);
-            card.append(toggle, body);
+            card.appendChild(body);
           }
           refs.panels.appendChild(card);
         }
@@ -326,7 +340,10 @@
     U.quick = () => {
       const s = ctx.store.getState();
       R.clear(refs.quick);
-      for (const [title, list] of ctx.data.quickGroupsFor(s.mode)) {
+      /* 只畫沒有歸屬部位的那些（急診／外科）。有歸屬的由 U.panels 畫在部位裡面，
+         這裡再畫一次就會變成同一組碼出現兩次。 */
+      for (const { title, region, items } of ctx.data.quickGroupsFor(s.mode)) {
+        if (region) continue;
         const open = ctx.store.isQuickOpen(title);
         const group = R.el('div', 'quick-group');
         group.dataset.quick = title;
@@ -336,10 +353,10 @@
         toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
         const marker = R.icon('chevronRight', 14);
         marker.classList.add('marker');
-        toggle.append(marker, R.el('span', null, title), R.el('span', 'quick-count', String(list.length)));
+        toggle.append(marker, R.el('span', null, title), R.el('span', 'quick-count', String(items.length)));
         const body = R.el('div', 'quick-body chip-row');
         body.hidden = !open;
-        for (const chip of R.chipsFromPairs(list, ctx)) body.appendChild(chip);
+        for (const chip of R.chipsFromPairs(items, ctx)) body.appendChild(chip);
         group.append(toggle, body);
         refs.quick.appendChild(group);
       }

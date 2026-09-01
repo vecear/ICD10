@@ -21,7 +21,7 @@ MODE_FILES = [
 ]
 QUICK_FILES = [
     ("常用慢性病", "chronic.json"),
-    ("感染科常用", "infectious.json"),
+    ("常見感染", "infectious.json"),
     ("病原體與抗藥性附加碼", "pathogens.json"),
     ("急診快選", "emergency_quick.json"),
     ("外科快選", "surgical_quick.json"),

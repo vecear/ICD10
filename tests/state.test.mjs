@@ -293,8 +293,8 @@ test('展開／收合是不可變更新，且互不干擾', () => {
   assert.notEqual(store.getState().expanded, before, '必須換成新物件，渲染層才能用參考比較');
   assert.equal(store.toggleExpanded('發燒／寒顫'), false);
   assert.deepEqual(store.getState().expanded, {});
-  store.toggleQuick('感染科常用');
-  assert.equal(store.isQuickOpen('感染科常用'), true);
+  store.toggleQuick('常見感染');
+  assert.equal(store.isQuickOpen('常見感染'), true);
   assert.deepEqual(store.getState().expanded, {}, '快選與面板展開狀態不得互相影響');
 });
 

@@ -170,29 +170,46 @@
       return out;
     }
 
-    /* 渲染用的分組：[{region, panels}]。`region` 是要印在該組面板前面的部位標題，
+    /* 渲染用的分組：[{name, region, panels}]。`name` 一定是部位名（快選要靠它認領），
+       `region` 是要印在該組面板前面的部位標題，
        null 代表這組不需要標題——(1) 有選部位時只有一組，rail／pill 上已經標亮了；
        (2) 外科的「情境」本身就是面板，標題會與面板名一字不差地重複。
        顯示全部時沒有這層標題，三十幾張卡連在一起會迷失（取消選取的裁定行為）。 */
     function panelGroupsFor(mode, region) {
       const i = clampRegion(mode, region);
-      if (i !== null) return [{ region: null, panels: panelsAt(mode, i) }];
-      return regionsFor(mode).map((r, idx) => ({
+      const names = regionsFor(mode);
+      if (i !== null) {
+        return [{ name: names[i] ? names[i].name : '', region: null, panels: panelsAt(mode, i) }];
+      }
+      return names.map((r, idx) => ({
+        name: r.name,
         region: mode === 'surg' ? null : r.name,
         panels: panelsAt(mode, idx),
       }));
     }
 
-    /* 快選分組：[[標題, [[code, label], …]], …] */
+    /* 快選分組：[{title, region, items}]。
+
+       `region` ＝ 這組要掛在哪個部位底下（使用者 2026-09-01）：門診的三組各有明確歸屬，
+       跟著部位鈕走、與該部位的面板一起展開，不必再點一次收合鈕。
+       陣列順序就是該部位裡的顯示順序，而且**排在面板之前**——「病原體附加碼」第一、
+       「常見感染」第二，是使用者指定的。
+       `region: null` ＝ 沒有對應部位，照舊掛在面板上方：急診的部位分類裡沒有
+       「感染科追蹤」這一格，硬塞會塞到不相干的部位底下。 */
     function quickGroupsFor(mode) {
-      const pathogens = ['病原體附加碼／抗藥性', curated.pathogens || []];
+      const g = (title, region, items) => ({ title, region, items: items || [] });
       if (mode === 'emergency') {
-        return [['急診常見評估', curated.emergencyQuick || []], ['感染科常用', curated.infectious || []], pathogens];
+        return [g('急診常見評估', null, curated.emergencyQuick),
+          g('常見感染', null, curated.infectious),
+          g('病原體附加碼／抗藥性', null, curated.pathogens)];
       }
       if (mode === 'surg') {
-        return [['外科常用', curated.surgicalQuick || []], pathogens];
+        return [g('外科常用', null, curated.surgicalQuick),
+          g('病原體附加碼／抗藥性', null, curated.pathogens)];
       }
-      return [['常用慢性病', curated.chronic || []], ['感染科常用', curated.infectious || []], pathogens];
+      return [g('常用慢性病', '常用', curated.chronic),
+        g('病原體附加碼／抗藥性', '感染科追蹤', curated.pathogens),
+        g('常見感染', '感染科追蹤', curated.infectious)];
     }
 
     // ---- 全庫延遲載入 ----

@@ -159,8 +159,24 @@ def ensure_expanded(toggle):
     expect(toggle).to_have_attribute("aria-expanded", "true")
 
 
+# 門診的快選掛在部位底下（使用者 2026-09-01），要先切到那個部位才看得到。
+# 急診／外科的快選沒有對應部位，仍然是面板上方那顆收合鈕。
+QUICK_REGION = {"常用慢性病": "常用", "常見感染": "感染科追蹤", "病原體附加碼／抗藥性": "感染科追蹤"}
+
+
 def quick_chip(pg, group, code):
-    """快選分組預設收合（設計 L158-167），要先展開才點得到。"""
+    """取快選分組裡的某一個碼。
+
+    掛在部位底下的（門診三組）直接就是展開的，只要先點對部位；
+    沒有部位的（急診／外科）維持收合，要先展開。
+    """
+    if pg.evaluate("() => window.ICDApp.store.getState().mode") == "outpatient":
+        region = QUICK_REGION.get(group)
+        if region:
+            btn = pg.locator(f'.region-btn[data-region="{region}"]')
+            if btn.get_attribute("aria-pressed") != "true":
+                btn.click()
+            return pg.locator(f'.quick-card[data-quick="{group}"] .chip[data-code="{code}"]')
     ensure_expanded(pg.locator(f'.quick-group[data-quick="{group}"] .quick-toggle'))
     return pg.locator(f'.quick-group[data-quick="{group}"] .chip[data-code="{code}"]')
 
@@ -335,7 +351,7 @@ def test_addcode_rejects_non_leaf_and_unknown_codes(page):
 
 def test_quick_add_and_related(page):
     reset(page)
-    quick_chip(page, "感染科常用", "N39.0").click()
+    quick_chip(page, "常見感染", "N39.0").click()
     expect(page.locator('#cart li[data-code="N39.0"]')).to_have_count(1)
     # 人工關聯：病原碼；家族碼：N39 類目
     expect(page.locator('#related .chip[data-code="B96.20"]')).to_have_count(1)
@@ -365,7 +381,7 @@ def test_symptom_shows_related_diagnoses_without_auto_adding(page):
 
 
 def test_symptom_shows_multiple_related_diseases_without_auto_adding(page):
-    """常見疾病改為預設收合（設計 L149），先展開再驗筆數。
+    """1a 的常見疾病 2026-09-01 起不收合，直接驗筆數（使用者要求全部列出來）。
 
     筆數不寫死：診斷涵蓋度會隨臨床內容擴充而變（這正是面板存在的目的），
     寫死數字只會在下次擴充時又變成假紅燈。改成即時從 curated JSON 取應有筆數。
@@ -375,10 +391,9 @@ def test_symptom_shows_multiple_related_diseases_without_auto_adding(page):
     expected = panel_disease_count("internal_outpatient.json", panel_name)
     page.click(f'.region-btn[data-region="{region_for_panel("internal_outpatient.json", panel_name)}"]')
     card = panel_card(page, panel_name)
-    toggle = card.locator(".panel-toggle")
-    expect(toggle).to_contain_text(f"常見疾病 {expected}")
-    expect(card.locator(".disease-group")).to_be_hidden()
-    ensure_expanded(toggle)
+    expect(card.locator(".panel-toggle")).to_have_count(0)      # 負面：1a 不該再有展開鈕
+    expect(card.locator(".disease-label")).to_contain_text(f"常見疾病 {expected}")
+    expect(card.locator(".disease-group")).to_be_visible()
     expect(card.locator(".disease-group .chip")).to_have_count(expected)
     card.locator(".chief-group .chip[data-code='R05.9']").click()
     for code in ("J00", "J06.9", "J20.9", "J18.9"):
@@ -551,23 +566,61 @@ def test_mode_buttons_switch_mode(page):
     assert page.get_attribute("body", "data-mode") == "outpatient"
 
 
-def test_panel_expand_and_add(page):
-    """外科 accordion 已不存在，改測症狀卡的「常見疾病」摺疊。"""
+def test_panel_diseases_are_listed_without_a_click(page):
+    """1a 的常見疾病直接列出來，點一下就能加碼。
+
+    使用者 2026-09-01：「我希望常見疾病就不要收合了直接全部列出來」。
+    1440 下橫向放得完，而每點一次展開就是一次中斷。
+    **1c／1b 仍然收合**（見 test_e2e_dock／test_e2e_mobile）：那兩套的空間帳完全不同。
+    """
     reset(page)
     page.click('.region-btn[data-region="胸肺／心臟"]')
     card = panel_card(page, "咳嗽／感冒")
-    toggle = card.locator(".panel-toggle")
-    expect(toggle).to_have_attribute("aria-expanded", "false")
-    expect(card.locator(".disease-group")).to_be_hidden()
-    toggle.click()
-    expect(toggle).to_have_attribute("aria-expanded", "true")
-    chip = card.locator(".disease-group .chip").first
+    expect(card.locator(".panel-toggle")).to_have_count(0)
+    group = card.locator(".disease-group")
+    expect(group).to_be_visible()
+    chip = group.locator(".chip").first
     expect(chip).to_be_visible()
     code = chip.get_attribute("data-code")
     chip.click()
     expect(page.locator(f'#cart li[data-code="{code}"]')).to_have_count(1)
-    toggle.click()
-    expect(card.locator(".disease-group")).to_be_hidden()
+
+
+def test_quick_groups_hang_under_their_region_and_are_already_open(page):
+    """門診的三組快選掛在部位底下，順序照使用者指定，而且不必再點一次展開。
+
+    使用者 2026-09-01：「常用慢性病請留在"常用"分頁裡，"感染科常用"請改名"常見感染"
+    請放到感染科追蹤分頁裡的最上面數來第二個，病原體附加碼／抗藥性也請放到感染科追蹤
+    分頁裡最上面數來第一個。這三項請跟其他次分類一樣都直接展開不用折疊」。
+
+    釘三件事：掛對部位、部位裡的順序、以及**面板上方那一區已經空了**——
+    兩邊都畫就會讓同一組碼在同一個畫面出現兩次。
+    """
+    reset(page)
+
+    # 「常用」是預設選取的那一個，再點一次是**取消選取**（顯示全部），不是切過去
+    assert page.locator('.region-btn[data-region="常用"]').get_attribute("aria-pressed") == "true"
+    assert page.evaluate("""() => [...document.querySelectorAll(
+        '#panels .quick-card, #panels .symptom-card')].slice(0, 2).map(
+        (n) => n.dataset.quick || n.dataset.panel)""") == ["常用慢性病", "高血壓／血壓管理"], \
+        "「常用慢性病」要排在「常用」部位的第一個"
+
+    page.click('.region-btn[data-region="感染科追蹤"]')
+    assert page.evaluate("""() => [...document.querySelectorAll(
+        '#panels .quick-card, #panels .symptom-card')].slice(0, 3).map(
+        (n) => n.dataset.quick || n.dataset.panel)""") == [
+        "病原體附加碼／抗藥性", "常見感染", "HIV 感染追蹤"], "感染科追蹤裡的順序不對"
+
+    # 直接展開：不必先點任何東西就點得到碼
+    expect(page.locator('.quick-card[data-quick="常見感染"] .chip[data-code="N39.0"]')).to_be_visible()
+    assert page.locator("#panels .quick-card .quick-toggle").count() == 0, "不該還有收合鈕"
+
+    # 面板上方那一區在門診已經空了（急診／外科才還有東西）
+    assert page.locator("#quick .quick-group").count() == 0, "門診的快選不該再畫在面板上方"
+    set_mode(page, "mode-er")
+    assert page.locator('#quick .quick-group[data-quick="急診常見評估"]').count() == 1, \
+        "急診的部位分類裡沒有對應的格子，快選要留在面板上方"
+    reset(page)
 
 
 def test_surgical_scenarios_use_rail(page):
@@ -726,7 +779,7 @@ def test_cart_pane_stays_in_view_while_scrolling(page):
     離開視野，也不得被 header 蓋住（工作台的核心前提是「清單即貼上區」）。"""
     reset(page)
     set_mode(page, "mode-er")
-    quick_chip(page, "感染科常用", "N39.0").click()
+    quick_chip(page, "常見感染", "N39.0").click()
     page.evaluate("() => { document.querySelector('.worksheet').scrollTop = 2000; }")
     page.wait_for_timeout(100)
     overlap = page.evaluate("""() => {
@@ -845,13 +898,13 @@ def test_recent_list_caps_at_eight(fresh_page, page_url):
     """最近使用上限 8、最新在前、不與最愛重複。"""
     fresh_page.goto(page_url)
     fresh_page.wait_for_selector('body[data-ready="1"]', timeout=8000)
-    ensure_expanded(fresh_page.locator('.quick-group[data-quick="常用慢性病"] .quick-toggle'))
+    # 「常用慢性病」現在是「常用」部位底下的一張卡，預設就是展開的（使用者 2026-09-01）
     codes = fresh_page.eval_on_selector_all(
-        '.quick-group[data-quick="常用慢性病"] .chip', "els => els.slice(0, 10).map(e => e.dataset.code)"
+        '.quick-card[data-quick="常用慢性病"] .chip', "els => els.slice(0, 10).map(e => e.dataset.code)"
     )
     assert len(codes) == 10
     for code in codes:
-        fresh_page.click(f'.quick-group[data-quick="常用慢性病"] .chip[data-code="{code}"]')
+        fresh_page.click(f'.quick-card[data-quick="常用慢性病"] .chip[data-code="{code}"]')
     shelf = fresh_page.eval_on_selector_all(
         "#shelf .shelf-chip:not(.is-fav)", "els => els.map(e => e.dataset.code)"
     )
@@ -930,7 +983,7 @@ def test_theme_toggle_contrast(page):
     set_mode(page, "mode-er")
     search(page, "E11")
     page.wait_for_selector("#search-results .chip.cat")
-    quick_chip(page, "感染科常用", "N39.0").click()
+    quick_chip(page, "常見感染", "N39.0").click()
     open_settings(page)
     page.click("#theme-toggle")
     try:
@@ -1220,7 +1273,7 @@ def test_adjunct_codes_marked_in_every_position(page):
     assert "不可作為主診斷" in badge.get_attribute("title")
     assert "附加碼" in page.locator("#status").inner_text()
     # 加入真正的主診斷並排到第一位後，警示要消失
-    quick_chip(page, "感染科常用", "A41.9").click()
+    quick_chip(page, "常見感染", "A41.9").click()
     page.locator('#cart li[data-code="A41.9"] .cart-primary').click()
     assert cart.get_attribute("data-primary-adjunct") is None
     reset(page)
@@ -1847,13 +1900,20 @@ def test_chronic_drug_list_names_taiwan_drugs_and_flags_self_pay(page):
     groups = page.locator("#chronic-body .chronic-drug-group")
     expect(groups).to_have_count(len(data["groups"]))
 
+    # 有品項的類別把學名放在 .chronic-drug-generic-name（底下才是品名＋劑量）；
+    # 品項檔裡一個都沒有的類別（siRNA、ATP citrate lyase）仍然只有一行學名。
     shown = page.evaluate("""() => Array.from(
-        document.querySelectorAll('#chronic-body .chronic-drug-group')).map((n) => ({
-            klass: n.querySelector('.chronic-drug-klass').textContent.trim(),
-            names: n.querySelector('.chronic-drug-names').textContent.trim(),
-            cover: n.querySelector('.chronic-drug-cover').textContent.trim(),
-            selfpay: n.classList.contains('is-selfpay'),
-        }))""")
+        document.querySelectorAll('#chronic-body .chronic-drug-group')).map((n) => {
+            const gen = [...n.querySelectorAll('.chronic-drug-generic-name')]
+                .map((x) => x.textContent.trim());
+            const fallback = n.querySelector('.chronic-drug-names');
+            return {
+                klass: n.querySelector('.chronic-drug-klass').textContent.trim(),
+                names: gen.length ? gen.join('、') : (fallback ? fallback.textContent.trim() : ''),
+                cover: n.querySelector('.chronic-drug-cover').textContent.trim(),
+                selfpay: n.classList.contains('is-selfpay'),
+            };
+        })""")
     for got, want in zip(shown, data["groups"]):
         assert got["klass"] == want["klass"], (got, want)
         for name in want["items"]:
@@ -2151,18 +2211,19 @@ def test_drug_lookup_lists_what_this_patient_can_be_given(page):
     reset(page)
 
 
-def test_chronic_panel_also_lists_products_and_collapses_them(page):
-    """條文分頁的用藥資訊也要到品項層級，而且預設收合。
+def test_chronic_panel_lists_products_inside_each_drug_class(page):
+    """條文分頁的類別展開後直接列品項（帶表別），而且預設收合。
 
-    使用者 2026-09-01：「健保規範條文分頁也要改」——接在計算機那兩塊改成
-    「品項層級＋預設收合」之後。原本這一頁是類別／成分層級而且永遠攤開，
-    兩個畫面對同一件事給的細節不一樣，而這一頁反而是醫師會停下來讀的那一頁。
+    使用者 2026-09-01：「這裡也要改」，並選了「類別裡直接列品項，拿掉下面兩份清單」——
+    同一頁把 165 個品項列兩次是純粹的損耗。
 
-    釘四件事：
-      1. 兩張表的品項清單都在（與計算機同一個元件，數字一致）
-      2. 全部預設收合——攤開的話這一塊比整頁其他內容加起來還長
-      3. 類別收合後**給付狀態仍看得見**：那是「開了病人要不要付錢」，不能藏
-      4. 官方 9 個成分的摘要沒有被品項清單取代——它是「哪些成分上榜」的權威依據
+    釘五件事：
+      1. 類別預設收合，收合時**給付標籤仍看得見**（「自費」藏起來等於引導醫師開自費藥）
+      2. 展開後是「學名 → 該學名底下的品項」，而且學名那一行保留條文的劑量錨點
+      3. 每一段品項帶表別標籤——同一個學名底下兩張表都有
+      4. 品項檔裡沒有品項的類別（siRNA、ATP citrate lyase）保留學名列，
+         那正是「表一點名了、健保沒收載」的重點
+      5. 下面那兩份獨立品項清單已經移除
     """
     reset(page)
     open_chronic(page, "lipid")
@@ -2173,34 +2234,37 @@ def test_chronic_panel_also_lists_products_and_collapses_them(page):
             .filter((d) => d.open).length,
         covers: [...document.querySelectorAll('#chronic-body .chronic-drug-cover')]
             .map((n) => n.textContent.trim()),
-        lists: [...document.querySelectorAll('#chronic-body .lipid-drugs-title')]
-            .map((n) => n.textContent),
-        groups: document.querySelectorAll('#chronic-body details.lipid-drug-more').length,
-        groupsOpen: [...document.querySelectorAll('#chronic-body details.lipid-drug-more')]
-            .filter((d) => d.open).length,
+        standaloneLists: document.querySelectorAll('#chronic-body .lipid-drugs').length,
         officialIngredients: document.querySelectorAll('#chronic-body .chronic-t2-item').length,
     })""")
-
     assert info["klass"] == 5, info
     assert info["klassOpen"] == 0, f"類別要預設收合：{info}"
-    # 收合狀態下給付標籤仍要看得到——「自費」藏起來等於引導醫師開一個病人要付錢的藥
     assert any("自費" in c for c in info["covers"]), info["covers"]
     assert any("事前審查" in c for c in info["covers"]), info["covers"]
-
-    assert len(info["lists"]) == 2, f"表一表二各要一份品項清單：{info['lists']}"
-    assert any("表一" in x and "現行給付中" in x for x in info["lists"]), info["lists"]
-    assert any("表二" in x and "現行給付中" in x for x in info["lists"]), info["lists"]
-    assert info["groups"] >= 10 and info["groupsOpen"] == 0, f"品項也要預設收合：{info}"
-
+    assert info["standaloneLists"] == 0, "下面那兩份獨立品項清單應該已經拿掉"
     assert info["officialIngredients"] == len(cf.table_two("lipid")["ingredients"]), (
         "官方 9 個成分的摘要不能被品項清單取代——那是哪些成分上榜的權威依據")
 
-    # 點開一組，內容要出得來
-    names = page.locator("#chronic-body .lipid-drug-names").first
-    expect(names).to_be_hidden()
-    page.locator("#chronic-body .lipid-drug-toggle").first.click()
+    page.locator("#chronic-body .chronic-drug-head").first.click()
+    page.wait_for_timeout(250)
+    first = page.locator("#chronic-body details.chronic-drug-more").first
+    generics = first.locator(".chronic-drug-generic-name").all_text_contents()
+    assert any("atorvastatin" in g for g in generics), generics
+    assert any("高強度例" in g for g in generics), (
+        f"學名那一行要保留條文的劑量錨點（品項檔沒有這個資訊）：{generics}")
+    tags = first.locator(".lipid-hit-table").all_text_contents()
+    assert "表一" in tags and "表二" in tags, f"每一段品項要帶表別：{tags}"
+    names = first.locator(".lipid-drug-item").all_text_contents()
+    assert any("LIPITOR" in n for n in names) and any("Tulip" in n for n in names), names
+    assert all(t for t in first.locator(".lipid-drug-item").evaluate_all(
+        "ns => ns.map((n) => n.title)")), "完整品名與代碼要留在 title"
+
+    # 品項檔裡沒有品項的類別保留學名列
+    selfpay = page.locator("#chronic-body .chronic-drug-group.is-selfpay").first
+    selfpay.locator(".chronic-drug-head").click()
     page.wait_for_timeout(200)
-    expect(names).to_be_visible()
+    assert "inclisiran" in selfpay.inner_text() or "bempedoic" in selfpay.inner_text(), (
+        selfpay.inner_text()[:120])
     reset(page)
 
 
@@ -2222,7 +2286,9 @@ def test_chronic_panel_lists_the_drug_classes_with_coverage_status(page):
         document.querySelectorAll('#chronic-body .chronic-drug-group')).map((n) => ({
             klass: n.querySelector('.chronic-drug-klass').textContent.trim(),
             cover: (n.querySelector('.chronic-drug-cover') || {}).textContent || '',
-            names: (n.querySelector('.chronic-drug-names') || {}).textContent || '',
+            names: [...n.querySelectorAll('.chronic-drug-names')].map((x) => x.textContent).join(''),
+            generics: [...n.querySelectorAll('.chronic-drug-generic-name')]
+                .map((x) => x.textContent).join(''),
             selfpay: n.classList.contains('is-selfpay'),
         }))""")
     assert len(groups) == len(data["groups"]), (len(groups), len(data["groups"]))
@@ -2230,7 +2296,9 @@ def test_chronic_panel_lists_the_drug_classes_with_coverage_status(page):
         assert got["klass"] == want["klass"], (got, want)
         assert got["cover"].strip() == (want.get("cover") or ""), got
         assert got["selfpay"] == (want.get("covered") is False), got
-        assert want["items"][0] in got["names"], (want["items"][0], got["names"])
+        # 學名現在在 .chronic-drug-generic-name（.chronic-drug-names 改放品項）；
+        # 沒有 match 的類別（siRNA、ATP citrate lyase）仍走學名列
+        assert want["items"][0] in (got["generics"] + got["names"]), (want["items"][0], got)
     # 健保沒收載的那兩類要標出來，不能只列學名
     assert any(g["selfpay"] for g in groups), groups
     reset(page)

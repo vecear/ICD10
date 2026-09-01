@@ -692,6 +692,44 @@
     return order.map((k) => by[k]);
   }
 
+  /* 某一個藥理類別底下、現行給付中的品項，依學名分組，每一筆帶自己的表別。
+
+     用表別／章節對應而不是比學名：statin+ezetimibe 複方的成分欄開頭是 statin，
+     照學名分會被算進 statin 那一類，但它走的是 2.6.3、有自己的條件。 */
+  function lipidProductsForClass(products, match) {
+    const m = match || {};
+    const tables = Array.isArray(m.tables) ? m.tables : [];
+    const sections = Array.isArray(m.sections) ? m.sections : [];
+    if (!tables.length && !sections.length) return [];
+    const list = (Array.isArray(products) ? products : []).filter((p) => {
+      if (!p || p.listed === false) return false;
+      if (tables.length && tables.indexOf(p.table) >= 0) return true;
+      const sec = String(p.section || '');
+      return sections.some((s) => sec.indexOf(s) >= 0);
+    });
+    const labels = m.labels || {};        // 學名 → 顯示標籤（複方的主成分欄會騙人）
+    const bySection = m.bySection || {};  // 章節 → 顯示標籤（優先於 labels）
+    const by = {};
+    const order = [];
+    for (const p of list) {
+      const sec = String(p.section || '').replace(/\.$/, '');
+      const generic = String(p.generic || p.ingredient || '（未標成分）');
+      const key = bySection[sec] || labels[generic] || generic;
+      if (!by[key]) { by[key] = { generic: key, items: [] }; order.push(key); }
+      by[key].items.push({
+        code: p.code, name: p.en || p.zh || p.code,
+        short: lipidShortName(p.en || p.zh || p.code),
+        table: p.table || '',
+      });
+    }
+    for (const key of order) {
+      by[key].items.sort((a, b) => (a.table === b.table ? 0 : a.table === 'one' ? -1 : 1)
+        || a.short.localeCompare(b.short));
+    }
+    order.sort((a, b) => by[b].items.length - by[a].items.length || a.localeCompare(b));
+    return order.map((k) => by[k]);
+  }
+
   function lipidCoverage(input) {
     const c = input || {};
     const ldl = Number(c.ldl);
@@ -748,5 +786,5 @@
            splitSentences, splitLead, creatinineClearance,
            lipidCoverage, lipidRiskFactorsNew, lipidRiskFactorsOld, lipidMetabolic,
            lipidFindProducts, lipidSummarize, lipidProductVerdict,
-           lipidShortName, lipidProductsByTable };
+           lipidShortName, lipidProductsByTable, lipidProductsForClass };
 });
