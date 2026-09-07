@@ -146,6 +146,46 @@ test('splitByEffective: 沒給 today 就不篩掉任何東西（寧可全顯示�
 });
 
 // ── Cockcroft-Gault CCr（抗生素劑量會用到，數字錯了會直接影響給藥）──
+test('CCr：新增 crclRaw，既有顯示值與所有欄位保持不變', () => {
+  const { crclRaw, bsaRaw, crclIndexedRaw, ...existing } = L.creatinineClearance({
+    sex: 'male', age: 60, weightKg: 70, creatinine: 1,
+  });
+  assert.equal(crclRaw, 5600 / 72);
+  assert.equal(bsaRaw, null);
+  assert.equal(crclIndexedRaw, null);
+  assert.deepEqual(existing, {
+    ok: true, crcl: 77.8, basis: 'actual', weightUsed: 70, actual: 77.8,
+    ibw: null, adjbw: null, bmi: null, hasHeight: false,
+    ideal: null, adjusted: null, range: null, rangeBasis: null,
+  });
+});
+
+test('CCr：crclRaw 使用所選體重的完整精度，涵蓋男女及各種體重依據', () => {
+  const maleIbw = 50 + 2.3 * (175 / 2.54 - 60);
+  const femaleIbw = 45.5 + 2.3 * (160 / 2.54 - 60);
+  const cases = [
+    [{ sex: 'male', weightKg: 50, heightCm: 175 }, 'actual', 50, 1],
+    [{ sex: 'male', weightKg: 70, heightCm: 175 }, 'ideal', maleIbw, 1],
+    [{ sex: 'male', weightKg: 100, heightCm: 175 }, 'adjusted', maleIbw + 0.4 * (100 - maleIbw), 1],
+    [{ sex: 'female', weightKg: 60, heightCm: 160 }, 'ideal', femaleIbw, 0.85],
+    [{ sex: 'female', weightKg: 70 }, 'actual', 70, 0.85],
+    [{ sex: 'female', weightKg: 40, heightCm: 90 }, 'actual', 40, 0.85],
+  ];
+  for (const [input, basis, kg, q] of cases) {
+    const r = L.creatinineClearance({ age: 60, creatinine: 1.1, ...input });
+    assert.equal(r.basis, basis);
+    assert.equal(r.crclRaw, (80 * kg * q) / (72 * 1.1));
+    assert.equal(r.crcl, Math.round(r.crclRaw * 10) / 10);
+    assert.notEqual(r.crclRaw, r.crcl);
+  }
+});
+
+test('CCr：新增 raw 不改變無效輸入的回傳形狀', () => {
+  assert.deepEqual(L.creatinineClearance({ age: 60, weightKg: 70 }), {
+    ok: false, missing: ['creatinine'],
+  });
+});
+
 test('CCr：公式本身（男女、四捨五入到小數一位）', () => {
   // 60 歲、70 kg、Cr 1.0 → (140-60)*70/(72*1) = 77.8
   const m = L.creatinineClearance({ sex: 'male', age: 60, weightKg: 70, creatinine: 1.0 });

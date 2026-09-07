@@ -1,0 +1,4370 @@
+{
+  "version": 1,
+  "reviewedOn": "2026-09-07",
+  "source": {
+    "name": "Sanford Guide｜Renal Impairment Dosing",
+    "url": "https://web.sanfordguide.com/en/comparisons-1/drug-usage-dosing/renal-dosing-adjustment",
+    "updatedOn": "2026-08-17"
+  },
+  "drugs": [
+    {
+      "id": "acyclovir",
+      "name": "Acyclovir",
+      "aliases": [
+        "aciclovir"
+      ],
+      "className": "Antivirals 抗病毒藥",
+      "sourceUrl": "https://www.uptodate.com/contents/acyclovir-systemic-drug-information",
+      "notes": [
+        "需密切監測神經毒性。未列出的原劑量應依腎功能、治療目標與預計療程個別評估，不直接外推本表。",
+        "截圖未涵蓋透析給法；CrCl <10 的表列劑量僅限非透析病人。"
+      ],
+      "regimens": [
+        {
+          "id": "po-400-q12h",
+          "label": "PO・原劑量 400 mg q12h",
+          "route": "PO",
+          "notes": [
+            "原表採體表面積校正 CrCl（mL/min/1.73 m²）。填入身高後，以 Mosteller BSA（身高與實際體重）及原始 CCr × 1.73 ÷ BSA 自動對照；分段使用完整精度。",
+            "此為 Cockcroft–Gault CCr 的體表面積校正，不是 CKD-EPI eGFR；mg/kg/dose 不自動換算總 mg。"
+          ],
+          "source": {
+            "name": "UpToDate｜Acyclovir (systemic): Drug information｜成人腎功能劑量",
+            "url": "https://www.uptodate.com/contents/acyclovir-systemic-drug-information",
+            "updatedOn": null,
+            "reviewedOn": "2026-09-07",
+            "note": "依使用者提供的 UpToDate 截圖整理；截圖未顯示來源更新日期。"
+          },
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CrCl >50 mL/min/1.73 m²",
+              "min": 50,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "400 mg q12h",
+              "manual": false,
+              "note": "不需調整，維持本方案的原劑量。"
+            },
+            {
+              "label": "CrCl 25–50 mL/min/1.73 m²",
+              "min": 25,
+              "max": 50,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "400 mg q12h",
+              "manual": false,
+              "note": "不需調整，維持本方案的原劑量。"
+            },
+            {
+              "label": "CrCl 10–<25 mL/min/1.73 m²",
+              "min": 10,
+              "max": 25,
+              "minInclusive": true,
+              "maxInclusive": false,
+              "dose": "400 mg q12h 或減為 200 mg q12h",
+              "manual": true,
+              "note": "保留原表兩種選項：維持原劑量，或依專家意見減量；需個別核對。"
+            },
+            {
+              "label": "CrCl <10 mL/min/1.73 m²（非透析）",
+              "min": null,
+              "max": 10,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "200 mg q12h",
+              "manual": false
+            }
+          ],
+          "dialysis": {
+            "ihd": [],
+            "capd": [],
+            "crrt": [],
+            "sled": []
+          },
+          "renalMetric": "crcl-indexed"
+        },
+        {
+          "id": "po-200-five-daily",
+          "label": "PO・原劑量 200 mg 每日 5 次",
+          "route": "PO",
+          "notes": [
+            "原表採體表面積校正 CrCl（mL/min/1.73 m²）。填入身高後，以 Mosteller BSA（身高與實際體重）及原始 CCr × 1.73 ÷ BSA 自動對照；分段使用完整精度。",
+            "此為 Cockcroft–Gault CCr 的體表面積校正，不是 CKD-EPI eGFR；mg/kg/dose 不自動換算總 mg。"
+          ],
+          "source": {
+            "name": "UpToDate｜Acyclovir (systemic): Drug information｜成人腎功能劑量",
+            "url": "https://www.uptodate.com/contents/acyclovir-systemic-drug-information",
+            "updatedOn": null,
+            "reviewedOn": "2026-09-07",
+            "note": "依使用者提供的 UpToDate 截圖整理；截圖未顯示來源更新日期。"
+          },
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CrCl >50 mL/min/1.73 m²",
+              "min": 50,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "200 mg 每日 5 次",
+              "manual": false,
+              "note": "不需調整，維持本方案的原劑量。"
+            },
+            {
+              "label": "CrCl 25–50 mL/min/1.73 m²",
+              "min": 25,
+              "max": 50,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "200 mg 每日 5 次",
+              "manual": false,
+              "note": "不需調整，維持本方案的原劑量。"
+            },
+            {
+              "label": "CrCl 10–<25 mL/min/1.73 m²",
+              "min": 10,
+              "max": 25,
+              "minInclusive": true,
+              "maxInclusive": false,
+              "dose": "200 mg 每日 5 次或減為 200 mg q8h",
+              "manual": true,
+              "note": "保留原表兩種選項：維持原劑量，或依專家意見減量；需個別核對。"
+            },
+            {
+              "label": "CrCl <10 mL/min/1.73 m²（非透析）",
+              "min": null,
+              "max": 10,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "200 mg q12h",
+              "manual": false
+            }
+          ],
+          "dialysis": {
+            "ihd": [],
+            "capd": [],
+            "crrt": [],
+            "sled": []
+          },
+          "renalMetric": "crcl-indexed"
+        },
+        {
+          "id": "po-800-five-daily",
+          "label": "PO・原劑量 800 mg 每日 5 次",
+          "route": "PO",
+          "notes": [
+            "原表採體表面積校正 CrCl（mL/min/1.73 m²）。填入身高後，以 Mosteller BSA（身高與實際體重）及原始 CCr × 1.73 ÷ BSA 自動對照；分段使用完整精度。",
+            "此為 Cockcroft–Gault CCr 的體表面積校正，不是 CKD-EPI eGFR；mg/kg/dose 不自動換算總 mg。"
+          ],
+          "source": {
+            "name": "UpToDate｜Acyclovir (systemic): Drug information｜成人腎功能劑量",
+            "url": "https://www.uptodate.com/contents/acyclovir-systemic-drug-information",
+            "updatedOn": null,
+            "reviewedOn": "2026-09-07",
+            "note": "依使用者提供的 UpToDate 截圖整理；截圖未顯示來源更新日期。"
+          },
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CrCl >50 mL/min/1.73 m²",
+              "min": 50,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "800 mg 每日 5 次",
+              "manual": false,
+              "note": "不需調整，維持本方案的原劑量。"
+            },
+            {
+              "label": "CrCl 25–50 mL/min/1.73 m²",
+              "min": 25,
+              "max": 50,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "800 mg 每日 5 次",
+              "manual": false,
+              "note": "不需調整，維持本方案的原劑量。"
+            },
+            {
+              "label": "CrCl 10–<25 mL/min/1.73 m²",
+              "min": 10,
+              "max": 25,
+              "minInclusive": true,
+              "maxInclusive": false,
+              "dose": "800 mg q8h",
+              "manual": false
+            },
+            {
+              "label": "CrCl <10 mL/min/1.73 m²（非透析）",
+              "min": null,
+              "max": 10,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "200 mg q12h；嚴重感染可用 400 mg q12h",
+              "manual": true,
+              "note": "保留原表的嚴重感染選項；截圖中的註腳 d 未完整顯示，請核對原文。"
+            }
+          ],
+          "dialysis": {
+            "ihd": [],
+            "capd": [],
+            "crrt": [],
+            "sled": []
+          },
+          "renalMetric": "crcl-indexed"
+        },
+        {
+          "id": "iv-5-q8h",
+          "label": "IV・原劑量 5 mg/kg/dose q8h",
+          "route": "IV",
+          "notes": [
+            "原表採體表面積校正 CrCl（mL/min/1.73 m²）。填入身高後，以 Mosteller BSA（身高與實際體重）及原始 CCr × 1.73 ÷ BSA 自動對照；分段使用完整精度。",
+            "此為 Cockcroft–Gault CCr 的體表面積校正，不是 CKD-EPI eGFR；mg/kg/dose 不自動換算總 mg。"
+          ],
+          "source": {
+            "name": "UpToDate｜Acyclovir (systemic): Drug information｜成人腎功能劑量",
+            "url": "https://www.uptodate.com/contents/acyclovir-systemic-drug-information",
+            "updatedOn": null,
+            "reviewedOn": "2026-09-07",
+            "note": "依使用者提供的 UpToDate 截圖整理；截圖未顯示來源更新日期。"
+          },
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CrCl >50 mL/min/1.73 m²",
+              "min": 50,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "5 mg/kg/dose q8h",
+              "manual": false,
+              "note": "不需調整，維持本方案的原劑量。"
+            },
+            {
+              "label": "CrCl 25–50 mL/min/1.73 m²",
+              "min": 25,
+              "max": 50,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "5 mg/kg/dose q12h",
+              "manual": false
+            },
+            {
+              "label": "CrCl 10–<25 mL/min/1.73 m²",
+              "min": 10,
+              "max": 25,
+              "minInclusive": true,
+              "maxInclusive": false,
+              "dose": "5 mg/kg/dose q24h",
+              "manual": false
+            },
+            {
+              "label": "CrCl <10 mL/min/1.73 m²（非透析）",
+              "min": null,
+              "max": 10,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "2.5 mg/kg/dose q24h",
+              "manual": false
+            }
+          ],
+          "dialysis": {
+            "ihd": [],
+            "capd": [],
+            "crrt": [],
+            "sled": []
+          },
+          "renalMetric": "crcl-indexed"
+        },
+        {
+          "id": "iv-10-q8h",
+          "label": "IV・原劑量 10 mg/kg/dose q8h",
+          "route": "IV",
+          "notes": [
+            "原表採體表面積校正 CrCl（mL/min/1.73 m²）。填入身高後，以 Mosteller BSA（身高與實際體重）及原始 CCr × 1.73 ÷ BSA 自動對照；分段使用完整精度。",
+            "此為 Cockcroft–Gault CCr 的體表面積校正，不是 CKD-EPI eGFR；mg/kg/dose 不自動換算總 mg。"
+          ],
+          "source": {
+            "name": "UpToDate｜Acyclovir (systemic): Drug information｜成人腎功能劑量",
+            "url": "https://www.uptodate.com/contents/acyclovir-systemic-drug-information",
+            "updatedOn": null,
+            "reviewedOn": "2026-09-07",
+            "note": "依使用者提供的 UpToDate 截圖整理；截圖未顯示來源更新日期。"
+          },
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CrCl >50 mL/min/1.73 m²",
+              "min": 50,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "10 mg/kg/dose q8h",
+              "manual": false,
+              "note": "不需調整，維持本方案的原劑量。"
+            },
+            {
+              "label": "CrCl 25–50 mL/min/1.73 m²",
+              "min": 25,
+              "max": 50,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "10 mg/kg/dose q12h",
+              "manual": false
+            },
+            {
+              "label": "CrCl 10–<25 mL/min/1.73 m²",
+              "min": 10,
+              "max": 25,
+              "minInclusive": true,
+              "maxInclusive": false,
+              "dose": "10 mg/kg/dose q24h",
+              "manual": false
+            },
+            {
+              "label": "CrCl <10 mL/min/1.73 m²（非透析）",
+              "min": null,
+              "max": 10,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "5 mg/kg/dose q24h",
+              "manual": false
+            }
+          ],
+          "dialysis": {
+            "ihd": [],
+            "capd": [],
+            "crrt": [],
+            "sled": []
+          },
+          "renalMetric": "crcl-indexed"
+        }
+      ]
+    },
+    {
+      "id": "amikacin",
+      "name": "Amikacin",
+      "aliases": [
+        "amik"
+      ],
+      "className": "Aminoglycosides",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/08e89a255e2b41039b0a9ebf5ab8e494",
+      "notes": [
+        "Aminoglycoside 需依血中濃度、感染與給藥體重調整；此處不自動換算總 mg。"
+      ],
+      "regimens": [
+        {
+          "id": "conventional",
+          "label": "革蘭氏陰性菌・傳統給法",
+          "route": "IM／IV",
+          "notes": [
+            "不涵蓋 NTM；不能把傳統給法外推至 extended-interval nomogram。"
+          ],
+          "requiresTdm": true,
+          "renal": [
+            {
+              "label": "CCr >50 mL/min",
+              "min": 50,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "7.5 mg/kg q12h"
+            },
+            {
+              "label": "CCr 10–50 mL/min",
+              "min": 10,
+              "max": 50,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "7.5 mg/kg q24h"
+            },
+            {
+              "label": "CCr <10 mL/min",
+              "min": null,
+              "max": 10,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "7.5 mg/kg q48h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "7.5 mg/kg q48h；HD 後另補 3.75 mg/kg"
+              }
+            ],
+            "capd": [
+              {
+                "label": "僅 CAPD 腹膜炎・IP",
+                "dose": "2 mg/kg IP 每日一次",
+                "note": "此為腹腔內給藥，不能作為全身感染的 IV 劑量。"
+              }
+            ],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "CVVH／CVVHDF 延長間隔方案：25 mg/kg q48h；需 TDM"
+              }
+            ],
+            "sled": []
+          }
+        },
+        {
+          "id": "extended-interval",
+          "label": "Once-daily／延長間隔（非分枝桿菌感染）",
+          "route": "IV",
+          "source": {
+            "name": "Sanford Guide｜Aminoglycosides, Overview",
+            "url": "https://web.sanfordguide.com/resolveuid/df225e148c67fda5a404d8e0ef4595c0",
+            "updatedOn": "2026-07-22",
+            "reviewedOn": "2026-09-07"
+          },
+          "notes": [
+            "成人非分枝桿菌感染的 extended-interval 給法；每次 15–20 mg/kg，IV 輸注 60 分鐘。下表為穩定、非透析病人的初始間隔，後續須依 TDM 調整。",
+            "給藥體重：實際體重 < 理想體重（IBW）時用實際體重；IBW 至 130% IBW 用 IBW；>130% IBW 用調整體重＝IBW + 0.4 ×（實際體重 − IBW）。此為 aminoglycoside 給藥體重規則，勿直接沿用上方 CCr 計算體重。",
+            "首劑自輸注開始計時 6–14 小時抽一次血中濃度，使用 Hartford nomogram 確認或調整間隔。",
+            "Amikacin 15 mg/kg：實測濃度除以 2 後套用 nomogram。來源未明示 20 mg/kg 的換算方式，不能直接套用除以 2；須依經驗證的院內流程或臨床藥動學評估。",
+            "CCr <20 mL/min 建議改用傳統分次給法。本方案不提供透析用量；透析請另查對應方式的來源，不能外推非透析間隔。"
+          ],
+          "requiresTdm": true,
+          "renal": [
+            {
+              "label": "CCr ≥60 mL/min",
+              "min": 60,
+              "max": null,
+              "minInclusive": true,
+              "maxInclusive": false,
+              "dose": "15–20 mg/kg IV q24h"
+            },
+            {
+              "label": "CCr 40–59 mL/min",
+              "min": 40,
+              "max": 59,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "15–20 mg/kg IV q36h"
+            },
+            {
+              "label": "CCr 20–39 mL/min",
+              "min": 20,
+              "max": 39,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "15–20 mg/kg IV q48h"
+            },
+            {
+              "label": "CCr <20 mL/min",
+              "min": null,
+              "max": 20,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "建議改用傳統分次給法，依 TDM 個別調整",
+              "manual": true
+            }
+          ],
+          "dialysis": {
+            "ihd": [],
+            "capd": [],
+            "crrt": [],
+            "sled": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "amoxicillin",
+      "name": "Amoxicillin",
+      "aliases": [
+        "amox"
+      ],
+      "className": "Penicillins 青黴素",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/2e7e71d52ce84b91af137c872d778d04",
+      "notes": [
+        "來源以 GFR 表示門檻，未在此段提供與 Cockcroft–Gault CCr 的換算；僅供對照。GFR <30 不用 875 mg 劑量。ER 劑型 GFR <30（含 HD）不建議；不涵蓋 1 g q8h 方案。"
+      ],
+      "regimens": [
+        {
+          "id": "standard",
+          "label": "一般劑量速查",
+          "route": "PO",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "來源 GFR >30（原文未明示單位）",
+              "min": 30,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "500 mg q8h 或 875 mg q12h",
+              "manual": true
+            },
+            {
+              "label": "來源 GFR 10–30（原文未明示單位）",
+              "min": 10,
+              "max": 30,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "250–500 mg q12h",
+              "manual": true
+            },
+            {
+              "label": "來源 GFR <10（原文未明示單位）",
+              "min": null,
+              "max": 10,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "250–500 mg q24h",
+              "manual": true
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "250–500 mg q24h；HD 後另補一劑"
+              }
+            ],
+            "capd": [
+              {
+                "label": "CAPD（全身性給藥）",
+                "dose": "250–500 mg q12h"
+              }
+            ],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "250–500 mg q8–12h"
+              }
+            ],
+            "sled": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "amoxicillin-clavulanate",
+      "name": "Amoxicillin-clavulanate",
+      "aliases": [
+        "amox-clav",
+        "co-amoxiclav"
+      ],
+      "className": "Penicillins 青黴素",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/a5ac7fc4ce704d028154d103512ba1c2",
+      "notes": [
+        "所有 mg/g 為 amoxicillin 成分量，不是複方總量；需核對 clavulanate 比例。",
+        "ER 劑型在 CCr <30（含 HD）禁用；600/42.9 mg per 5 mL 懸液沒有腎功能不全劑量建議。"
+      ],
+      "regimens": [
+        {
+          "id": "oral",
+          "label": "口服一般劑型",
+          "route": "PO",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr >30 mL/min",
+              "min": 30,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "Amoxicillin 500 mg q8h（4:1）或 875 mg q12h（7:1）"
+            },
+            {
+              "label": "CCr 10–30 mL/min",
+              "min": 10,
+              "max": 30,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "Amoxicillin 250–500 mg q12h"
+            },
+            {
+              "label": "CCr <10 mL/min",
+              "min": null,
+              "max": 10,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "Amoxicillin 250–500 mg q24h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "Amoxicillin 250–500 mg q24h；HD 後另補一劑"
+              }
+            ],
+            "capd": [],
+            "crrt": [],
+            "sled": []
+          }
+        },
+        {
+          "id": "iv",
+          "label": "靜脈製劑",
+          "route": "IV",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr >30 mL/min",
+              "min": 30,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "Amoxicillin 1 g q8h（5:1）"
+            },
+            {
+              "label": "CCr 10–30 mL/min",
+              "min": 10,
+              "max": 30,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "先給 amoxicillin 1 g，再 500 mg q12h"
+            },
+            {
+              "label": "CCr <10 mL/min",
+              "min": null,
+              "max": 10,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "先給 amoxicillin 1 g，再 500 mg q24h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "先給 amoxicillin 1 g，再 500 mg q24h；HD 後另補一劑"
+              }
+            ],
+            "capd": [],
+            "crrt": [],
+            "sled": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "ampicillin",
+      "name": "Ampicillin",
+      "aliases": [
+        "ampi"
+      ],
+      "className": "Penicillins 青黴素",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/98ae9280f4564337becd62cb60bdf7ce",
+      "notes": [
+        "來源在 CCr 30 有重疊，該點需核對。"
+      ],
+      "regimens": [
+        {
+          "id": "standard",
+          "label": "一般劑量速查",
+          "route": "IV",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr >50 mL/min",
+              "min": 50,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "1–2 g q4–6h"
+            },
+            {
+              "label": "CCr 30–50 mL/min",
+              "min": 30,
+              "max": 50,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "1–2 g q6–8h"
+            },
+            {
+              "label": "CCr 10–30 mL/min",
+              "min": 10,
+              "max": 30,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "1–2 g q8–12h"
+            },
+            {
+              "label": "CCr <10 mL/min",
+              "min": null,
+              "max": 10,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "1–2 g q12–24h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "1–2 g q12–24h；透析日於 HD 後給藥"
+              }
+            ],
+            "capd": [
+              {
+                "label": "CAPD（全身性給藥）",
+                "dose": "1–2 g q12h"
+              }
+            ],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "1–2 g q8–12h"
+              }
+            ],
+            "sled": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "ampicillin-sulbactam",
+      "name": "Ampicillin-sulbactam",
+      "aliases": [
+        "ampi-sul",
+        "ABPC SBT"
+      ],
+      "className": "Penicillins 青黴素",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/e576046eafc64bc5b5c25b8f297dc8cb",
+      "notes": [
+        "劑量為複方總量；此表不涵蓋針對 CRAB 的高劑量 sulbactam 方案。"
+      ],
+      "regimens": [
+        {
+          "id": "standard",
+          "label": "一般劑量速查",
+          "route": "IV",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr ≥30 mL/min",
+              "min": 30,
+              "max": null,
+              "minInclusive": true,
+              "maxInclusive": false,
+              "dose": "1.5–3 g q6h"
+            },
+            {
+              "label": "CCr 15–29 mL/min",
+              "min": 15,
+              "max": 29,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "1.5–3 g q12h"
+            },
+            {
+              "label": "CCr 5–14 mL/min",
+              "min": 5,
+              "max": 14,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "1.5–3 g q24h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "1.5–3 g q24h；透析日於 HD 後給藥"
+              }
+            ],
+            "capd": [
+              {
+                "label": "CAPD（全身性給藥）",
+                "dose": "3 g q24h"
+              }
+            ],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "1.5–3 g q8–12h"
+              }
+            ],
+            "sled": [
+              {
+                "label": "SLED",
+                "dose": "3 g q12h"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "azithromycin",
+      "name": "Azithromycin",
+      "aliases": [],
+      "className": "Macrolides",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/edbf8485be234f429f1c6677aa82c3f6",
+      "notes": [],
+      "regimens": [
+        {
+          "id": "standard",
+          "label": "一般劑量速查",
+          "route": "PO／IV",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "所有腎功能範圍",
+              "min": null,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "250–500 mg q24h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "250–500 mg q24h"
+              }
+            ],
+            "capd": [
+              {
+                "label": "CAPD（全身性給藥）",
+                "dose": "250–500 mg q24h"
+              }
+            ],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "250–500 mg q24h"
+              }
+            ],
+            "sled": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "aztreonam",
+      "name": "Aztreonam",
+      "aliases": [
+        "AZT"
+      ],
+      "className": "Monobactams",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/daa4e444a4984bea82cb87698315025e",
+      "notes": [
+        "來源的 CrCl 單位是 mL/min/1.73 m²，不能直接套用本計算機的 mL/min。"
+      ],
+      "regimens": [
+        {
+          "id": "standard",
+          "label": "一般劑量速查",
+          "route": "IV",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr ≥30 mL/min/1.73 m²",
+              "min": 30,
+              "max": null,
+              "minInclusive": true,
+              "maxInclusive": false,
+              "dose": "不調整；先決定原始適應症劑量",
+              "manual": true
+            },
+            {
+              "label": "CCr 10–<30 mL/min/1.73 m²",
+              "min": 10,
+              "max": 30,
+              "minInclusive": true,
+              "maxInclusive": false,
+              "dose": "原始劑量減少 50%",
+              "manual": true
+            },
+            {
+              "label": "CCr <10 mL/min/1.73 m²",
+              "min": null,
+              "max": 10,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "1–2 g q24h",
+              "manual": true
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "1–2 g q24h；透析日於 HD 後給藥"
+              }
+            ],
+            "capd": [
+              {
+                "label": "CAPD（全身性給藥）",
+                "dose": "2 g q24h"
+              }
+            ],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "先給 2 g loading；CVVH：1–2 g q12h；CVVHD／CVVHDF：2 g q12h"
+              }
+            ],
+            "sled": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "cefaclor",
+      "name": "Cefaclor",
+      "aliases": [],
+      "className": "Cephalosporins 頭孢菌素",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/251f7e0421774b3185f0385ee3876ac2",
+      "notes": [],
+      "regimens": [
+        {
+          "id": "standard",
+          "label": "一般劑量速查",
+          "route": "PO",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr ≥10 mL/min",
+              "min": 10,
+              "max": null,
+              "minInclusive": true,
+              "maxInclusive": false,
+              "dose": "500 mg q8h"
+            },
+            {
+              "label": "CCr <10 mL/min",
+              "min": null,
+              "max": 10,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "500 mg q12h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "500 mg q12h；透析日其中一劑在 HD 後給藥"
+              }
+            ],
+            "capd": [
+              {
+                "label": "CAPD（全身性給藥）",
+                "dose": "500 mg q12h"
+              }
+            ],
+            "crrt": [],
+            "sled": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "cefazolin",
+      "name": "Cefazolin",
+      "aliases": [],
+      "className": "Cephalosporins 頭孢菌素",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/08e3510273d842f8a686d83a2bdb5cf7",
+      "notes": [],
+      "regimens": [
+        {
+          "id": "standard",
+          "label": "一般劑量速查",
+          "route": "IV",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr >50 mL/min",
+              "min": 50,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "1–2 g q8h"
+            },
+            {
+              "label": "CCr 10–50 mL/min",
+              "min": 10,
+              "max": 50,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "500 mg–2 g q8–12h"
+            },
+            {
+              "label": "CCr <10 mL/min",
+              "min": null,
+              "max": 10,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "500 mg–1 g q24h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "500 mg–1 g q24h；透析日於 HD 後給藥。門診週一三五 HD 替代：週一、三各 2 g，週五 3 g，均於 HD 後"
+              }
+            ],
+            "capd": [
+              {
+                "label": "CAPD（全身性給藥）",
+                "dose": "500 mg q12h"
+              }
+            ],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "1–2 g q12h"
+              }
+            ],
+            "sled": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "cefepime",
+      "name": "Cefepime",
+      "aliases": [],
+      "className": "Cephalosporins 頭孢菌素",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/b319e8953ada4e3ca5dcffb31ddda7a0",
+      "notes": [
+        "來源在 29–30 之間有未定義區間，不擅自補齊。"
+      ],
+      "regimens": [
+        {
+          "id": "q12",
+          "label": "原始 1–2 g q12h",
+          "route": "IV",
+          "notes": [
+            "正常腎功能時先依感染選定 1 g 或 2 g，減量對應原本目標。HD 日於 HD 後給藥。"
+          ],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr >60 mL/min",
+              "min": 60,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "1–2 g q12h"
+            },
+            {
+              "label": "CCr 30–60 mL/min",
+              "min": 30,
+              "max": 60,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "1–2 g q24h"
+            },
+            {
+              "label": "CCr 11–29 mL/min",
+              "min": 11,
+              "max": 29,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "500 mg–1 g q24h"
+            },
+            {
+              "label": "CCr <11 mL/min",
+              "min": null,
+              "max": 11,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "250–500 mg q24h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "第 1 天 1 g；之後 500 mg q24h"
+              }
+            ],
+            "capd": [
+              {
+                "label": "CAPD（全身性給藥）",
+                "dose": "1–2 g q48h"
+              }
+            ],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "effluent 1 L/hr：1 g q8h；≥2 L/hr：1 g q6h。延長輸注研究（30.1 mL/kg/hr）：2 g 每次 4 小時 q8h"
+              }
+            ],
+            "sled": [
+              {
+                "label": "SLED",
+                "dose": "先 2 g，再 1 g q6h；另有 SLED 前 2 g、後 3 g 方案"
+              }
+            ]
+          }
+        },
+        {
+          "id": "q8",
+          "label": "原始 2 g q8h",
+          "route": "IV",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr >60 mL/min",
+              "min": 60,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "2 g q8h"
+            },
+            {
+              "label": "CCr 30–60 mL/min",
+              "min": 30,
+              "max": 60,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "2 g q12h"
+            },
+            {
+              "label": "CCr 11–29 mL/min",
+              "min": 11,
+              "max": 29,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "2 g q24h"
+            },
+            {
+              "label": "CCr <11 mL/min",
+              "min": null,
+              "max": 11,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "1 g q24h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "仿單：1 g q24h；透析日於 HD 後。替代：每週三次 HD 後各 2 g"
+              }
+            ],
+            "capd": [
+              {
+                "label": "CAPD（全身性給藥）",
+                "dose": "2 g q48h"
+              }
+            ],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "effluent 1 L/hr：1 g q8h；≥2 L/hr：1 g q6h。延長輸注研究（30.1 mL/kg/hr）：2 g 每次 4 小時 q8h"
+              }
+            ],
+            "sled": [
+              {
+                "label": "SLED",
+                "dose": "先 2 g，再 1 g q6h；另有 SLED 前 2 g、後 3 g 方案"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "cefixime",
+      "name": "Cefixime",
+      "aliases": [],
+      "className": "Cephalosporins 頭孢菌素",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/18c950bcf7dc472e894a5117520f7da9",
+      "notes": [
+        "來源在 CCr 60 有重疊；20–21 之間有缺口，需核對。"
+      ],
+      "regimens": [
+        {
+          "id": "standard",
+          "label": "一般劑量速查",
+          "route": "PO",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr ≥60 mL/min",
+              "min": 60,
+              "max": null,
+              "minInclusive": true,
+              "maxInclusive": false,
+              "dose": "400 mg q24h"
+            },
+            {
+              "label": "CCr 21–60 mL/min",
+              "min": 21,
+              "max": 60,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "260 mg q24h（使用懸液）"
+            },
+            {
+              "label": "CCr ≤20 mL/min",
+              "min": null,
+              "max": 20,
+              "minInclusive": false,
+              "maxInclusive": true,
+              "dose": "200 mg q24h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "260 mg q24h（懸液）；透析日於 HD 後給藥"
+              }
+            ],
+            "capd": [
+              {
+                "label": "CAPD（全身性給藥）",
+                "dose": "200 mg q24h"
+              }
+            ],
+            "crrt": [],
+            "sled": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "cefmetazole",
+      "name": "Cefmetazole",
+      "aliases": [],
+      "className": "Cephalosporins 頭孢菌素",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/e09c5a22aab642dd9d8a94697c7cb03a",
+      "notes": [],
+      "regimens": [
+        {
+          "id": "standard",
+          "label": "一般劑量速查",
+          "route": "IV",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr >90 mL/min",
+              "min": 90,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "2 g q8–12h"
+            },
+            {
+              "label": "CCr 50–90 mL/min",
+              "min": 50,
+              "max": 90,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "1–2 g q12h"
+            },
+            {
+              "label": "CCr 30–49 mL/min",
+              "min": 30,
+              "max": 49,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "1 g q12h"
+            },
+            {
+              "label": "CCr 10–29 mL/min",
+              "min": 10,
+              "max": 29,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "1–2 g q24h"
+            },
+            {
+              "label": "CCr <10 mL/min",
+              "min": null,
+              "max": 10,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "1–2 g q48h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "1–2 g q48h；透析日於 HD 後給藥"
+              }
+            ],
+            "capd": [],
+            "crrt": [],
+            "sled": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "cefoperazone-sulbactam",
+      "name": "Cefoperazone-sulbactam",
+      "aliases": [
+        "cefoperazone",
+        "CPZ SBT"
+      ],
+      "className": "Cephalosporins 頭孢菌素",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/772ce364df9845469a0e163a85da59d2",
+      "notes": [
+        "須核對製劑比例；本表原始為 1:1 製劑。可視需要另補 cefoperazone；腎功能不全本身不需調整 cefoperazone。",
+        "合併肝腎功能不全或嚴重肝病時，cefoperazone 限 2 g/day。來源在 CCr 30 有重疊。"
+      ],
+      "regimens": [
+        {
+          "id": "sulbactam",
+          "label": "Sulbactam 成分調整",
+          "route": "IM／IV",
+          "notes": [
+            "減量列是 sulbactam 成分量，不能當成複方總量。"
+          ],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr ≥30 mL/min",
+              "min": 30,
+              "max": null,
+              "minInclusive": true,
+              "maxInclusive": false,
+              "dose": "1:1 製劑總量 2–4 g/day，分 q12h（cefoperazone 1–2 g/day）"
+            },
+            {
+              "label": "CCr 15–30 mL/min",
+              "min": 15,
+              "max": 30,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "Sulbactam 1 g q12h"
+            },
+            {
+              "label": "CCr <15 mL/min",
+              "min": null,
+              "max": 15,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "Sulbactam 500 mg q12h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "Sulbactam 500 mg q12h；透析日於 HD 後給藥"
+              }
+            ],
+            "capd": [],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "Sulbactam 1 g q8h"
+              }
+            ],
+            "sled": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "cefotaxime",
+      "name": "Cefotaxime",
+      "aliases": [],
+      "className": "Cephalosporins 頭孢菌素",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/2f3d4f6a7f1d4625923749d8aa163943",
+      "notes": [],
+      "regimens": [
+        {
+          "id": "standard",
+          "label": "一般劑量速查",
+          "route": "IV",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr >90 mL/min",
+              "min": 90,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "2 g q8h"
+            },
+            {
+              "label": "CCr >50–90 mL/min",
+              "min": 50,
+              "max": 90,
+              "minInclusive": false,
+              "maxInclusive": true,
+              "dose": "2 g q8–12h"
+            },
+            {
+              "label": "CCr 10–50 mL/min",
+              "min": 10,
+              "max": 50,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "2 g q12–24h"
+            },
+            {
+              "label": "CCr <10 mL/min",
+              "min": null,
+              "max": 10,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "2 g q24h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "2 g q24h；HD 後另補 1 g"
+              }
+            ],
+            "capd": [
+              {
+                "label": "CAPD（全身性給藥）",
+                "dose": "500 mg–1 g q24h"
+              }
+            ],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "2 g q12–24h"
+              }
+            ],
+            "sled": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "cefoxitin",
+      "name": "Cefoxitin",
+      "aliases": [],
+      "className": "Cephalosporins 頭孢菌素",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/1bed23b31f0b442fb3a84628990bca90",
+      "notes": [
+        "可能干擾 creatinine 檢驗，使 sCr 假性升高。"
+      ],
+      "regimens": [
+        {
+          "id": "standard",
+          "label": "一般劑量速查",
+          "route": "IV",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr >50 mL/min",
+              "min": 50,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "2 g q8h"
+            },
+            {
+              "label": "CCr 10–50 mL/min",
+              "min": 10,
+              "max": 50,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "2 g q8–12h"
+            },
+            {
+              "label": "CCr <10 mL/min",
+              "min": null,
+              "max": 10,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "2 g q24–48h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "2 g q24–48h；HD 後另補 1 g"
+              }
+            ],
+            "capd": [
+              {
+                "label": "CAPD（全身性給藥）",
+                "dose": "1 g q24h"
+              }
+            ],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "2 g q8–12h"
+              }
+            ],
+            "sled": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "cefpodoxime-proxetil",
+      "name": "Cefpodoxime proxetil",
+      "aliases": [],
+      "className": "Cephalosporins 頭孢菌素",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/32c4553e294e4110b39ac901ea5bd767",
+      "notes": [],
+      "regimens": [
+        {
+          "id": "standard",
+          "label": "一般劑量速查",
+          "route": "PO",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr ≥30 mL/min",
+              "min": 30,
+              "max": null,
+              "minInclusive": true,
+              "maxInclusive": false,
+              "dose": "100–200 mg q12h"
+            },
+            {
+              "label": "CCr <30 mL/min",
+              "min": null,
+              "max": 30,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "100–200 mg q24h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "100–200 mg 每週三次；HD 後給藥"
+              }
+            ],
+            "capd": [],
+            "crrt": [],
+            "sled": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "ceftaroline",
+      "name": "Ceftaroline",
+      "aliases": [],
+      "className": "Cephalosporins 頭孢菌素",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/ce3168cdbfee4f48a3b4385406b7d0c7",
+      "notes": [
+        "此表在 CCr 30 有重疊，需核對；此方案正常腎功能目標為 600 mg q12h。"
+      ],
+      "regimens": [
+        {
+          "id": "standard",
+          "label": "一般劑量速查",
+          "route": "IV",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr >50 mL/min",
+              "min": 50,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "600 mg q12h"
+            },
+            {
+              "label": "CCr 30–50 mL/min",
+              "min": 30,
+              "max": 50,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "400 mg q12h"
+            },
+            {
+              "label": "CCr 15–30 mL/min",
+              "min": 15,
+              "max": 30,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "300 mg q12h"
+            },
+            {
+              "label": "CCr <15 mL/min",
+              "min": null,
+              "max": 15,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "200 mg q12h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "200 mg q12h"
+              }
+            ],
+            "capd": [],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "CVVHD／CVVHDF：400 mg q12h；CVVHDF effluent 4 L/hr：600 mg q12h"
+              }
+            ],
+            "sled": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "ceftazidime",
+      "name": "Ceftazidime",
+      "aliases": [],
+      "className": "Cephalosporins 頭孢菌素",
+      "sourceUrl": "https://www.uptodate.com/contents/ceftazidime-drug-information",
+      "notes": [
+        "先依適應症與感染嚴重度選定原建議劑量，再依 CCr 選擇同方案的調整劑量。",
+        "CrCl 可用 Cockcroft–Gault 公式估算。本表不涵蓋 ARC 的另訂方案。"
+      ],
+      "regimens": [
+        {
+          "id": "usual-1g-q8h",
+          "label": "UpToDate・原劑量 1 g q8h",
+          "route": "IV",
+          "notes": [
+            "腎功能分段依截圖原表保留；未表列的小數區間需核對來源。"
+          ],
+          "source": {
+            "name": "UpToDate｜Ceftazidime: Drug information｜成人腎功能劑量",
+            "url": "https://www.uptodate.com/contents/ceftazidime-drug-information",
+            "updatedOn": null,
+            "reviewedOn": "2026-09-07",
+            "note": "依使用者提供的 UpToDate 截圖整理；截圖未顯示來源更新日期。"
+          },
+          "dialysisSource": {
+            "name": "Sanford Guide｜Renal Impairment Dosing",
+            "url": "https://web.sanfordguide.com/en/comparisons-1/drug-usage-dosing/renal-dosing-adjustment",
+            "updatedOn": "2026-08-17",
+            "reviewedOn": "2026-09-07",
+            "note": "提供的 UpToDate 截圖未涵蓋透析給法；此處沿用原 Sanford 透析資料，並非 UpToDate 建議。"
+          },
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr >50 mL/min",
+              "min": 50,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "1 g q8h",
+              "note": "不需調整，維持本方案的原建議劑量。"
+            },
+            {
+              "label": "CCr 31–50 mL/min",
+              "min": 31,
+              "max": 50,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "1 g q12h"
+            },
+            {
+              "label": "CCr 16–30 mL/min",
+              "min": 16,
+              "max": 30,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "1 g q24h"
+            },
+            {
+              "label": "CCr ≤15 mL/min",
+              "min": null,
+              "max": 15,
+              "minInclusive": false,
+              "maxInclusive": true,
+              "dose": "500 mg q24h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "500 mg–1 g q24h；透析日於 HD 後給藥。來源亦列每週三次 high-flux HD 後 2/2/2 g 或 2/2/3 g，臨床資料有限"
+              }
+            ],
+            "capd": [],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "1–2 g q8–12h"
+              }
+            ],
+            "sled": [
+              {
+                "label": "SLED",
+                "dose": "2 g q12h"
+              }
+            ]
+          }
+        },
+        {
+          "id": "usual-2g-q8h",
+          "label": "UpToDate・原劑量 2 g q8h",
+          "route": "IV",
+          "notes": [
+            "腎功能分段依截圖原表保留；未表列的小數區間需核對來源。"
+          ],
+          "source": {
+            "name": "UpToDate｜Ceftazidime: Drug information｜成人腎功能劑量",
+            "url": "https://www.uptodate.com/contents/ceftazidime-drug-information",
+            "updatedOn": null,
+            "reviewedOn": "2026-09-07",
+            "note": "依使用者提供的 UpToDate 截圖整理；截圖未顯示來源更新日期。"
+          },
+          "dialysisSource": {
+            "name": "Sanford Guide｜Renal Impairment Dosing",
+            "url": "https://web.sanfordguide.com/en/comparisons-1/drug-usage-dosing/renal-dosing-adjustment",
+            "updatedOn": "2026-08-17",
+            "reviewedOn": "2026-09-07",
+            "note": "提供的 UpToDate 截圖未涵蓋透析給法；此處沿用原 Sanford 透析資料，並非 UpToDate 建議。"
+          },
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr >50 mL/min",
+              "min": 50,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "2 g q8h",
+              "note": "不需調整，維持本方案的原建議劑量。"
+            },
+            {
+              "label": "CCr 31–50 mL/min",
+              "min": 31,
+              "max": 50,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "2 g q12h"
+            },
+            {
+              "label": "CCr 16–30 mL/min",
+              "min": 16,
+              "max": 30,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "2 g q24h"
+            },
+            {
+              "label": "CCr ≤15 mL/min",
+              "min": null,
+              "max": 15,
+              "minInclusive": false,
+              "maxInclusive": true,
+              "dose": "1 g q24h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "500 mg–1 g q24h；透析日於 HD 後給藥。來源亦列每週三次 high-flux HD 後 2/2/2 g 或 2/2/3 g，臨床資料有限"
+              }
+            ],
+            "capd": [],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "1–2 g q8–12h"
+              }
+            ],
+            "sled": [
+              {
+                "label": "SLED",
+                "dose": "2 g q12h"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "ceftazidime-avibactam",
+      "name": "Ceftazidime-avibactam",
+      "aliases": [
+        "caz-avi",
+        "CAZ AVI"
+      ],
+      "className": "Cephalosporins 頭孢菌素",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/c2313d4f087f4388a3894f754b52c719",
+      "notes": [
+        "劑量為複方總量；0.94 g 為來源顯示值。"
+      ],
+      "regimens": [
+        {
+          "id": "standard",
+          "label": "一般劑量速查",
+          "route": "IV",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr >50 mL/min",
+              "min": 50,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "2.5 g q8h"
+            },
+            {
+              "label": "CCr 31–50 mL/min",
+              "min": 31,
+              "max": 50,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "1.25 g q8h"
+            },
+            {
+              "label": "CCr 16–30 mL/min",
+              "min": 16,
+              "max": 30,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "0.94 g q12h"
+            },
+            {
+              "label": "CCr 6–15 mL/min",
+              "min": 6,
+              "max": 15,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "0.94 g q24h"
+            },
+            {
+              "label": "CCr ≤5 mL/min",
+              "min": null,
+              "max": 5,
+              "minInclusive": false,
+              "maxInclusive": true,
+              "dose": "0.94 g q48h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "0.94 g q24–48h；透析日於 HD 後給藥。來源註記：嚴重感染用 q24h；殘餘腎功能及／或較輕感染列 q48h。若嚴重感染且仍有殘餘腎功能，條件交錯，須核對原文與臨床情境。"
+              }
+            ],
+            "capd": [],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "CVVH：1.25 g q8h；CVVHDF：2.5 g q8h"
+              }
+            ],
+            "sled": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "ceftolozane-tazobactam",
+      "name": "Ceftolozane-tazobactam",
+      "aliases": [
+        "ceftolozane",
+        "TOL TAZ"
+      ],
+      "className": "Cephalosporins 頭孢菌素",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/9a99122d8b7b4f07a064d8dccfd8269c",
+      "notes": [
+        "所有劑量為複方總量。CRRT 來源未分列感染種類，須核對 MIC 與透析條件。"
+      ],
+      "regimens": [
+        {
+          "id": "iai-uti",
+          "label": "腹腔感染／泌尿道感染",
+          "route": "IV",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr >50 mL/min",
+              "min": 50,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "1.5 g q8h"
+            },
+            {
+              "label": "CCr 30–50 mL/min",
+              "min": 30,
+              "max": 50,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "750 mg q8h"
+            },
+            {
+              "label": "CCr 15–29 mL/min",
+              "min": 15,
+              "max": 29,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "375 mg q8h"
+            },
+            {
+              "label": "CCr <15 mL/min",
+              "min": null,
+              "max": 15,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "HD 方案請切換血液透析；非透析無此表建議",
+              "manual": true
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "先給 750 mg，再 150 mg q8h；HD 後給藥"
+              }
+            ],
+            "capd": [],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "CVVHDF：先給 3 g，再 750 mg q8h"
+              }
+            ],
+            "sled": []
+          }
+        },
+        {
+          "id": "hap-vap",
+          "label": "HAP／VAP",
+          "route": "IV",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr >50 mL/min",
+              "min": 50,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "3 g q8h"
+            },
+            {
+              "label": "CCr 30–50 mL/min",
+              "min": 30,
+              "max": 50,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "1.5 g q8h"
+            },
+            {
+              "label": "CCr 15–29 mL/min",
+              "min": 15,
+              "max": 29,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "750 mg q8h"
+            },
+            {
+              "label": "CCr <15 mL/min",
+              "min": null,
+              "max": 15,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "HD 方案請切換血液透析；非透析無此表建議",
+              "manual": true
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "先給 2.25 g，再 450 mg q8h；HD 後給藥"
+              }
+            ],
+            "capd": [],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "CVVHDF：先給 3 g，再 750 mg q8h"
+              }
+            ],
+            "sled": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "ceftriaxone",
+      "name": "Ceftriaxone",
+      "aliases": [],
+      "className": "Cephalosporins 頭孢菌素",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/4fb0400a8b4d42d2b63aff700f8ccb1a",
+      "notes": [
+        "合併顯著肝、腎疾病時，總量上限 2 g/day。劑量與間隔須依感染適應症選擇。"
+      ],
+      "regimens": [
+        {
+          "id": "standard",
+          "label": "一般劑量速查",
+          "route": "IV",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "所有腎功能範圍",
+              "min": null,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "1–2 g q12–24h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "仿單：不調整，1–2 g q12–24h。來源另列研究方案：2 g 每週三次 HD 後；高膽紅素血症時 1 g 每週三次 HD 後，需個別評估"
+              }
+            ],
+            "capd": [
+              {
+                "label": "CAPD（全身性給藥）",
+                "dose": "1–2 g q12–24h"
+              }
+            ],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "1–2 g q12–24h"
+              }
+            ],
+            "sled": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "cefuroxime",
+      "name": "Cefuroxime",
+      "aliases": [],
+      "className": "Cephalosporins 頭孢菌素",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/3d12ef73bca74eabbd607f3efcca7d55",
+      "notes": [],
+      "regimens": [
+        {
+          "id": "standard",
+          "label": "一般劑量速查",
+          "route": "IV",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr >50 mL/min",
+              "min": 50,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "750–1500 mg q8h"
+            },
+            {
+              "label": "CCr 10–50 mL/min",
+              "min": 10,
+              "max": 50,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "750–1500 mg q8–12h"
+            },
+            {
+              "label": "CCr <10 mL/min",
+              "min": null,
+              "max": 10,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "750–1500 mg q24h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "750–1500 mg q24h；透析日於 HD 後給藥"
+              }
+            ],
+            "capd": [
+              {
+                "label": "CAPD（全身性給藥）",
+                "dose": "750–1500 mg q24h"
+              }
+            ],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "750–1500 mg q8–12h"
+              }
+            ],
+            "sled": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "cefuroxime-axetil",
+      "name": "Cefuroxime axetil",
+      "aliases": [],
+      "className": "Cephalosporins 頭孢菌素",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/71f6ad2ed95b409796ab9af4e0853786",
+      "notes": [],
+      "regimens": [
+        {
+          "id": "standard",
+          "label": "一般劑量速查",
+          "route": "PO",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr ≥30 mL/min",
+              "min": 30,
+              "max": null,
+              "minInclusive": true,
+              "maxInclusive": false,
+              "dose": "250–500 mg q12h"
+            },
+            {
+              "label": "CCr 10–29 mL/min",
+              "min": 10,
+              "max": 29,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "250–500 mg q24h"
+            },
+            {
+              "label": "CCr <10 mL/min",
+              "min": null,
+              "max": 10,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "250–500 mg q48h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "250–500 mg q48h；HD 後另補 250–500 mg"
+              }
+            ],
+            "capd": [
+              {
+                "label": "CAPD（全身性給藥）",
+                "dose": "250–500 mg q24h"
+              }
+            ],
+            "crrt": [],
+            "sled": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "cephalexin",
+      "name": "Cephalexin",
+      "aliases": [],
+      "className": "Cephalosporins 頭孢菌素",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/5644b5b668bc459c97a020205507f2d2",
+      "notes": [],
+      "regimens": [
+        {
+          "id": "standard",
+          "label": "一般劑量速查",
+          "route": "PO",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr >50 mL/min",
+              "min": 50,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "250–1000 mg q6h"
+            },
+            {
+              "label": "CCr 10–50 mL/min",
+              "min": 10,
+              "max": 50,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "250–1000 mg q8–12h"
+            },
+            {
+              "label": "CCr <10 mL/min",
+              "min": null,
+              "max": 10,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "250–1000 mg q24–48h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "250–500 mg q12–24h；透析日於 HD 後給藥"
+              }
+            ],
+            "capd": [
+              {
+                "label": "CAPD（全身性給藥）",
+                "dose": "250–500 mg q12–24h"
+              }
+            ],
+            "crrt": [],
+            "sled": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "ciprofloxacin",
+      "name": "Ciprofloxacin",
+      "aliases": [
+        "cipro"
+      ],
+      "className": "Fluoroquinolones",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/204deaab57394233a3926b6fe77b8f9d",
+      "notes": [
+        "CCr <5、未透析沒有此表建議。"
+      ],
+      "regimens": [
+        {
+          "id": "oral",
+          "label": "口服",
+          "route": "PO",
+          "notes": [
+            "口服、嚴重感染合併嚴重腎功能不全時，來源在 CCr 5–29、HD 與 CAPD 列允許單次 750 mg，間隔同各該列；需密切監測。此例外未列於 CRRT。"
+          ],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr >50 mL/min",
+              "min": 50,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "250–750 mg q12h"
+            },
+            {
+              "label": "CCr 30–50 mL/min",
+              "min": 30,
+              "max": 50,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "250–500 mg q12h"
+            },
+            {
+              "label": "CCr 5–29 mL/min",
+              "min": 5,
+              "max": 29,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "250–500 mg q18h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "250–500 mg q24h；透析日於 HD 後給藥"
+              }
+            ],
+            "capd": [
+              {
+                "label": "CAPD（全身性給藥）",
+                "dose": "250–500 mg q24h"
+              }
+            ],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "250–500 mg q12h"
+              }
+            ],
+            "sled": []
+          }
+        },
+        {
+          "id": "iv",
+          "label": "靜脈",
+          "route": "IV",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr ≥30 mL/min",
+              "min": 30,
+              "max": null,
+              "minInclusive": true,
+              "maxInclusive": false,
+              "dose": "200–400 mg q8–12h"
+            },
+            {
+              "label": "CCr 5–29 mL/min",
+              "min": 5,
+              "max": 29,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "200–400 mg q18–24h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "200–400 mg q24h；透析日於 HD 後給藥"
+              }
+            ],
+            "capd": [
+              {
+                "label": "CAPD（全身性給藥）",
+                "dose": "200–400 mg q24h"
+              }
+            ],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "200–400 mg q12h"
+              }
+            ],
+            "sled": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "clarithromycin",
+      "name": "Clarithromycin",
+      "aliases": [],
+      "className": "Macrolides",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/24829670c7dd402090a36841968d4a0a",
+      "notes": [
+        "僅適用 immediate-release 劑型。"
+      ],
+      "regimens": [
+        {
+          "id": "standard",
+          "label": "一般劑量速查",
+          "route": "PO",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr >50 mL/min",
+              "min": 50,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "500 mg q12h"
+            },
+            {
+              "label": "CCr 10–50 mL/min",
+              "min": 10,
+              "max": 50,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "500 mg q12–24h"
+            },
+            {
+              "label": "CCr <10 mL/min",
+              "min": null,
+              "max": 10,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "500 mg q24h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "500 mg q24h；透析日於 HD 後給藥"
+              }
+            ],
+            "capd": [
+              {
+                "label": "CAPD（全身性給藥）",
+                "dose": "500 mg q24h"
+              }
+            ],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "500 mg q12–24h"
+              }
+            ],
+            "sled": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "clindamycin",
+      "name": "Clindamycin",
+      "aliases": [
+        "clinda"
+      ],
+      "className": "Lincosamides",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/ad1f3cc1e4b94f65b3c7cc6d02ce9e83",
+      "notes": [
+        "肝病可能需要調整。"
+      ],
+      "regimens": [
+        {
+          "id": "iv",
+          "label": "靜脈",
+          "route": "IV",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "所有腎功能範圍",
+              "min": null,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "900 mg q8h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "900 mg q8h"
+              }
+            ],
+            "capd": [
+              {
+                "label": "CAPD（全身性給藥）",
+                "dose": "900 mg q8h"
+              }
+            ],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "900 mg q8h"
+              }
+            ],
+            "sled": []
+          }
+        },
+        {
+          "id": "oral",
+          "label": "口服",
+          "route": "PO",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "所有腎功能範圍",
+              "min": null,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "150–450 mg q6h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "150–450 mg q6h"
+              }
+            ],
+            "capd": [
+              {
+                "label": "CAPD（全身性給藥）",
+                "dose": "150–450 mg q6h"
+              }
+            ],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "150–450 mg q6h"
+              }
+            ],
+            "sled": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "colistin",
+      "name": "Colistin",
+      "aliases": [
+        "polymyxin E",
+        "CMS"
+      ],
+      "className": "Polymyxins",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/abb30a5558aa4ee99bf43f1f05257635",
+      "notes": [
+        "全部單位為 mg CBA（colistin base activity），不是 mg CMS，也不是 million IU。開立時必須核對製劑標示。",
+        "肥胖調整段建議使用理想體重、maintenance 最高 360 mg CBA/day，資料有限。此與 CRRT 段的 220 mg CBA q12h 是不同情境；肥胖合併 CRRT 須個別核對。"
+      ],
+      "regimens": [
+        {
+          "id": "cba",
+          "label": "全身性靜脈・mg CBA",
+          "route": "IV",
+          "notes": [
+            "Loading：4 × 體重（kg）mg CBA IV 一次，體重取實際與理想體重較低者，輸注 30–60 分鐘；12 小時後開始 maintenance。"
+          ],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr ≥90 mL/min",
+              "min": 90,
+              "max": null,
+              "minInclusive": true,
+              "maxInclusive": false,
+              "dose": "180 mg CBA q12h"
+            },
+            {
+              "label": "CCr 80–<90 mL/min",
+              "min": 80,
+              "max": 90,
+              "minInclusive": true,
+              "maxInclusive": false,
+              "dose": "170 mg CBA q12h"
+            },
+            {
+              "label": "CCr 70–<80 mL/min",
+              "min": 70,
+              "max": 80,
+              "minInclusive": true,
+              "maxInclusive": false,
+              "dose": "150 mg CBA q12h"
+            },
+            {
+              "label": "CCr 60–<70 mL/min",
+              "min": 60,
+              "max": 70,
+              "minInclusive": true,
+              "maxInclusive": false,
+              "dose": "137.5 mg CBA q12h"
+            },
+            {
+              "label": "CCr 50–<60 mL/min",
+              "min": 50,
+              "max": 60,
+              "minInclusive": true,
+              "maxInclusive": false,
+              "dose": "122.5 mg CBA q12h"
+            },
+            {
+              "label": "CCr 40–<50 mL/min",
+              "min": 40,
+              "max": 50,
+              "minInclusive": true,
+              "maxInclusive": false,
+              "dose": "110 mg CBA q12h"
+            },
+            {
+              "label": "CCr 30–<40 mL/min",
+              "min": 30,
+              "max": 40,
+              "minInclusive": true,
+              "maxInclusive": false,
+              "dose": "97.5 mg CBA q12h"
+            },
+            {
+              "label": "CCr 20–<30 mL/min",
+              "min": 20,
+              "max": 30,
+              "minInclusive": true,
+              "maxInclusive": false,
+              "dose": "87.5 mg CBA q12h"
+            },
+            {
+              "label": "CCr 10–<20 mL/min",
+              "min": 10,
+              "max": 20,
+              "minInclusive": true,
+              "maxInclusive": false,
+              "dose": "80 mg CBA q12h"
+            },
+            {
+              "label": "CCr 5–<10 mL/min",
+              "min": 5,
+              "max": 10,
+              "minInclusive": true,
+              "maxInclusive": false,
+              "dose": "72.5 mg CBA q12h"
+            },
+            {
+              "label": "CCr <5 mL/min",
+              "min": null,
+              "max": 5,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "65 mg CBA q12h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "非 HD 日 65 mg CBA q12h；HD 日於 3–4 小時 HD 後加 40–50 mg CBA，與 HD 結束後下一個常規劑量一併給藥"
+              }
+            ],
+            "capd": [],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "220 mg CBA q12h"
+              }
+            ],
+            "sled": [
+              {
+                "label": "SLED",
+                "dose": "基準為 65 mg CBA q12h；每日總量另加 13 mg CBA × SLED 小時數。例：10 小時 SLED 為 130 mg CBA q12h"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "daptomycin",
+      "name": "Daptomycin",
+      "aliases": [
+        "dapto"
+      ],
+      "className": "Glyco／lipopeptides",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/a3103c6d01e94723925778de78d8ba64",
+      "notes": [
+        "mg/kg 劑量需另核對給藥體重；本工具不由 CCr 的計算體重自動換算毫克數。"
+      ],
+      "regimens": [
+        {
+          "id": "standard",
+          "label": "一般劑量速查",
+          "route": "IV",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr ≥30 mL/min",
+              "min": 30,
+              "max": null,
+              "minInclusive": true,
+              "maxInclusive": false,
+              "dose": "6–10 mg/kg q24h"
+            },
+            {
+              "label": "CCr <30 mL/min",
+              "min": null,
+              "max": 30,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "6–10 mg/kg q48h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "6–10 mg/kg q48h（HD 後）；若距下次 HD 為 72 小時，該次用 9–15 mg/kg"
+              }
+            ],
+            "capd": [
+              {
+                "label": "CAPD（全身性給藥）",
+                "dose": "6–10 mg/kg q48h"
+              }
+            ],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "6–8 mg/kg q24h"
+              }
+            ],
+            "sled": [
+              {
+                "label": "SLED",
+                "dose": "6 mg/kg q24h，SLED 後給藥；嚴重感染可考慮 8–12 mg/kg"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "doripenem",
+      "name": "Doripenem",
+      "aliases": [],
+      "className": "Carbapenems",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/e7252f94e0c94760807a9bab030be72c",
+      "notes": [
+        "來源在 CCr 30 有重疊，該點不自動選列。"
+      ],
+      "regimens": [
+        {
+          "id": "standard",
+          "label": "一般劑量速查",
+          "route": "IV",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr >50 mL/min",
+              "min": 50,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "500 mg q8h"
+            },
+            {
+              "label": "CCr 30–50 mL/min",
+              "min": 30,
+              "max": 50,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "250 mg q8h"
+            },
+            {
+              "label": "CCr 10–30 mL/min",
+              "min": 10,
+              "max": 30,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "250 mg q12h"
+            },
+            {
+              "label": "CCr <10 mL/min",
+              "min": null,
+              "max": 10,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "來源未提供劑量",
+              "manual": true
+            }
+          ],
+          "dialysis": {
+            "ihd": [],
+            "capd": [],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "500 mg q8h"
+              }
+            ],
+            "sled": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "doxycycline",
+      "name": "Doxycycline",
+      "aliases": [
+        "doxy"
+      ],
+      "className": "Tetracyclines",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/7b903c9ca404444a96c9a1f25e454866",
+      "notes": [],
+      "regimens": [
+        {
+          "id": "standard",
+          "label": "一般劑量速查",
+          "route": "PO／IV",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "所有腎功能範圍",
+              "min": null,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "100 mg q12h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "100 mg q12h"
+              }
+            ],
+            "capd": [
+              {
+                "label": "CAPD（全身性給藥）",
+                "dose": "100 mg q12h"
+              }
+            ],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "100 mg q12h"
+              }
+            ],
+            "sled": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "ertapenem",
+      "name": "Ertapenem",
+      "aliases": [
+        "erta"
+      ],
+      "className": "Carbapenems",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/c8ad64772b1b4f45b88780ae30808632",
+      "notes": [
+        "來源門檻使用 mL/min/1.73 m²，不能直接套用本計算機的 mL/min。下列表頭門檻需以來源的校正單位解讀。"
+      ],
+      "regimens": [
+        {
+          "id": "standard",
+          "label": "一般劑量速查",
+          "route": "IV",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr >30 mL/min/1.73 m²",
+              "min": 30,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "1 g q24h",
+              "manual": true
+            },
+            {
+              "label": "CCr ≤30 mL/min/1.73 m²",
+              "min": null,
+              "max": 30,
+              "minInclusive": false,
+              "maxInclusive": true,
+              "dose": "500 mg q24h",
+              "manual": true
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "500 mg q24h；若在 HD 前 ≤6 小時給藥，HD 後另補 150 mg。替代：500 mg 每週三次、HD 後給藥"
+              }
+            ],
+            "capd": [
+              {
+                "label": "CAPD（全身性給藥）",
+                "dose": "500 mg q24h"
+              }
+            ],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "500–1000 mg q24h"
+              }
+            ],
+            "sled": [
+              {
+                "label": "SLED",
+                "dose": "1 g q24h"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "fosfomycin-po",
+      "name": "Fosfomycin PO",
+      "aliases": [
+        "fosfomycin"
+      ],
+      "className": "泌尿道抗菌藥",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/649ab2080a1a4051986ccc7cd4f849d1",
+      "notes": [
+        "只涵蓋口服單次方案；不外推到靜脈製劑或多次口服方案。"
+      ],
+      "regimens": [
+        {
+          "id": "standard",
+          "label": "一般劑量速查",
+          "route": "PO",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr ≥10 mL/min",
+              "min": 10,
+              "max": null,
+              "minInclusive": true,
+              "maxInclusive": false,
+              "dose": "3 g 單次"
+            },
+            {
+              "label": "CCr <10 mL/min",
+              "min": null,
+              "max": 10,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "避免使用：尿中排泄不足",
+              "manual": true
+            }
+          ],
+          "dialysis": {
+            "ihd": [],
+            "capd": [],
+            "crrt": [],
+            "sled": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "gentamicin",
+      "name": "Gentamicin",
+      "aliases": [
+        "genta"
+      ],
+      "className": "Aminoglycosides",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/0de02da5f3454fb6a1615adcf8f30471",
+      "notes": [
+        "需依血中濃度與適應症個別化，不由 CCr 計算體重自動換算 mg。"
+      ],
+      "regimens": [
+        {
+          "id": "conventional",
+          "label": "革蘭氏陰性菌・傳統給法",
+          "route": "IV",
+          "notes": [],
+          "requiresTdm": true,
+          "renal": [
+            {
+              "label": "CCr >50 mL/min",
+              "min": 50,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "1.7–2 mg/kg q8h"
+            },
+            {
+              "label": "CCr 10–50 mL/min",
+              "min": 10,
+              "max": 50,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "1.7–2 mg/kg q12–24h"
+            },
+            {
+              "label": "CCr <10 mL/min",
+              "min": null,
+              "max": 10,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "1.7–2 mg/kg q48h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "1.7–2 mg/kg q48h；HD 後另補 0.85–1 mg/kg"
+              }
+            ],
+            "capd": [
+              {
+                "label": "僅 CAPD 腹膜炎・IP",
+                "dose": "0.6 mg/kg IP 每日一次",
+                "note": "腹腔內給藥，非全身感染的 IV 劑量。"
+              }
+            ],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "1.7–2 mg/kg q24h"
+              }
+            ],
+            "sled": [
+              {
+                "label": "SLED",
+                "dose": "6 mg/kg q48h；SLED 開始前 30 分鐘開始給藥"
+              }
+            ]
+          }
+        },
+        {
+          "id": "synergy",
+          "label": "革蘭氏陽性菌・協同療法",
+          "route": "IV",
+          "notes": [],
+          "requiresTdm": true,
+          "renal": [
+            {
+              "label": "CCr ≥60 mL/min",
+              "min": 60,
+              "max": null,
+              "minInclusive": true,
+              "maxInclusive": false,
+              "dose": "1 mg/kg q8h"
+            },
+            {
+              "label": "CCr 40–59 mL/min",
+              "min": 40,
+              "max": 59,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "1 mg/kg q12h"
+            },
+            {
+              "label": "CCr 20–39 mL/min",
+              "min": 20,
+              "max": 39,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "1 mg/kg q24h"
+            },
+            {
+              "label": "CCr <20 mL/min",
+              "min": null,
+              "max": 20,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "先給 1 mg/kg，再依血中濃度決定"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "1 mg/kg q48–72h；HD 後給藥"
+              }
+            ],
+            "capd": [],
+            "crrt": [],
+            "sled": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "imipenem-cilastatin",
+      "name": "Imipenem-cilastatin",
+      "aliases": [
+        "imipenem",
+        "IPM CS"
+      ],
+      "className": "Carbapenems",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/0248d01f644a40a4b5b7e62191aefc00",
+      "notes": [
+        "劑量以 imipenem 成分表示；CCr <15、未透析的處方需另外核對。"
+      ],
+      "regimens": [
+        {
+          "id": "500q6",
+          "label": "原始 500 mg q6h",
+          "route": "IV",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr ≥90 mL/min",
+              "min": 90,
+              "max": null,
+              "minInclusive": true,
+              "maxInclusive": false,
+              "dose": "500 mg q6h"
+            },
+            {
+              "label": "CCr 60–<90 mL/min",
+              "min": 60,
+              "max": 90,
+              "minInclusive": true,
+              "maxInclusive": false,
+              "dose": "400 mg q6h"
+            },
+            {
+              "label": "CCr 30–<60 mL/min",
+              "min": 30,
+              "max": 60,
+              "minInclusive": true,
+              "maxInclusive": false,
+              "dose": "300 mg q6h"
+            },
+            {
+              "label": "CCr 15–<30 mL/min",
+              "min": 15,
+              "max": 30,
+              "minInclusive": true,
+              "maxInclusive": false,
+              "dose": "200 mg q6h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "200 mg q6h；HD 後給藥"
+              }
+            ],
+            "capd": [],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "500 mg–1 g q6h；取決於 MIC 與 effluent"
+              }
+            ],
+            "sled": []
+          }
+        },
+        {
+          "id": "1gq8",
+          "label": "原始 1 g q8h",
+          "route": "IV",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr ≥90 mL/min",
+              "min": 90,
+              "max": null,
+              "minInclusive": true,
+              "maxInclusive": false,
+              "dose": "1 g q8h"
+            },
+            {
+              "label": "CCr 60–<90 mL/min",
+              "min": 60,
+              "max": 90,
+              "minInclusive": true,
+              "maxInclusive": false,
+              "dose": "500 mg q6h"
+            },
+            {
+              "label": "CCr 30–<60 mL/min",
+              "min": 30,
+              "max": 60,
+              "minInclusive": true,
+              "maxInclusive": false,
+              "dose": "500 mg q8h"
+            },
+            {
+              "label": "CCr 15–<30 mL/min",
+              "min": 15,
+              "max": 30,
+              "minInclusive": true,
+              "maxInclusive": false,
+              "dose": "500 mg q12h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "500 mg q12h；HD 後給藥"
+              }
+            ],
+            "capd": [],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "500 mg–1 g q6h；取決於 MIC 與 effluent"
+              }
+            ],
+            "sled": []
+          }
+        },
+        {
+          "id": "1gq6",
+          "label": "原始 1 g q6h",
+          "route": "IV",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr ≥90 mL/min",
+              "min": 90,
+              "max": null,
+              "minInclusive": true,
+              "maxInclusive": false,
+              "dose": "1 g q6h"
+            },
+            {
+              "label": "CCr 60–<90 mL/min",
+              "min": 60,
+              "max": 90,
+              "minInclusive": true,
+              "maxInclusive": false,
+              "dose": "750 mg q8h"
+            },
+            {
+              "label": "CCr 30–<60 mL/min",
+              "min": 30,
+              "max": 60,
+              "minInclusive": true,
+              "maxInclusive": false,
+              "dose": "500 mg q6h"
+            },
+            {
+              "label": "CCr 15–<30 mL/min",
+              "min": 15,
+              "max": 30,
+              "minInclusive": true,
+              "maxInclusive": false,
+              "dose": "500 mg q12h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "500 mg q12h；HD 後給藥"
+              }
+            ],
+            "capd": [],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "500 mg–1 g q6h；取決於 MIC 與 effluent"
+              }
+            ],
+            "sled": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "levofloxacin",
+      "name": "Levofloxacin",
+      "aliases": [
+        "levo"
+      ],
+      "className": "Fluoroquinolones",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/489123e0a52c4d91bd575ae0351e1bd1",
+      "notes": [
+        "只涵蓋正常腎功能目標 750 mg/day。來源在 >49 至 50 的區間未明確列出，需核對。IV 750 mg 輸注 90 分鐘。"
+      ],
+      "regimens": [
+        {
+          "id": "standard",
+          "label": "750 mg/day 方案",
+          "route": "PO／IV",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr >50 mL/min",
+              "min": 50,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "750 mg q24h"
+            },
+            {
+              "label": "CCr 20–49 mL/min",
+              "min": 20,
+              "max": 49,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "750 mg q48h"
+            },
+            {
+              "label": "CCr <20 mL/min",
+              "min": null,
+              "max": 20,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "先給 750 mg 一次，之後 500 mg q48h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "先給 750 mg 一次，之後 500 mg q48h"
+              }
+            ],
+            "capd": [
+              {
+                "label": "CAPD（全身性給藥）",
+                "dose": "先給 750 mg 一次，之後 500 mg q48h"
+              }
+            ],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "先給 750 mg 一次，之後 500 mg q48h"
+              }
+            ],
+            "sled": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "linezolid",
+      "name": "Linezolid",
+      "aliases": [],
+      "className": "Oxazolidinones",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/b1a30c35fea145e380e1c03342f2de5c",
+      "notes": [
+        "依仿單不調整。Sanford 另列 eGFR <60 時 300 mg q12h 的爭議方案，尚有不同意見；本工具不自動改用減量方案。"
+      ],
+      "regimens": [
+        {
+          "id": "standard",
+          "label": "一般劑量速查",
+          "route": "PO／IV",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "所有腎功能範圍",
+              "min": null,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "600 mg q12h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "600 mg q12h；HD 後給藥"
+              }
+            ],
+            "capd": [
+              {
+                "label": "CAPD（全身性給藥）",
+                "dose": "600 mg q12h"
+              }
+            ],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "600 mg q12h"
+              }
+            ],
+            "sled": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "meropenem",
+      "name": "Meropenem",
+      "aliases": [
+        "mero"
+      ],
+      "className": "Carbapenems",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/7ae6b2f8874e4c76b5d48eb45670eea3",
+      "notes": [
+        "本方案正常腎功能目標為 1 g q8h；不涵蓋腦膜炎或其他高劑量／延長輸注方案。"
+      ],
+      "regimens": [
+        {
+          "id": "standard",
+          "label": "一般劑量速查",
+          "route": "IV",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr >50 mL/min",
+              "min": 50,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "1 g q8h"
+            },
+            {
+              "label": "CCr 26–50 mL/min",
+              "min": 26,
+              "max": 50,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "1 g q12h"
+            },
+            {
+              "label": "CCr 10–25 mL/min",
+              "min": 10,
+              "max": 25,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "500 mg q12h"
+            },
+            {
+              "label": "CCr <10 mL/min",
+              "min": null,
+              "max": 10,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "500 mg q24h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "500 mg q24h；透析日於 HD 後給藥"
+              }
+            ],
+            "capd": [
+              {
+                "label": "CAPD（全身性給藥）",
+                "dose": "500 mg q24h"
+              }
+            ],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "750 mg q8h；限 CVVH／CVVHD、effluent 35 mL/kg/hr、MIC 2 mg/L 的研究條件"
+              }
+            ],
+            "sled": [
+              {
+                "label": "SLED",
+                "dose": "1 g q8–12h"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "metronidazole",
+      "name": "Metronidazole",
+      "aliases": [
+        "metro"
+      ],
+      "className": "其他抗菌藥",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/5165de0dbf6940a68524c9c7218a5707",
+      "notes": [
+        "本表正常腎功能目標為 500 mg q6h；不同感染的原始間隔須另外選定。肝病可能需要調整。"
+      ],
+      "regimens": [
+        {
+          "id": "standard",
+          "label": "一般劑量速查",
+          "route": "PO／IV",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr ≥10 mL/min",
+              "min": 10,
+              "max": null,
+              "minInclusive": true,
+              "maxInclusive": false,
+              "dose": "500 mg q6h"
+            },
+            {
+              "label": "CCr <10 mL/min",
+              "min": null,
+              "max": 10,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "500 mg q12h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "500 mg q12h；HD 後給藥"
+              }
+            ],
+            "capd": [
+              {
+                "label": "CAPD（全身性給藥）",
+                "dose": "500 mg q6h"
+              }
+            ],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "500 mg q6h"
+              }
+            ],
+            "sled": [
+              {
+                "label": "SLED",
+                "dose": "500 mg q12h；其中一劑緊接 SLED 結束後給藥（單一病例資料）"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "minocycline",
+      "name": "Minocycline",
+      "aliases": [
+        "mino"
+      ],
+      "className": "Tetracyclines",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/44e131bad6374d5dae6db0f525cec088",
+      "notes": [],
+      "regimens": [
+        {
+          "id": "standard",
+          "label": "一般劑量速查",
+          "route": "PO／IV",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "所有腎功能範圍",
+              "min": null,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "100 mg q12h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "100 mg q12h"
+              }
+            ],
+            "capd": [
+              {
+                "label": "CAPD（全身性給藥）",
+                "dose": "100 mg q12h"
+              }
+            ],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "100 mg q12h"
+              }
+            ],
+            "sled": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "moxifloxacin",
+      "name": "Moxifloxacin",
+      "aliases": [
+        "moxi"
+      ],
+      "className": "Fluoroquinolones",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/a9aec39a99224e63862e6f9c1dcfde55",
+      "notes": [],
+      "regimens": [
+        {
+          "id": "standard",
+          "label": "一般劑量速查",
+          "route": "PO／IV",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "所有腎功能範圍",
+              "min": null,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "400 mg q24h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "400 mg q24h"
+              }
+            ],
+            "capd": [
+              {
+                "label": "CAPD（全身性給藥）",
+                "dose": "400 mg q24h"
+              }
+            ],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "400 mg q24h"
+              }
+            ],
+            "sled": [
+              {
+                "label": "SLED",
+                "dose": "400 mg q24h"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "nitrofurantoin",
+      "name": "Nitrofurantoin",
+      "aliases": [],
+      "className": "泌尿道抗菌藥",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/c11b946b4c4144caa75440b4f8208c9c",
+      "notes": [
+        "本表為 Macrobid 劑型；其他製劑先核對仿單。"
+      ],
+      "regimens": [
+        {
+          "id": "standard",
+          "label": "一般劑量速查",
+          "route": "PO",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr >30 mL/min",
+              "min": 30,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "100 mg q12h"
+            },
+            {
+              "label": "CCr ≤30 mL/min",
+              "min": null,
+              "max": 30,
+              "minInclusive": false,
+              "maxInclusive": true,
+              "dose": "避免使用",
+              "manual": true
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "避免使用"
+              }
+            ],
+            "capd": [
+              {
+                "label": "CAPD（全身性給藥）",
+                "dose": "避免使用"
+              }
+            ],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "避免使用"
+              }
+            ],
+            "sled": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "oxacillin",
+      "name": "Oxacillin",
+      "aliases": [],
+      "className": "Penicillins 青黴素",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/511e69d1d9de49ed8f9a7ffe68b47fcf",
+      "notes": [
+        "Sanford 建議中重度腎功能不全考慮調整，未提供分段劑量。肝病亦可能需要調整。"
+      ],
+      "regimens": [
+        {
+          "id": "standard",
+          "label": "一般劑量速查",
+          "route": "IV",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "所有腎功能範圍",
+              "min": null,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "腎功能不全劑量未確立；正常腎功能參考為 2 g q4h",
+              "manual": true
+            }
+          ],
+          "dialysis": {
+            "ihd": [],
+            "capd": [],
+            "crrt": [],
+            "sled": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "penicillin-g",
+      "name": "Penicillin G",
+      "aliases": [
+        "PCN G"
+      ],
+      "className": "Penicillins 青黴素",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/0cc2935f7dc740f8baa35dc67d50d0a4",
+      "notes": [
+        "單位為 million U（百萬單位），不是 mg。"
+      ],
+      "regimens": [
+        {
+          "id": "standard",
+          "label": "一般劑量速查",
+          "route": "IV",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr >50 mL/min",
+              "min": 50,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "0.5–4 million U q4h"
+            },
+            {
+              "label": "CCr 10–50 mL/min",
+              "min": 10,
+              "max": 50,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "0.5–4 million U q8h"
+            },
+            {
+              "label": "CCr <10 mL/min",
+              "min": null,
+              "max": 10,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "0.5–4 million U q12h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "0.5–4 million U q12h；透析日其中一劑在 HD 後給藥"
+              }
+            ],
+            "capd": [
+              {
+                "label": "CAPD（全身性給藥）",
+                "dose": "0.5–4 million U q12h"
+              }
+            ],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "1–4 million U q6–8h"
+              }
+            ],
+            "sled": [
+              {
+                "label": "SLED",
+                "dose": "3 million U q6h"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "penicillin-vk",
+      "name": "Penicillin VK",
+      "aliases": [
+        "PCN V"
+      ],
+      "className": "Penicillins 青黴素",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/8186eddc4d454f01ae541820945c3969",
+      "notes": [],
+      "regimens": [
+        {
+          "id": "standard",
+          "label": "一般劑量速查",
+          "route": "PO",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "所有腎功能範圍",
+              "min": null,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "250–500 mg q6–8h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "250–500 mg q6–8h；透析日將一劑以上排在 HD 後"
+              }
+            ],
+            "capd": [
+              {
+                "label": "CAPD（全身性給藥）",
+                "dose": "250–500 mg q6–8h"
+              }
+            ],
+            "crrt": [],
+            "sled": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "piperacillin-tazobactam",
+      "name": "Piperacillin-Tazobactam",
+      "aliases": [
+        "pip-tazo",
+        "pip/tazo",
+        "PIPC TAZ"
+      ],
+      "className": "Penicillins 青黴素",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/5f5e7e054c894abd99bce98770bab96a",
+      "notes": [
+        "劑量為 piperacillin + tazobactam 複方總量。"
+      ],
+      "regimens": [
+        {
+          "id": "extended",
+          "label": "延長輸注（4 小時）",
+          "route": "IV",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr ≥20 mL/min",
+              "min": 20,
+              "max": null,
+              "minInclusive": true,
+              "maxInclusive": false,
+              "dose": "4.5 g，每次輸注 4 小時，q8h"
+            },
+            {
+              "label": "CCr <20 mL/min",
+              "min": null,
+              "max": 20,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "4.5 g，每次輸注 4 小時，q12h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "4.5 g，每次輸注 4 小時，q12h"
+              }
+            ],
+            "capd": [],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "3.375–4.5 g，每次輸注 4 小時，q8h"
+              }
+            ],
+            "sled": [
+              {
+                "label": "SLED・延長輸注條件需核對",
+                "dose": "SLED 段列 4.5 g q8h，並允許考慮延長輸注；未指定 SLED 延長輸注時間，不能直接認定為 4 小時。",
+                "manual": true
+              }
+            ]
+          }
+        },
+        {
+          "id": "pneumonia",
+          "label": "院內肺炎・30 分鐘輸注",
+          "route": "IV",
+          "notes": [
+            "每劑輸注 30 分鐘。"
+          ],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr >40 mL/min",
+              "min": 40,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "4.5 g q6h"
+            },
+            {
+              "label": "CCr 20–40 mL/min",
+              "min": 20,
+              "max": 40,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "3.375 g q6h"
+            },
+            {
+              "label": "CCr <20 mL/min",
+              "min": null,
+              "max": 20,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "2.25 g q6h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "2.25 g q8h；透析日 HD 後另補 750 mg"
+              }
+            ],
+            "capd": [
+              {
+                "label": "CAPD（全身性給藥）",
+                "dose": "2.25 g q8h"
+              }
+            ],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "3.375–4.5 g q6h"
+              }
+            ],
+            "sled": [
+              {
+                "label": "SLED",
+                "dose": "4.5 g q8h；可考慮延長輸注"
+              }
+            ]
+          }
+        },
+        {
+          "id": "other",
+          "label": "其他適應症・30 分鐘輸注",
+          "route": "IV",
+          "notes": [
+            "每劑輸注 30 分鐘。"
+          ],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr >40 mL/min",
+              "min": 40,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "3.375 g q6h"
+            },
+            {
+              "label": "CCr 20–40 mL/min",
+              "min": 20,
+              "max": 40,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "2.25 g q6h"
+            },
+            {
+              "label": "CCr <20 mL/min",
+              "min": null,
+              "max": 20,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "2.25 g q8h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "2.25 g q12h；透析日 HD 後另補 750 mg"
+              }
+            ],
+            "capd": [
+              {
+                "label": "CAPD（全身性給藥）",
+                "dose": "2.25 g q12h"
+              }
+            ],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "3.375–4.5 g q6h"
+              }
+            ],
+            "sled": [
+              {
+                "label": "SLED",
+                "dose": "4.5 g q8h；可考慮延長輸注"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "teicoplanin",
+      "name": "Teicoplanin",
+      "aliases": [
+        "teico",
+        "Targocid"
+      ],
+      "className": "Glyco／lipopeptides",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/d6703b56d7de4697af4eebd4fd05a67a",
+      "notes": [
+        "來源使用 eGFR（mL/min/1.73 m²），不可直接用此 CCr 判定。以實際體重給藥；第 4 天測 trough，後續 TDM 調整。",
+        "高流速 CVVHDF 可考慮最初 3 天共 5 劑、每劑 12 mg/kg，並考慮增加 maintenance；仍待更多研究。一般 eGFR >60 的 loading 與 maintenance 另核對藥頁 Adult Dose（2026-07-01）。"
+      ],
+      "regimens": [
+        {
+          "id": "trough15",
+          "label": "目標 trough 15–30 µg/mL",
+          "route": "IV",
+          "notes": [],
+          "requiresTdm": true,
+          "renal": [
+            {
+              "label": "eGFR >60 mL/min/1.73 m²",
+              "min": 60,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "Loading：第 1 天 12 mg/kg q12h，第 2、3 天各 12 mg/kg 一次；第 4 天起 6–6.7 mg/kg q24h",
+              "manual": true
+            },
+            {
+              "label": "eGFR 30–60 mL/min/1.73 m²",
+              "min": 30,
+              "max": 60,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "Loading：第 1 天 12 mg/kg q12h；第 2 天 10 mg/kg 一次；第 3 天 6–6.7 mg/kg 一次。Maintenance：3–3.3 mg/kg q24h",
+              "manual": true
+            },
+            {
+              "label": "eGFR <30 mL/min/1.73 m²",
+              "min": null,
+              "max": 30,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "Loading：第 1 天 12 mg/kg q12h；第 2、3 天各 5 mg/kg 一次。Maintenance：5 mg/kg q48h",
+              "manual": true
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "HD 不移除，使用 eGFR <30 方案（包含 loading）"
+              }
+            ],
+            "capd": [],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "CVVHDF：第 1 天 10 mg/kg q12h；第 2、3 天各 10 mg/kg 一次；maintenance 3–3.3 mg/kg q24h"
+              }
+            ],
+            "sled": []
+          }
+        },
+        {
+          "id": "trough20",
+          "label": "目標 trough 20–40 µg/mL",
+          "route": "IV",
+          "notes": [],
+          "requiresTdm": true,
+          "renal": [
+            {
+              "label": "eGFR >60 mL/min/1.73 m²",
+              "min": 60,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "Loading：第 1、2 天 12 mg/kg q12h；第 3 天 12 mg/kg 一次。第 4 天起 6–6.7 mg/kg q24h；可能需更高 maintenance，依 TDM",
+              "manual": true
+            },
+            {
+              "label": "eGFR 30–60 mL/min/1.73 m²",
+              "min": 30,
+              "max": 60,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "Loading：第 1 天 12 mg/kg q12h；第 2、3 天各 12 mg/kg 一次。Maintenance：5 mg/kg q24h",
+              "manual": true
+            },
+            {
+              "label": "eGFR <30 mL/min/1.73 m²",
+              "min": null,
+              "max": 30,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "Loading：第 1 天 12 mg/kg q12h；第 2 天 12 mg/kg 一次；第 3 天 6–6.7 mg/kg 一次。Maintenance：3–3.3 mg/kg q24h",
+              "manual": true
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "HD 不移除，使用 eGFR <30 方案（包含 loading）"
+              }
+            ],
+            "capd": [],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "CVVHDF：第 1 天 12 mg/kg q12h；第 2、3 天各 12 mg/kg 一次；maintenance 3–3.3 mg/kg q24h"
+              }
+            ],
+            "sled": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "tigecycline",
+      "name": "Tigecycline",
+      "aliases": [
+        "tige"
+      ],
+      "className": "Tetracyclines",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/72121f41a2a444449e09fe7fca4d2232",
+      "notes": [
+        "此為標準劑量，未涵蓋其他高劑量方案；肝病可能需要調整。"
+      ],
+      "regimens": [
+        {
+          "id": "standard",
+          "label": "一般劑量速查",
+          "route": "IV",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "所有腎功能範圍",
+              "min": null,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "先給 100 mg，再 50 mg q12h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "先給 100 mg，再 50 mg q12h"
+              }
+            ],
+            "capd": [
+              {
+                "label": "CAPD（全身性給藥）",
+                "dose": "先給 100 mg，再 50 mg q12h"
+              }
+            ],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "先給 100 mg，再 50 mg q12h"
+              }
+            ],
+            "sled": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "tmp-smx",
+      "name": "TMP-SMX",
+      "aliases": [
+        "trimethoprim sulfamethoxazole",
+        "cotrimoxazole",
+        "TMP SMX"
+      ],
+      "className": "Antifolates",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/10de24cdfefc4862a36cd0afe478a5d4",
+      "notes": [
+        "劑量以 TMP 成分計算，不能當成 TMP+SMX 總量；需先決定 PJP、其他感染或預防方案的原始劑量。"
+      ],
+      "regimens": [
+        {
+          "id": "fraction",
+          "label": "依原始每日 TMP 劑量調整",
+          "route": "PO／IV",
+          "notes": [],
+          "requiresTdm": false,
+          "renal": [
+            {
+              "label": "CCr >30 mL/min",
+              "min": 30,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "原始 5–20 mg TMP/kg/day，分 q6–12h；須先依感染決定基準",
+              "manual": true
+            },
+            {
+              "label": "CCr 15–30 mL/min",
+              "min": 15,
+              "max": 30,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "原始 TMP 每日總量的 50%，分 q12–24h",
+              "manual": true
+            },
+            {
+              "label": "CCr <15 mL/min",
+              "min": null,
+              "max": 15,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "原始 TMP 每日總量的 25–50%，分 q24h",
+              "manual": true
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "血液透析",
+                "dose": "原始 TMP 每日總量的 25–50%，分 q24h；透析日於 HD 後給藥"
+              }
+            ],
+            "capd": [
+              {
+                "label": "CAPD（全身性給藥）",
+                "dose": "原始 TMP 每日總量的 25–50%，分 q24h"
+              }
+            ],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "僅 PJP：15 mg TMP/kg/day，分 q8h"
+              }
+            ],
+            "sled": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "vancomycin",
+      "name": "Vancomycin",
+      "aliases": [
+        "vanco"
+      ],
+      "className": "Glyco／lipopeptides",
+      "sourceUrl": "https://web.sanfordguide.com/resolveuid/0b8af975f6ba45d2bc963b1574d21481",
+      "notes": [
+        "HD 建議以每週三次為前提。給藥體重需核對，不自動換算總 mg。"
+      ],
+      "regimens": [
+        {
+          "id": "iv",
+          "label": "靜脈・需 TDM 個別化",
+          "route": "IV",
+          "notes": [
+            "腎功能表是起始對照，後續劑量需濃度／AUC 與感染條件；不涵蓋口服或 IP 方案。"
+          ],
+          "requiresTdm": true,
+          "renal": [
+            {
+              "label": "CCr >100 mL/min",
+              "min": 100,
+              "max": null,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "15–20 mg/kg q8–12h"
+            },
+            {
+              "label": "CCr >50–100 mL/min",
+              "min": 50,
+              "max": 100,
+              "minInclusive": false,
+              "maxInclusive": true,
+              "dose": "15–20 mg/kg q12h"
+            },
+            {
+              "label": "CCr 20–50 mL/min",
+              "min": 20,
+              "max": 50,
+              "minInclusive": true,
+              "maxInclusive": true,
+              "dose": "15–20 mg/kg q24h"
+            },
+            {
+              "label": "CCr <20 mL/min",
+              "min": null,
+              "max": 20,
+              "minInclusive": false,
+              "maxInclusive": false,
+              "dose": "15–20 mg/kg q48h"
+            }
+          ],
+          "dialysis": {
+            "ihd": [
+              {
+                "label": "每週三次 HD 後給藥・低通透膜",
+                "dose": "Loading 25 mg/kg；maintenance 7.5 mg/kg，每次 HD 後"
+              },
+              {
+                "label": "每週三次 HD 後給藥・高通透膜",
+                "dose": "Loading 25 mg/kg；maintenance 10 mg/kg，每次 HD 後"
+              },
+              {
+                "label": "HD 中給藥・低通透膜",
+                "dose": "Loading 30 mg/kg；maintenance 7.5–10 mg/kg"
+              },
+              {
+                "label": "HD 中給藥・高通透膜",
+                "dose": "Loading 35 mg/kg；maintenance 10–15 mg/kg"
+              }
+            ],
+            "capd": [
+              {
+                "label": "CAPD（全身性給藥）",
+                "dose": "7.5 mg/kg q48–96h"
+              }
+            ],
+            "crrt": [
+              {
+                "label": "CRRT",
+                "dose": "Loading 20–25 mg/kg；maintenance 7.5–10 mg/kg q12h。限 effluent 20–25 mL/kg/hr；需 TDM"
+              }
+            ],
+            "sled": [
+              {
+                "label": "SLED",
+                "dose": "Loading 20–25 mg/kg；maintenance 15 mg/kg，SLED 後或最後 60–90 分鐘給藥；需 TDM"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

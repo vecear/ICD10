@@ -265,6 +265,7 @@
 
   function resetCcr(ctx, node) {
     const doc = ccrDoc(node);
+    root.ICDRenalUI.reset(doc.querySelector('.renal-ui'));
     for (const id of ['ccr-age', 'ccr-weight', 'ccr-height', 'ccr-cr']) {
       const input = doc.getElementById(id);
       if (input) input.value = '';

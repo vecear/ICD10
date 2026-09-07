@@ -208,7 +208,8 @@
   function creatinineClearance(input) {
     const raw = input || {};
     const num = (v) => {
-      if (v === '' || v === null || v === undefined) return null;
+      if (typeof v !== 'number' && typeof v !== 'string') return null;
+      if (typeof v === 'string' && !v.trim()) return null;
       const n = Number(v);
       return Number.isFinite(n) ? n : null;
     };
@@ -255,6 +256,7 @@
     const result = {
       ok: true,
       crcl: round1(crclFor(weightOf(basis))),
+      crclRaw: crclFor(weightOf(basis)),
       basis,
       weightUsed: round1(weightOf(basis)),
       actual: round1(crclFor(weight)),
@@ -267,6 +269,9 @@
     result.adjusted = adjbw === null ? null : round1(crclFor(adjbw));
     result.range = rangeBasis ? round1(crclFor(weightOf(rangeBasis))) : null;
     result.rangeBasis = rangeBasis;
+    // Mosteller：BSA 使用實際體重；CCr 保留原本選用的體重與完整精度。
+    result.bsaRaw = hasHeight ? Math.sqrt(height * weight / 3600) : null;
+    result.crclIndexedRaw = result.bsaRaw === null ? null : result.crclRaw * 1.73 / result.bsaRaw;
     return result;
   }
 

@@ -4,6 +4,7 @@ from datetime import date
 from pathlib import Path
 
 from source_manifest import SOURCE_SHA256, SOURCE_VERSION
+from renal_data import load_renal_data, renal_script
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC, DATA, DIST = ROOT / "src", ROOT / "data", ROOT / "dist"
@@ -23,13 +24,13 @@ FONTS = [
 ]
 # 設計系統 → 產品共用元件 → 各版面骨架。都在 :root 定義 token，靠來源順序讓後者覆寫。
 # 版面各一檔（wide／後續 dock、mobile）是為了讓不同階段能並行實作而不互相覆蓋。
-STYLESHEETS = ["styles/industry.css", "styles/app.css", "styles/wide.css", "styles/dock.css", "styles/mobile.css"]
+STYLESHEETS = ["styles/industry.css", "styles/app.css", "styles/wide.css", "styles/dock.css", "styles/mobile.css", "styles/renal.css"]
 # 有序：每個模組都是 IIFE／UMD，靠這個順序保證依賴先於使用者掛上 window（無 bundler）。
 # logic → state → data 都是零 DOM 的純模組（node --test 直接測），其後才碰 DOM。
 SOURCES = [
-    "logic.js", "state.js", "data.js",
+    "logic.js", "renal-dosing.js", "state.js", "data.js",
     "resize.js",
-    "render-shared.js", "render-wide.js", "render-dock.js", "render-mobile.js",
+    "render-renal.js", "render-shared.js", "render-wide.js", "render-dock.js", "render-mobile.js",
     "interactions.js", "app.js",
 ]
 CURATED_KEYS = {
@@ -521,6 +522,7 @@ def main():
     labels = build_curated_labels(curated, {row[0]: row for row in db})
     chronic = load_chronic_care()
     products = load_lipid_products()
+    renal = load_renal_data(SRC / "curated" / "antibiotic_dosing.json")
     products_report = check_lipid_products(products)
     chronic_docs = check_chronic_docs(chronic)
     ladder = check_risk_ladder(chronic)
@@ -542,6 +544,7 @@ def main():
         + "   來源是健保署品項檔（每月更新）＋2.6.1 的「不適用表一」對照表，\n"
         + "   由 build/fetch_lipid_products.py 產生，守門是 check_lipid_products()。 */\n"
         + "window.LIPID_PRODUCTS = " + json.dumps(products, ensure_ascii=False, separators=(",", ":")) + ";\n</script>\n"
+        + renal_script(renal)
         + "\n".join(
             "<script>\n" + (SRC / rel).read_text(encoding="utf-8") + "\n</script>"
             for rel in SOURCES

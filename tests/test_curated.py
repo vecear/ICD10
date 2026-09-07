@@ -17,7 +17,8 @@ CODE_SHAPE_RE = re.compile(r"^[A-Z]\d[A-Z0-9](\.[A-Z0-9]{1,4})?$")
 # 中文字串陣列（風險分級判準、6 項心血管風險因子、僅適用表二的成分…），全部會被當成代碼。
 # build.py 也刻意把它排除在 CURATED_KEYS 之外（理由見該處註解），這裡跟上同一個契約；
 # 契約本身由 test_chronic_care.py::test_chronic_care_stays_out_of_the_icd_code_validation_path 守。
-NO_ICD_CODE_FILES = {"chronic_care.json"}
+# 抗菌藥方案亦不是 [ICD code, label]，由 test_renal_data.py 驗證其專用契約。
+NO_ICD_CODE_FILES = {"chronic_care.json", "antibiotic_dosing.json"}
 
 @pytest.fixture(scope="module")
 def leafset():

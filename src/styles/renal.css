@@ -1,0 +1,121 @@
+/* 僅作用於獨立元件；跟隨既有主題，也可隨 CCr DOM 搬入 PiP。 */
+.renal-ui {
+  box-sizing: border-box;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-divider, #9aa1aa);
+  color: var(--color-text, #20262d);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.renal-ui *, .renal-ui *::before, .renal-ui *::after {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+}
+.renal-ui h3, .renal-ui h4, .renal-ui p { margin: 0 0 6px; }
+.renal-ui .renal-title { font-size: 15px; }
+.renal-ui .renal-controls { display: grid; grid-template-columns: minmax(0, 1fr); gap: 7px; }
+.renal-ui .renal-field { display: flex; flex-direction: column; gap: 3px; }
+.renal-ui .renal-label { font-weight: 600; }
+.renal-ui .renal-control {
+  display: block;
+  width: 100%;
+  height: 34px;
+  padding: 4px 6px;
+  border: 1px solid var(--color-divider, #9aa1aa);
+  border-radius: 3px;
+  background: var(--color-bg, #fff);
+  color: var(--color-text, #20262d);
+  font: inherit;
+  text-overflow: ellipsis;
+}
+.renal-ui .renal-control:focus-visible,
+.renal-ui summary:focus-visible,
+.renal-ui a:focus-visible {
+  outline: 2px solid var(--color-accent-700, #285b89);
+  outline-offset: 1px;
+}
+.renal-ui .renal-control:disabled { opacity: .65; }
+.renal-ui .renal-choice-field { display: flex; flex-direction: column; gap: 5px; }
+.renal-ui .renal-choices { display: flex; flex-wrap: wrap; gap: 6px; }
+.renal-ui .renal-chip {
+  min-height: 32px; padding: 5px 10px;
+  border: 1px solid var(--color-divider, #9aa1aa); border-radius: 14px;
+  background: var(--color-bg, #fff); color: var(--color-text, #20262d);
+  font: inherit; font-weight: 600; line-height: 1.4;
+  text-align: left; white-space: normal; overflow-wrap: anywhere; cursor: pointer;
+}
+.renal-ui .renal-chip[aria-pressed="true"] {
+  color: var(--color-accent-700, #285b89);
+  background: var(--color-accent-100, #e7eff7);
+  border-color: var(--color-accent-700, #285b89);
+  box-shadow: inset 0 0 0 1px var(--color-accent-700, #285b89);
+}
+.renal-ui .renal-chip:focus-visible {
+  outline: 2px solid var(--color-accent-700, #285b89); outline-offset: 2px;
+}
+body[data-layout="mobile"] .renal-ui .renal-chip { min-height: 44px; }
+.renal-ui .renal-output { margin-top: 10px; }
+.renal-ui .renal-status { padding: 6px 0; font-weight: 600; }
+.renal-ui .renal-recommendation {
+  padding: 8px;
+  margin-bottom: 8px;
+  border-left: 3px solid #c62828;
+  background: #fff1f0;
+}
+:root[data-theme="dark"] .renal-ui .renal-recommendation {
+  border-left-color: #f08c96;
+  background: #3b2528;
+}
+.renal-ui .renal-dose { white-space: pre-wrap; font-weight: 600; }
+.renal-ui .renal-row-label { display: block; }
+.renal-ui .renal-details { margin: 8px 0; border-top: 1px solid var(--color-divider, #9aa1aa); }
+.renal-ui summary { cursor: pointer; padding: 8px 0; font-weight: 600; }
+.renal-ui .renal-rows { list-style: none; margin: 0; padding: 0; }
+.renal-ui .renal-row { margin: 0; padding: 8px 6px; border-bottom: 1px solid var(--color-divider, #9aa1aa); }
+.renal-ui .renal-row.is-matched {
+  background: var(--color-accent-100, #e7eff7);
+  border-left: 3px solid var(--color-accent-700, #285b89);
+}
+.renal-ui .renal-match-label { display: block; font-weight: 700; }
+.renal-ui .renal-note, .renal-ui .renal-search-hint, .renal-ui .renal-source { font-size: 12px; }
+.renal-ui .renal-dialysis { margin-top: 8px; }
+.renal-ui .renal-dialysis h4 { font-size: 13px; }
+.renal-ui .renal-source { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--color-divider, #9aa1aa); }
+.renal-ui .renal-source-link { display: block; margin-bottom: 5px; color: var(--color-accent-700, #285b89); }
+
+/* 長表捲動後仍可關閉；欄位 focus 會避開這一列。 */
+.ccr-panel { scroll-padding-top: 64px; }
+.ccr-panel > .ccr-head {
+  position: sticky; top: -14px; z-index: 3;
+  background: var(--color-bg); padding: 8px 0;
+  border-bottom: 1px solid var(--color-divider);
+}
+body[data-layout="dock"] .ccr-panel > .ccr-head { top: -8px; }
+.ccr-actions { flex-wrap: wrap; }
+.renal-ui .renal-current { font-size: 12px; margin-bottom: 8px; }
+.renal-ui .renal-metric { font-weight: 600; font-size: 12px; }
+.renal-ui .renal-dose-options { padding: 8px; border: 1px solid var(--color-divider); margin-bottom: 8px; }
+.ccr-panel .ccr-bsa { font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; white-space: pre-line; }
+.renal-ui p { white-space: pre-line; }
+.renal-ui .renal-edit {
+  min-height: 28px; padding: 3px 6px; font: inherit;
+  color: var(--color-text); background: var(--color-bg);
+  border: 1px solid var(--color-divider); cursor: pointer;
+}
+body[data-layout="mobile"] .renal-ui .renal-control,
+body[data-layout="mobile"] .renal-ui .renal-edit { min-height: 44px; }
+body[data-layout="mobile"] .renal-ui input.renal-control { font-size: 16px; }
+body[data-layout="mobile"] .renal-ui summary { min-height: 44px; }
+/* 常用 340px 窄欄將標籤與欄位併列；176px 保留上下排避免下拉文字失去辨識度。 */
+@media (min-width: 300px) {
+  .renal-ui .renal-field { flex-direction: row; align-items: center; gap: 6px; }
+  .renal-ui .renal-field > .renal-label { flex: 0 0 6.5em; font-size: 12px; }
+  .renal-ui .renal-control { flex: 1; }
+}

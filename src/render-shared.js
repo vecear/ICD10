@@ -188,8 +188,8 @@
 
   // ---- 搜尋結果 ----
   const DB_NOTE = {
-    idle: '精選面板結果；輸入後才載入全庫',
-    loading: '精選面板結果；全庫索引載入中…',
+    idle: '精選面板結果\n輸入後才載入全庫',
+    loading: '精選面板結果\n全庫索引載入中…',
     error: '全庫載入失敗，僅顯示精選面板結果',
     ready: '',
   };
@@ -199,9 +199,9 @@
      而且真的可行的下一步。 */
   const EMPTY_FULL = '查無結果，試試英文名稱或代碼前綴';
   const EMPTY_CURATED = {
-    idle: '查無結果。全庫尚未載入，目前只搜尋精選面板；請改用中文或代碼前綴',
-    loading: '查無結果。全庫索引載入中，就緒後即可搜尋英文；目前請改用中文或代碼前綴',
-    error: '查無結果。全庫無法載入，目前只搜尋精選面板的中文與代碼；可在設定面板重新載入全庫',
+    idle: '查無結果。全庫尚未載入，目前只搜尋精選面板\n請改用中文或代碼前綴',
+    loading: '查無結果。全庫索引載入中，就緒後即可搜尋英文\n目前請改用中文或代碼前綴',
+    error: '查無結果。全庫無法載入，目前只搜尋精選面板的中文與代碼\n可在設定面板重新載入全庫',
     ready: '查無結果，試試英文名稱或代碼前綴',
   };
 
@@ -522,7 +522,7 @@
     if (s.dbState === 'loading') return '全庫索引載入中…';
     if (s.dbState === 'error') {
       return typeof DecompressionStream === 'undefined'
-        ? '瀏覽器過舊，無法解壓全庫（需 Edge／Chrome 80 以上）；精選面板仍可使用'
+        ? '瀏覽器過舊，無法解壓全庫（需 Edge／Chrome 80 以上）\n精選面板仍可使用'
         : '全庫載入失敗，僅精選面板可用';
     }
     return '精選面板已載入（搜尋時才載入全庫）';
@@ -546,7 +546,7 @@
     const nowLabel = LAYOUT_LABEL[now] || now;
     if (now === 'mobile') {
       return '目前生效的是手機版面：視窗寬度未達 ' + LAYOUT_MIN_WIDTH
-        + ' px 時會自動改用手機版面；把視窗放寬即會回到您偏好的「' + prefLabel + '」。';
+        + ' px 時會自動改用手機版面\n把視窗放寬即會回到您偏好的「' + prefLabel + '」。';
     }
     return '目前生效的是「' + nowLabel + '」：偏好的「' + prefLabel
       + '」版面無法載入，已改用「' + nowLabel + '」。';
@@ -1036,7 +1036,7 @@
       head.appendChild(el('b', 'chronic-ladder-name', lv.label));
       /* 起始門檻與目標是同一個數字，所以寫「門檻＝目標」，不是兩個數。 */
       head.appendChild(el('span', 'chronic-ladder-num',
-        'LDL-C 門檻＝目標 ' + lv.ldl + (lv.nonHdl ? '｜non-HDL-C ' + lv.nonHdl : '')));
+        'LDL-C 門檻＝目標 ' + lv.ldl + (lv.nonHdl ? '\nnon-HDL-C ' + lv.nonHdl : '')));
       /* 徽章只放結論「今天能不能開藥」，官方原文另起一行——原本徽章寫「可並行」
          「先做 3–6 個月」，並行什麼、做什麼都沒講（2026-09-01 使用者指出）。 */
       head.appendChild(el('span', 'chronic-ladder-flag' + (lv.parallel ? ' is-parallel' : ''),
@@ -1284,7 +1284,7 @@
      所以畫面一定要標明「這個數字是用什麼體重算出來的」，而不是只丟一個數字。 */
   const CCR_BASIS_LABEL = { actual: '實際體重', ideal: '理想體重', adjusted: '調整體重' };
   const CCR_DISCLAIMER = 'Cockcroft-Gault 估計值，僅適用腎功能穩定者。'
-    + '可能高估 GFR 10–20%，體重過輕或肥胖時更不準；實際劑量請依藥品仿單與臨床判斷。';
+    + '可能高估 GFR 10–20%，體重過輕或肥胖時更不準\n實際劑量請依藥品仿單與臨床判斷。';
 
   /* 入口鈕掛在「健保規範條文」那一排（血脂計算機右邊），不在 header。原本排在 header 的
      「日期」右邊，但那是「開始看這一診」的位置；CCr 是查到腎功能才會用的偶發工具，
@@ -1340,7 +1340,7 @@
     panel.setAttribute('aria-labelledby', 'ccr-title');
 
     const head = el('div', 'ccr-head');
-    const title = el('h2', 'ccr-title', 'CCr　肌酸酐廓清率');
+    const title = el('h2', 'ccr-title', 'CCr／抗菌藥劑量');
     title.id = 'ccr-title';
     const close = el('button', 'ccr-close', '關閉');
     close.type = 'button';
@@ -1379,9 +1379,17 @@
     const reset = el('button', 'btn btn-secondary ccr-reset', '清除');
     reset.type = 'button';
     reset.id = 'ccr-reset';
-    actions.append(copy, reset);
+    const lookup = el('button', 'btn btn-secondary', '查抗菌藥');
+    lookup.type = 'button';
+    lookup.id = 'ccr-antibiotics';
+    lookup.addEventListener('click', () => {
+      const search = panel.querySelector('.renal-ui input[type="search"]');
+      if (search) search.focus();
+    });
+    actions.append(lookup, copy, reset);
 
     panel.append(head, form, result, actions, el('p', 'ccr-disclaimer', CCR_DISCLAIMER));
+    panel.appendChild(root.ICDRenalUI.create());
     overlay.appendChild(panel);
     return overlay;
   }
@@ -1423,15 +1431,20 @@
     clear(box);
     const input = ccrInputs(root2);
     const r = ctx.logic.creatinineClearance(input);
+    root.ICDRenalUI.update(root2.querySelector('.renal-ui'), r);
     if (copy) copy.disabled = !(r && r.ok);
     if (!r || !r.ok) {
-      box.appendChild(el('p', 'ccr-hint', '填年齡、體重、Cr 就會算；身高選填。'));
+      box.appendChild(el('p', 'ccr-hint', '填年齡、體重、Cr 就會算\n身高選填。'));
       return r;
     }
 
     const main = el('div', 'ccr-main');
     main.append(el('strong', 'ccr-value', String(r.crcl)), el('span', 'ccr-value-unit', 'mL/min'));
     box.appendChild(main);
+    if (Number.isFinite(r.bsaRaw) && Number.isFinite(r.crclIndexedRaw)) {
+      box.appendChild(el('p', 'ccr-bsa', 'BSA ' + r.bsaRaw.toFixed(2) + ' m²（Mosteller，實際體重）'
+        + '\n校正 CCr ' + r.crclIndexedRaw.toFixed(1) + ' mL/min/1.73 m²'));
+    }
 
     box.appendChild(el('p', 'ccr-basis',
       '以' + CCR_BASIS_LABEL[r.basis] + ' ' + r.weightUsed + ' kg 計算'
@@ -1467,7 +1480,7 @@
      差別在這個是**多選輸入**：勾選項目直接用原生 checkbox 而不是 aria-pressed 的切換鈕，
      因為它們是「可複選的事實陳述」不是「模式切換」，原生元件的讀屏語意與鍵盤行為都對。 */
   const LIPID_DISCLAIMER = '依藥品給付規定 第二節 2.6.1 表一與表二（115.8.21 版）試算，'
-    + '只計算條文門檻，不含臨床判斷。實際給付以審查為準；'
+    + '只計算條文門檻，不含臨床判斷。實際給付以審查為準\n'
     + '適用表一或表二由藥品健保代碼決定，開藥前請核對當期公告。';
 
   /* 勾選項目分三組，順序照使用者查閱時的思路：先問「有沒有心血管病史」，
@@ -1582,7 +1595,7 @@
       bits.push('起始門檻 LDL-C ≧ ' + v.threshold
         + (v.tc ? ' 或 TC ≧ ' + v.tc : ''));
     }
-    if (bits.length) li.appendChild(el('p', 'lipid-hit-sub', bits.join('｜')));
+    if (bits.length) li.appendChild(el('p', 'lipid-hit-sub', bits.join('\n')));
     if (v.note) li.appendChild(el('p', 'lipid-hit-note', v.note));
     if (v.meets !== null && v.meets !== undefined) {
       li.appendChild(el('p', 'lipid-hit-verdict',
@@ -1609,7 +1622,7 @@
         + (live < found.total ? '（給付中 ' + live + '，其餘已停付）' : '')));
       if (!found.total) {
         box.appendChild(el('p', 'lipid-lookup-empty',
-          '查無此代碼／品名／學名。這份清單只收現行有效的降血脂品項（ATC C10）；'
+          '查無此代碼／品名／學名。這份清單只收現行有效的降血脂品項（ATC C10）\n'
           + '若確定是降膽固醇藥物而不在「不適用表一」清單上，依條文即適用表一。'));
         return box;
       }
@@ -1628,9 +1641,9 @@
       const sum = ctx.logic.lipidSummarize(
         ctx.logic.lipidFindProducts(products, query, products.length).hits);
       if (sum.length) {
-        box.appendChild(el('p', 'lipid-lookup-sum', '依學名彙總：'
+        box.appendChild(el('p', 'lipid-lookup-sum', '依學名彙總：\n'
           + sum.map((s) => s.ingredient + '（表一 ' + s.one + '、表二 ' + s.two
-            + (s.other ? '、其他章節 ' + s.other : '') + '）').join('；')));
+            + (s.other ? '、其他章節 ' + s.other : '') + '）').join('\n')));
       }
       return box;
     }
@@ -1800,7 +1813,7 @@
         + (info.targetTc ? ' 或 TC < ' + info.targetTc : ''));
     }
     if (info.nonHdlTarget) parts.push('次要目標 non-HDL-C < ' + info.nonHdlTarget);
-    box.appendChild(el('p', 'lipid-threshold', parts.join('｜')));
+    box.appendChild(el('p', 'lipid-threshold', parts.join('\n')));
 
     // 4) 結論
     const cmp = [];
@@ -1898,7 +1911,7 @@
     if (drugs) {
       oneBlock.appendChild(el('p', 'lipid-drug-note',
         '另：ezetimibe 與其複方走 2.6.2／2.6.3、PCSK9（evolocumab、alirocumab）走 2.6.4 '
-        + '須事前審查，各有自己的條件；inclisiran 與 bempedoic acid 台灣有藥但健保未收載，'
+        + '須事前審查，各有自己的條件\ninclisiran 與 bempedoic acid 台灣有藥但健保未收載，'
         + '開了就是自費。'));
     }
     box.appendChild(oneBlock);
@@ -1933,7 +1946,7 @@
     box.appendChild(el('p', 'lipid-rf',
       '表一風險因子 ' + r.riskFactorsNew.length + ' 項'
       + (r.riskFactorsNew.length ? '（' + r.riskFactorsNew.join('、') + '）' : '')
-      + '｜表二危險因子 ' + r.two.riskFactors.length + ' 項'
+      + '\n表二危險因子 ' + r.two.riskFactors.length + ' 項'
       + (r.two.riskFactors.length ? '（' + r.two.riskFactors.join('、') + '）' : '')));
 
     const lookup = lipidLookupEl(root2, ctx, r);
@@ -2019,8 +2032,8 @@
       + '，' + (info.meets === true ? '已達' : '未達')));
     if (info.target) {
       rows.push(lipidRow('目標', 'LDL-C < ' + info.target
-        + (info.targetTc ? ' 或 TC < ' + info.targetTc : '')
-        + (info.nonHdlTarget ? '；次要 non-HDL-C < ' + info.nonHdlTarget : '')));
+        + (info.targetTc ? ' 或 TC < ' + info.targetTc : '')));
+      if (info.nonHdlTarget) rows.push(lipidRow('次要目標', 'non-HDL-C < ' + info.nonHdlTarget));
     }
     for (const p of info.proof || []) rows.push(lipidRow('檢附', p));
     return rows;

@@ -40,8 +40,8 @@
      交付物原型在失敗時照樣把 pinned 設成 true，會出現「顯示置頂中但根本沒有小視窗」。 */
   const PIN_NOTE = {
     open: '已開啟置頂小視窗，可拖到 HIS 旁邊',
-    blocked: '瀏覽器擋下置頂視窗；可改用瀏覽器「一律位於最上層」',
-    unsupported: '此瀏覽器不支援置頂小視窗；改用 Edge／Chrome 116 以上',
+    blocked: '瀏覽器擋下置頂視窗\n可改用瀏覽器「一律位於最上層」',
+    unsupported: '此瀏覽器不支援置頂小視窗\n改用 Edge／Chrome 116 以上',
   };
   /* 成功那一則是「一次性的操作說明」，看過就沒用了，卻在 176px 下永久占掉兩行（約 27px）；
      密度原則要求可回收的常駐提示要自己消失。失敗那兩則相反：它們是使用者還沒解決的問題，
@@ -114,6 +114,7 @@
     shelfOpen: [],
     settingsOpen: ['settings'],
     chronicTopic: ['chronic'],
+    chronicLast: [],
     ccrOpen: ['ccr'],
     lipidOpen: ['lipid'],
     cartOpen: ['cart'],
@@ -150,7 +151,15 @@
     search.placeholder = '搜尋碼／中英文';
     search.setAttribute('aria-label', '搜尋診斷碼');
     refs.search = search;
-    head.appendChild(search);
+    const searchBar = R.el('div', 'dock-search-bar');
+    refs.searchBack = R.el('button', 'dock-search-back', '返回');
+    refs.searchBack.id = 'dock-search-back';
+    refs.searchBack.type = 'button';
+    refs.searchBack.title = '結束搜尋，回到原本的部位與位置（Esc）';
+    refs.searchBack.setAttribute('aria-label', refs.searchBack.title);
+    refs.searchBack.hidden = true;
+    searchBar.append(search, refs.searchBack);
+    head.appendChild(searchBar);
 
     /* 模式三鈕＋置頂＋設定同一列。三套版面同一份行為，只有標籤與尺寸用短版塞進 176px；
        模式鈕在 1c 是 fit-content（dock.css 的 .mode-btn），空出來的寬度全部給右側的
@@ -194,6 +203,14 @@
        這一區＝<main>（v3 §5-1）。整個側欄只有這一個 main；頭部是 banner，
        部位列是 role="group"，相關疾病與清單是其後的一般區塊。 */
     const body = R.el('main', 'dock-scroll');
+    // 只記本次開啟的瀏覽位置；搜尋結果與每個模式／部位分開，不寫 localStorage。
+    const positions = new Map();
+    const panelViews = [];
+    let renderedPanelKey = null;
+    let viewKey = null;
+    let searching = false;
+    let lastQuery = '';
+    let relatedOpen = true;
     body.appendChild(R.srHeading(2, '診斷碼選擇'));
     /* 1c 沒有可見的模式標題（1a 的 #panels-title），面板名也只是 <span>。補一個 sr-only
        的 H3 銜接 H2 與 .region-heading，內容與 1a 同源於 R.PANELS_TITLE，由 U.header 更新。 */
@@ -238,7 +255,14 @@
     refs.relatedWrap = R.el('div');
     refs.relatedWrap.id = 'dock-related';
     refs.relatedWrap.hidden = true;
-    refs.relatedWrap.appendChild(R.el('div', 'dock-related-title', '相關疾病／評估'));
+    refs.relatedToggle = R.el('button', 'dock-related-title');
+    refs.relatedToggle.id = 'dock-related-toggle';
+    refs.relatedToggle.type = 'button';
+    refs.relatedToggle.setAttribute('aria-controls', 'related');
+    refs.relatedLabel = R.el('span');
+    refs.relatedAction = R.el('span', 'dock-related-action');
+    refs.relatedToggle.append(refs.relatedLabel, refs.relatedAction);
+    refs.relatedWrap.appendChild(refs.relatedToggle);
     refs.related = R.el('div');
     refs.related.id = 'related';
     refs.relatedWrap.appendChild(refs.related);
@@ -290,7 +314,7 @@
 
     /* 文案要兩種結果都成立：關掉小視窗後，視窗夠寬會回工作台、夠窄則側欄搬回這裡
        （見 restoreFromPip 末段）。所以只講「回到這個視窗」，不講回到哪一個版面。 */
-    refs.placeholder = R.el('div', 'dock-pinned-away', '已移到置頂小視窗；關掉小視窗就回到這個視窗。');
+    refs.placeholder = R.el('div', 'dock-pinned-away', '已移到置頂小視窗\n關掉小視窗就回到這個視窗。');
 
     // 慢病速查浮層：掛在 dock 根節點底下，置頂時會跟著整棵樹被 adopt 進 PiP 小視窗
     refs.chronicOverlay = R.chronicOverlayEl();
@@ -320,7 +344,7 @@
         { key: 'regions', el: refs.pills, label: '部位區', sign: 1, min: 44 },
         {
           key: 'related', el: refs.related, label: '相關疾病區', sign: -1, min: 48,
-          visible: () => !refs.relatedWrap.hidden,
+          visible: () => !refs.relatedWrap.hidden && !refs.related.hidden,
         },
         {
           key: 'cart', el: refs.cartInline, label: '清單區', sign: -1, min: 48,
@@ -408,6 +432,7 @@
 
     function restoreFromPip() {
       if (!pipWin) return;
+      const scrollTop = body.scrollTop;
       /* 先量再清：pipWin 設成 null 之後就問不到寬度了。pagehide 觸發時小視窗還在，
          量得到；真的量不到就沿用上一個值，不要讓它變成 0 或 NaN。 */
       try {
@@ -426,12 +451,18 @@
          在掛載新版面時寫。任一層失效（例如日後新增的版面模組忘了觸發 teardown），另一層
          仍然擋得住。 */
       const stillMounted = alive && document.body.dataset.layout === 'dock';
-      if (stillMounted) host.appendChild(dock);   // 跨文件 append 會自動 adopt 回主文件
+      if (stillMounted) {
+        host.appendChild(dock);   // 跨文件 append 會自動 adopt 回主文件
+        body.scrollTop = scrollTop;
+      }
       else if (dock.parentNode) dock.parentNode.removeChild(dock);
       ctx.store.setPinned(false);
       setNote('');
       // 小視窗與主視窗高度不同，窗格高度要照新的可用空間重新夾一次
-      if (stillMounted) refs.paneGroup.applyAll();
+      if (stillMounted) {
+        refs.paneGroup.applyAll();
+        body.scrollTop = scrollTop;
+      }
 
       /* 解除置頂後，主視窗寬到足以跑工作台就切回工作台。
 
@@ -480,9 +511,11 @@
       request.then((w) => {
         // 按下「置頂」後、視窗開出來之前就被換掉版面：這個小視窗已無主，直接關掉
         if (!alive) { try { w.close(); } catch (e) { /* 已被關掉 */ } return; }
+        const scrollTop = body.scrollTop;
         pipWin = w;
         dressPipDocument(w.document);
         w.document.body.appendChild(dock);
+        body.scrollTop = scrollTop; // adopt 到另一份文件會歸零；在 store 更新前還原
         host.appendChild(refs.placeholder);
         w.document.addEventListener('click', onPipDocClick);
         w.document.addEventListener('mousedown', onPipDocMouseDown);
@@ -495,6 +528,7 @@
         ctx.store.setPinned(true);
         setNote(PIN_NOTE.open, true);
         refs.paneGroup.applyAll();
+        body.scrollTop = scrollTop;
       }).catch(() => { setNote(PIN_NOTE.blocked); });
     }
 
@@ -525,6 +559,14 @@
     // 加碼規則（葉碼防線、白名單未就緒的訊息、附加碼提醒）一律共用 interactions.js 的
     // 同一份實作，這裡不再抄一份——抄的那份正是 R2 M1／I3 兩條缺陷的來源。
     const addFromChip = (chip) => root.ICDInteractions.activateChip(ctx, chip);
+
+    function leaveSearch() {
+      refs.search.value = '';
+      // 同時重設主文件／PiP 的輸入 debounce，避免尚未送出的字在返回後又打開搜尋。
+      const Event = refs.search.ownerDocument.defaultView.Event;
+      refs.search.dispatchEvent(new Event('input', { bubbles: true }));
+      ctx.store.setQuery('');
+    }
 
     /* 置頂進 PiP 小視窗後，主文件的委派搆不到那棵 DOM，這裡代打。
        規則與 interactions.js 同源，只是那邊的 copyText 要用在這個文件上。 */
@@ -650,6 +692,26 @@
       const target = ev.target;
       if (!target || !target.closest) return;
       if (target.closest('#pin-toggle')) { togglePin(); return; }
+      if (target.closest('#dock-search-back')) {
+        leaveSearch();
+        refs.search.focus({ preventScroll: true });
+        return;
+      }
+      if (target.closest('#dock-related-toggle')) {
+        relatedOpen = !relatedOpen;
+        syncRelatedVisibility();
+        refs.paneGroup.applyAll();
+        return;
+      }
+      // 模式與部位鈕代表回到導引；清掉搜尋後仍由原本的事件委派完成切換。
+      if (target.closest('.region-btn, #mode-switch [data-mode], #seg-mode [data-mode]')
+        && refs.search.value) leaveSearch();
+      const panelHead = target.closest('.dock-panel-head');
+      if (panelHead && !target.closest('.panel-toggle')) {
+        const toggle = panelHead.querySelector('.panel-toggle');
+        if (toggle) ctx.store.toggleExpanded(toggle.dataset.panelToggle);
+        return;
+      }
       // 主文件：#cart-toggle 交給 interactions.js 的委派（會呼叫上面設好的 ctx.onCartToggle），
       // 這裡讓路，不重複處理；其餘一切也一併讓路。
       if (dock.ownerDocument === document) return;
@@ -752,23 +814,32 @@
 
     U.panels = () => {
       const s = ctx.store.getState();
+      const key = s.mode + ':' + s.region;
+      // 只在換部位／模式時重建；展開疾病保留其他面板、按鈕焦點與捲動錨點。
+      if (key === renderedPanelKey) {
+        for (const view of panelViews) syncPanel(view);
+        syncExpandAll();
+        return;
+      }
+      renderedPanelKey = key;
+      panelViews.length = 0;
       R.clear(refs.panels);
       // 紅旗隔離只有 panelGroupsFor() 這一個出口，渲染層不得自行讀 window.CURATED.redFlags（C5）
       for (const group of ctx.data.panelGroupsFor(s.mode, s.region)) {
         // group.region 只有「顯示全部部位」時才有值（見 data.js panelGroupsFor 的註解）
         if (group.region) refs.panels.appendChild(R.regionHeading(group.region));
         for (const panel of group.panels) {
-          const open = ctx.store.isExpanded(panel.name);
           const box = R.el('div', 'dock-panel');
           box.dataset.panel = panel.name;
 
           const bar = R.el('div', 'dock-panel-head');
           bar.appendChild(R.el('span', 'dock-panel-name', panel.name));
+          let toggle = null;
           if (panel.diseases.length) {
-            const toggle = R.el('button', 'panel-toggle', open ? '- 疾病' : '+ 疾病 ' + panel.diseases.length);
+            toggle = R.el('button', 'panel-toggle');
             toggle.type = 'button';
             toggle.dataset.panelToggle = panel.name;
-            toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+            bar.classList.add('is-expandable');
             bar.appendChild(toggle);
           }
           box.appendChild(bar);
@@ -779,13 +850,42 @@
           };
           add(panel.chief, { className: 'chip--dock' });
           add(panel.redFlags, { warn: true, className: 'chip--dock' });
-          if (open) add(panel.diseases, { className: 'chip--dock' });
           box.appendChild(rows);
+          const diseases = R.el('div', 'dock-panel-rows dock-panel-diseases');
+          diseases.id = 'dock-diseases-' + panelViews.length;
+          if (toggle) toggle.setAttribute('aria-controls', diseases.id);
+          box.appendChild(diseases);
+          const view = { panel, toggle, diseases, open: null, filled: false };
+          panelViews.push(view);
+          syncPanel(view);
           refs.panels.appendChild(box);
         }
       }
       syncExpandAll();
     };
+
+    function syncPanel(view) {
+      const open = ctx.store.isExpanded(view.panel.name);
+      if (view.open === open) return;
+      view.open = open;
+      if (open && !view.filled) {
+        for (const chip of R.chipsFromPairs(view.panel.diseases, ctx, { className: 'chip--dock' })) {
+          view.diseases.appendChild(chip);
+        }
+        view.filled = true;
+      }
+      // 收合時移除疾病列以維持既有 DOM 契約，但保留面板及展開按鈕本身。
+      if (!open && view.filled) {
+        R.clear(view.diseases);
+        view.filled = false;
+      }
+      view.diseases.hidden = !open;
+      if (view.toggle) {
+        view.toggle.textContent = open ? '- 疾病' : '+ 疾病 ' + view.panel.diseases.length;
+        view.toggle.setAttribute('aria-expanded', String(open));
+        view.toggle.setAttribute('aria-label', (open ? '收合' : '展開') + view.panel.name + '的常見疾病');
+      }
+    }
 
     /* 這顆鈕的字要跟著面板狀態走，而它掛在 refs.panels 外面，所以由 U.panels 收尾時
        一起更新——mode／region／expanded 三個鍵本來就都會重跑 U.panels，不必再開一條依賴。 */
@@ -805,8 +905,28 @@
     U.related = () => {
       R.renderRelated(refs.related, null, ctx);
       dockify(refs.related);
-      refs.relatedWrap.hidden = !R.relatedGroups(ctx).length;
+      const count = refs.related.querySelectorAll('.chip').length;
+      refs.relatedWrap.hidden = !count;
+      refs.relatedLabel.textContent = '相關疾病／評估' + (count ? ' · ' + count : '');
+      syncRelatedVisibility();
     };
+
+    function syncRelatedVisibility() {
+      refs.related.hidden = !relatedOpen;
+      refs.relatedToggle.setAttribute('aria-expanded', String(relatedOpen));
+      refs.relatedToggle.title = relatedOpen ? '收合相關疾病，騰出選碼空間' : '展開相關疾病／評估';
+      refs.relatedAction.textContent = relatedOpen ? '收合' : '展開';
+    }
+
+    function syncSelected() {
+      const selected = new Set(ctx.store.getState().cart.map((item) => item.code));
+      for (const chip of dock.querySelectorAll('.chip:not(.cat)')) {
+        const on = selected.has(chip.dataset.code);
+        if (on) chip.dataset.inCart = 'true';
+        else delete chip.dataset.inCart;
+        chip.setAttribute('aria-label', chip.title + (on ? '（已加入清單；再次點選查看相關疾病）' : ''));
+      }
+    }
 
     U.cart = () => {
       const s = ctx.store.getState();
@@ -857,6 +977,13 @@
        `changed 含 layout 就 closePip()` 是不可達的死碼：app.js 的 subscriber 一旦 mount()
        成功就直接 return，舊 controller 根本收不到 update(['layout'])（R2 C1）。 */
     function update(changed) {
+      const state = ctx.store.getState();
+      const key = state.mode + ':' + state.region;
+      const query = state.query.trim();
+      const nextSearching = query.length >= 2;
+      const navigated = key !== viewKey;
+      const oldTop = body.scrollTop;
+      if (viewKey !== null && !searching) positions.set(viewKey, oldTop);
       let names = ALL;
       if (changed && changed.length) {
         const set = new Set();
@@ -864,9 +991,31 @@
         names = ALL.filter((n) => set.has(n));
       }
       for (const name of names) U[name]();
+      if (names.some((name) => ['panels', 'results', 'cart'].includes(name))) syncSelected();
+      refs.panels.hidden = nextSearching;
+      refs.chronicSwitch.hidden = nextSearching;
+      refs.searchBack.hidden = !nextSearching;
       /* 窗格高度不進 DEPS，一律在每次重繪後重跑：內容變了（換模式部位變多、相關碼出現、
          清單展開）原本合法的高度就可能超出可用空間，得當場重新夾一次。成本是量三個元素。 */
       refs.paneGroup.applyAll();
+      if (nextSearching) {
+        body.scrollTop = (!searching || query !== lastQuery || navigated) ? 0 : oldTop;
+      } else if (searching || navigated) {
+        body.scrollTop = positions.get(key) || 0;
+      } else {
+        body.scrollTop = oldTop;
+      }
+      // 下方建議／清單出現後，仍讓剛點的碼留在可視區，方便接著選附近的碼。
+      const focused = dock.ownerDocument.activeElement;
+      if (!navigated && searching === nextSearching && changed && changed.includes('cart')
+        && focused && focused.matches('.chip') && body.contains(focused)) {
+        const area = body.getBoundingClientRect();
+        const row = focused.getBoundingClientRect();
+        if (row.bottom > area.bottom - 6) body.scrollTop += row.bottom - area.bottom + 6;
+      }
+      viewKey = key;
+      searching = nextSearching;
+      lastQuery = query;
     }
 
     /* openPip 對外開放：1a 的「側掛置頂」要在同一次點擊裡換版面**再**開小視窗，

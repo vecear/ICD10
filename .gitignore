@@ -4,6 +4,7 @@ __pycache__/
 node_modules/
 *.pyc
 .review/
+.playwright-mcp/
 .superpowers/
 # 帶去診間用的 AutoHotkey 執行檔／安裝檔：第三方二進位，不進版控
 tools/*.exe

@@ -966,6 +966,11 @@ details.chronic-more[open] > .chronic-line .chronic-more-toggle { color: var(--c
 .lipid-lookup-empty, .lipid-lookup-more, .lipid-lookup-sum {
   margin: 5px 0 0; font-size: 11px; line-height: 1.5; color: var(--color-neutral-700);
 }
+/* 並列結果與提示明確分行，寬螢幕也不能再串成一行。 */
+.ccr-hint, .ccr-disclaimer, .lipid-disclaimer, .lipid-lookup-empty,
+.lipid-lookup-sum, .lipid-threshold, .lipid-drug-note, .lipid-rf, .lipid-hit-sub,
+.chronic-ladder-num, .result-note, .result-empty, .cart-empty, .dock-pin-note, .dock-pinned-away,
+#layout-note, #db-note { white-space: pre-line; }
 .lipid-avail { margin: 5px 0 0; font-size: 11.5px; line-height: 1.5; overflow-wrap: anywhere; }
 .lipid-avail .lipid-hit-table { margin-right: 5px; }
 

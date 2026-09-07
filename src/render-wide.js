@@ -171,7 +171,7 @@
     refs.cartBox = cartBox;
     refs.cart = R.el('ul');
     refs.cart.id = 'cart';
-    refs.cartEmpty = R.el('div', 'cart-empty', '點左側任何代碼加入；第一碼即主診斷，拖曳可調整順序。');
+    refs.cartEmpty = R.el('div', 'cart-empty', '點左側任何代碼加入\n第一碼即主診斷，拖曳可調整順序。');
     cartBox.append(refs.cart, refs.cartEmpty);
     aside.appendChild(cartBox);
 
