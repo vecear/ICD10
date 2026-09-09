@@ -248,9 +248,8 @@ body {
 .results-title { font-family: var(--font-heading); font-size: 15px; letter-spacing: .04em; }
 .result-note { font-size: 12px; color: var(--color-neutral-700); }
 
-/* ── 相關碼 ── */
+/* ── 分組標籤 ── */
 .group-label { font-size: 12px; color: var(--color-neutral-700); margin: 6px 0 4px; }
-.related-group { margin-bottom: 8px; }
 
 /* ── 紅旗警示盒（設計稿 L575；只有急診模式渲染得出來，見 data.js panelsFor） ── */
 .redflag-group {

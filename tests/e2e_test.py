@@ -349,14 +349,11 @@ def test_addcode_rejects_non_leaf_and_unknown_codes(page):
         reset(page)
 
 
-def test_quick_add_and_related(page):
+def test_quick_add_without_related(page):
     reset(page)
     quick_chip(page, "常見感染", "N39.0").click()
     expect(page.locator('#cart li[data-code="N39.0"]')).to_have_count(1)
-    # 人工關聯：病原碼；家族碼：N39 類目
-    expect(page.locator('#related .chip[data-code="B96.20"]')).to_have_count(1)
-    page.locator('#related .chip[data-code="B96.20"]').click()
-    expect(page.locator('#cart li[data-code="B96.20"]')).to_have_count(1)
+    expect(page.locator("#related")).to_have_count(0)
 
 
 def test_duplicate_not_added(page):
@@ -367,7 +364,7 @@ def test_duplicate_not_added(page):
     expect(page.locator("#cart li")).to_have_count(1)
 
 
-def test_symptom_shows_related_diagnoses_without_auto_adding(page):
+def test_symptom_adds_only_selected_diagnosis(page):
     reset(page)
     set_mode(page, "mode-er")
     page.click('.region-btn[data-region="胸肺／心臟"]')
@@ -375,12 +372,12 @@ def test_symptom_shows_related_diagnoses_without_auto_adding(page):
     expect(card.locator(".chief-group .chip[data-code='R07.9']")).to_have_count(1)
     card.locator(".chief-group .chip[data-code='R07.9']").click()
     expect(page.locator("#cart li[data-code='R07.9']")).to_have_count(1)
-    expect(page.locator("#related .chip[data-code='I20.9']")).to_have_count(1)
+    expect(page.locator("#related .chip[data-code='I20.9']")).to_have_count(0)
     expect(page.locator("#cart li[data-code='I20.9']")).to_have_count(0)
     expect(card.locator(".redflag-group")).to_be_visible()
 
 
-def test_symptom_shows_multiple_related_diseases_without_auto_adding(page):
+def test_symptom_keeps_panel_diseases_without_auto_adding(page):
     """1a 的常見疾病 2026-09-01 起不收合，直接驗筆數（使用者要求全部列出來）。
 
     筆數不寫死：診斷涵蓋度會隨臨床內容擴充而變（這正是面板存在的目的），
@@ -397,63 +394,19 @@ def test_symptom_shows_multiple_related_diseases_without_auto_adding(page):
     expect(card.locator(".disease-group .chip")).to_have_count(expected)
     card.locator(".chief-group .chip[data-code='R05.9']").click()
     for code in ("J00", "J06.9", "J20.9", "J18.9"):
-        expect(page.locator(f"#related .chip[data-code='{code}']")).to_have_count(1)
+        expect(page.locator(f"#related .chip[data-code='{code}']")).to_have_count(0)
         expect(page.locator(f"#cart li[data-code='{code}']")).to_have_count(0)
 
 
-def test_related_recallable_for_code_already_in_cart(page):
-    """已在清單的碼再次點擊，相關碼面板要回到該碼的建議（否則多診斷動線斷掉）。"""
-    reset(page)
-    page.click(f'.region-btn[data-region="{region_for_panel("internal_outpatient.json", "頭痛")}"]')
-    page.click('#panels .chip[data-code="R51.9"]')
-    expect(page.locator('#related .chip[data-code="G43.909"]')).to_have_count(1)
-    page.click('#related .chip[data-code="I10"]')
-    expect(page.locator('#cart li[data-code="I10"]')).to_have_count(1)
-    expect(page.locator('#related .chip[data-code="G43.909"]')).to_have_count(0)
-    page.click('#panels .chip[data-code="R51.9"]')
-    expect(page.locator("#cart li")).to_have_count(2)
-    expect(page.locator('#related .chip[data-code="G43.909"]')).to_have_count(1)
-
-
-def test_red_flags_do_not_leak_into_outpatient_related(page):
-    """臨床安全：紅旗碼只屬於急診，門診相關碼不得出現。"""
-    reset(page)
-    page.click(f'.region-btn[data-region="{region_for_panel("internal_outpatient.json", "頭痛")}"]')
-    page.click('#panels .chip[data-code="R51.9"]')
-    expect(page.locator('#related .chip[data-code="G43.909"]')).to_have_count(1)
-    expect(page.locator('#related .chip[data-code="G03.9"]')).to_have_count(0)
-    expect(page.locator('#related .chip[data-code="I60.9"]')).to_have_count(0)
-    # 門診模式的面板本身也不得渲染出紅旗盒
-    expect(page.locator("#panels .redflag-group")).to_have_count(0)
-    reset(page)
-    set_mode(page, "mode-er")
-    page.click(f'.region-btn[data-region="{region_for_panel("internal_emergency.json", "頭痛")}"]')
-    page.click('#panels .chip[data-code="R51.9"]')
-    expect(page.locator('#related .chip[data-code="G03.9"]')).to_have_count(1)
-    expect(page.locator('#related .chip[data-code="I60.9"]')).to_have_count(1)
-
-
-def test_mode_switch_resets_related(page):
-    """切模式後相關碼區回到初始提示，但清單跨模式保留。"""
+def test_mode_switch_preserves_cart_without_related(page):
+    """切模式後仍不出現相關碼區，清單跨模式保留。"""
     reset(page)
     quick_chip(page, "常用慢性病", "I10").click()
-    expect(page.locator("#related .chip").first).to_be_visible()
+    expect(page.locator("#related")).to_have_count(0)
     set_mode(page, "mode-surg")
     expect(page.locator("#related .chip")).to_have_count(0)
-    expect(page.locator(".related-empty")).to_contain_text("加入代碼後")
+    expect(page.locator(".related-empty")).to_have_count(0)
     expect(page.locator('#cart li[data-code="I10"]')).to_have_count(1)
-
-
-def test_remove_from_cart_recomputes_related(page):
-    """從清單移除後相關碼重算，被移除的碼回到建議。"""
-    reset(page)
-    page.click(f'.region-btn[data-region="{region_for_panel("internal_outpatient.json", "頭痛")}"]')
-    page.click('#panels .chip[data-code="R51.9"]')
-    page.click('#related .chip[data-code="I10"]')
-    page.click('#panels .chip[data-code="R51.9"]')
-    expect(page.locator('#related .chip[data-code="I10"]')).to_have_count(0)
-    page.locator('#cart li[data-code="I10"] .cart-remove').click()
-    expect(page.locator('#related .chip[data-code="I10"]')).to_have_count(1)
 
 
 def test_remove_and_clear(page):
@@ -773,7 +726,7 @@ def test_narrow_desktop_keeps_two_columns(page):
         expect(page.locator("#region-rail")).to_be_visible()
         page.click('.region-btn[data-region="胸肺／心臟"]')
         panel_card(page, "胸痛／心悸").locator(".chief-group .chip[data-code='R07.9']").click()
-        expect(page.locator("#related .chip[data-code='I20.9']")).to_have_count(1)
+        expect(page.locator("#related .chip[data-code='I20.9']")).to_have_count(0)
     finally:
         page.set_viewport_size(dict(WIDE))
 
@@ -1256,16 +1209,6 @@ def test_adjunct_codes_marked_in_every_position(page):
     expect(result).to_have_count(1)
     assert result.get_attribute("data-adjunct") == "1"
     page.fill("#search", "")
-
-    # 3) 相關碼推薦區（L03.115 蜂窩組織炎 → B95.0 鏈球菌）
-    reset(page)
-    search(page, "L03.115")
-    page.locator('#search-results .chip[data-code="L03.115"]').click()
-    page.fill("#search", "")
-    related = page.locator('#related .chip[data-code="B95.0"]')
-    expect(related).to_have_count(1)
-    assert related.get_attribute("data-adjunct") == "1", "相關碼推薦區沒有標示附加碼"
-    assert related.locator(".chip-tag").count() == 1
 
     # 4) 站上主診斷（清單第一位）要有明確警示
     reset(page)

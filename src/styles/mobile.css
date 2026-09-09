@@ -155,31 +155,14 @@ body[data-layout="mobile"] .panel-toggle {
   color: var(--color-accent-700); white-space: nowrap; width: fit-content;
 }
 
-/* ── 相關疾病／評估碼：底部列上方，最高 190px 可捲（L401-415、L799） ──── */
-body[data-layout="mobile"] #mobile-related {
-  flex: none; border-top: 1px solid var(--color-accent);
-  background: var(--color-accent-100); padding: 10px 14px;
-}
-body[data-layout="mobile"] .m-related-title {
-  font-family: var(--font-heading); font-size: 12px; letter-spacing: .08em;
-  text-transform: none; color: var(--color-accent-800); margin-bottom: 5px;
-}
-body[data-layout="mobile"] #related {
-  max-height: 190px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;
-}
-body[data-layout="mobile"] #related .chip--row { background: var(--color-bg); }
-body[data-layout="mobile"] #related .group-label { margin: 0 0 3px; font-size: 11px; }
-
 /* ── 清單抽屜：底部列點開才出現 ──────────────────────────────────────── */
-/* 抽屜整體不超過視高的 46%，內部只讓 ul#cart 捲——標題列與 HIS 預覽要一直看得到。
-   同時把上方的相關碼區壓成 84px，否則 390×844 上抽屜一開，主訴面板只剩兩列。 */
+/* 抽屜整體不超過視高的 46%，內部只讓 ul#cart 捲——標題列與 HIS 預覽要一直看得到。 */
 body[data-layout="mobile"] .m-cart-sheet {
   flex: none; display: flex; flex-direction: column; gap: 8px;
   max-height: 46vh; max-height: 46dvh;
   padding: 10px 14px; background: var(--color-bg);
   border-top: 1px solid var(--color-accent); box-shadow: var(--shadow-md);
 }
-body[data-layout="mobile"] #layout-mobile.sheet-open #related { max-height: 84px; }
 body[data-layout="mobile"] .m-sheet-head { display: flex; align-items: center; gap: 8px; }
 body[data-layout="mobile"] .m-sheet-head .kicker { flex: 1; min-width: 0; }
 body[data-layout="mobile"] #his-format-label { font-size: 11px; color: var(--color-neutral-700); }

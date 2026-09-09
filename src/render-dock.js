@@ -88,7 +88,7 @@
     return pop;
   }
 
-  /* 共用的 renderResults／renderRelated 產生的是通用 `.chip`；1c 要的是列狀的 `.chip--dock`
+  /* 共用的 renderResults 產生的是通用 `.chip`；1c 要的是列狀的 `.chip--dock`
      （契約 §4.2 的 1c 修飾類）。與其複製一份渲染邏輯，這裡只補掛修飾類。 */
   function dockify(hostEl) {
     for (const chip of hostEl.querySelectorAll('.chip')) chip.classList.add('chip--dock');
@@ -100,11 +100,11 @@
     mode: ['header', 'pills', 'panels', 'settings', 'pip'],
     region: ['pills', 'panels'],
     query: ['results', 'searchValue'],
-    dbState: ['results', 'related', 'settings', 'pip'],
+    dbState: ['results', 'settings', 'pip'],
     expanded: ['panels'],
     quickOpen: [],
-    cart: ['cart', 'his', 'related'],
-    relatedCode: ['related'],
+    cart: ['cart', 'his'],
+    relatedCode: [],
     favs: [],
     recent: [],
     format: ['his', 'settings'],
@@ -201,7 +201,7 @@
 
     /* ── 捲動內容：搜尋結果 ＋ 扁平面板列表 ────────────────────────────────
        這一區＝<main>（v3 §5-1）。整個側欄只有這一個 main；頭部是 banner，
-       部位列是 role="group"，相關疾病與清單是其後的一般區塊。 */
+       部位列是 role="group"，清單是其後的一般區塊。 */
     const body = R.el('main', 'dock-scroll');
     // 只記本次開啟的瀏覽位置；搜尋結果與每個模式／部位分開，不寫 localStorage。
     const positions = new Map();
@@ -210,7 +210,6 @@
     let viewKey = null;
     let searching = false;
     let lastQuery = '';
-    let relatedOpen = true;
     body.appendChild(R.srHeading(2, '診斷碼選擇'));
     /* 1c 沒有可見的模式標題（1a 的 #panels-title），面板名也只是 <span>。補一個 sr-only
        的 H3 銜接 H2 與 .region-heading，內容與 1a 同源於 R.PANELS_TITLE，由 U.header 更新。 */
@@ -250,23 +249,6 @@
     refs.panels.id = 'dock-panels';
     body.appendChild(refs.panels);
     dock.appendChild(body);
-
-    // ── 相關疾病／評估：有建議時才出現 ──────────────────────────────────
-    refs.relatedWrap = R.el('div');
-    refs.relatedWrap.id = 'dock-related';
-    refs.relatedWrap.hidden = true;
-    refs.relatedToggle = R.el('button', 'dock-related-title');
-    refs.relatedToggle.id = 'dock-related-toggle';
-    refs.relatedToggle.type = 'button';
-    refs.relatedToggle.setAttribute('aria-controls', 'related');
-    refs.relatedLabel = R.el('span');
-    refs.relatedAction = R.el('span', 'dock-related-action');
-    refs.relatedToggle.append(refs.relatedLabel, refs.relatedAction);
-    refs.relatedWrap.appendChild(refs.relatedToggle);
-    refs.related = R.el('div');
-    refs.related.id = 'related';
-    refs.relatedWrap.appendChild(refs.related);
-    dock.appendChild(refs.relatedWrap);
 
     // ── 清單／貼入 HIS ────────────────────────────────────────────────
     const cartBox = R.el('div', 'dock-cart');
@@ -327,9 +309,8 @@
     host.appendChild(dock);
 
     /* ── 可拖曳的窗格分隔條（使用者要求：各窗格高度可手動調整） ─────────────
-       1c 是使用者提出這個需求的版面，四條分界裡有三條可調：
+       1c 是使用者提出這個需求的版面，兩條分界可調：
          部位區↓   兩欄 grid 會隨模式長到十幾列，壓小它就把空間讓給主訴面板
-         相關疾病↑ 預設最高 170px，建議多時想看全、看診中想收窄
          清單↑     預設最高 210px，碼多時要能拉高
        header 那條**刻意不做**：搜尋框＋（模式三鈕／置頂／設定）那一列是固定內容，拉高只是留白，
        拉低就會把控制項裁掉——沒有意義的分隔條只會製造誤觸（見 .review/r6-resizable.md）。
@@ -342,10 +323,6 @@
       flexMin: 90,
       panes: [
         { key: 'regions', el: refs.pills, label: '部位區', sign: 1, min: 44 },
-        {
-          key: 'related', el: refs.related, label: '相關疾病區', sign: -1, min: 48,
-          visible: () => !refs.relatedWrap.hidden && !refs.related.hidden,
-        },
         {
           key: 'cart', el: refs.cartInline, label: '清單區', sign: -1, min: 48,
           visible: () => !refs.cartInline.hidden,
@@ -697,12 +674,6 @@
         refs.search.focus({ preventScroll: true });
         return;
       }
-      if (target.closest('#dock-related-toggle')) {
-        relatedOpen = !relatedOpen;
-        syncRelatedVisibility();
-        refs.paneGroup.applyAll();
-        return;
-      }
       // 模式與部位鈕代表回到導引；清掉搜尋後仍由原本的事件委派完成切換。
       if (target.closest('.region-btn, #mode-switch [data-mode], #seg-mode [data-mode]')
         && refs.search.value) leaveSearch();
@@ -902,29 +873,13 @@
       dockify(refs.results);
     };
 
-    U.related = () => {
-      R.renderRelated(refs.related, null, ctx);
-      dockify(refs.related);
-      const count = refs.related.querySelectorAll('.chip').length;
-      refs.relatedWrap.hidden = !count;
-      refs.relatedLabel.textContent = '相關疾病／評估' + (count ? ' · ' + count : '');
-      syncRelatedVisibility();
-    };
-
-    function syncRelatedVisibility() {
-      refs.related.hidden = !relatedOpen;
-      refs.relatedToggle.setAttribute('aria-expanded', String(relatedOpen));
-      refs.relatedToggle.title = relatedOpen ? '收合相關疾病，騰出選碼空間' : '展開相關疾病／評估';
-      refs.relatedAction.textContent = relatedOpen ? '收合' : '展開';
-    }
-
     function syncSelected() {
       const selected = new Set(ctx.store.getState().cart.map((item) => item.code));
       for (const chip of dock.querySelectorAll('.chip:not(.cat)')) {
         const on = selected.has(chip.dataset.code);
         if (on) chip.dataset.inCart = 'true';
         else delete chip.dataset.inCart;
-        chip.setAttribute('aria-label', chip.title + (on ? '（已加入清單；再次點選查看相關疾病）' : ''));
+        chip.setAttribute('aria-label', chip.title + (on ? '（已加入清單）' : ''));
       }
     }
 
@@ -995,7 +950,7 @@
       refs.panels.hidden = nextSearching;
       refs.chronicSwitch.hidden = nextSearching;
       refs.searchBack.hidden = !nextSearching;
-      /* 窗格高度不進 DEPS，一律在每次重繪後重跑：內容變了（換模式部位變多、相關碼出現、
+      /* 窗格高度不進 DEPS，一律在每次重繪後重跑：內容變了（換模式部位變多、
          清單展開）原本合法的高度就可能超出可用空間，得當場重新夾一次。成本是量三個元素。 */
       refs.paneGroup.applyAll();
       if (nextSearching) {

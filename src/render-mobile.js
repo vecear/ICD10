@@ -20,14 +20,14 @@
   /* 狀態欄位 → 需要重跑的更新器。列出所有欄位（含手機用不到的），
      沒列到的欄位會退回「全部重跑」，那會讓每次 recent 累積都整頁重畫。 */
   const DEPS = {
-    mode: ['header', 'pills', 'panels', 'related', 'settings'],
+    mode: ['header', 'pills', 'panels', 'settings'],
     region: ['pills', 'panels'],
     query: ['results', 'searchValue'],
-    dbState: ['results', 'related', 'settings'],
+    dbState: ['results', 'settings'],
     expanded: ['panels'],
     quickOpen: [],
-    cart: ['cartSheet', 'cartBar', 'his', 'related'],
-    relatedCode: ['related'],
+    cart: ['cartSheet', 'cartBar', 'his'],
+    relatedCode: [],
     favs: ['cartSheet'],
     recent: [],
     format: ['his', 'settings'],
@@ -141,16 +141,6 @@
     scroll.append(resultsCard, refs.panels);
     wrap.appendChild(scroll);
 
-    // ── 相關疾病／評估碼：底部列上方，最高 190px 可捲（L401-415） ──────────
-    refs.relatedWrap = R.el('section');
-    refs.relatedWrap.id = 'mobile-related';
-    refs.relatedWrap.hidden = true;
-    refs.relatedWrap.appendChild(R.el('div', 'kicker m-related-title', '相關疾病／評估碼'));
-    refs.related = R.el('div');
-    refs.related.id = 'related';
-    refs.relatedWrap.appendChild(refs.related);
-    wrap.appendChild(refs.relatedWrap);
-
     /* ── 清單抽屜：底部列點開才出現 ────────────────────────────────────────
        1b 設計本身只有底部摘要列，沒有逐列清單；但控制者裁示 C6 要求手機保留「主」鈕
        （設為主診斷），而移除誤點的碼在門診現場也是必要動作。抽屜是成本最低的作法：
@@ -206,8 +196,7 @@
     host.appendChild(wrap);
 
     /* ── 可拖曳的窗格分隔條（功能與 1a／1c 統一） ────────────────────────────
-       390×844 只有兩條分界值得可調：相關碼區（預設最高 190px，抽屜開著時被壓到 84px）
-       與清單抽屜（預設最高 46vh）。**部位 pill 列不做**：它是單行橫向捲動列，高度就是
+       390×844 只有一條分界值得可調：清單抽屜（預設最高 46vh）。**部位 pill 列不做**：它是單行橫向捲動列，高度就是
        一顆 44px 觸控目標，可調只會讓觸控目標變小；header 同理是固定內容。
        .m-scroll 是彈性區，吸收其他窗格讓出／占走的空間。 */
     refs.paneGroup = root.ICDResize.createGroup({
@@ -217,10 +206,6 @@
       flex: scroll,
       flexMin: 120,
       panes: [
-        {
-          key: 'related', el: refs.related, label: '相關碼區', sign: -1, min: 56,
-          visible: () => !refs.relatedWrap.hidden,
-        },
         {
           // 抽屜自己是 flex column、內部由 ul#cart 捲動，不要再給它一層 overflow
           key: 'sheet', el: refs.cartSheet, label: '清單抽屜', sign: -1, min: 120, scroll: false,
@@ -315,26 +300,6 @@
       for (const chip of refs.results.querySelectorAll('.chip')) chip.classList.add('chip--row');
     };
 
-    /* 相關碼自己渲染（不用共用的 renderRelated）：手機要整列形態，而且外層區塊
-       在沒有建議時要整段收起來（設計 L799 的 mobileRelatedStyle）。
-       兩層分組的邏輯仍走共用的 relatedGroups()，不在這裡另寫一套。 */
-    U.related = () => {
-      R.clear(refs.related);
-      const groups = R.relatedGroups(ctx);
-      refs.relatedWrap.hidden = !groups.length;
-      for (const group of groups) {
-        const wrapper = R.el('div', 'related-group');
-        wrapper.appendChild(R.el('div', 'group-label', group.label));
-        const rows = R.el('div', 'm-rows');
-        for (const code of group.codes) {
-          // chipWith 而不是 chipEl：附加碼（B95–B97／Z16）的標記要跟三套版面一致
-          rows.appendChild(R.chipWith(ctx, code, ctx.data.labelOf(code), { className: 'chip--row' }));
-        }
-        wrapper.appendChild(rows);
-        refs.related.appendChild(wrapper);
-      }
-    };
-
     U.cartSheet = () => {
       const s = ctx.store.getState();
       R.renderCart(refs.cart, refs.cartEmpty, refs.cartCount, ctx);
@@ -350,9 +315,6 @@
       if (!s.cart.length) sheetOpen = false;
       const open = !!(sheetOpen && s.cart.length);
       refs.cartSheet.hidden = !open;
-      // 抽屜開著時要把相關碼區壓扁讓出空間；相關碼在 DOM 上排在抽屜「之前」，
-      // 兄弟選擇器搆不到，改由根節點的類名驅動。
-      wrap.classList.toggle('sheet-open', open);
     };
 
     U.cartBar = () => {
@@ -399,7 +361,7 @@
         names = ALL.filter((n) => set.has(n));
       }
       for (const name of names) U[name]();
-      // 內容變了（相關碼出現、抽屜展開）就得重新夾一次高度，見 render-dock.js 同一段註解
+      // 內容變了（抽屜展開）就得重新夾一次高度，見 render-dock.js 同一段註解
       refs.paneGroup.applyAll();
     }
 

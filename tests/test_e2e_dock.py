@@ -459,30 +459,6 @@ def test_copy_date_button(pg):
 
 
 # ---- 相關碼 ----
-def test_related_appears_and_hides(pg):
-    expect(pg.locator("#dock-related")).to_be_hidden()
-    chip = first_panel_chip(pg)
-    code = chip.get_attribute("data-code")
-    chip.click()
-
-    expect(pg.locator("#dock-related")).to_be_visible()
-    assert pg.locator("#related .related-group").count() >= 1
-    assert pg.locator("#related .chip[data-code]").count() >= 1
-    assert code in pg.locator("#related .group-label").first.inner_text()
-    # 相關碼是「建議」不是自動加入
-    expect(pg.locator("#cart li")).to_have_count(1)
-
-    suggestion = pg.locator("#related .chip[data-code]").first
-    suggested = suggestion.get_attribute("data-code")
-    suggestion.click()
-    expect(pg.locator(f'#cart li[data-code="{suggested}"]')).to_have_count(1)
-    assert_no_hscroll(pg, "相關碼")
-
-    # 切模式必須清空相關碼（C5）
-    set_mode(pg, "mode-er")
-    expect(pg.locator("#dock-related")).to_be_hidden()
-
-
 def test_red_flags_do_not_leak_into_outpatient(pg):
     """急診的紅旗碼只能出現在急診模式；門診面板一顆都不能有（C5，臨床安全）。"""
     set_mode(pg, "mode-er")
@@ -1412,20 +1388,19 @@ def drag_pane(page, pane_id, dy):
 
 
 def with_code(page):
-    """加一個碼：相關疾病區與清單區（連同它們的分隔條）才會出現。"""
+    """加一個碼：清單區（連同它們的分隔條）才會出現。"""
     page.locator('#dock-panels .chip[data-code]:not(.cat)').first.click()
     page.wait_for_timeout(250)
 
 
 def test_pane_resizers_present_with_aria(pg):
-    """三條分隔條：部位區永遠在，相關疾病與清單有內容才出現（沒東西可調就不給假的線）。"""
-    assert pg.locator(".pane-resizer").count() == 3
+    """兩條分隔條：部位區永遠在，清單有內容才出現（沒東西可調就不給假的線）。"""
+    assert pg.locator(".pane-resizer").count() == 2
     expect(sep_for(pg, "region-pills")).to_be_visible()
-    expect(sep_for(pg, "related")).to_be_hidden()
     expect(sep_for(pg, "cart-inline")).to_be_hidden()
 
     with_code(pg)
-    for pane_id in ("region-pills", "related", "cart-inline"):
+    for pane_id in ("region-pills", "cart-inline"):
         sep = sep_for(pg, pane_id)
         expect(sep).to_be_visible()
         assert sep.get_attribute("role") == "separator"
@@ -1472,7 +1447,7 @@ def test_pane_resize_keeps_no_horizontal_overflow(pg, theme):
     pg.evaluate("(t) => window.ICDApp.store.setTheme(t)", theme)
     with_code(pg)
     search(pg, "急性")
-    for pane_id, dy in (("region-pills", -60), ("related", -80), ("cart-inline", -70), ("region-pills", 400)):
+    for pane_id, dy in (("region-pills", -60), ("cart-inline", -70), ("region-pills", 400)):
         drag_pane(pg, pane_id, dy)
         assert_no_hscroll(pg, f"{theme}／拖 {pane_id} {dy}")
         bad = overflowing_elements(pg)

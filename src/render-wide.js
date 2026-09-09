@@ -15,11 +15,11 @@
     query: ['results', 'searchValue'],
     // shelf 一定要在：常用列的中文名靠 data.labelOf() 查全庫，全庫就緒前是光禿禿的代碼，
     // 漏了它就得剛好動到 favs／recent／shelfOpen 才會補上中文（R2 I4）
-    dbState: ['results', 'settings', 'related', 'shelf'],
+    dbState: ['results', 'settings', 'shelf'],
     expanded: ['panels'],
     quickOpen: ['quick'],
-    cart: ['cart', 'his', 'related'],
-    relatedCode: ['related'],
+    cart: ['cart', 'his'],
+    relatedCode: [],
     favs: ['shelf', 'cart'],
     recent: ['shelf'],
     format: ['his', 'settings'],
@@ -151,7 +151,7 @@
     sheet.appendChild(refs.panels);
     bench.appendChild(sheet);
 
-    // 右欄：清單 → 貼入 HIS → 相關碼
+    // 右欄：清單 → 貼入 HIS
     const aside = R.el('aside');
     aside.id = 'cart-pane';
     const cartHead = R.el('div', 'cart-head');
@@ -189,15 +189,6 @@
     his.append(hisHead, refs.hisPreview);
     aside.appendChild(his);
 
-    const relatedWrap = R.el('div', 'related-wrap');
-    relatedWrap.id = 'related-wrap';
-    relatedWrap.appendChild(R.el('div', 'kicker', '相關疾病／評估碼'));
-    refs.relatedEmpty = R.el('div', 'related-empty', '加入代碼後，這裡列出建議一併評估的診斷。');
-    refs.related = R.el('div');
-    refs.related.id = 'related';
-    relatedWrap.append(refs.relatedEmpty, refs.related);
-    aside.appendChild(relatedWrap);
-
     bench.appendChild(aside);
     wide.appendChild(bench);
 
@@ -215,8 +206,7 @@
        1a 是三欄版面，垂直方向只有兩條分界真的值得可調，其餘刻意不做：
          中欄 搜尋結果↓  命中幾十筆時會把主訴面板整片推到摺線下，壓低它就能邊看結果邊選面板
          右欄 清單↓      清單長了會把「貼入 HIS」擠出視野，壓低它讓複製鈕留在視線內
-       不做的：header／常用列是固定高度的控制列；右欄的「相關疾病」排在最後，拉它只是
-       改自己的長度（欄本身會捲動），拖了等於沒拖。三欄的**寬度**不在這次範圍內。
+       不做的：header／常用列是固定高度的控制列。三欄的**寬度**不在這次範圍內。
        這兩欄各自會捲動（.workbench > * { overflow-y:auto }），不是固定高度的 flex 盒，
        所以走 resize.js 的 scroll 模式：上限＝欄高扣掉 reserve，保證同欄其他內容還看得到。 */
     const paneOpts = { layout: 'wide', store: ctx.store };
@@ -363,7 +353,6 @@
     };
 
     U.results = () => R.renderResults(refs.resultsCard, refs.results, refs.resultNote, ctx);
-    U.related = () => R.renderRelated(refs.related, refs.relatedEmpty, ctx);
     U.cart = () => {
       R.renderCart(refs.cart, refs.cartEmpty, refs.cartCount, ctx);
       R.syncClearBtn(refs.clearCart, ctx);

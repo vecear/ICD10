@@ -161,7 +161,6 @@ body[data-layout="wide"] .panel-toggle[aria-expanded="true"] .marker { transform
 .cart-head h3 { margin: 0; font-family: var(--font-heading); font-size: 18px; letter-spacing: .02em; }
 #cart-count { color: var(--color-accent-700); }
 .cart-empty { font-size: 13px; color: var(--color-neutral-700); padding: 10px 2px; }
-.related-empty { font-size: 13px; color: var(--color-neutral-700); }
 
 /* ── 900–1239px：rail 降成頂部 pill 列，右欄縮到 360px（impl-plan §4.6） ── */
 @media (max-width: 1239px) {

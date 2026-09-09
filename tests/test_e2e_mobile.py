@@ -157,7 +157,7 @@ def test_no_horizontal_overflow(page, scenario):
         search(page, "cellulitis")
     elif scenario == "cart":
         page.locator("#panels .chip--row").first.click()
-        page.locator("#related .chip--row").first.click()
+        page.locator("#panels .chip--row").nth(1).click()
         page.click("#cart-toggle")
         expect(page.locator("#cart-sheet")).to_be_visible()
     page.wait_for_timeout(120)
@@ -376,7 +376,7 @@ def test_tap_code_row_adds_and_bar_shows_summary(page):
     first.tap()                                   # 真觸控事件，不是滑鼠
     expect(page.locator("#cart-count")).to_have_text("1")
     expect(page.locator("#cart-inline")).to_have_text(code)
-    second = page.locator("#related .chip--row").first
+    second = page.locator("#panels .chip--row").nth(1)
     code2 = second.get_attribute("data-code")
     second.tap()
     expect(page.locator("#cart-count")).to_have_text("2")
@@ -398,13 +398,10 @@ def test_cart_bar_does_not_cover_content(page):
             const last = rows[rows.length - 1].getBoundingClientRect();
             const scroll = document.querySelector('.m-scroll').getBoundingClientRect();
             const bar = document.getElementById('cart-bar').getBoundingClientRect();
-            const related = document.getElementById('mobile-related').getBoundingClientRect();
-            return { lastBottom: last.bottom, scrollBottom: scroll.bottom, barTop: bar.top, relatedTop: related.top };
+            return { lastBottom: last.bottom, scrollBottom: scroll.bottom, barTop: bar.top };
         }"""
     )
     assert geom["lastBottom"] <= geom["barTop"] + 0.5, "捲到底時最後一列被底部列蓋住"
-    assert geom["lastBottom"] <= geom["relatedTop"] + 0.5, "最後一列被相關碼區蓋住"
-    assert geom["scrollBottom"] <= geom["relatedTop"] + 0.5, "捲動區與相關碼區重疊"
 
 
 def test_copy_matches_preview_and_format(page):
@@ -415,7 +412,7 @@ def test_copy_matches_preview_and_format(page):
     reset(page)
     assert page.locator("#copy-all").count() == 0, "複製鈕應已移除"
     page.locator('#panels .chip--row').first.click()
-    page.locator("#related .chip--row").first.click()
+    page.locator("#panels .chip--row").nth(1).click()
     codes = page.evaluate("() => window.ICDApp.store.getState().cart.map((x) => x.code)")
 
     page.click("#cart-toggle")
@@ -440,7 +437,7 @@ def test_cart_sheet_primary_and_remove(page):
     """C6：手機不做拖曳換序，改用「主」鈕；誤點的碼也要能移除。"""
     reset(page)
     page.locator("#panels .chip--row").first.click()
-    page.locator("#related .chip--row").first.click()
+    page.locator("#panels .chip--row").nth(1).click()
     codes = page.evaluate("() => window.ICDApp.store.getState().cart.map((x) => x.code)")
     page.click("#cart-toggle")
     sheet = page.locator("#cart-sheet")
@@ -470,34 +467,6 @@ def test_cart_sheet_primary_and_remove(page):
 # ══════════════════════════════════════════════════════════════════════════
 # 相關碼、搜尋、設定
 # ══════════════════════════════════════════════════════════════════════════
-def test_related_section_appears_above_cart_bar(page):
-    """相關碼區在底部列上方，空的時候整段收起來，最高 190px 可捲（設計 L401-415）。"""
-    reset(page)
-    expect(page.locator("#mobile-related")).to_be_hidden()
-    go_region(page, "internal_outpatient.json", "頭痛")
-    page.click('#panels .chip--row[data-code="R51.9"]')
-    related = page.locator("#mobile-related")
-    expect(related).to_be_visible()
-    expect(page.locator('#related .chip--row[data-code="G43.909"]')).to_have_count(1)
-    assert page.locator("#related .chip--row").count() >= 1
-    geom = page.evaluate(
-        """() => {
-            const r = document.getElementById('related');
-            const wrap = document.getElementById('mobile-related').getBoundingClientRect();
-            const bar = document.getElementById('cart-bar').getBoundingClientRect();
-            return { maxH: parseFloat(getComputedStyle(r).maxHeight), h: r.getBoundingClientRect().height,
-                     wrapBottom: wrap.bottom, barTop: bar.top };
-        }"""
-    )
-    assert geom["maxH"] <= 190.5, f"相關碼捲動區 max-height 是 {geom['maxH']}"
-    assert geom["h"] <= 190.5
-    assert geom["wrapBottom"] <= geom["barTop"] + 0.5, "相關碼區不在底部列上方"
-    # 加入建議碼後該碼進清單、並從建議中消失（沿用既有行為）
-    page.click('#related .chip--row[data-code="G43.909"]')
-    expect(page.locator("#cart-inline")).to_contain_text("G43.909")
-    expect(page.locator('#related .chip--row[data-code="G43.909"]')).to_have_count(0)
-
-
 def test_search_results_are_rows_and_category_not_addable(page):
     """搜尋結果同樣是 48px 整列；類目碼虛線、點了也加不進去。"""
     reset(page)
@@ -576,7 +545,7 @@ def test_red_flags_do_not_leak_into_outpatient(page):
         assert page.locator(f'#panels .chip[data-code="{code}"]').count() == 0
 
     page.click('#panels .chip--row[data-code="R51.9"]')
-    expect(page.locator('#related .chip[data-code="G43.909"]')).to_have_count(1)
+    expect(page.locator('#related .chip[data-code="G43.909"]')).to_have_count(0)
     expect(page.locator('#related .chip[data-code="G03.9"]')).to_have_count(0)
     expect(page.locator('#related .chip[data-code="I60.9"]')).to_have_count(0)
 
@@ -588,7 +557,7 @@ def test_red_flags_do_not_leak_into_outpatient(page):
     expect(er_panel.locator(".m-redflag-label")).to_be_visible()
     expect(er_panel.locator('.chip--warn[data-code="G03.9"]')).to_have_count(1)
     page.click('#panels .chip--row[data-code="R51.9"]')
-    expect(page.locator('#related .chip[data-code="G03.9"]')).to_have_count(1)
+    expect(page.locator('#related .chip[data-code="G03.9"]')).to_have_count(0)
 
     # 切回門診：相關碼清空，紅旗不得殘留
     page.evaluate("() => window.ICDApp.store.setMode('outpatient')")
@@ -842,14 +811,14 @@ def touch_page(browser_ctx, page_url):
 
 
 def test_pane_resizers_present_with_aria(page):
-    """兩條分隔條：相關碼區與清單抽屜。部位 pill 列（單行橫捲）與 header 刻意不做。"""
+    """一條分隔條：清單抽屜。部位 pill 列（單行橫捲）與 header 刻意不做。"""
     reset(page)
-    assert page.locator(".pane-resizer").count() == 2
-    for pane_id in ("related", "cart-sheet"):
+    assert page.locator(".pane-resizer").count() == 1
+    for pane_id in ("cart-sheet",):
         expect(sep_for(page, pane_id)).to_be_hidden()
 
     open_sheet(page)
-    for pane_id in ("related", "cart-sheet"):
+    for pane_id in ("cart-sheet",):
         sep = sep_for(page, pane_id)
         expect(sep).to_be_visible()
         assert sep.get_attribute("role") == "separator"
@@ -881,10 +850,6 @@ def test_pane_touch_drag_resizes_sheet(touch_page):
     expect(pg.locator("#cart-toggle")).to_be_visible()
     assert pane_h(pg, ".m-scroll") >= 100, "主訴捲動區被壓到看不見"
 
-    # 相關碼區同樣拖得動（手指）
-    rel_before = pane_h(pg, "#related")
-    touch_drag(pg, "related", -40)
-    assert pane_h(pg, "#related") > rel_before + 20
 
 
 def test_pane_mouse_drag_and_keyboard(page):

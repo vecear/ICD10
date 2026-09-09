@@ -583,9 +583,8 @@ body {
 .results-title { font-family: var(--font-heading); font-size: 15px; letter-spacing: .04em; }
 .result-note { font-size: 12px; color: var(--color-neutral-700); }
 
-/* ── 相關碼 ── */
+/* ── 分組標籤 ── */
 .group-label { font-size: 12px; color: var(--color-neutral-700); margin: 6px 0 4px; }
-.related-group { margin-bottom: 8px; }
 
 /* ── 紅旗警示盒（設計稿 L575；只有急診模式渲染得出來，見 data.js panelsFor） ── */
 .redflag-group {
@@ -1525,7 +1524,6 @@ body[data-layout="wide"] .panel-toggle[aria-expanded="true"] .marker { transform
 .cart-head h3 { margin: 0; font-family: var(--font-heading); font-size: 18px; letter-spacing: .02em; }
 #cart-count { color: var(--color-accent-700); }
 .cart-empty { font-size: 13px; color: var(--color-neutral-700); padding: 10px 2px; }
-.related-empty { font-size: 13px; color: var(--color-neutral-700); }
 
 /* ── 900–1239px：rail 降成頂部 pill 列，右欄縮到 360px（impl-plan §4.6） ── */
 @media (max-width: 1239px) {
@@ -1803,23 +1801,6 @@ body[data-layout="dock"] .dock-panel .panel-toggle:hover { text-decoration: unde
    視窗被迫變寬時自動多欄，代碼列不會被拉成一行只有左邊有字。 */
 body[data-layout="dock"] .dock-panel-rows {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); column-gap: 7px;
-}
-
-/* ── 相關疾病／評估：有建議時才出現（L297-311） ── */
-body[data-layout="dock"] #dock-related {
-  flex: none; border-top: 1px solid var(--color-accent); background: var(--color-accent-100);
-}
-body[data-layout="dock"] .dock-related-title {
-  font-family: var(--font-heading); font-size: 11px; letter-spacing: .06em;
-  color: var(--color-accent-800); padding: 4px 6px 2px;
-  display: flex; align-items: center; gap: 4px; justify-content: space-between; width: 100%;
-  min-height: 24px; border: 0; background: transparent; text-align: left; cursor: pointer;
-}
-body[data-layout="dock"] .dock-related-action { flex: none; font-size: 10px; }
-body[data-layout="dock"] #related { max-height: 96px; overflow-y: auto; padding: 0 6px 6px; }
-body[data-layout="dock"] #related .related-group { margin-bottom: 0; }
-body[data-layout="dock"] #related .group-label {
-  margin: 0; padding: 3px 0 1px; font-size: 10px; color: var(--color-neutral-700);
 }
 
 /* ── 清單摘要 ＋ 清單 ＋ 貼入 HIS（L313-336） ── */
@@ -2214,31 +2195,14 @@ body[data-layout="mobile"] .panel-toggle {
   color: var(--color-accent-700); white-space: nowrap; width: fit-content;
 }
 
-/* ── 相關疾病／評估碼：底部列上方，最高 190px 可捲（L401-415、L799） ──── */
-body[data-layout="mobile"] #mobile-related {
-  flex: none; border-top: 1px solid var(--color-accent);
-  background: var(--color-accent-100); padding: 10px 14px;
-}
-body[data-layout="mobile"] .m-related-title {
-  font-family: var(--font-heading); font-size: 12px; letter-spacing: .08em;
-  text-transform: none; color: var(--color-accent-800); margin-bottom: 5px;
-}
-body[data-layout="mobile"] #related {
-  max-height: 190px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;
-}
-body[data-layout="mobile"] #related .chip--row { background: var(--color-bg); }
-body[data-layout="mobile"] #related .group-label { margin: 0 0 3px; font-size: 11px; }
-
 /* ── 清單抽屜：底部列點開才出現 ──────────────────────────────────────── */
-/* 抽屜整體不超過視高的 46%，內部只讓 ul#cart 捲——標題列與 HIS 預覽要一直看得到。
-   同時把上方的相關碼區壓成 84px，否則 390×844 上抽屜一開，主訴面板只剩兩列。 */
+/* 抽屜整體不超過視高的 46%，內部只讓 ul#cart 捲——標題列與 HIS 預覽要一直看得到。 */
 body[data-layout="mobile"] .m-cart-sheet {
   flex: none; display: flex; flex-direction: column; gap: 8px;
   max-height: 46vh; max-height: 46dvh;
   padding: 10px 14px; background: var(--color-bg);
   border-top: 1px solid var(--color-accent); box-shadow: var(--shadow-md);
 }
-body[data-layout="mobile"] #layout-mobile.sheet-open #related { max-height: 84px; }
 body[data-layout="mobile"] .m-sheet-head { display: flex; align-items: center; gap: 8px; }
 body[data-layout="mobile"] .m-sheet-head .kicker { flex: 1; min-width: 0; }
 body[data-layout="mobile"] #his-format-label { font-size: 11px; color: var(--color-neutral-700); }
@@ -5210,39 +5174,6 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
     }
   }
 
-  // ---- 相關碼 ----
-  /* 兩層：人工關聯（related.json ＋ 當前模式的症狀表）＋ 同類目其他碼。
-     已在清單的碼要濾掉，移除後才會重新出現。 */
-  function relatedGroups(ctx) {
-    const s = ctx.store.getState();
-    const code = s.relatedCode;
-    if (!code) return [];
-    const inCart = (c) => s.cart.some((x) => x.code === c);
-    const curated = ctx.data.relatedFor(code, s.mode).filter((c) => !inCart(c));
-    const seen = new Set(curated);
-    const fam = ctx.data.familyFor(code)
-      .map((r) => r[0])
-      .filter((c) => c !== code && !inCart(c) && !seen.has(c));
-    const groups = [];
-    if (curated.length) groups.push({ label: '與 ' + code + ' 常見同時評估', codes: curated });
-    if (fam.length) groups.push({ label: '同類目其他碼（' + code.slice(0, 3) + '）', codes: fam });
-    return groups;
-  }
-
-  function renderRelated(host, empty, ctx) {
-    clear(host);
-    const groups = relatedGroups(ctx);
-    if (empty) empty.hidden = groups.length > 0;
-    for (const group of groups) {
-      const wrap = el('div', 'related-group');
-      wrap.appendChild(el('div', 'group-label', group.label));
-      const row = el('div', 'chip-row');
-      for (const code of group.codes) row.appendChild(chipWith(ctx, code, ctx.data.labelOf(code)));
-      wrap.appendChild(row);
-      host.appendChild(wrap);
-    }
-  }
-
   // ---- 就診清單 ----
   function cartItemEl(item, i, ctx) {
     const fav = ctx.store.isFav(item.code);
@@ -7110,7 +7041,7 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
     icon, el, blueprint, clear, regionHeading, srHeading, markRegionSelected, regionGroupEl,
     regionShort, dateBtnEl,
     chipEl, chipWith, chipsFromPairs, emptyText,
-    renderResults, relatedGroups, renderRelated,
+    renderResults,
     cartItemEl, renderCart, syncClearBtn, hisText, renderHis, renderShelf,
     settingsPopoverEl, syncSettings, dbNoteText, layoutNoteText, effectiveLayout, setPressed,
     layoutToggleEl,
@@ -7148,11 +7079,11 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
     query: ['results', 'searchValue'],
     // shelf 一定要在：常用列的中文名靠 data.labelOf() 查全庫，全庫就緒前是光禿禿的代碼，
     // 漏了它就得剛好動到 favs／recent／shelfOpen 才會補上中文（R2 I4）
-    dbState: ['results', 'settings', 'related', 'shelf'],
+    dbState: ['results', 'settings', 'shelf'],
     expanded: ['panels'],
     quickOpen: ['quick'],
-    cart: ['cart', 'his', 'related'],
-    relatedCode: ['related'],
+    cart: ['cart', 'his'],
+    relatedCode: [],
     favs: ['shelf', 'cart'],
     recent: ['shelf'],
     format: ['his', 'settings'],
@@ -7284,7 +7215,7 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
     sheet.appendChild(refs.panels);
     bench.appendChild(sheet);
 
-    // 右欄：清單 → 貼入 HIS → 相關碼
+    // 右欄：清單 → 貼入 HIS
     const aside = R.el('aside');
     aside.id = 'cart-pane';
     const cartHead = R.el('div', 'cart-head');
@@ -7322,15 +7253,6 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
     his.append(hisHead, refs.hisPreview);
     aside.appendChild(his);
 
-    const relatedWrap = R.el('div', 'related-wrap');
-    relatedWrap.id = 'related-wrap';
-    relatedWrap.appendChild(R.el('div', 'kicker', '相關疾病／評估碼'));
-    refs.relatedEmpty = R.el('div', 'related-empty', '加入代碼後，這裡列出建議一併評估的診斷。');
-    refs.related = R.el('div');
-    refs.related.id = 'related';
-    relatedWrap.append(refs.relatedEmpty, refs.related);
-    aside.appendChild(relatedWrap);
-
     bench.appendChild(aside);
     wide.appendChild(bench);
 
@@ -7348,8 +7270,7 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
        1a 是三欄版面，垂直方向只有兩條分界真的值得可調，其餘刻意不做：
          中欄 搜尋結果↓  命中幾十筆時會把主訴面板整片推到摺線下，壓低它就能邊看結果邊選面板
          右欄 清單↓      清單長了會把「貼入 HIS」擠出視野，壓低它讓複製鈕留在視線內
-       不做的：header／常用列是固定高度的控制列；右欄的「相關疾病」排在最後，拉它只是
-       改自己的長度（欄本身會捲動），拖了等於沒拖。三欄的**寬度**不在這次範圍內。
+       不做的：header／常用列是固定高度的控制列。三欄的**寬度**不在這次範圍內。
        這兩欄各自會捲動（.workbench > * { overflow-y:auto }），不是固定高度的 flex 盒，
        所以走 resize.js 的 scroll 模式：上限＝欄高扣掉 reserve，保證同欄其他內容還看得到。 */
     const paneOpts = { layout: 'wide', store: ctx.store };
@@ -7496,7 +7417,6 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
     };
 
     U.results = () => R.renderResults(refs.resultsCard, refs.results, refs.resultNote, ctx);
-    U.related = () => R.renderRelated(refs.related, refs.relatedEmpty, ctx);
     U.cart = () => {
       R.renderCart(refs.cart, refs.cartEmpty, refs.cartCount, ctx);
       R.syncClearBtn(refs.clearCart, ctx);
@@ -7628,7 +7548,7 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
     return pop;
   }
 
-  /* 共用的 renderResults／renderRelated 產生的是通用 `.chip`；1c 要的是列狀的 `.chip--dock`
+  /* 共用的 renderResults 產生的是通用 `.chip`；1c 要的是列狀的 `.chip--dock`
      （契約 §4.2 的 1c 修飾類）。與其複製一份渲染邏輯，這裡只補掛修飾類。 */
   function dockify(hostEl) {
     for (const chip of hostEl.querySelectorAll('.chip')) chip.classList.add('chip--dock');
@@ -7640,11 +7560,11 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
     mode: ['header', 'pills', 'panels', 'settings', 'pip'],
     region: ['pills', 'panels'],
     query: ['results', 'searchValue'],
-    dbState: ['results', 'related', 'settings', 'pip'],
+    dbState: ['results', 'settings', 'pip'],
     expanded: ['panels'],
     quickOpen: [],
-    cart: ['cart', 'his', 'related'],
-    relatedCode: ['related'],
+    cart: ['cart', 'his'],
+    relatedCode: [],
     favs: [],
     recent: [],
     format: ['his', 'settings'],
@@ -7741,7 +7661,7 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
 
     /* ── 捲動內容：搜尋結果 ＋ 扁平面板列表 ────────────────────────────────
        這一區＝<main>（v3 §5-1）。整個側欄只有這一個 main；頭部是 banner，
-       部位列是 role="group"，相關疾病與清單是其後的一般區塊。 */
+       部位列是 role="group"，清單是其後的一般區塊。 */
     const body = R.el('main', 'dock-scroll');
     // 只記本次開啟的瀏覽位置；搜尋結果與每個模式／部位分開，不寫 localStorage。
     const positions = new Map();
@@ -7750,7 +7670,6 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
     let viewKey = null;
     let searching = false;
     let lastQuery = '';
-    let relatedOpen = true;
     body.appendChild(R.srHeading(2, '診斷碼選擇'));
     /* 1c 沒有可見的模式標題（1a 的 #panels-title），面板名也只是 <span>。補一個 sr-only
        的 H3 銜接 H2 與 .region-heading，內容與 1a 同源於 R.PANELS_TITLE，由 U.header 更新。 */
@@ -7790,23 +7709,6 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
     refs.panels.id = 'dock-panels';
     body.appendChild(refs.panels);
     dock.appendChild(body);
-
-    // ── 相關疾病／評估：有建議時才出現 ──────────────────────────────────
-    refs.relatedWrap = R.el('div');
-    refs.relatedWrap.id = 'dock-related';
-    refs.relatedWrap.hidden = true;
-    refs.relatedToggle = R.el('button', 'dock-related-title');
-    refs.relatedToggle.id = 'dock-related-toggle';
-    refs.relatedToggle.type = 'button';
-    refs.relatedToggle.setAttribute('aria-controls', 'related');
-    refs.relatedLabel = R.el('span');
-    refs.relatedAction = R.el('span', 'dock-related-action');
-    refs.relatedToggle.append(refs.relatedLabel, refs.relatedAction);
-    refs.relatedWrap.appendChild(refs.relatedToggle);
-    refs.related = R.el('div');
-    refs.related.id = 'related';
-    refs.relatedWrap.appendChild(refs.related);
-    dock.appendChild(refs.relatedWrap);
 
     // ── 清單／貼入 HIS ────────────────────────────────────────────────
     const cartBox = R.el('div', 'dock-cart');
@@ -7867,9 +7769,8 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
     host.appendChild(dock);
 
     /* ── 可拖曳的窗格分隔條（使用者要求：各窗格高度可手動調整） ─────────────
-       1c 是使用者提出這個需求的版面，四條分界裡有三條可調：
+       1c 是使用者提出這個需求的版面，兩條分界可調：
          部位區↓   兩欄 grid 會隨模式長到十幾列，壓小它就把空間讓給主訴面板
-         相關疾病↑ 預設最高 170px，建議多時想看全、看診中想收窄
          清單↑     預設最高 210px，碼多時要能拉高
        header 那條**刻意不做**：搜尋框＋（模式三鈕／置頂／設定）那一列是固定內容，拉高只是留白，
        拉低就會把控制項裁掉——沒有意義的分隔條只會製造誤觸（見 .review/r6-resizable.md）。
@@ -7882,10 +7783,6 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
       flexMin: 90,
       panes: [
         { key: 'regions', el: refs.pills, label: '部位區', sign: 1, min: 44 },
-        {
-          key: 'related', el: refs.related, label: '相關疾病區', sign: -1, min: 48,
-          visible: () => !refs.relatedWrap.hidden && !refs.related.hidden,
-        },
         {
           key: 'cart', el: refs.cartInline, label: '清單區', sign: -1, min: 48,
           visible: () => !refs.cartInline.hidden,
@@ -8237,12 +8134,6 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
         refs.search.focus({ preventScroll: true });
         return;
       }
-      if (target.closest('#dock-related-toggle')) {
-        relatedOpen = !relatedOpen;
-        syncRelatedVisibility();
-        refs.paneGroup.applyAll();
-        return;
-      }
       // 模式與部位鈕代表回到導引；清掉搜尋後仍由原本的事件委派完成切換。
       if (target.closest('.region-btn, #mode-switch [data-mode], #seg-mode [data-mode]')
         && refs.search.value) leaveSearch();
@@ -8442,29 +8333,13 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
       dockify(refs.results);
     };
 
-    U.related = () => {
-      R.renderRelated(refs.related, null, ctx);
-      dockify(refs.related);
-      const count = refs.related.querySelectorAll('.chip').length;
-      refs.relatedWrap.hidden = !count;
-      refs.relatedLabel.textContent = '相關疾病／評估' + (count ? ' · ' + count : '');
-      syncRelatedVisibility();
-    };
-
-    function syncRelatedVisibility() {
-      refs.related.hidden = !relatedOpen;
-      refs.relatedToggle.setAttribute('aria-expanded', String(relatedOpen));
-      refs.relatedToggle.title = relatedOpen ? '收合相關疾病，騰出選碼空間' : '展開相關疾病／評估';
-      refs.relatedAction.textContent = relatedOpen ? '收合' : '展開';
-    }
-
     function syncSelected() {
       const selected = new Set(ctx.store.getState().cart.map((item) => item.code));
       for (const chip of dock.querySelectorAll('.chip:not(.cat)')) {
         const on = selected.has(chip.dataset.code);
         if (on) chip.dataset.inCart = 'true';
         else delete chip.dataset.inCart;
-        chip.setAttribute('aria-label', chip.title + (on ? '（已加入清單；再次點選查看相關疾病）' : ''));
+        chip.setAttribute('aria-label', chip.title + (on ? '（已加入清單）' : ''));
       }
     }
 
@@ -8535,7 +8410,7 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
       refs.panels.hidden = nextSearching;
       refs.chronicSwitch.hidden = nextSearching;
       refs.searchBack.hidden = !nextSearching;
-      /* 窗格高度不進 DEPS，一律在每次重繪後重跑：內容變了（換模式部位變多、相關碼出現、
+      /* 窗格高度不進 DEPS，一律在每次重繪後重跑：內容變了（換模式部位變多、
          清單展開）原本合法的高度就可能超出可用空間，得當場重新夾一次。成本是量三個元素。 */
       refs.paneGroup.applyAll();
       if (nextSearching) {
@@ -8591,14 +8466,14 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
   /* 狀態欄位 → 需要重跑的更新器。列出所有欄位（含手機用不到的），
      沒列到的欄位會退回「全部重跑」，那會讓每次 recent 累積都整頁重畫。 */
   const DEPS = {
-    mode: ['header', 'pills', 'panels', 'related', 'settings'],
+    mode: ['header', 'pills', 'panels', 'settings'],
     region: ['pills', 'panels'],
     query: ['results', 'searchValue'],
-    dbState: ['results', 'related', 'settings'],
+    dbState: ['results', 'settings'],
     expanded: ['panels'],
     quickOpen: [],
-    cart: ['cartSheet', 'cartBar', 'his', 'related'],
-    relatedCode: ['related'],
+    cart: ['cartSheet', 'cartBar', 'his'],
+    relatedCode: [],
     favs: ['cartSheet'],
     recent: [],
     format: ['his', 'settings'],
@@ -8712,16 +8587,6 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
     scroll.append(resultsCard, refs.panels);
     wrap.appendChild(scroll);
 
-    // ── 相關疾病／評估碼：底部列上方，最高 190px 可捲（L401-415） ──────────
-    refs.relatedWrap = R.el('section');
-    refs.relatedWrap.id = 'mobile-related';
-    refs.relatedWrap.hidden = true;
-    refs.relatedWrap.appendChild(R.el('div', 'kicker m-related-title', '相關疾病／評估碼'));
-    refs.related = R.el('div');
-    refs.related.id = 'related';
-    refs.relatedWrap.appendChild(refs.related);
-    wrap.appendChild(refs.relatedWrap);
-
     /* ── 清單抽屜：底部列點開才出現 ────────────────────────────────────────
        1b 設計本身只有底部摘要列，沒有逐列清單；但控制者裁示 C6 要求手機保留「主」鈕
        （設為主診斷），而移除誤點的碼在門診現場也是必要動作。抽屜是成本最低的作法：
@@ -8777,8 +8642,7 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
     host.appendChild(wrap);
 
     /* ── 可拖曳的窗格分隔條（功能與 1a／1c 統一） ────────────────────────────
-       390×844 只有兩條分界值得可調：相關碼區（預設最高 190px，抽屜開著時被壓到 84px）
-       與清單抽屜（預設最高 46vh）。**部位 pill 列不做**：它是單行橫向捲動列，高度就是
+       390×844 只有一條分界值得可調：清單抽屜（預設最高 46vh）。**部位 pill 列不做**：它是單行橫向捲動列，高度就是
        一顆 44px 觸控目標，可調只會讓觸控目標變小；header 同理是固定內容。
        .m-scroll 是彈性區，吸收其他窗格讓出／占走的空間。 */
     refs.paneGroup = root.ICDResize.createGroup({
@@ -8788,10 +8652,6 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
       flex: scroll,
       flexMin: 120,
       panes: [
-        {
-          key: 'related', el: refs.related, label: '相關碼區', sign: -1, min: 56,
-          visible: () => !refs.relatedWrap.hidden,
-        },
         {
           // 抽屜自己是 flex column、內部由 ul#cart 捲動，不要再給它一層 overflow
           key: 'sheet', el: refs.cartSheet, label: '清單抽屜', sign: -1, min: 120, scroll: false,
@@ -8886,26 +8746,6 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
       for (const chip of refs.results.querySelectorAll('.chip')) chip.classList.add('chip--row');
     };
 
-    /* 相關碼自己渲染（不用共用的 renderRelated）：手機要整列形態，而且外層區塊
-       在沒有建議時要整段收起來（設計 L799 的 mobileRelatedStyle）。
-       兩層分組的邏輯仍走共用的 relatedGroups()，不在這裡另寫一套。 */
-    U.related = () => {
-      R.clear(refs.related);
-      const groups = R.relatedGroups(ctx);
-      refs.relatedWrap.hidden = !groups.length;
-      for (const group of groups) {
-        const wrapper = R.el('div', 'related-group');
-        wrapper.appendChild(R.el('div', 'group-label', group.label));
-        const rows = R.el('div', 'm-rows');
-        for (const code of group.codes) {
-          // chipWith 而不是 chipEl：附加碼（B95–B97／Z16）的標記要跟三套版面一致
-          rows.appendChild(R.chipWith(ctx, code, ctx.data.labelOf(code), { className: 'chip--row' }));
-        }
-        wrapper.appendChild(rows);
-        refs.related.appendChild(wrapper);
-      }
-    };
-
     U.cartSheet = () => {
       const s = ctx.store.getState();
       R.renderCart(refs.cart, refs.cartEmpty, refs.cartCount, ctx);
@@ -8921,9 +8761,6 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
       if (!s.cart.length) sheetOpen = false;
       const open = !!(sheetOpen && s.cart.length);
       refs.cartSheet.hidden = !open;
-      // 抽屜開著時要把相關碼區壓扁讓出空間；相關碼在 DOM 上排在抽屜「之前」，
-      // 兄弟選擇器搆不到，改由根節點的類名驅動。
-      wrap.classList.toggle('sheet-open', open);
     };
 
     U.cartBar = () => {
@@ -8970,7 +8807,7 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
         names = ALL.filter((n) => set.has(n));
       }
       for (const name of names) U[name]();
-      // 內容變了（相關碼出現、抽屜展開）就得重新夾一次高度，見 render-dock.js 同一段註解
+      // 內容變了（抽屜展開）就得重新夾一次高度，見 render-dock.js 同一段註解
       refs.paneGroup.applyAll();
     }
 

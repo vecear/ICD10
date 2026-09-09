@@ -239,39 +239,6 @@
     }
   }
 
-  // ---- 相關碼 ----
-  /* 兩層：人工關聯（related.json ＋ 當前模式的症狀表）＋ 同類目其他碼。
-     已在清單的碼要濾掉，移除後才會重新出現。 */
-  function relatedGroups(ctx) {
-    const s = ctx.store.getState();
-    const code = s.relatedCode;
-    if (!code) return [];
-    const inCart = (c) => s.cart.some((x) => x.code === c);
-    const curated = ctx.data.relatedFor(code, s.mode).filter((c) => !inCart(c));
-    const seen = new Set(curated);
-    const fam = ctx.data.familyFor(code)
-      .map((r) => r[0])
-      .filter((c) => c !== code && !inCart(c) && !seen.has(c));
-    const groups = [];
-    if (curated.length) groups.push({ label: '與 ' + code + ' 常見同時評估', codes: curated });
-    if (fam.length) groups.push({ label: '同類目其他碼（' + code.slice(0, 3) + '）', codes: fam });
-    return groups;
-  }
-
-  function renderRelated(host, empty, ctx) {
-    clear(host);
-    const groups = relatedGroups(ctx);
-    if (empty) empty.hidden = groups.length > 0;
-    for (const group of groups) {
-      const wrap = el('div', 'related-group');
-      wrap.appendChild(el('div', 'group-label', group.label));
-      const row = el('div', 'chip-row');
-      for (const code of group.codes) row.appendChild(chipWith(ctx, code, ctx.data.labelOf(code)));
-      wrap.appendChild(row);
-      host.appendChild(wrap);
-    }
-  }
-
   // ---- 就診清單 ----
   function cartItemEl(item, i, ctx) {
     const fav = ctx.store.isFav(item.code);
@@ -2139,7 +2106,7 @@
     icon, el, blueprint, clear, regionHeading, srHeading, markRegionSelected, regionGroupEl,
     regionShort, dateBtnEl,
     chipEl, chipWith, chipsFromPairs, emptyText,
-    renderResults, relatedGroups, renderRelated,
+    renderResults,
     cartItemEl, renderCart, syncClearBtn, hisText, renderHis, renderShelf,
     settingsPopoverEl, syncSettings, dbNoteText, layoutNoteText, effectiveLayout, setPressed,
     layoutToggleEl,

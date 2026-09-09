@@ -144,23 +144,16 @@ def test_lower_panes_leave_room_to_keep_selecting(page, width, theme):
     page.set_viewport_size({'width': width, 'height': 900})
     page.evaluate("([w,theme]) => { document.querySelector('#layout-dock').style.setProperty('--dock-w',w+'px'); ICDApp.store.setTheme(theme); }", [width, theme])
     page.locator('#dock-panels .chip').first.click()
-    related = page.locator('#related')
-    assert related.bounding_box()['height'] <= 97
-    page.click('#dock-related-toggle')
-    expect(related).to_be_hidden()
-    expect(page.locator('.pane-resizer[aria-controls="related"]')).to_be_hidden()
-    expect(page.locator('#dock-related-toggle')).to_have_attribute('aria-expanded', 'false')
+    expect(page.locator('#related, #dock-related-toggle')).to_have_count(0)
     height = page.locator('.dock-scroll').bounding_box()['height']
     assert height >= 540
-    # 選下一筆仍維持收合，直到使用者主動打開。
+    # 選下一筆仍不顯示相關疾病。
     page.locator('#dock-panels .chip').nth(1).click()
-    expect(related).to_be_hidden()
-    page.click('#dock-related-toggle')
-    expect(related).to_be_visible()
+    expect(page.locator('#related')).to_have_count(0)
     assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
 
 
-def test_pip_search_return_and_related_toggle_work_in_the_small_window(page):
+def test_pip_search_return_without_related_in_the_small_window(page):
     before = scroll_to(page, 420)
     with page.context.expect_page() as event:
         page.click('#pin-toggle')
@@ -173,8 +166,7 @@ def test_pip_search_return_and_related_toggle_work_in_the_small_window(page):
     pip.click('#dock-search-back')
     expect(pip.locator('#search')).to_have_value('')
     assert abs(scroll_top(pip) - before) <= 1
-    pip.click('#dock-related-toggle')
-    expect(pip.locator('#related')).to_be_hidden()
+    expect(pip.locator('#related, #dock-related-toggle')).to_have_count(0)
     before_close = scroll_top(pip)
     pip.close()
     expect(page.locator('#layout-dock')).to_be_visible()
