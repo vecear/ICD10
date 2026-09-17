@@ -51,11 +51,21 @@ Ctrl+Alt+D 貼齊的寬度。置頂小視窗**不**套這個上限——那個�
 
 側掛窄欄的選碼動線（2026-09-07）：
 
-- 搜尋時直接顯示結果；點選後可繼續加選。按搜尋框旁的「返回」或在搜尋框按 Esc，回到原部位的原位置。Enter 維持加入第一筆後結束搜尋。
+- 搜尋時直接顯示結果；點選後可繼續加選，Enter 維持加入第一筆後結束搜尋。
 - 各模式／部位各自記住這次開啟期間的捲動位置。搜尋途中點部位或模式，會結束搜尋並切回導引。
 - 整條面板標題都能展開／收合疾病；往下捲時標題留在內容區頂端。展開時不再重建其他面板或丟失鍵盤焦點。
-- 已加入的碼在原列顯示勾號；再次點選仍可叫回相關建議。加碼後下方區塊出現時，剛點的碼仍留在可視區。
+- 再次點選已加入的碼仍可叫回相關建議；加碼後下方區塊出現時，剛點的碼仍留在可視區。
 - 「相關疾病／評估」顯示建議數量，可一鍵收合；預設內容高最多 96px，清單最多 120px，兩者仍可拖曳調高。開啟／關閉置頂小視窗也保留選碼位置。
+
+三種版面共用的操作（2026-09-17）：
+
+- header 下緣有一條通知列，加碼、重複加碼、切換模式等訊息顯示在這裡；成功 2.5 秒自動收起，失敗（類目碼、全庫未載入、剪貼簿被拒）留著不消失。移除單筆或清空就診清單後，通知列多一顆「復原」，10 秒內可按回上一步。
+- 已加入的碼在三種版面都顯示 ✓（原本只有側掛窄欄看得到）。
+- 側掛窄欄與手機分類鈕的短名：「感染」對應「全身／感染」（常見感染碼），「追蹤」對應「感染科追蹤」（HIV／結核／OPAT 長期追蹤）。
+- 「返回」鈕三種版面都有，搜尋時出現在搜尋框旁；按了或在搜尋框按 Esc 會清空搜尋、回到原部位與原捲動位置，搜尋框 placeholder 提示 Enter 可加入第一筆。
+- 工作台左欄部位列下方是面板索引，列出中欄目前渲染的面板，點了直接捲到該面板。
+- 手機版面工具列多一顆「全展開／全收合」，與側掛共用同一顆行為，不多佔高度。
+- HIS 卡片標題列（工作台）與摘要列（側掛）顯示「已同步 HH:MM」；剪貼簿寫入失敗顯示「未同步」，不會自動消失。
 
 用 Edge / Chrome 開啟 [`dist/icd10.html`](dist/icd10.html)。
 
@@ -162,13 +172,9 @@ Ctrl+Alt+D 貼齊的寬度。置頂小視窗**不**套這個上限——那個�
 
 **不能假設「大多數走表一」**：就現行給付中的品項而言表二反而較多（116 vs 49），逐學名看每一種 statin 都是表二多於表一。`tests/test_lipid_products.py` 把它釘住了（教訓見 [docs/decisions.md](docs/decisions.md#表一表二品項數量不能憑印象假設)）。
 
-資料在 [`src/curated/lipid_products.json`](src/curated/lipid_products.json)（約 130 KB，
-611 個代碼，其中**現行給付中 241 個**：表二 116、表一 49、其他章節 76；另 370 個支付價 0
-＝已停止給付，留著但標記，因為醫師打了那個代碼要看到「已停付」而不是「查無」）。由
-[`build/fetch_lipid_products.py`](build/fetch_lipid_products.py) 從兩個官方來源產生：
-健保署「健保用藥品項查詢項目檔」（開放資料，**每月更新**）＋2.6.1 的「不適用表一」對照表。
-`build.py` 的 `check_lipid_products()` 檢結構（代碼樣式、重複、表別值），
-並在 `checked` 超過 3 個月時警告——這份比慢病速查更會過期，門檻設得比它短。
+資料在 [`src/curated/lipid_products.json`](src/curated/lipid_products.json)，約 130 KB、
+611 個代碼，其中現行給付中 241 個（表二 116、表一 49、其他章節 76）。欄位、產製來源與
+`build.py` 的建置檢查規則見 [docs/maintaining-content.md](docs/maintaining-content.md#血脂品項資料lipid_productsjson與hospital_lipid_codesjson)。
 
 搜尋與判定是 `logic.js` 的純函式（`lipidFindProducts`／`lipidSummarize`／`lipidProductVerdict`），
 單元測試在 `tests/logic.test.mjs`，資料契約在 `tests/test_lipid_products.py`。
@@ -189,12 +195,9 @@ Ctrl+Alt+D 貼齊的寬度。置頂小視窗**不**套這個上限——那個�
 
 **HIS 打的是院內收費代碼，不是健保代碼**：診間畫面（OpoC200 診間批價修改作業）顯示的是
 `OCRE20` 這種院內碼，原本拿著它查不出走表一還是表二。
-[`src/curated/hospital_lipid_codes.json`](src/curated/hospital_lipid_codes.json) 存這批
-hosp→健保代碼的對照，`build.py` 的 `load_hospital_lipid`／`merge_hospital_codes` 在建置時
-把 hosp 併進 `lipid_products.json` 品項的 `hosp` 欄位（計算機的品項列與條文分頁的「本院品項」
-區塊都吃這個欄位）；對不到現行健保代碼就讓建置直接失敗，不留一個查無結果的院內碼在畫面上。
-`lipid_products.json` 每月由 `fetch_lipid_products.py` 重抓，但這個對照檔是分開存、手動維護
-的靜態清單——月更後若某個健保代碼消失，要回來對照 HIS 畫面改這個檔，不會自動同步。
+[`src/curated/hospital_lipid_codes.json`](src/curated/hospital_lipid_codes.json) 存這批對照，
+建置時併進 `lipid_products.json` 品項的 `hosp` 欄位；欄位定義、建置合併規則與月更後的手動
+維護步驟見 [docs/maintaining-content.md](docs/maintaining-content.md#血脂品項資料lipid_productsjson與hospital_lipid_codesjson)。
 
 ### CCr 計算機（Cockcroft-Gault）
 
@@ -215,11 +218,9 @@ hosp→健保代碼的對照，`build.py` 的 `load_hospital_lipid`／`merge_hos
 
 **抗菌藥腎功能劑量（2026-09-07）**：整合 51 種藥、68 個方案，成人先選「穩定、非透析」或透析方式，再搜尋／點選學名。多方案藥物須選原始劑量、適應症或輸注方式；目前適用列在上方，完整分段表可展開。劑量分段使用未四捨五入的 CCr，與上方主值採相同體重。
 
-Amikacin 可另選 Once-daily／延長間隔方案，附腎功能間隔、60 分鐘輸注、給藥體重及首劑濃度監測說明。依 Sanford Aminoglycosides, Overview（2026-07-22 更新）核對；15 mg/kg 的 nomogram 濃度換算不能直接外推至 20 mg/kg，介面保留 TDM 判定與該章節來源連結。
-
-Ceftazidime 非透析分段依使用者提供的 UpToDate 成人腎功能劑量截圖整理，分為原劑量 1 g q8h 與 2 g q8h 兩個方案。截圖未顯示更新日期，介面如實標示；透析部分沿用 Sanford，另附透析來源，不視為 UpToDate 劑量。
-
-Acyclovir 依使用者提供的 UpToDate 截圖新增 3 個 PO、2 個 IV 方案，保留原表的替代劑量、嚴重感染選項及神經毒性提醒。填入身高後，計算器以身高與實際體重計算 Mosteller BSA，再將原始 CCr × 1.73 ÷ BSA，依校正 CrCl（mL/min/1.73 m²）自動分段。缺身高仍可查表並可按「補填身高」；有多種劑量選項的列保留人工判斷。截圖未涵蓋透析給法，更新日期與未完整顯示的註腳亦如實標示。
+Amikacin、Ceftazidime、Acyclovir 各自的分段劑量細節、資料來源與更新日期，以及
+`antibiotic_dosing.json` 的維護方式，見
+[docs/maintaining-content.md](docs/maintaining-content.md#抗菌藥腎功能劑量資料antibiotic_dosingjson)。
 
 BSA＝√（身高 cm × 實際體重 kg ÷ 3600），與 CCr 所選的理想／調整體重分開。主計算機與藥物區分別顯示 BSA、原始／校正 CCr 及本表採用的單位，不把校正 CCr 當成 CKD-EPI eGFR。公式依據：[FDA 仿單所列 Mosteller 公式](https://www.accessdata.fda.gov/drugsatfda_docs/pepfar/207064PI.pdf)、[CrCl 體表面積校正方法](https://pmc.ncbi.nlm.nih.gov/articles/PMC4680694/)。
 
@@ -227,13 +228,9 @@ BSA＝√（身高 cm × 實際體重 kg ÷ 3600），與 CCr 所選的理想／
 腎功能情境依序僅有「穩定非透析、IHD、CRRT、CAPD」，預設穩定非透析，清除後回到此選項。手動選擇透析後，重填病人數值不會覆寫所選情境。
 「用藥方案」與「腎功能情境」改為直接點選的單選標籤，選中項目加框並變色；窄欄自動換行保留完整名稱，手機標籤至少 44px 高。多方案仍須明確點選，單方案自動選取；鍵盤可用 Tab 移動、Enter／空白鍵選取。
 
-除上述 Ceftazidime、Acyclovir 截圖外，資料由登入的 [Sanford 腎功能劑量表](https://web.sanfordguide.com/en/comparisons-1/drug-usage-dosing/renal-dosing-adjustment) 各藥 View 及補充藥頁核對；總表更新日為 2026-08-17，查閱日為 2026-09-07。各方案依其來源顯示日期。各藥附原文連結；點連結才會連網且可能需要訂閱登入，試算本身離線運作。這是所列成人方案的腎功能速查，未涵蓋所有適應症、台灣所有品項或每種製劑。
-
 工具僅供成人使用，查藥不要求填年齡或任何病人資料。選定藥物方案與腎功能情境即可看表；非透析且尚無 CCr 時自動展開完整表格。若要依 CCr 標示目前適用劑量，才需完成包含年齡的計算輸入，不代填預設年齡。
 
 TDM、不同 GFR 單位、來源區間缺口／重疊均不自動產生劑量建議。IHD／CRRT／CAPD 顯示各條件的來源方案；未提供者直說缺資料。AKI／SLED 不在目前選單中。複方成分量、mg CBA、loading、給藥時機與流速條件必須一併核對；mg/kg 不自動換算成總 mg。病人數字、用藥與腎功能情境不存入 localStorage，清除會一併重設。
-
-維護資料：`src/curated/antibiotic_dosing.json`；契約：`docs/renal-dosing-contract.md`；建置驗證：`build/renal_data.py`。資料不進 ICD 精選碼驗證。來源連結以安全 JSON 字串嵌入，不是載入資源；不得加入背景抓取或登入憑證。更新資料須重查原文與條件、執行 renal 邏輯／資料／真實流程測試並重新打包。
 
 **免責**：Cockcroft-Gault 估計值，僅適用腎功能穩定者；可能高估 GFR 10–20%，
 體重極端時更不準。實際劑量請依藥品仿單與臨床判斷。
@@ -241,9 +238,11 @@ TDM、不同 GFR 單位、來源區間缺口／重疊均不自動產生劑量建
 ### 就診清單
 
 - **排序**：桌機可拖曳換序，也可用 `Alt+↑`／`Alt+↓`；任一版面都能按「主」把該碼設為主診斷（移到第一位）。
+- **顯示**：工作台與手機每筆兩行，中文名完整不截斷（貼進 HIS 前唯一能核對中文病名的機會）。
 - **貼入 HIS**：預覽框顯示的字串就是複製出去的字串，可選每行一碼／逗號分隔／碼＋名稱三種格式；
   剪貼簿被瀏覽器擋下時會跳出可手動全選複製的後備視窗。
 - 點清單裡的代碼可單獨複製該碼。
+- **復原**：按「移除」或「清空」後，通知列多一顆「復原」，10 秒內可按回上一步；超過就正式生效。
 - 清單**不跨診次保留**，重新整理即清空。
 - **連 Ctrl+V 都想省掉**：[`tools/his-paste.ahk`](tools/his-paste.ahk) 是一支 AutoHotkey 常駐小程式，
   游標點進 HIS 疾病碼欄位後按 F9 就把代碼逐一打進去。瀏覽器碰不到原生視窗，這一段只能由 OS 層補；
@@ -313,49 +312,13 @@ pytest 即可，測到的一定是最新的 dist。
 | `app.js` | 啟動、依視窗寬度決定生效版面、把狀態變動轉成區塊重繪 |
 | `styles/` | `industry`（設計系統）→ `app`（共用元件）→ `wide` / `dock` / `mobile` |
 | `curated/` | 人工整理的面板、快選與相關碼 JSON |
-| `curated/chronic_care.json` | 健保規範條文的給付規定與治療目標（**不含 ICD 代碼**，維護方式見下節）；`docs[]` 指向 `健保條文/` 的官方 PDF |
+| `curated/chronic_care.json` | 健保規範條文的給付規定與治療目標（**不含 ICD 代碼**，維護方式見 [docs/maintaining-content.md](docs/maintaining-content.md)）；`docs[]` 指向 `健保條文/` 的官方 PDF |
 
 **開發依賴**：Python 3.8+、Node.js 18+、`pip install openpyxl pytest playwright`，另需執行
 `python -m playwright install chromium` 安裝 E2E 使用的瀏覽器。
 
-### 維護官方條文 PDF
-
-檔案在 [`健保條文/`](健保條文/)，來源網址、版本日與更新步驟寫在
-[`健保條文/README.md`](健保條文/README.md)。三條機器守門，缺一份就過不了：
-
-1. `build/build.py` 的 `check_chronic_docs()`：`docs[].file` 對不上實際檔案就**建置失敗**。
-2. `build/build.py` 的 `copy_nhi_docs()`：複製一份到 `dist/健保條文/`（進 `.gitignore`），
-   讓 `dist/icd10.html` 在本機與 E2E 也點得開。
-3. `tools/pack_for_clinic.py`：把 `健保條文/` 整個放進診間包，並回頭核對 zip 裡真的有那幾份。
-
-### 維護慢病速查的內容
-
-資料在 [`src/curated/chronic_care.json`](src/curated/chronic_care.json)，檔頭的 `_schema`
-就是欄位說明（建置時會剝掉，不進 dist）。結構是 `topics[]`（`dm`／`htn`／`lipid`）→
-`sections[]`（`kind`：`target` 臨床治療目標／`coverage` 健保給付規定／`caution` 實務提醒）
-→ `items[]`。每條 item：
-
-| 欄位 | 意義 |
-| --- | --- |
-| `text` | 一行講完的重點，畫面上直接顯示 |
-| `detail` | 展開後的補充（例外、依據、容易誤讀之處），可省略 |
-| `source` | 出處名稱＋條號＋版本日期。**不可放網址**——`assert_offline()` 會讓建置失敗 |
-| `checked` | 本條的查證日期（`YYYY-MM-DD`）。超過 **6 個月**建置時會印醒目警告 |
-| `effectiveFrom` / `effectiveTo` | 適用區間，**兩端都含當日**，可省略（省略＝該端無限） |
-
-**改版怎麼寫**：健保署公告換版時，**不要直接改掉舊條文**——給舊版補上
-`effectiveTo`（舊制最後一天），新版另開一條帶 `effectiveFrom`（生效日）。這樣公告日到生效日
-之間，醫師看到的是現行的舊制＋一則「新版將於 X 日生效」的預告；生效當天自動翻版，
-不需要任何人在那天去改檔案。生效日過後可以擇期把過期條文刪掉（它已經不會顯示）。
-
-**定期重查**：`python build/build.py` 會掃所有 `checked` 日期，超過 6 個月
-（`build/build.py` 的 `CHRONIC_CHECK_MAX_MONTHS`）就印出逐條警告與門檻日期。
-**警告不會讓建置失敗**——過期的規定會誤導醫師，但讓建置失敗等於門診當天沒工具可用，那更糟。
-重查健保署當期公告後，更新該條的 `checked`（內容沒變也要更新：那個日期的意思是
-「有人在這天確認過」，不是「這天改過」）。
-
-三個主題的 key 在 `src/state.js` 的 `CHRONIC_TOPICS` 另有一份鏡像（狀態層是零 DOM 的純模組，
-讀不到資料檔）。兩邊分歧時建置會警告，`tests/test_chronic_care.py` 也會擋。
+官方條文 PDF 與慢病速查內容（`chronic_care.json`）的維護方式、欄位說明與建置失敗規則，
+移到 [docs/maintaining-content.md](docs/maintaining-content.md)——改資料才需要看，日常使用不需要。
 
 ## 字型與授權
 
