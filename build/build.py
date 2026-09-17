@@ -28,9 +28,12 @@ STYLESHEETS = ["styles/industry.css", "styles/app.css", "styles/wide.css", "styl
 # 有序：每個模組都是 IIFE／UMD，靠這個順序保證依賴先於使用者掛上 window（無 bundler）。
 # logic → state → data 都是零 DOM 的純模組（node --test 直接測），其後才碰 DOM。
 SOURCES = [
-    "logic.js", "renal-dosing.js", "clipboard-format.js", "state.js", "data.js",
+    "logic.js", "renal-dosing.js", "clipboard-format.js", "clinical-format.js", "state.js", "data.js",
     "resize.js",
-    "render-renal.js", "clipboard-settings.js", "render-shared.js", "render-wide.js", "render-dock.js", "render-mobile.js",
+    "render-renal.js", "clipboard-settings.js",
+    # render-* 六檔共用同一個 window.ICDRender 物件，dom 先建立、其餘疊加；順序＝相依順序。
+    "render-dom.js", "render-common.js", "render-settings.js", "render-chronic.js", "render-ccr.js", "render-lipid.js",
+    "render-wide.js", "render-dock.js", "render-mobile.js",
     "interactions.js", "app.js",
 ]
 CURATED_KEYS = {

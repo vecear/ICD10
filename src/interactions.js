@@ -63,7 +63,7 @@
      沒有「複製並貼入 HIS」鈕是刻意的（點碼即自動同步），但畫面上一個字都沒說剪貼簿
      已經同步，醫師只能相信它。狀態放這裡而不是 store：它不是使用者資料，跨診次沒有意義，
      也不該進 localStorage（清單本身就刻意不持久化）。
-     繪製在 render-shared 的 renderClipboardSync()；各版面的 U.his 會重畫一次，
+     繪製在 render-common.js 的 renderClipboardSync()；各版面的 U.his 會重畫一次，
      所以換版面／重掛之後仍顯示同一個狀態。 */
   let clipSync = null;
   const clipboardSyncInfo = () => clipSync;
@@ -93,7 +93,7 @@
   }
 
   /* 可見通知列。與 #status 同一則訊息、同一個呼叫點——兩條線索不得各自漂移。
-     節點由各版面的 header 掛上（render-shared 的 noticeEl），不存在就只剩播報，
+     節點由各版面的 header 掛上（render-common.js 的 noticeEl），不存在就只剩播報，
      不拋錯：1c 進 PiP 小視窗那段期間節點在另一個文件裡，feedbackDoc() 已經處理。 */
   function showNotice(message, opts) {
     clearTimeout(noticeTimer);
@@ -201,7 +201,7 @@
     }
   }
 
-  /* 清單列上的代碼是可點擊複製的控制項（render-shared.js 給它 role="button" ＋ tabindex）。
+  /* 清單列上的代碼是可點擊複製的控制項（render-common.js 給它 role="button" ＋ tabindex）。
      滑鼠點擊、鍵盤 Enter／Space、以及 1c 進 PiP 小視窗時的代打全部共用這一份實作。 */
   function copyCartCode(node, ctx) {
     const li = node && node.closest ? node.closest('li[data-code]') : null;
@@ -262,7 +262,7 @@
   /* chip 點擊的唯一實作。1c 的側欄搬進 PiP 小視窗後主文件的委派搆不到那棵 DOM，
      render-dock.js 得自己代打——共用這個函式，兩邊的規則不會各自漂移。 */
   // ---- header 的看診模式三鈕（三套版面共用同一份行為） ----
-  /* 三顆鈕是宣告式渲染的（render-shared.js 的 modeSwitchEl／syncModeSwitch），一次點擊
+  /* 三顆鈕是宣告式渲染的（render-settings.js 的 modeSwitchEl／syncModeSwitch），一次點擊
      就切換，沒有任何展開動作。已經是目前模式時什麼都不做——走 setMode() 會連帶清掉
      relatedCode，等於「按了目前的模式」把右側相關碼建議清空，那是沒道理的副作用。
      設定 popover 的 segmented 走 `.seg-btn` 那條泛用委派，兩者狀態同源於 store.mode。 */
@@ -353,7 +353,7 @@
   }
 
   /* 任一輸入變動就重算。不經過 store：輸入值是「這一位病人」的暫態，
-     每敲一鍵重繪整個版面既慢也沒必要（見 render-shared.js 的 ccrInputs 註解）。 */
+     每敲一鍵重繪整個版面既慢也沒必要（見 render-ccr.js 的 ccrInputs 註解）。 */
   function recalcCcr(ctx, node) {
     const doc = ccrDoc(node);
     const panel = doc.getElementById('ccr-panel');
@@ -390,7 +390,7 @@
   async function copyCcr(ctx, node) {
     const doc = ccrDoc(node);
     const r = ctx.logic.creatinineClearance(root.ICDRender.ccrInputs(doc));
-    const text = root.ICDRender.ccrResultText(r, ctx.store.getState().clipboardFormats);
+    const text = root.ICDClinicalFormat.ccrResultText(r, ctx.store.getState().clipboardFormats);
     if (!text) { announce('還沒有可複製的結果'); return; }
     if (await copyText(text)) announce('已複製：' + text);
   }
@@ -454,7 +454,7 @@
     const doc = lipidDoc(node);
     const input = root.ICDRender.lipidInputs(doc);
     const r = ctx.logic.lipidCoverage(input);
-    const text = root.ICDRender.lipidResultText(r, input, ctx.store.getState().clipboardFormats);
+    const text = root.ICDClinicalFormat.lipidResultText(r, input, ctx.store.getState().clipboardFormats);
     if (!text) { announce('還沒有可複製的結果'); return; }
     if (await copyText(text)) announce('已複製血脂給付試算結果');
   }

@@ -95,7 +95,7 @@
     header.appendChild(settingsToggle);
     header.appendChild(R.settingsPopoverEl(false));
     /* 可見通知列：絕對定位貼在 header 下緣，覆蓋常用列／內容最上緣而不推擠它們
-       （醫師正要點的碼不能移位）。三套版面同一個 #notice，見 render-shared 的 noticeEl。 */
+       （醫師正要點的碼不能移位）。三套版面同一個 #notice，見 render-common.js 的 noticeEl。 */
     header.appendChild(R.noticeEl());
     wide.appendChild(header);
 
@@ -225,7 +225,7 @@
     bench.appendChild(aside);
     wide.appendChild(bench);
 
-    // 慢病速查浮層：掛在版面根節點底下（三套版面一致，見 render-shared 的 chronicOverlayEl）
+    // 慢病速查浮層：掛在版面根節點底下（三套版面一致，見 render-chronic.js 的 chronicOverlayEl）
     refs.chronicOverlay = R.chronicOverlayEl();
     wide.appendChild(refs.chronicOverlay);
     refs.ccrOverlay = R.ccrOverlayEl();
@@ -273,33 +273,13 @@
       refs.modeHint.textContent = R.MODE_HINT[s.mode];
     };
 
-    // 只在「狀態的 query 與輸入框不同」時才回寫（例如 Esc 清空），避免打字時游標跳位
-    U.searchValue = () => {
-      const s = ctx.store.getState();
-      if (refs.search.value !== s.query) refs.search.value = s.query;
-    };
+    U.searchValue = () => R.syncSearchValue(refs.search, ctx);
 
     U.rail = () => {
-      const s = ctx.store.getState();
-      const surg = s.mode === 'surg';
+      // 1a 的側欄有空間，用全名＋面板數；縮成兩字是 1c／手機的空間妥協，這裡不需要。
+      // 容器裡還有欄標題，所以用 keepOthers 只換掉舊的 .region-btn。
+      const surg = R.renderRegionMenu(refs.rail, ctx, { keepOthers: true });
       refs.railTitle.textContent = surg ? '情境' : '身體部位';
-      refs.rail.setAttribute('aria-label', surg ? '手術情境' : '身體部位');
-      for (const old of Array.from(refs.rail.querySelectorAll('.region-btn'))) old.remove();
-      const regions = ctx.data.regionsFor(s.mode);
-      const active = ctx.data.clampRegion(s.mode, s.region);     // null ＝ 沒有選取任何部位
-      // 1a 的側欄有空間，用全名＋面板數；縮成兩字是 1c／手機的空間妥協，這裡不需要
-      regions.forEach((region, i) => {
-        const b = R.el('button', 'region-btn');
-        b.type = 'button';
-        b.dataset.region = region.name;
-        b.dataset.regionIndex = String(i);
-        const on = i === active;
-        R.markRegionSelected(b, on);
-        // 「再點一次取消」不是通用慣例，滑鼠使用者看不出來；鍵盤／讀屏走 aria-pressed 與播報
-        if (on) b.title = region.name + '（再點一次取消選取，顯示全部部位）';
-        b.append(R.el('span', null, region.name), R.el('span', 'region-count', String(region.count)));
-        refs.rail.appendChild(b);
-      });
     };
 
     /* 中欄實際渲染出來的面板（依 DOM 順序）。面板索引**只讀這一份**，不自己再跑一次
@@ -311,29 +291,27 @@
       const s = ctx.store.getState();
       renderedPanels.length = 0;
       R.clear(refs.panels);
-      // panelGroupsFor() 在非急診模式一律回傳空的 redFlags——紅旗隔離只有這一個出口，
-      // 渲染層不得自行從 window.CURATED 取 redFlags 繞過它（C5，臨床安全）。
       const quick = ctx.data.quickGroupsFor(s.mode);
-      for (const group of ctx.data.panelGroupsFor(s.mode, s.region)) {
-        // group.region 只有「顯示全部部位」時才有值（見 data.js panelGroupsFor 的註解）
-        if (group.region) refs.panels.appendChild(R.regionHeading(group.region));
+      R.renderPanels(refs.panels, ctx, {
         /* 認領這個部位的快選排在面板之前，畫成一般卡片：使用者要它「跟其他次分類一樣
            直接展開不用折疊」。急診／外科的快選 region 是 null，不會進到這裡。 */
-        for (const q of quick) {
-          if (q.region !== group.name) continue;
-          const card = R.el('article', 'quick-card blueprint');
-          card.dataset.quick = q.title;
-          R.blueprint(card);
-          const title = R.el('h4', 'symptom-card-title');
-          title.append(R.el('span', null, q.title),
-            R.el('span', 'quick-count', String(q.items.length)));
-          const body = R.el('div', 'quick-body chip-row');
-          for (const chip of R.chipsFromPairs(q.items, ctx)) body.appendChild(chip);
-          card.append(title, body);
-          refs.panels.appendChild(card);
-          renderedPanels.push({ name: q.title, card, title });
-        }
-        for (const panel of group.panels) {
+        before: (group) => {
+          for (const q of quick) {
+            if (q.region !== group.name) continue;
+            const card = R.el('article', 'quick-card blueprint');
+            card.dataset.quick = q.title;
+            R.blueprint(card);
+            const title = R.el('h4', 'symptom-card-title');
+            title.append(R.el('span', null, q.title),
+              R.el('span', 'quick-count', String(q.items.length)));
+            const body = R.el('div', 'quick-body chip-row');
+            for (const chip of R.chipsFromPairs(q.items, ctx)) body.appendChild(chip);
+            card.append(title, body);
+            refs.panels.appendChild(card);
+            renderedPanels.push({ name: q.title, card, title });
+          }
+        },
+        panel: (panel) => {
           const card = R.el('article', 'symptom-card blueprint');
           card.dataset.panel = panel.name;
           R.blueprint(card);
@@ -364,8 +342,8 @@
           }
           refs.panels.appendChild(card);
           renderedPanels.push({ name: panel.name, card, title: card.querySelector('.symptom-card-title') });
-        }
-      }
+        },
+      });
     };
 
     /* ── 面板索引（左欄部位列下方的那 332.7px 空白） ────────────────────────────

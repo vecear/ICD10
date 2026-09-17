@@ -7,7 +7,7 @@
   // state.layout 只存使用者偏好（wide|dock）；生效版面由 resolveLayout() 依視窗寬度決定，
   // 放在 body[data-layout]。兩者不可混為一談（P2 報告疑慮 2）。
   const LAYOUT_MODULES = { wide: 'ICDWide', dock: 'ICDDock', mobile: 'ICDMobile' };
-  // impl-plan §4.6；數字定義在 render-shared（設定面板的說明文案要引用同一個值）
+  // impl-plan §4.6；數字定義在 render-settings.js（設定面板的說明文案要引用同一個值）
   const MOBILE_MAX = (window.ICDRender && window.ICDRender.LAYOUT_MIN_WIDTH) || 900;
   const RESIZE_DEBOUNCE = 150;
   const PREFETCH_DELAY = 1500;     // 開機後閒置預抓全庫，不與首次互動搶資源

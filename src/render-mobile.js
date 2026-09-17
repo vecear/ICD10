@@ -251,43 +251,18 @@
       refs.panelsTitle.textContent = R.PANELS_TITLE[ctx.store.getState().mode];
     };
 
-    // 只在狀態與輸入框不同時回寫（Esc 清空、Enter 加碼後清空），避免打字時游標跳位
-    U.searchValue = () => {
-      const s = ctx.store.getState();
-      if (refs.search.value !== s.query) refs.search.value = s.query;
-    };
+    U.searchValue = () => R.syncSearchValue(refs.search, ctx);
 
     U.pills = () => {
-      const s = ctx.store.getState();
-      const surg = s.mode === 'surg';
-      refs.pills.setAttribute('aria-label', surg ? '手術情境' : '身體部位');
-      R.clear(refs.pills);
-      const active = ctx.data.clampRegion(s.mode, s.region);     // null ＝ 沒有選取任何部位
-      ctx.data.regionsFor(s.mode).forEach((region, i) => {
-        // 事件委派認的是 .region-btn＋data-region-index；.region-pill 是 1b 的樣式與測試鉤子
-        const b = R.el('button', 'region-btn region-pill');
-        b.type = 'button';
-        b.dataset.region = region.name;
-        b.dataset.regionIndex = String(i);
-        const on = i === active;
-        R.markRegionSelected(b, on);
-        // 橫捲列上兩字短名一屏看得到更多；全名留在 title
-        b.title = region.name + (on ? '（再點一次取消選取，顯示全部部位）' : '');
-        b.append(R.el('span', null, R.regionShort(region.name)),
-                 R.el('span', 'region-count', String(region.count)));
-        refs.pills.appendChild(b);
-      });
+      // 橫捲列上兩字短名一屏看得到更多；全名與筆數留在 title。
+      // 事件委派認的是 .region-btn＋data-region-index；.region-pill 是 1b 的樣式與測試鉤子
+      R.renderRegionMenu(refs.pills, ctx, { className: 'region-pill', short: true });
     };
 
     U.panels = () => {
-      const s = ctx.store.getState();
       R.clear(refs.panels);
-      // panelGroupsFor() 是紅旗隔離的唯一出口：非急診模式一律回傳空的 redFlags。
-      // 渲染層不得自行從 window.CURATED 取 redFlags 繞過它（C5，臨床安全）。
-      for (const group of ctx.data.panelGroupsFor(s.mode, s.region)) {
-        // group.region 只有「顯示全部部位」時才有值（見 data.js panelGroupsFor 的註解）
-        if (group.region) refs.panels.appendChild(R.regionHeading(group.region));
-        for (const panel of group.panels) {
+      R.renderPanels(refs.panels, ctx, {
+        panel: (panel) => {
           const card = R.el('article', 'mobile-panel');
           card.dataset.panel = panel.name;
           card.appendChild(R.el('h4', 'm-panel-title', panel.name));
@@ -319,8 +294,8 @@
             card.appendChild(toggle);
           }
           refs.panels.appendChild(card);
-        }
-      }
+        },
+      });
       syncExpandAll();
     };
 
@@ -421,7 +396,7 @@
       }
       for (const name of names) U[name]();
       /* 「已加入」勾號：chip 在 panels／results 裡重建，清單變動時那兩塊不重畫，
-         所以掛號要獨立跑一次（三套版面同一份實作，見 render-shared 的 syncInCart）。 */
+         所以掛號要獨立跑一次（三套版面同一份實作，見 render-common.js 的 syncInCart）。 */
       if (names.some((name) => ['panels', 'results', 'cartSheet'].includes(name))) {
         R.syncInCart(wrap, ctx);
       }

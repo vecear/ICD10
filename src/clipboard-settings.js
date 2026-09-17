@@ -63,10 +63,10 @@
       if (kind === 'single') return { code: 'I10', zh: '本態性高血壓' };
       if (kind === 'ccr') {
         const r = ctx.logic.creatinineClearance({ age: 60, weightKg: 70, creatinine: 1, heightCm: 170, sex: 'male' });
-        return root.ICDRender.ccrClipboardData(r);
+        return root.ICDClinicalFormat.ccrClipboardData(r);
       }
       const input = { age: 40, sex: 'male', ldl: 180, tc: 220, hdl: 55, tg: 550 };
-      return root.ICDRender.lipidClipboardData(ctx.logic.lipidCoverage(input), input);
+      return root.ICDClinicalFormat.lipidClipboardData(ctx.logic.lipidCoverage(input), input);
     }
     function updatePreview() {
       const config = current();

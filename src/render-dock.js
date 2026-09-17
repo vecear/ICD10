@@ -154,7 +154,7 @@
     search.setAttribute('aria-label', '搜尋診斷碼');
     refs.search = search;
     const searchBar = R.el('div', 'dock-search-bar');
-    /* 「返回」改由 render-shared 的 searchBackEl() 產生（三套版面同一顆、同一個 handler）。
+    /* 「返回」改由 render-common.js 的 searchBackEl() 產生（三套版面同一顆、同一個 handler）。
        id 保留 `dock-search-back`：既有 E2E（test_e2e_dock_flow.py）靠它定位。 */
     refs.searchBack = R.searchBackEl('dock-search-back');
     searchBar.append(search, refs.searchBack);
@@ -767,30 +767,11 @@
       refs.panelsTitle.textContent = R.PANELS_TITLE[ctx.store.getState().mode];
     };
 
-    U.searchValue = () => {
-      const s = ctx.store.getState();
-      if (refs.search.value !== s.query) refs.search.value = s.query;
-    };
+    U.searchValue = () => R.syncSearchValue(refs.search, ctx);
 
     U.pills = () => {
-      const s = ctx.store.getState();
-      const surg = s.mode === 'surg';
-      refs.pills.setAttribute('aria-label', surg ? '手術情境' : '身體部位');
-      R.clear(refs.pills);
-      const regions = ctx.data.regionsFor(s.mode);
-      const active = ctx.data.clampRegion(s.mode, s.region);     // null ＝ 沒有選取任何部位
-      regions.forEach((region, i) => {
-        // 鈕上只放兩字短名，全名留在 title；data-region 仍是完整名稱（E2E 與分組標題靠它）
-        const b = R.el('button', 'region-btn region-pill--dock', R.regionShort(region.name));
-        b.type = 'button';
-        b.dataset.region = region.name;
-        b.dataset.regionIndex = String(i);
-        const on = i === active;
-        R.markRegionSelected(b, on);
-        b.title = region.name + '（' + region.count + '）'
-          + (on ? '，再點一次取消選取，顯示全部部位' : '');
-        refs.pills.appendChild(b);
-      });
+      // 鈕上只放兩字短名（1c 只有 176–565px），塞不下筆數 span；全名與筆數都在 title
+      R.renderRegionMenu(refs.pills, ctx, { className: 'region-pill--dock', short: true, count: false });
     };
 
     U.panels = () => {
@@ -805,11 +786,8 @@
       renderedPanelKey = key;
       panelViews.length = 0;
       R.clear(refs.panels);
-      // 紅旗隔離只有 panelGroupsFor() 這一個出口，渲染層不得自行讀 window.CURATED.redFlags（C5）
-      for (const group of ctx.data.panelGroupsFor(s.mode, s.region)) {
-        // group.region 只有「顯示全部部位」時才有值（見 data.js panelGroupsFor 的註解）
-        if (group.region) refs.panels.appendChild(R.regionHeading(group.region));
-        for (const panel of group.panels) {
+      R.renderPanels(refs.panels, ctx, {
+        panel: (panel) => {
           const box = R.el('div', 'dock-panel');
           box.dataset.panel = panel.name;
 
@@ -840,8 +818,8 @@
           panelViews.push(view);
           syncPanel(view);
           refs.panels.appendChild(box);
-        }
-      }
+        },
+      });
       syncExpandAll();
     };
 
@@ -883,7 +861,7 @@
       dockify(refs.results);
     };
 
-    // 勾號的同步邏輯已收斂到 render-shared 的 syncInCart（三套版面同一份，UX 稽核 U2）
+    // 勾號的同步邏輯已收斂到 render-common.js 的 syncInCart（三套版面同一份，UX 稽核 U2）
     const syncSelected = () => R.syncInCart(dock, ctx);
 
     U.cart = () => {
