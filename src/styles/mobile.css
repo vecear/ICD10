@@ -57,6 +57,12 @@ body[data-layout="mobile"] #search {
 body[data-layout="mobile"] #settings-toggle {
   flex: none; min-height: 44px; min-width: 44px; padding: 0 10px; font-size: 13px;
 }
+/* 「返回」：44px 觸控門檻不打折（docs/dense-ui-principle.md §1）。它與「設定」同一列，
+   寬度是跟 flex:1 的搜尋框借的——實測 390px 下搜尋框 214→158px，仍放得下
+   placeholder 的前半段，且不水平溢出。只在搜尋狀態出現，平常 0px。 */
+body[data-layout="mobile"] .search-back {
+  min-height: 44px; padding: 0 12px; font-size: 14px;
+}
 
 /* 設定 sheet：由 header 下方展開，左右各留 12px（L740-741）。
    top 用 calc(100% - 4px) 而不是寫死數字：header 現在是兩行，寫死的 60px 會讓 sheet
@@ -230,13 +236,22 @@ body[data-layout="mobile"] #copy-all > .corner { color: var(--his-dim); }
    三顆鈕放在**捲動內容區的最上面**，不是 header：44px 的觸控目標是硬性邊界不能打折，
    一列常駐就是 844px 螢幕的 5%＋分隔線，而這是偶爾查閱的功能。放進捲動區：
    開機第一眼看得到，往下選碼時自己讓開，永久成本 0px；按鈕本身仍是 44px。
-   390px 的寬度帳（可用 362）：健保規範條文 ~116 ＋ 血脂計算機 ~102 ＋ CCr ~58
-   ＋ 間距 20 ≈ 296，一列放得下。 */
+   這一排現在有四顆（多了「全展開／全收合」，UX 稽核 U9）。390px 的寬度帳（可用 362）：
+   原本三顆 健保規範條文 ~116 ＋ 血脂計算機 ~102 ＋ CCr ~58 ＋ 間距 16 ＝ 292，
+   再加「全展開」就會折成第二列——那是第一屏少掉 44px 的代碼。
+   所以四顆的水平內距一起收（16→10、14→10），觸控高度 44px 完全不動：
+   密度原則的手法順序正是「先壓內距，砍文字才是最後手段」。
+   收完 104 ＋ 90 ＋ 46 ＋ 76 ＋ 間距 24 ＝ 340 < 362，仍是一列（實測 54px 前後不變）。 */
 body[data-layout="mobile"] .chronic-switch {
   gap: 8px; padding: 10px 14px 0;
 }
 body[data-layout="mobile"] .chronic-btn {
-  min-height: 44px; padding: 0 16px; font-size: 14px;
+  min-height: 44px; padding: 0 10px; font-size: 14px;
+}
+/* 「全展開／全收合」靠右（與 1c 同一個擺法）。margin-left:auto 不佔寬度，
+   放不下時才會折——上面那筆內距帳就是為了讓它不必折。 */
+body[data-layout="mobile"] .expand-all-btn {
+  flex: 0 0 auto; margin-left: auto; min-height: 44px; padding: 0 10px; font-size: 14px;
 }
 /* 浮層在手機是整屏 sheet：390px 沒有「浮在內容之上的小視窗」這種餘裕，
    而內容量（每主題 15–21 條）本來就需要整屏才讀得下去。 */
@@ -286,7 +301,7 @@ body[data-layout="mobile"] .lipid-drug-toggle { min-height: 44px; align-items: c
    它們帶 .seg-btn--sm（那是給 176px 窄欄的 22px／10px），在 390px 一定要蓋掉——
    血脂鈕原本就漏了這條，量到只有 22px 高、10px 字，是實測抓出來的觸控門檻破口。 */
 body[data-layout="mobile"] #lipid-btn,
-body[data-layout="mobile"] #ccr-btn { flex: 0 0 auto; min-height: 44px; padding: 0 14px; font-size: 14px; }
+body[data-layout="mobile"] #ccr-btn { flex: 0 0 auto; min-height: 44px; padding: 0 10px; font-size: 14px; }
 body[data-layout="mobile"] .ccr-panel { width: 100%; }
 body[data-layout="mobile"] .ccr-input { min-height: 44px; font-size: 16px; }  /* 16px 避免 iOS 自動放大 */
 body[data-layout="mobile"] .ccr-sex .seg-btn { min-height: 44px; }

@@ -10,13 +10,13 @@
 
   /* 狀態欄位 → 需要重跑的更新器。null／未列出的欄位一律全部重跑（保守但不會漏畫）。 */
   const DEPS = {
-    mode: ['header', 'rail', 'panels', 'quick', 'settings'],
-    region: ['rail', 'panels'],
-    query: ['results', 'searchValue'],
+    mode: ['header', 'rail', 'panels', 'quick', 'settings', 'panelIndex'],
+    region: ['rail', 'panels', 'panelIndex'],
+    query: ['results', 'searchValue', 'panelIndex'],
     // shelf 一定要在：常用列的中文名靠 data.labelOf() 查全庫，全庫就緒前是光禿禿的代碼，
     // 漏了它就得剛好動到 favs／recent／shelfOpen 才會補上中文（R2 I4）
     dbState: ['results', 'settings', 'shelf'],
-    expanded: ['panels'],
+    expanded: ['panels', 'panelIndex'],
     quickOpen: ['quick'],
     cart: ['cart', 'his'],
     relatedCode: [],
@@ -118,7 +118,24 @@
        ≥1240px 時出現，正是使用者抱怨的「功能只有某個介面才有」。故移除（見 .review/r4-ui.md）。 */
     rail.append(refs.railTitle);
     refs.rail = rail;
-    bench.appendChild(rail);
+
+    /* ── 面板索引（UX 稽核 U8） ──────────────────────────────────────────────
+       部位列下方原本有 332.7px 完全空白，而中欄預設就要捲 5.8 屏、取消部位選取要捲
+       27,034px——最寬的版面卻是捲最久的。這一塊把已經浪費掉的版面換成動線，
+       不新增控制列、也不從內容區借任何高度（`#panels` 的 scrollHeight 前後相同）。
+
+       **不掛在 `#region-rail` 裡面**：那是一個 `role="group" aria-label="身體部位"`，
+       把面板名塞進去等於對讀屏宣告「這些也是身體部位」。改成左欄多一層 `.rail-col`
+       當格線欄，部位列與索引是它的兩個兄弟，各自有自己的 group 標籤。 */
+    refs.panelIndex = R.el('nav', 'panel-index');
+    refs.panelIndex.id = 'panel-index';
+    refs.panelIndex.setAttribute('aria-label', '面板索引');
+    refs.panelIndex.append(R.el('div', 'kicker panel-index-kicker', '面板'));
+
+    const railCol = R.el('div', 'rail-col');
+    railCol.append(rail, refs.panelIndex);
+    refs.railCol = railCol;
+    bench.appendChild(railCol);
 
     /* 主要內容區＝<main>（v3 §5-1：原本只有 banner 與 complementary 兩個地標，
        中間的搜尋結果＋主訴面板不屬於任何地標，AT 的地標導覽跳不進來）。
@@ -142,7 +159,11 @@
     refs.panelsTitle.id = 'panels-title';
     refs.modeHint = R.el('span', null, '');
     refs.modeHint.id = 'mode-hint';
-    head.append(refs.panelsTitle, refs.modeHint);
+    /* 「返回」擺在這一列的右側、**佔說明文字的位置**（UX 稽核 U3）：搜尋狀態下把
+       `#mode-hint` 換成它，那句「每個部位最上面是常用碼…」在搜尋時本來就不適用。
+       所以這顆鈕一像素都沒有多付——沒有為回頭路另闢一列 chrome。 */
+    refs.searchBack = R.searchBackEl();
+    head.append(refs.panelsTitle, refs.modeHint, refs.searchBack);
     sheet.appendChild(head);
 
     /* 快選排在面板之前（使用者 2026-09-01）：「常用慢性病」是內科門診最常用的一群碼，
@@ -186,7 +207,10 @@
     const hisHead = R.el('div', 'his-head');
     refs.hisFormat = R.el('span', null, '每行一碼');
     refs.hisFormat.id = 'his-format-label';
-    hisHead.append(R.el('span', 'kicker', '貼入 HIS'), refs.hisFormat);
+    /* 「已同步 HH:MM」（UX 稽核 U4）接在「每行一碼」旁邊：沒有複製鈕是刻意的，
+       但也因此畫面上沒有任何一處說剪貼簿已經同步。不新增任何一列。 */
+    refs.clipSync = R.clipboardSyncEl();
+    hisHead.append(R.el('span', 'kicker', '貼入 HIS'), refs.hisFormat, refs.clipSync);
     refs.hisPreview = R.el('pre', null, '（清單為空）');
     refs.hisPreview.id = 'his-preview';
     /* 沒有複製鈕：清單一變就自動同步到剪貼簿（interactions.js 的 syncClipboard）。
@@ -274,8 +298,14 @@
       });
     };
 
+    /* 中欄實際渲染出來的面板（依 DOM 順序）。面板索引**只讀這一份**，不自己再跑一次
+       panelGroupsFor()——兩邊各算一次就會有「索引多一項／少一項」這種只在特定模式
+       才看得到的偏差。U.panelIndex 一定排在 U.panels 之後（ALL 走物件的插入順序）。 */
+    const renderedPanels = [];
+
     U.panels = () => {
       const s = ctx.store.getState();
+      renderedPanels.length = 0;
       R.clear(refs.panels);
       // panelGroupsFor() 在非急診模式一律回傳空的 redFlags——紅旗隔離只有這一個出口，
       // 渲染層不得自行從 window.CURATED 取 redFlags 繞過它（C5，臨床安全）。
@@ -297,6 +327,7 @@
           for (const chip of R.chipsFromPairs(q.items, ctx)) body.appendChild(chip);
           card.append(title, body);
           refs.panels.appendChild(card);
+          renderedPanels.push({ name: q.title, card, title });
         }
         for (const panel of group.panels) {
           const card = R.el('article', 'symptom-card blueprint');
@@ -328,9 +359,99 @@
             card.appendChild(body);
           }
           refs.panels.appendChild(card);
+          renderedPanels.push({ name: panel.name, card, title: card.querySelector('.symptom-card-title') });
         }
       }
     };
+
+    /* ── 面板索引（左欄部位列下方的那 332.7px 空白） ────────────────────────────
+       項目＝`renderedPanels`（中欄那一份），順序也一樣。沒選部位時列全部面板，
+       所以這一塊自己捲（CSS 的 `flex:1` ＋ `overflow-y:auto`）。
+       搜尋結果狀態整塊隱藏：那時中欄的主角是結果，索引指的面板不是使用者在看的東西。 */
+    let indexItems = [];
+
+    U.panelIndex = () => {
+      const searching = ctx.store.getState().query.trim().length >= 2;
+      refs.panelIndex.hidden = searching;
+      for (const old of Array.from(refs.panelIndex.querySelectorAll('.panel-index-item'))) old.remove();
+      indexItems = [];
+      if (searching) { observeCards(); return; }
+      for (const entry of renderedPanels) {
+        const b = R.el('button', 'panel-index-item', entry.name);
+        b.type = 'button';
+        b.dataset.panelIndex = entry.name;
+        b.title = entry.name + '：捲到中欄的這個面板';
+        refs.panelIndex.appendChild(b);
+        indexItems.push({ btn: b, entry });
+      }
+      observeCards();
+    };
+
+    /* 捲到某個面板：把它的標題停在捲動區可視內容的上緣。
+       offset **量出來**不寫死——`.worksheet` 的 padding 是設計值、而且日後若把中欄標題列
+       改成 sticky（1c 的面板標題與慢病速查的分段標題都已經是），這裡會自動跟上；
+       寫死的魔術數字每次改版就失準一次（同 #settings-popover 從 93px 改 100% 的教訓）。 */
+    function contentTopOffset() {
+      const view = sheet.ownerDocument.defaultView;
+      const cs = view.getComputedStyle(sheet);
+      let sticky = 0;
+      for (const kid of sheet.children) {
+        const ks = view.getComputedStyle(kid);
+        if (ks.position !== 'sticky') continue;
+        if ((parseFloat(ks.top) || 0) > 0.5) continue;
+        sticky = Math.max(sticky, kid.getBoundingClientRect().height);
+      }
+      return (parseFloat(cs.paddingTop) || 0) + sticky;
+    }
+
+    /* 停在上緣下面 2px，不是貼齊 0：scrollTop 會被瀏覽器捨入到子像素，貼齊 0 時實測
+       會落在 -0.2px，也就是標題帶最上面那一條被切掉——那條正是它與上一張卡的分界。 */
+    const PANEL_SCROLL_GAP = 2;
+
+    function scrollToPanel(name) {
+      const hit = indexItems.filter((it) => it.entry.name === name)[0];
+      if (!hit) return;
+      const node = hit.entry.title || hit.entry.card;
+      const delta = node.getBoundingClientRect().top
+        - (sheet.getBoundingClientRect().top + contentTopOffset() + PANEL_SCROLL_GAP);
+      sheet.scrollTop += delta;
+      markCurrent(hit.btn);
+    }
+
+    function markCurrent(btn) {
+      for (const it of indexItems) {
+        if (it.btn === btn) it.btn.setAttribute('aria-current', 'true');
+        else it.btn.removeAttribute('aria-current');
+      }
+    }
+
+    /* 「現在捲到哪個面板」用 IntersectionObserver，不用 scroll 事件：scroll 每一格都
+       重新量所有面板的位置，在「全部部位」那 71 張卡片上是每次捲動都跑 71 次 layout。
+       `rootMargin` 的下緣 -72% 讓只有可視區最上面那一段算數，命中的那幾張再依下面
+       那條規則挑出「目前所在」。 */
+    let io = null;
+    const onScreen = new Set();
+
+    function observeCards() {
+      if (io) { io.disconnect(); onScreen.clear(); }
+      const view = sheet.ownerDocument.defaultView;
+      if (!view.IntersectionObserver || !indexItems.length) return;
+      io = new view.IntersectionObserver((entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) onScreen.add(e.target);
+          else onScreen.delete(e.target);
+        }
+        /* 命中的可能有兩三張（上一張的最後幾個像素還在帶子裡），要的是「上緣已經捲過去
+           的那一張的最後一張」，不是 DOM 順序的第一張——不然剛捲到第 4 個面板時，
+           第 3 張只剩 3px 在畫面上卻會被標成「目前所在」。 */
+        const line = sheet.getBoundingClientRect().top + contentTopOffset() + PANEL_SCROLL_GAP + 2;
+        const visible = indexItems.filter((it) => onScreen.has(it.entry.card));
+        if (!visible.length) return;
+        const passed = visible.filter((it) => it.entry.card.getBoundingClientRect().top <= line);
+        markCurrent((passed.length ? passed[passed.length - 1] : visible[0]).btn);
+      }, { root: sheet, rootMargin: '0px 0px -72% 0px', threshold: 0 });
+      for (const it of indexItems) io.observe(it.entry.card);
+    }
 
     U.quick = () => {
       const s = ctx.store.getState();
@@ -362,7 +483,10 @@
       R.renderCart(refs.cart, refs.cartEmpty, refs.cartCount, ctx);
       R.syncClearBtn(refs.clearCart, ctx);
     };
-    U.his = () => R.renderHis(refs.hisPreview, refs.hisFormat, null, ctx);
+    U.his = () => {
+      R.renderHis(refs.hisPreview, refs.hisFormat, null, ctx);
+      R.renderClipboardSync(wide);
+    };
     U.shelf = () => {
       const s = ctx.store.getState();
       refs.shelf.hidden = !s.shelfOpen;
@@ -377,9 +501,29 @@
       R.renderChronic(refs.chronicOverlay, ctx);
     };
 
+    /* 面板索引的點擊：規則與其他互動一樣走 interactions.js 的委派，但「捲到哪裡」
+       只有這個版面算得出來（它握著 sheet 與 renderedPanels），所以照 ctx.onCartToggle
+       的既有作法把 handler 掛在 ctx 上往下傳，不讓互動層伸手進渲染層。 */
+    ctx.onPanelIndex = (name) => scrollToPanel(name);
+
     const ALL = Object.keys(U);
 
+    /* 只記本次開啟的瀏覽位置，模式／部位各記一份，不寫 localStorage
+       （與 1b／1c 同一個資料結構與同一套規則，見 render-dock.js 的 positions）。
+       這是「返回」能回到搜尋前那一格的來源。 */
+    const positions = new Map();
+    let viewKey = null;
+    let searching = false;
+    let lastQuery = '';
+
     function update(changed) {
+      const state = ctx.store.getState();
+      const key = state.mode + ':' + state.region;
+      const query = state.query.trim();
+      const nextSearching = query.length >= 2;      // 與 renderResults 同一個門檻
+      const navigated = key !== viewKey;
+      const oldTop = sheet.scrollTop;
+      if (viewKey !== null && !searching) positions.set(viewKey, oldTop);
       let names = ALL;
       if (changed && changed.length) {
         const set = new Set();
@@ -392,8 +536,26 @@
       if (names.some((name) => ['panels', 'quick', 'results', 'shelf', 'cart'].includes(name))) {
         R.syncInCart(wide, ctx);
       }
+      /* 搜尋狀態下「返回」取代說明文字（同一個位置，不多一列）。 */
+      refs.searchBack.hidden = !nextSearching;
+      refs.modeHint.hidden = nextSearching;
       // 內容變了（搜尋結果出現、清單加碼）就得重新夾一次高度，見 render-dock.js 同一段註解
       applyPanes();
+      /* 捲動位置（三分支與 1b／1c 逐字同義）：
+         進搜尋 → 回到頂端（結果卡在中欄最上面，不然它會開在可視區外）
+         離開搜尋或換部位／模式 → 還原那一格記住的位置
+         其餘（加碼、展開面板…）→ 原地不動
+         一定要排在 applyPanes() 之後：窗格高度會改變 scrollHeight，先寫 scrollTop 會被夾掉。 */
+      if (nextSearching) {
+        sheet.scrollTop = (!searching || query !== lastQuery || navigated) ? 0 : oldTop;
+      } else if (searching || navigated) {
+        sheet.scrollTop = positions.get(key) || 0;
+      } else {
+        sheet.scrollTop = oldTop;
+      }
+      viewKey = key;
+      searching = nextSearching;
+      lastQuery = query;
     }
 
     return { root: wide, refs, update };

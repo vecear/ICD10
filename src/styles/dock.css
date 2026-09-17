@@ -51,11 +51,9 @@ body[data-layout="dock"] #search {
   flex: 1; min-width: 0; width: 100%;
 }
 body[data-layout="dock"] .dock-search-bar { display: flex; gap: 4px; }
-body[data-layout="dock"] .dock-search-back {
-  flex: none; padding: 0 6px; min-height: 28px; font: inherit; font-size: 11px;
-  background: var(--color-accent-100); color: var(--color-accent-800);
-  border: 1px solid var(--color-divider); cursor: pointer;
-}
+/* 「返回」的類名從 .dock-search-back 換成三版面共用的 .search-back（id 仍留給 E2E）。
+   外觀在 app.css；這裡只留 1c 自己的幾何：與搜尋框齊高 28px、11px 字、收成文字寬。 */
+body[data-layout="dock"] .search-back { padding: 0 6px; min-height: 28px; font-size: 11px; }
 /* 允許換行：這一列現在有六個控制項（日期＋模式三鈕＋置頂＋設定），176px 排不下，
    不換行的話設定鈕會被擠出視窗右緣（實測 x+width=186 > 可用的 170）。
    340px 以上（Ctrl+Alt+D 貼齊的寬度）空間充足，仍然是一列。 */
@@ -106,6 +104,14 @@ body[data-layout="dock"] #settings-toggle {
 @media (max-width: 239px) {
   body[data-layout="dock"] .dock-pin-label,
   body[data-layout="dock"] .layout-toggle-label { display: none; }
+  /* 清單摘要列在 176px 只有 163px 可用，而「已同步 14:32」要 60.4px（37%）。
+     實測讓它留下的代價是 #cart-toggle 只剩 54.6px，容不下「清單 3」＋代碼串＋箭頭
+     （需要 65px）——代碼串直接被壓成 0，而那正是這一列存在的理由（收起清單也看得到
+     選了哪幾碼）。所以**成功態**在這個寬度讓位。
+     **失敗態（「未同步」）不讓**：43px 放得下（163 − 清空 40 − 間距 8 = 115 給 toggle），
+     而它講的是還沒解決的問題——與通知列「成功類自己消失、失敗類留著」同一個判準。
+     成功的資訊在 240px 以上（含使用者實際用的 340／565px）完整顯示。 */
+  body[data-layout="dock"] .clip-sync:not(.is-stale) { display: none; }
 }
 /* PiP 不支援／被擋下時的提示：絕不靜默失敗（設計 L240 的 10px 灰字）。
    成功那一則在 render-dock.js 設了逾時會自己消失（一次性說明不該永久占一列）；
@@ -315,6 +321,11 @@ body[data-layout="dock"] .dock-cart-head {
   background: var(--his-surface); border-top: 1px solid var(--his-line);
 }
 body[data-layout="dock"] .dock-cart-head #cart-toggle { flex: 1; min-width: 0; }
+/* 「已同步 HH:MM」在 1c 落在深底的摘要列上，所以字色改 --his-dim（與「清單」抬頭同一階）。
+   不設 min-height：這一列的高度由「清空」的 26px 決定，設了就會在 176px 把它撐高
+   （量測 BASELINE dock_cart_head 35.1px 前後必須相同）。失敗態自帶警示底，不在這裡覆蓋。 */
+body[data-layout="dock"] .clip-sync:not(.is-stale) { color: var(--his-dim); }
+body[data-layout="dock"] .clip-sync { align-self: center; }
 body[data-layout="dock"] #clear-cart {
   flex: none; min-height: 26px; padding: 0 8px; font-size: 11px;
   border: 1px solid var(--his-btn); color: var(--his-btn); background: transparent;

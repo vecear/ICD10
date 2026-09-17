@@ -100,6 +100,16 @@
     return (d.getFullYear() - 1911) + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
   }
 
+  /* 24 小時制的 HH:MM（本地時區）。用在「已同步 HH:MM」——剪貼簿最後一次成功同步的時間
+     （UX 稽核 U4：沒有複製鈕，也沒有任何一處說剪貼簿已經同步）。
+     刻意不用 toLocaleTimeString：它在不同 locale 會給 12 小時制與 AM／PM，
+     而診間要的是與 HIS 畫面一致的定長四位數。參數只為了測試能餵固定時間。 */
+  function clockHM(date) {
+    const d = date || new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    return pad(d.getHours()) + ':' + pad(d.getMinutes());
+  }
+
   /* ── 慢病速查的時效篩選（純函式，node 可直接測） ─────────────────────────
      給付規定與 ICD 代碼最大的不同：代碼可以逐碼比對官方全庫、錯了就建置失敗；
      給付規定沒有這種驗證，只能靠資料自帶的生效日決定「今天該顯示哪一版」。
@@ -842,7 +852,7 @@
       text: '須先生活型態調整才可用藥（須先完成 3–6 個月生活型態調整，複評仍達門檻才可開始用藥）' };
   }
 
-  return { buildIndex, search, family, formatCart, mergeRelated, rocDate, splitByEffective,
+  return { buildIndex, search, family, formatCart, mergeRelated, rocDate, clockHM, splitByEffective,
            splitSentences, splitLead, creatinineClearance,
            lipidCoverage, lipidTreatmentStatus, lipidRiskFactorsNew, lipidRiskFactorsOld, lipidMetabolic,
            lipidFindProducts, lipidSummarize, lipidProductVerdict,

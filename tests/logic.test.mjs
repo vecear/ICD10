@@ -98,6 +98,20 @@ test('rocDate：不給參數就用今天，格式一律 民國年-月-日', () =
   assert.equal(today, L.rocDate(now));
 });
 
+test('clockHM：24 小時制、時分都補零（「已同步 HH:MM」用的就是這個）', () => {
+  assert.equal(L.clockHM(new Date(2026, 8, 17, 14, 32)), '14:32');
+  assert.equal(L.clockHM(new Date(2026, 8, 17, 9, 5)), '09:05');    // 個位數一律補零
+  assert.equal(L.clockHM(new Date(2026, 8, 17, 0, 0)), '00:00');    // 午夜不是 24:00
+  assert.equal(L.clockHM(new Date(2026, 8, 17, 23, 59)), '23:59');
+  assert.equal(L.clockHM(new Date(2026, 8, 17, 13, 0)), '13:00');   // 不得是 12 小時制的 01:00
+});
+
+test('clockHM：不給參數就用現在', () => {
+  assert.match(L.clockHM(), /^\d{2}:\d{2}$/);
+  const now = new Date();
+  assert.equal(L.clockHM(now), L.clockHM(now));
+});
+
 /* ── 慢病速查的時效篩選（splitByEffective） ──
    給付規定沒有「逐條比對官方全庫」這種驗證手段，換版當天顯示錯版本是這個功能最大的
    臨床風險，所以邊界（含當日）逐一釘死，不能只測「大致對」。 */

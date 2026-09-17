@@ -73,7 +73,7 @@
     search.className = 'input';
     search.type = 'search';
     search.autocomplete = 'off';
-    search.placeholder = '搜尋碼／中英文…';
+    search.placeholder = '搜尋碼／中英文　Enter 加第一筆';
     search.setAttribute('aria-label', '搜尋診斷碼');
     refs.search = search;
 
@@ -98,8 +98,13 @@
     const modeRow = R.el('div', 'm-mode-row');
     modeRow.append(refs.dateBtn, refs.modeSwitch);
 
+    /* 「返回」排在搜尋框右邊、與「設定」同一列（UX 稽核 U3）——**不多一列**：
+       這一列本來就存在，搜尋框是 flex:1／min-width:0，多這一顆是跟它借寬度。
+       只在搜尋結果狀態出現（update() 收尾處），所以平常一個像素都不佔。
+       行為與另兩套版面完全一致（interactions.js 的 `.search-back` 委派）。 */
+    refs.searchBack = R.searchBackEl();
     const headRow = R.el('div', 'm-head-row');
-    headRow.append(search, settingsToggle);
+    headRow.append(search, refs.searchBack, settingsToggle);
     /* 可見通知列：貼在 header 下緣、覆蓋部位列最上緣而不推擠（三套版面同一個 #notice）。
        手機沒有 hover，這一列是「剛才那一下有沒有生效」的唯一線索。 */
     header.append(modeRow, headRow, pop, R.noticeEl());
@@ -127,6 +132,14 @@
        放進捲動區：開機第一眼就看得到，往下選碼時讓開，永久成本 0px（1c 同理）。
        按鈕本身仍是 44px 高——讓位讓的是版面，不是觸控目標。 */
     refs.chronicSwitch = R.chronicSwitchEl(true);
+    /* 「全展開／全收合」沿用 1c 的同一顆（id `#expand-all-panels`、行為在
+       interactions.js 的 toggleAllPanels）。**id 不會撞**：app.js 的 mount() 換版面時
+       先 clear(#app) 再掛新版面，同一時刻只有一套版面在 DOM 裡（唯一的例外是 1c 置頂，
+       那條側欄搬到 PiP 那個**另一個文件**，仍然不是同一份 DOM）。
+       擺在這一排的尾巴而不是每個面板頭上：它管的是「下面全部」，不屬於任何一個面板；
+       而這一排在捲動區裡，常駐版面成本 0px（U9 要的就是不新增控制列）。 */
+    refs.expandAll = R.expandAllButtonEl();
+    refs.chronicSwitch.appendChild(refs.expandAll);
     scroll.appendChild(refs.chronicSwitch);
 
     const resultsCard = R.el('div');
@@ -159,7 +172,10 @@
     clearBtn.type = 'button';
     clearBtn.id = 'clear-cart';
     refs.clearCart = clearBtn;
-    sheetHead.append(R.el('span', 'kicker', '本次就診清單'), refs.hisFormat, clearBtn);
+    /* 「已同步 HH:MM」接在「每行一碼」旁邊（UX 稽核 U4）：這一列的高度由 44px 的
+       「清空」決定，11px 的時間不會把它撐高，也不新增任何一列。 */
+    refs.clipSync = R.clipboardSyncEl();
+    sheetHead.append(R.el('span', 'kicker', '本次就診清單'), refs.hisFormat, refs.clipSync, clearBtn);
 
     refs.cart = R.el('ul');
     refs.cart.id = 'cart';
@@ -296,7 +312,18 @@
           refs.panels.appendChild(card);
         }
       }
+      syncExpandAll();
     };
+
+    /* 這顆鈕的字要跟著面板狀態走，而它掛在 refs.panels 外面，所以由 U.panels 收尾時
+       一起更新——mode／region／expanded 三個鍵本來就都會重跑 U.panels（與 1c 同一條）。 */
+    function syncExpandAll() {
+      const open = root.ICDInteractions.allPanelsExpanded(ctx);
+      refs.expandAll.textContent = open ? '全收合' : '全展開';
+      refs.expandAll.title = open
+        ? '把目前這一批面板的常見疾病全部收起來'
+        : '把目前這一批面板的常見疾病全部展開';
+    }
 
     U.results = () => {
       R.renderResults(refs.resultsCard, refs.results, refs.resultNote, ctx);
@@ -332,7 +359,10 @@
         : '尚未選碼';
     };
 
-    U.his = () => R.renderHis(refs.hisPreview, refs.hisFormat, null, ctx);
+    U.his = () => {
+      R.renderHis(refs.hisPreview, refs.hisFormat, null, ctx);
+      R.renderClipboardSync(wrap);
+    };
     U.settings = () => R.syncSettings(wrap, ctx);
     U.ccr = () => R.syncCcr(wrap, ctx);
     U.lipid = () => R.syncLipid(wrap, ctx);
@@ -357,7 +387,23 @@
 
     const ALL = Object.keys(U);
 
+    /* 只記本次開啟的瀏覽位置，模式／部位各記一份，不寫 localStorage（與 1c 同一個
+       資料結構與同一套規則，見 render-dock.js 的 positions）。
+       這是「返回」能回到搜尋前那一格的來源：醫師搜完一個碼要回去接著選附近的碼，
+       回來落在頂端等於每次搜尋都要重新捲一次。 */
+    const positions = new Map();
+    let viewKey = null;
+    let searching = false;
+    let lastQuery = '';
+
     function update(changed) {
+      const state = ctx.store.getState();
+      const key = state.mode + ':' + state.region;
+      const query = state.query.trim();
+      const nextSearching = query.length >= 2;      // 與 renderResults 同一個門檻
+      const navigated = key !== viewKey;
+      const oldTop = scroll.scrollTop;
+      if (viewKey !== null && !searching) positions.set(viewKey, oldTop);
       let names = ALL;
       if (changed && changed.length) {
         const set = new Set();
@@ -370,8 +416,24 @@
       if (names.some((name) => ['panels', 'results', 'cartSheet'].includes(name))) {
         R.syncInCart(wrap, ctx);
       }
+      refs.searchBack.hidden = !nextSearching;
       // 內容變了（抽屜展開）就得重新夾一次高度，見 render-dock.js 同一段註解
       refs.paneGroup.applyAll();
+      /* 捲動位置（三分支與 1a／1c 逐字同義）：
+         進搜尋 → 回到頂端（結果卡在捲動區最上面，不然它會開在可視區外）
+         離開搜尋或換部位／模式 → 還原那一格記住的位置
+         其餘（加碼、展開面板…）→ 原地不動
+         一定要排在 applyAll() 之後：窗格高度會改變 scrollHeight，先寫 scrollTop 會被夾掉。 */
+      if (nextSearching) {
+        scroll.scrollTop = (!searching || query !== lastQuery || navigated) ? 0 : oldTop;
+      } else if (searching || navigated) {
+        scroll.scrollTop = positions.get(key) || 0;
+      } else {
+        scroll.scrollTop = oldTop;
+      }
+      viewKey = key;
+      searching = nextSearching;
+      lastQuery = query;
     }
 
     return { root: wrap, refs, update };

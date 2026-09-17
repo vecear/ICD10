@@ -150,16 +150,13 @@
     search.className = 'input';
     search.type = 'search';
     search.autocomplete = 'off';
-    search.placeholder = '搜尋碼／中英文';
+    search.placeholder = '搜尋碼／中英文　Enter 加第一筆';
     search.setAttribute('aria-label', '搜尋診斷碼');
     refs.search = search;
     const searchBar = R.el('div', 'dock-search-bar');
-    refs.searchBack = R.el('button', 'dock-search-back', '返回');
-    refs.searchBack.id = 'dock-search-back';
-    refs.searchBack.type = 'button';
-    refs.searchBack.title = '結束搜尋，回到原本的部位與位置（Esc）';
-    refs.searchBack.setAttribute('aria-label', refs.searchBack.title);
-    refs.searchBack.hidden = true;
+    /* 「返回」改由 render-shared 的 searchBackEl() 產生（三套版面同一顆、同一個 handler）。
+       id 保留 `dock-search-back`：既有 E2E（test_e2e_dock_flow.py）靠它定位。 */
+    refs.searchBack = R.searchBackEl('dock-search-back');
     searchBar.append(search, refs.searchBack);
     head.appendChild(searchBar);
 
@@ -291,8 +288,13 @@
     clearBtn.id = 'clear-cart';
     refs.clearCart = clearBtn;
 
+    /* 「已同步 HH:MM」（UX 稽核 U4）擺在摘要列右側，**不是** #cart-toggle 裡面：
+       那是一個 <button>，把時間塞進去會讓它的可讀名稱變成「清單 3 E11.9、I10 已同步 14:32」。
+       這一列的高度由「清空」的 26px 決定，11px 的時間不會把它撐高（量測見
+       tests/test_e2e_navigation.py 的 BASELINE dock_cart_head）。 */
+    refs.clipSync = R.clipboardSyncEl();
     const cartHead = R.el('div', 'dock-cart-head');
-    cartHead.append(clearBtn, cartToggle);
+    cartHead.append(clearBtn, cartToggle, refs.clipSync);
 
     cartBox.append(cartHead, refs.cartInline);
     dock.appendChild(cartBox);
@@ -544,12 +546,12 @@
     // 同一份實作，這裡不再抄一份——抄的那份正是 R2 M1／I3 兩條缺陷的來源。
     const addFromChip = (chip) => root.ICDInteractions.activateChip(ctx, chip);
 
+    /* 清空搜尋的規則共用 interactions.js 的 leaveSearch（三套版面同一份）；這裡只多清
+       **本檔自己的** debounce——PiP 期間打字走的是下面 dock.addEventListener('input')
+       那條，主文件的 handle 清不到它，尚未送出的字會在返回後又把搜尋打開一次。 */
     function leaveSearch() {
-      refs.search.value = '';
-      // 同時重設主文件／PiP 的輸入 debounce，避免尚未送出的字在返回後又打開搜尋。
-      const Event = refs.search.ownerDocument.defaultView.Event;
-      refs.search.dispatchEvent(new Event('input', { bubbles: true }));
-      ctx.store.setQuery('');
+      clearTimeout(searchTimer);
+      root.ICDInteractions.leaveSearch(ctx, refs.search);
     }
 
     /* 置頂進 PiP 小視窗後，主文件的委派搆不到那棵 DOM，這裡代打。
@@ -651,6 +653,12 @@
       }
       // 通知列的「復原」也在側欄裡（#notice 掛在 .dock-head），置頂時同樣搆不到主文件
       if (target.closest('#notice-undo')) { root.ICDInteractions.runUndo(); return; }
+      // 「返回」同理：主文件走 interactions.js 的 `.search-back` 委派，這裡只在 PiP 代打
+      if (target.closest('.search-back')) {
+        leaveSearch();
+        refs.search.focus({ preventScroll: true });
+        return;
+      }
       /* 「展開」一定要登記在這份白名單裡：置頂時整條窄欄在 PiP 小視窗那個**另一個
          文件**，主文件的委派完全搆不到，漏掉的症狀是「按了沒反應」而且只在置頂時
          發生——血脂試算就是這樣漏掉過一次。而它偏偏是置頂狀態下唯一的回頭路。 */
@@ -676,11 +684,6 @@
       const target = ev.target;
       if (!target || !target.closest) return;
       if (target.closest('#pin-toggle')) { togglePin(); return; }
-      if (target.closest('#dock-search-back')) {
-        leaveSearch();
-        refs.search.focus({ preventScroll: true });
-        return;
-      }
       // 模式與部位鈕代表回到導引；清掉搜尋後仍由原本的事件委派完成切換。
       if (target.closest('.region-btn, #mode-switch [data-mode], #seg-mode [data-mode]')
         && refs.search.value) leaveSearch();
@@ -893,7 +896,10 @@
       refs.cartToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
     };
 
-    U.his = () => R.renderHis(refs.hisScratch, null, null, ctx);
+    U.his = () => {
+      R.renderHis(refs.hisScratch, null, null, ctx);
+      R.renderClipboardSync(dock);
+    };
 
     U.settings = () => R.syncSettings(dock, ctx);
 

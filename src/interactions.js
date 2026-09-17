@@ -38,6 +38,43 @@
 
   const setFeedbackDocument = (doc) => { feedbackTarget = doc || null; };
 
+  /* 搜尋輸入的 debounce handle。放模組層而不是 wire() 的閉包，是為了讓 leaveSearch()
+     也清得到它——「返回」按下時若還有一筆沒送出的字，回到導引之後會又被打開一次搜尋。 */
+  let searchDebounce = null;
+
+  /* ── 搜尋的回頭路（三套版面共用一份實作） ─────────────────────────────────────
+     入口有三個：`.search-back` 鈕（class 委派，見下方 click）、搜尋框按 Esc、
+     以及「搜尋中直接點部位／模式鈕」（1c 的 dock.addEventListener）。三者都只做同一件事
+     ——清空 query。「回到搜尋前的捲動位置」不在這裡：那是各版面 update() 裡的 positions
+     還原（1a `.worksheet`、1b `#m-scroll`、1c `.dock-scroll`，同一個資料結構）。
+
+     `node` 決定在哪個文件找搜尋框：1c 置頂時整條側欄在 Document PiP 小視窗那個
+     **另一個文件**裡，寫死 document 會找不到（同 feedbackDoc 的教訓）。 */
+  function leaveSearch(ctx, node, focus) {
+    const doc = (node && node.ownerDocument) || document;
+    const input = doc.getElementById('search');
+    if (input) input.value = '';
+    clearTimeout(searchDebounce);
+    ctx.store.setQuery('');
+    if (focus && input) input.focus({ preventScroll: true });
+  }
+
+  /* ── 剪貼簿最後一次自動同步的結果（UX 稽核 U4） ───────────────────────────────
+     沒有「複製並貼入 HIS」鈕是刻意的（點碼即自動同步），但畫面上一個字都沒說剪貼簿
+     已經同步，醫師只能相信它。狀態放這裡而不是 store：它不是使用者資料，跨診次沒有意義，
+     也不該進 localStorage（清單本身就刻意不持久化）。
+     繪製在 render-shared 的 renderClipboardSync()；各版面的 U.his 會重畫一次，
+     所以換版面／重掛之後仍顯示同一個狀態。 */
+  let clipSync = null;
+  const clipboardSyncInfo = () => clipSync;
+
+  function setClipboardSync(ok) {
+    clipSync = { ok: !!ok, at: new Date() };
+    if (root.ICDRender && root.ICDRender.renderClipboardSync) {
+      root.ICDRender.renderClipboardSync(feedbackDoc());
+    }
+  }
+
   /* ── 通知列（#notice）的逾時規則 ───────────────────────────────────────────
      成功類（已加入、已複製、已切換）2.5 秒自己收掉：看過就沒用的提示不該佔版面
      （docs/dense-ui-principle.md 手法 #4）。失敗／未解決的相反——`{ sticky: true }`
@@ -458,7 +495,6 @@
   function wire(ctx) {
     const store = ctx.store;
     const data = ctx.data;
-    let debounce = null;
     let copiedTimer = null;
     let dragCode = null;
 
@@ -477,6 +513,8 @@
       const text = root.ICDRender.hisText(ctx);
       if (!text) return;
       copyText(text, true).then((ok) => {
+        // 成功／失敗都要留痕：「已同步 HH:MM」／「未同步」寫在既有的標題列右側（U4）
+        setClipboardSync(ok);
         if (!ok) announce('自動複製失敗，請點清單裡的代碼逐一複製', { sticky: true });
       });
     }
@@ -584,6 +622,19 @@
          就靜默 return，等於這顆鈕永遠按不動。 */
       if (target.closest('#notice-undo')) { runUndo(); return; }
 
+      /* 搜尋的「返回」：認 class 不認 id，三套版面共用這一條（UX 稽核 U3）。
+         1c 那顆的 id 仍是 #dock-search-back（既有 E2E 靠它定位），但走的是同一個 handler。
+         焦點回搜尋框：按「返回」通常是要改關鍵字重搜，不是要離開搜尋。 */
+      if (target.closest('.search-back')) { leaveSearch(ctx, target, true); return; }
+
+      /* 1a 左欄的面板索引（UX 稽核 U8）。「捲到哪裡」只有渲染層算得出來（它握著中欄的
+         捲動容器與那一批面板），所以走 ctx.onPanelIndex——與 #cart-toggle 同一個作法。 */
+      const panelIndexItem = target.closest('.panel-index-item');
+      if (panelIndexItem) {
+        if (typeof ctx.onPanelIndex === 'function') ctx.onPanelIndex(panelIndexItem.dataset.panelIndex);
+        return;
+      }
+
       /* 版面切換鈕（1a 的「側掛置頂」／1c 的「展開」）。走 ctx.switchLayout 而不是
          store.setLayout：切到 dock 時還要接著開置頂小視窗，而那個 controller 只有
          app.js 拿得到。1c 置頂時這條委派搆不到，render-dock.js 有一份同樣的代打。 */
@@ -629,8 +680,8 @@
       if (!ev.target || ev.target.id !== 'search') return;
       const value = ev.target.value;
       if (value.trim().length >= 2) data.ensureDb();     // 觸發全庫延遲載入
-      clearTimeout(debounce);
-      debounce = setTimeout(() => store.setQuery(value), SEARCH_DEBOUNCE);
+      clearTimeout(searchDebounce);
+      searchDebounce = setTimeout(() => store.setQuery(value), SEARCH_DEBOUNCE);
     });
 
     /* 勾選變動走 change：checkbox 的正規事件是 change，input 在部分瀏覽器上不保證。 */
@@ -643,9 +694,8 @@
     document.addEventListener('keydown', (ev) => {
       if (ev.target && ev.target.id === 'search') {
         if (ev.key === 'Escape') {
-          ev.target.value = '';
-          clearTimeout(debounce);
-          store.setQuery('');
+          // 與「返回」鈕完全同一條路（三版面共用 leaveSearch），title 上寫的 Esc 才算實現
+          leaveSearch(ctx, ev.target);
           // Esc 在其他情境都會關掉開著的浮層，搜尋框裡也要一致（R2 M3）
           if (isFallbackOpen()) closeFallbackCopy();
           else if (store.getState().lipidOpen) closeLipid(ctx, ev.target);
@@ -656,7 +706,7 @@
         }
         if (ev.key === 'Enter') {
           ev.preventDefault();
-          clearTimeout(debounce);
+          clearTimeout(searchDebounce);
           store.setQuery(ev.target.value);
           const first = document.querySelector('#search-results .chip:not(.cat)');
           if (first) {
@@ -765,6 +815,7 @@
   root.ICDInteractions = {
     wire, chooseCopyFormat, copyText, openFallbackCopy, closeFallbackCopy, isFallbackOpen, announce,
     activateChip, copyCartCode, setFeedbackDocument,
+    leaveSearch, clipboardSyncInfo,
     // 1c 置頂時 main document 的委派搆不到側欄，render-dock.js 要用同一份實作代打
     removeFromCart, clearCartWithUndo, runUndo,
     chooseMode, chooseAllRegions, resetPanes, chooseChronic, closeChronic,

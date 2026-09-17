@@ -171,6 +171,33 @@ body {
 }
 .notice-undo:hover { background: var(--color-bg); }
 
+/* ── 搜尋的「返回」（三版面共用 .search-back；節點在 render-shared 的 searchBackEl） ──
+   外觀共用、幾何各版面自己給（1a 26px／1b 44px 觸控門檻／1c 28px 與搜尋框齊高）：
+   三套版面的那一列高度基準本來就不同，共用尺寸會在某一套踩線。
+   配色借通知列的 accent-100／accent-800：它與「返回」都是「系統在回應你剛做的事」。 */
+.search-back {
+  flex: none; cursor: pointer; font: inherit; white-space: nowrap;
+  background: var(--color-accent-100); color: var(--color-accent-800);
+  border: 1px solid var(--color-divider);
+}
+.search-back:hover { background: var(--color-accent-200); }
+
+/* ── 剪貼簿同步狀態（三版面共用 #clipboard-sync.clip-sync） ──
+   成功態只是一行暗字（看一眼就夠，不該搶戲）；失敗態自帶警示底色與框線——
+   它要出現在深底的 HIS 卡片（1a／1c）與淺底的手機抽屜抬頭列（1b）三種背景上，
+   只換文字顏色會在其中一種掉到 AA 以下。這是 .chip-tag 已經在用的同一套疊法
+   （--warn-bg 配 --warn-ink，淺 5.40:1／深 8.98:1）。
+   高度：只給水平內距，行高收到 1.2——這一格絕不可以把它所在那一列撐高
+   （量測見 tests/test_e2e_navigation.py 的 BASELINE）。 */
+.clip-sync {
+  flex: none; font-size: 11px; line-height: 1.2; white-space: nowrap;
+  color: var(--color-neutral-700);
+}
+.clip-sync.is-stale {
+  padding: 0 4px; font-weight: 700;
+  border: 1px solid var(--warn-line); background: var(--warn-bg); color: var(--warn-ink);
+}
+
 /* 小標籤（設計稿 L58 等的 kicker 樣式） */
 .kicker {
   font-family: var(--font-heading); font-size: 11px; letter-spacing: .12em;
@@ -364,9 +391,12 @@ b.cart-code {
 
 /* ── 貼入 HIS（impl-plan R-2：三個 --his-* token 不隨主題翻轉） ── */
 .his-card { padding: 12px; background: var(--his-card); border-color: var(--his-line); }
-.his-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
+/* 三個子元素：抬頭「貼入 HIS」靠左，「每行一碼」與「已同步 HH:MM」靠右成一組。
+   原本是兩個子元素配 space-between，多一個就會把中間那個推到正中央；改成
+   `margin-left:auto` 推開第一個右側元素，兩子元素時的視覺與原本完全相同。 */
+.his-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
 .his-head .kicker, #his-format-label { color: var(--his-dim); }
-#his-format-label { font-size: 11px; }
+#his-format-label { font-size: 11px; margin-left: auto; }
 #his-preview {
   margin: 0 0 10px; padding: 10px; background: var(--his-surface); border: 1px solid var(--his-line);
   font-family: var(--font-heading); font-size: 14px; line-height: 1.55; letter-spacing: .03em;

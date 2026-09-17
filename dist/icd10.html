@@ -506,6 +506,33 @@ body {
 }
 .notice-undo:hover { background: var(--color-bg); }
 
+/* ── 搜尋的「返回」（三版面共用 .search-back；節點在 render-shared 的 searchBackEl） ──
+   外觀共用、幾何各版面自己給（1a 26px／1b 44px 觸控門檻／1c 28px 與搜尋框齊高）：
+   三套版面的那一列高度基準本來就不同，共用尺寸會在某一套踩線。
+   配色借通知列的 accent-100／accent-800：它與「返回」都是「系統在回應你剛做的事」。 */
+.search-back {
+  flex: none; cursor: pointer; font: inherit; white-space: nowrap;
+  background: var(--color-accent-100); color: var(--color-accent-800);
+  border: 1px solid var(--color-divider);
+}
+.search-back:hover { background: var(--color-accent-200); }
+
+/* ── 剪貼簿同步狀態（三版面共用 #clipboard-sync.clip-sync） ──
+   成功態只是一行暗字（看一眼就夠，不該搶戲）；失敗態自帶警示底色與框線——
+   它要出現在深底的 HIS 卡片（1a／1c）與淺底的手機抽屜抬頭列（1b）三種背景上，
+   只換文字顏色會在其中一種掉到 AA 以下。這是 .chip-tag 已經在用的同一套疊法
+   （--warn-bg 配 --warn-ink，淺 5.40:1／深 8.98:1）。
+   高度：只給水平內距，行高收到 1.2——這一格絕不可以把它所在那一列撐高
+   （量測見 tests/test_e2e_navigation.py 的 BASELINE）。 */
+.clip-sync {
+  flex: none; font-size: 11px; line-height: 1.2; white-space: nowrap;
+  color: var(--color-neutral-700);
+}
+.clip-sync.is-stale {
+  padding: 0 4px; font-weight: 700;
+  border: 1px solid var(--warn-line); background: var(--warn-bg); color: var(--warn-ink);
+}
+
 /* 小標籤（設計稿 L58 等的 kicker 樣式） */
 .kicker {
   font-family: var(--font-heading); font-size: 11px; letter-spacing: .12em;
@@ -699,9 +726,12 @@ b.cart-code {
 
 /* ── 貼入 HIS（impl-plan R-2：三個 --his-* token 不隨主題翻轉） ── */
 .his-card { padding: 12px; background: var(--his-card); border-color: var(--his-line); }
-.his-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
+/* 三個子元素：抬頭「貼入 HIS」靠左，「每行一碼」與「已同步 HH:MM」靠右成一組。
+   原本是兩個子元素配 space-between，多一個就會把中間那個推到正中央；改成
+   `margin-left:auto` 推開第一個右側元素，兩子元素時的視覺與原本完全相同。 */
+.his-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
 .his-head .kicker, #his-format-label { color: var(--his-dim); }
-#his-format-label { font-size: 11px; }
+#his-format-label { font-size: 11px; margin-left: auto; }
 #his-preview {
   margin: 0 0 10px; padding: 10px; background: var(--his-surface); border: 1px solid var(--his-line);
   font-family: var(--font-heading); font-size: 14px; line-height: 1.55; letter-spacing: .03em;
@@ -1557,9 +1587,46 @@ details.lipid-drug-more[open] > .lipid-drug-toggle::before { content: '▾'; }
 }
 .workbench > * { min-width: 0; overflow-y: auto; }
 
+/* 左欄是「部位列 ＋ 面板索引」兩塊（UX 稽核 U8）：外框自己不捲，兩塊各自捲——
+   部位列是固定 10–11 顆、索引在「全部部位」時有 71 項，混在同一個捲動容器裡
+   會讓部位鈕跟著索引捲走，而它是每一診都要按的東西。
+   邊框與底色從 #region-rail 移上來，不然索引那塊會露出頁面底色、看起來像沒對齊。 */
+.rail-col {
+  display: flex; flex-direction: column; min-height: 0; overflow: hidden;
+  border-right: 1px solid var(--color-divider); background: var(--color-neutral-100);
+}
+
 /* 左：部位／情境 rail（L105-110） */
-#region-rail { border-right: 1px solid var(--color-divider); padding: 12px 0; background: var(--color-neutral-100); }
+/* `flex: 0 1 auto` ＋ 索引的 `flex: 1 1 0`：部位列先拿到它需要的高度（門診 10 顆＝487px），
+   剩下的全歸索引。**不可以給它 max-height 百分比**——實測 60% 在 900px 視窗剛好比內容
+   矮 2.3px，於是整條部位列為了那 2px 長出捲軸（無框瀏覽器的捲軸是 15px，按鈕會跟著變窄）。
+   視窗矮到裝不下 487px 時，收縮才會落到它身上（索引的基準是 0，權重也是 0），
+   那時捲軸是應該出現的。 */
+#region-rail { flex: 0 1 auto; min-height: 0; overflow-y: auto; padding: 12px 0; }
 #region-rail-title { font-size: 12px; padding: 0 16px 8px; }
+
+/* ── 面板索引：吃掉部位列下方原本 332.7px 的空白 ──
+   字級 11px（密度原則手法 3 的下限）、行高 1.25——這一塊沒有換行的內文，
+   body 的 1.55 在這裡整份是留白。`flex: 1 1 0` ＋ `min-height: 0` 才填得滿部位列以外的
+   剩餘空間，並在「全部部位」（71 項）時自己捲，而不是把左欄撐出捲軸。 */
+#panel-index {
+  flex: 1 1 0; min-height: 0; overflow-y: auto;
+  padding: 8px 0 10px; border-top: 1px solid var(--color-divider);
+}
+#panel-index[hidden] { display: none; }
+.panel-index-kicker { display: block; padding: 0 16px 4px; font-size: 11px; }
+/* 與部位鈕刻意長得不一樣（更小、無左側粗邊、縮排）：兩串名字上下相鄰，
+   長得像就會被當成更多部位。 */
+.panel-index-item {
+  display: block; width: 100%; padding: 2px 16px 2px 20px; border: 0;
+  background: transparent; cursor: pointer; font: inherit; font-size: 11px; line-height: 1.25;
+  text-align: left; color: var(--color-neutral-700);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.panel-index-item:hover { background: var(--color-accent-100); color: var(--color-accent-800); }
+.panel-index-item[aria-current="true"] {
+  color: var(--color-accent-800); font-weight: 600; background: var(--color-accent-100);
+}
 /* 一律掛 body[data-layout="wide"]（v5）：`.region-btn` 這個類名三個版面共用
    （1c 是 `.region-btn.region-pill--dock`、1b 是 `.region-btn.region-pill`，
    事件委派認的就是 `.region-btn`），本檔早於 dock/mobile 寫成，當時沒有隔離需求，
@@ -1587,6 +1654,12 @@ body[data-layout="wide"] .pane-resizer { height: 10px; margin: -12px 0; }
 .worksheet-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 #panels-title { margin: 0; font-family: var(--font-heading); font-size: 20px; letter-spacing: .02em; }
 #mode-hint { font-size: 12px; color: var(--color-neutral-700); }
+/* 「返回」佔的是 #mode-hint 的位置（搜尋時那句說明本來就不適用），所以這一列
+   前後高度不變：26px 仍低於 #panels-title 的 31px 行盒。 */
+#layout-wide .search-back { align-self: center; min-height: 26px; padding: 0 10px; font-size: 12px; }
+/* 「已同步 HH:MM」在深底的 HIS 卡片上，字色跟著 --his-dim（與「每行一碼」同一階）。
+   失敗態自帶警示底色，不在這裡覆蓋。 */
+#layout-wide .his-head .clip-sync:not(.is-stale) { color: var(--his-dim); }
 #panels { display: flex; flex-direction: column; gap: 14px; }
 #panels:empty { display: none; }
 /* 顯示全部部位時每組面板前的部位標題（render-shared 的 regionHeading） */
@@ -1658,9 +1731,18 @@ body[data-layout="wide"] .panel-toggle[aria-expanded="true"] .marker { transform
     grid-template-areas: "rail rail" "sheet cart";
     grid-template-rows: auto minmax(0, 1fr);
   }
+  /* 左欄在這個寬度收成橫向的 pill 列，高度只有一列——面板索引沒有容身之處
+     （硬塞會變成佔滿寬度的第二列固定 chrome，正是密度原則要擋的）。
+     它解的是「1440 下左欄有 333px 空白」，那個前提在這裡不成立，所以整塊藏起來。 */
+  .rail-col {
+    grid-area: rail; display: block; overflow: visible;
+    border-right: 0; border-bottom: 1px solid var(--color-divider);
+  }
+  #panel-index { display: none; }
   #region-rail {
-    grid-area: rail; display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
-    padding: 8px 16px; border-right: 0; border-bottom: 1px solid var(--color-divider);
+    display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+    max-height: none; overflow: visible;
+    padding: 8px 16px; border-right: 0;
   }
   #region-rail-title { padding: 0 6px 0 0; }
   .worksheet { grid-area: sheet; }
@@ -1739,11 +1821,9 @@ body[data-layout="dock"] #search {
   flex: 1; min-width: 0; width: 100%;
 }
 body[data-layout="dock"] .dock-search-bar { display: flex; gap: 4px; }
-body[data-layout="dock"] .dock-search-back {
-  flex: none; padding: 0 6px; min-height: 28px; font: inherit; font-size: 11px;
-  background: var(--color-accent-100); color: var(--color-accent-800);
-  border: 1px solid var(--color-divider); cursor: pointer;
-}
+/* 「返回」的類名從 .dock-search-back 換成三版面共用的 .search-back（id 仍留給 E2E）。
+   外觀在 app.css；這裡只留 1c 自己的幾何：與搜尋框齊高 28px、11px 字、收成文字寬。 */
+body[data-layout="dock"] .search-back { padding: 0 6px; min-height: 28px; font-size: 11px; }
 /* 允許換行：這一列現在有六個控制項（日期＋模式三鈕＋置頂＋設定），176px 排不下，
    不換行的話設定鈕會被擠出視窗右緣（實測 x+width=186 > 可用的 170）。
    340px 以上（Ctrl+Alt+D 貼齊的寬度）空間充足，仍然是一列。 */
@@ -1794,6 +1874,14 @@ body[data-layout="dock"] #settings-toggle {
 @media (max-width: 239px) {
   body[data-layout="dock"] .dock-pin-label,
   body[data-layout="dock"] .layout-toggle-label { display: none; }
+  /* 清單摘要列在 176px 只有 163px 可用，而「已同步 14:32」要 60.4px（37%）。
+     實測讓它留下的代價是 #cart-toggle 只剩 54.6px，容不下「清單 3」＋代碼串＋箭頭
+     （需要 65px）——代碼串直接被壓成 0，而那正是這一列存在的理由（收起清單也看得到
+     選了哪幾碼）。所以**成功態**在這個寬度讓位。
+     **失敗態（「未同步」）不讓**：43px 放得下（163 − 清空 40 − 間距 8 = 115 給 toggle），
+     而它講的是還沒解決的問題——與通知列「成功類自己消失、失敗類留著」同一個判準。
+     成功的資訊在 240px 以上（含使用者實際用的 340／565px）完整顯示。 */
+  body[data-layout="dock"] .clip-sync:not(.is-stale) { display: none; }
 }
 /* PiP 不支援／被擋下時的提示：絕不靜默失敗（設計 L240 的 10px 灰字）。
    成功那一則在 render-dock.js 設了逾時會自己消失（一次性說明不該永久占一列）；
@@ -2003,6 +2091,11 @@ body[data-layout="dock"] .dock-cart-head {
   background: var(--his-surface); border-top: 1px solid var(--his-line);
 }
 body[data-layout="dock"] .dock-cart-head #cart-toggle { flex: 1; min-width: 0; }
+/* 「已同步 HH:MM」在 1c 落在深底的摘要列上，所以字色改 --his-dim（與「清單」抬頭同一階）。
+   不設 min-height：這一列的高度由「清空」的 26px 決定，設了就會在 176px 把它撐高
+   （量測 BASELINE dock_cart_head 35.1px 前後必須相同）。失敗態自帶警示底，不在這裡覆蓋。 */
+body[data-layout="dock"] .clip-sync:not(.is-stale) { color: var(--his-dim); }
+body[data-layout="dock"] .clip-sync { align-self: center; }
 body[data-layout="dock"] #clear-cart {
   flex: none; min-height: 26px; padding: 0 8px; font-size: 11px;
   border: 1px solid var(--his-btn); color: var(--his-btn); background: transparent;
@@ -2233,6 +2326,12 @@ body[data-layout="mobile"] #search {
 body[data-layout="mobile"] #settings-toggle {
   flex: none; min-height: 44px; min-width: 44px; padding: 0 10px; font-size: 13px;
 }
+/* 「返回」：44px 觸控門檻不打折（docs/dense-ui-principle.md §1）。它與「設定」同一列，
+   寬度是跟 flex:1 的搜尋框借的——實測 390px 下搜尋框 214→158px，仍放得下
+   placeholder 的前半段，且不水平溢出。只在搜尋狀態出現，平常 0px。 */
+body[data-layout="mobile"] .search-back {
+  min-height: 44px; padding: 0 12px; font-size: 14px;
+}
 
 /* 設定 sheet：由 header 下方展開，左右各留 12px（L740-741）。
    top 用 calc(100% - 4px) 而不是寫死數字：header 現在是兩行，寫死的 60px 會讓 sheet
@@ -2406,13 +2505,22 @@ body[data-layout="mobile"] #copy-all > .corner { color: var(--his-dim); }
    三顆鈕放在**捲動內容區的最上面**，不是 header：44px 的觸控目標是硬性邊界不能打折，
    一列常駐就是 844px 螢幕的 5%＋分隔線，而這是偶爾查閱的功能。放進捲動區：
    開機第一眼看得到，往下選碼時自己讓開，永久成本 0px；按鈕本身仍是 44px。
-   390px 的寬度帳（可用 362）：健保規範條文 ~116 ＋ 血脂計算機 ~102 ＋ CCr ~58
-   ＋ 間距 20 ≈ 296，一列放得下。 */
+   這一排現在有四顆（多了「全展開／全收合」，UX 稽核 U9）。390px 的寬度帳（可用 362）：
+   原本三顆 健保規範條文 ~116 ＋ 血脂計算機 ~102 ＋ CCr ~58 ＋ 間距 16 ＝ 292，
+   再加「全展開」就會折成第二列——那是第一屏少掉 44px 的代碼。
+   所以四顆的水平內距一起收（16→10、14→10），觸控高度 44px 完全不動：
+   密度原則的手法順序正是「先壓內距，砍文字才是最後手段」。
+   收完 104 ＋ 90 ＋ 46 ＋ 76 ＋ 間距 24 ＝ 340 < 362，仍是一列（實測 54px 前後不變）。 */
 body[data-layout="mobile"] .chronic-switch {
   gap: 8px; padding: 10px 14px 0;
 }
 body[data-layout="mobile"] .chronic-btn {
-  min-height: 44px; padding: 0 16px; font-size: 14px;
+  min-height: 44px; padding: 0 10px; font-size: 14px;
+}
+/* 「全展開／全收合」靠右（與 1c 同一個擺法）。margin-left:auto 不佔寬度，
+   放不下時才會折——上面那筆內距帳就是為了讓它不必折。 */
+body[data-layout="mobile"] .expand-all-btn {
+  flex: 0 0 auto; margin-left: auto; min-height: 44px; padding: 0 10px; font-size: 14px;
 }
 /* 浮層在手機是整屏 sheet：390px 沒有「浮在內容之上的小視窗」這種餘裕，
    而內容量（每主題 15–21 條）本來就需要整屏才讀得下去。 */
@@ -2462,7 +2570,7 @@ body[data-layout="mobile"] .lipid-drug-toggle { min-height: 44px; align-items: c
    它們帶 .seg-btn--sm（那是給 176px 窄欄的 22px／10px），在 390px 一定要蓋掉——
    血脂鈕原本就漏了這條，量到只有 22px 高、10px 字，是實測抓出來的觸控門檻破口。 */
 body[data-layout="mobile"] #lipid-btn,
-body[data-layout="mobile"] #ccr-btn { flex: 0 0 auto; min-height: 44px; padding: 0 14px; font-size: 14px; }
+body[data-layout="mobile"] #ccr-btn { flex: 0 0 auto; min-height: 44px; padding: 0 10px; font-size: 14px; }
 body[data-layout="mobile"] .ccr-panel { width: 100%; }
 body[data-layout="mobile"] .ccr-input { min-height: 44px; font-size: 16px; }  /* 16px 避免 iOS 自動放大 */
 body[data-layout="mobile"] .ccr-sex .seg-btn { min-height: 44px; }
@@ -2738,6 +2846,16 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
     const d = date || new Date();
     const pad = (n) => String(n).padStart(2, '0');
     return (d.getFullYear() - 1911) + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  }
+
+  /* 24 小時制的 HH:MM（本地時區）。用在「已同步 HH:MM」——剪貼簿最後一次成功同步的時間
+     （UX 稽核 U4：沒有複製鈕，也沒有任何一處說剪貼簿已經同步）。
+     刻意不用 toLocaleTimeString：它在不同 locale 會給 12 小時制與 AM／PM，
+     而診間要的是與 HIS 畫面一致的定長四位數。參數只為了測試能餵固定時間。 */
+  function clockHM(date) {
+    const d = date || new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    return pad(d.getHours()) + ':' + pad(d.getMinutes());
   }
 
   /* ── 慢病速查的時效篩選（純函式，node 可直接測） ─────────────────────────
@@ -3482,7 +3600,7 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
       text: '須先生活型態調整才可用藥（須先完成 3–6 個月生活型態調整，複評仍達門檻才可開始用藥）' };
   }
 
-  return { buildIndex, search, family, formatCart, mergeRelated, rocDate, splitByEffective,
+  return { buildIndex, search, family, formatCart, mergeRelated, rocDate, clockHM, splitByEffective,
            splitSentences, splitLead, creatinineClearance,
            lipidCoverage, lipidTreatmentStatus, lipidRiskFactorsNew, lipidRiskFactorsOld, lipidMetabolic,
            lipidFindProducts, lipidSummarize, lipidProductVerdict,
@@ -6079,6 +6197,60 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
     return b;
   }
 
+  /* ── 搜尋的「返回」（三套版面共用一顆 .search-back） ──────────────────────────
+     原本只有 1c 有（`#dock-search-back`），1a／1b 要回到原本的部位只能自己清空搜尋框，
+     而 Esc 這條路沒有任何地方寫出來（UX 稽核 U3）。行為的唯一實作在 interactions.js 的
+     `leaveSearch()`——清空 query 之後，「回到搜尋前的捲動位置」由各版面 update() 的
+     positions 還原（三套用同一個資料結構，見各檔的 `positions`）。
+
+     `id` 只有 1c 需要：既有 E2E（test_e2e_dock_flow.py）靠 `#dock-search-back` 定位，
+     共用化不得換掉它。事件委派一律認 class，不認 id。
+     擺在哪一列由各版面決定（1a 中欄標題列、1b 搜尋列、1c 搜尋列），共通點是
+     **都是既有的那一列**——為回頭路另闢一列 chrome 會違反密度原則。 */
+  function searchBackEl(id) {
+    const b = el('button', 'search-back', '返回');
+    b.type = 'button';
+    if (id) b.id = id;
+    b.title = '結束搜尋，回到原本的部位與位置（Esc）';
+    b.setAttribute('aria-label', b.title);
+    b.hidden = true;
+    return b;
+  }
+
+  /* ── 剪貼簿同步狀態（三套版面共用一個 #clipboard-sync） ──────────────────────
+     為什麼要有：沒有「複製並貼入 HIS」鈕是刻意的（點碼即自動同步），但畫面上**一個字
+     都沒說剪貼簿已經同步**，醫師只能相信它；中途複製過別的東西也不會有人提醒
+     （UX 稽核 U4）。
+
+     兩個約束：
+       1. **不新增任何一列**——寫在既有的「貼入 HIS」標題列（1a／1b）與清單摘要列（1c）
+          右側，量測前後那幾列的高度必須相同（tests/test_e2e_navigation.py 的 BASELINE）。
+       2. **失敗不自動消失**——與通知列 `{ sticky: true }` 同一個判準：它講的是使用者
+          下一步該做什麼（剪貼簿被拒，要點清單裡的代碼逐一複製），下次成功才換回時間。
+     狀態由 interactions.js 的 syncClipboard() 持有（`clipboardSyncInfo()`），這裡只畫。 */
+  function clipboardSyncEl() {
+    const s = el('span', 'clip-sync');
+    s.id = 'clipboard-sync';
+    s.hidden = true;
+    return s;
+  }
+
+  function renderClipboardSync(scope) {
+    if (!scope || !scope.querySelector) return;
+    const node = scope.querySelector('#clipboard-sync');
+    if (!node) return;
+    const info = (root.ICDInteractions && root.ICDInteractions.clipboardSyncInfo
+      && root.ICDInteractions.clipboardSyncInfo()) || null;
+    if (!info) { node.hidden = true; node.textContent = ''; node.classList.remove('is-stale'); return; }
+    const ok = !!info.ok;
+    node.hidden = false;
+    node.textContent = ok ? '已同步 ' + root.ICDLogic.clockHM(info.at) : '未同步';
+    node.classList.toggle('is-stale', !ok);
+    node.title = ok
+      ? '清單已於 ' + root.ICDLogic.clockHM(info.at) + ' 同步到剪貼簿，可直接貼入 HIS'
+      : '剪貼簿沒有同步到（被瀏覽器拒絕）；請點清單裡的代碼逐一複製';
+  }
+
   /* ── 可見通知列（三套版面共用一個 #notice） ──────────────────────────────────
      為什麼要有：`#status` 是 1×1px 的 sr-only live region，只有螢幕閱讀器聽得到。
      UX 實測（2026-09-16）點一個已在清單的碼，三套版面的截圖 md5 完全相同——醫師唯一
@@ -7723,6 +7895,7 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
   root.ICDRender = {
     icon, el, blueprint, clear, regionHeading, srHeading, markRegionSelected, regionGroupEl,
     regionShort, dateBtnEl, noticeEl, syncInCart,
+    searchBackEl, clipboardSyncEl, renderClipboardSync,
     chipEl, chipWith, chipsFromPairs, emptyText,
     renderResults,
     cartItemEl, renderCart, syncClearBtn, hisText, renderHis, renderShelf,
@@ -7757,13 +7930,13 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
 
   /* 狀態欄位 → 需要重跑的更新器。null／未列出的欄位一律全部重跑（保守但不會漏畫）。 */
   const DEPS = {
-    mode: ['header', 'rail', 'panels', 'quick', 'settings'],
-    region: ['rail', 'panels'],
-    query: ['results', 'searchValue'],
+    mode: ['header', 'rail', 'panels', 'quick', 'settings', 'panelIndex'],
+    region: ['rail', 'panels', 'panelIndex'],
+    query: ['results', 'searchValue', 'panelIndex'],
     // shelf 一定要在：常用列的中文名靠 data.labelOf() 查全庫，全庫就緒前是光禿禿的代碼，
     // 漏了它就得剛好動到 favs／recent／shelfOpen 才會補上中文（R2 I4）
     dbState: ['results', 'settings', 'shelf'],
-    expanded: ['panels'],
+    expanded: ['panels', 'panelIndex'],
     quickOpen: ['quick'],
     cart: ['cart', 'his'],
     relatedCode: [],
@@ -7865,7 +8038,24 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
        ≥1240px 時出現，正是使用者抱怨的「功能只有某個介面才有」。故移除（見 .review/r4-ui.md）。 */
     rail.append(refs.railTitle);
     refs.rail = rail;
-    bench.appendChild(rail);
+
+    /* ── 面板索引（UX 稽核 U8） ──────────────────────────────────────────────
+       部位列下方原本有 332.7px 完全空白，而中欄預設就要捲 5.8 屏、取消部位選取要捲
+       27,034px——最寬的版面卻是捲最久的。這一塊把已經浪費掉的版面換成動線，
+       不新增控制列、也不從內容區借任何高度（`#panels` 的 scrollHeight 前後相同）。
+
+       **不掛在 `#region-rail` 裡面**：那是一個 `role="group" aria-label="身體部位"`，
+       把面板名塞進去等於對讀屏宣告「這些也是身體部位」。改成左欄多一層 `.rail-col`
+       當格線欄，部位列與索引是它的兩個兄弟，各自有自己的 group 標籤。 */
+    refs.panelIndex = R.el('nav', 'panel-index');
+    refs.panelIndex.id = 'panel-index';
+    refs.panelIndex.setAttribute('aria-label', '面板索引');
+    refs.panelIndex.append(R.el('div', 'kicker panel-index-kicker', '面板'));
+
+    const railCol = R.el('div', 'rail-col');
+    railCol.append(rail, refs.panelIndex);
+    refs.railCol = railCol;
+    bench.appendChild(railCol);
 
     /* 主要內容區＝<main>（v3 §5-1：原本只有 banner 與 complementary 兩個地標，
        中間的搜尋結果＋主訴面板不屬於任何地標，AT 的地標導覽跳不進來）。
@@ -7889,7 +8079,11 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
     refs.panelsTitle.id = 'panels-title';
     refs.modeHint = R.el('span', null, '');
     refs.modeHint.id = 'mode-hint';
-    head.append(refs.panelsTitle, refs.modeHint);
+    /* 「返回」擺在這一列的右側、**佔說明文字的位置**（UX 稽核 U3）：搜尋狀態下把
+       `#mode-hint` 換成它，那句「每個部位最上面是常用碼…」在搜尋時本來就不適用。
+       所以這顆鈕一像素都沒有多付——沒有為回頭路另闢一列 chrome。 */
+    refs.searchBack = R.searchBackEl();
+    head.append(refs.panelsTitle, refs.modeHint, refs.searchBack);
     sheet.appendChild(head);
 
     /* 快選排在面板之前（使用者 2026-09-01）：「常用慢性病」是內科門診最常用的一群碼，
@@ -7933,7 +8127,10 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
     const hisHead = R.el('div', 'his-head');
     refs.hisFormat = R.el('span', null, '每行一碼');
     refs.hisFormat.id = 'his-format-label';
-    hisHead.append(R.el('span', 'kicker', '貼入 HIS'), refs.hisFormat);
+    /* 「已同步 HH:MM」（UX 稽核 U4）接在「每行一碼」旁邊：沒有複製鈕是刻意的，
+       但也因此畫面上沒有任何一處說剪貼簿已經同步。不新增任何一列。 */
+    refs.clipSync = R.clipboardSyncEl();
+    hisHead.append(R.el('span', 'kicker', '貼入 HIS'), refs.hisFormat, refs.clipSync);
     refs.hisPreview = R.el('pre', null, '（清單為空）');
     refs.hisPreview.id = 'his-preview';
     /* 沒有複製鈕：清單一變就自動同步到剪貼簿（interactions.js 的 syncClipboard）。
@@ -8021,8 +8218,14 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
       });
     };
 
+    /* 中欄實際渲染出來的面板（依 DOM 順序）。面板索引**只讀這一份**，不自己再跑一次
+       panelGroupsFor()——兩邊各算一次就會有「索引多一項／少一項」這種只在特定模式
+       才看得到的偏差。U.panelIndex 一定排在 U.panels 之後（ALL 走物件的插入順序）。 */
+    const renderedPanels = [];
+
     U.panels = () => {
       const s = ctx.store.getState();
+      renderedPanels.length = 0;
       R.clear(refs.panels);
       // panelGroupsFor() 在非急診模式一律回傳空的 redFlags——紅旗隔離只有這一個出口，
       // 渲染層不得自行從 window.CURATED 取 redFlags 繞過它（C5，臨床安全）。
@@ -8044,6 +8247,7 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
           for (const chip of R.chipsFromPairs(q.items, ctx)) body.appendChild(chip);
           card.append(title, body);
           refs.panels.appendChild(card);
+          renderedPanels.push({ name: q.title, card, title });
         }
         for (const panel of group.panels) {
           const card = R.el('article', 'symptom-card blueprint');
@@ -8075,9 +8279,99 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
             card.appendChild(body);
           }
           refs.panels.appendChild(card);
+          renderedPanels.push({ name: panel.name, card, title: card.querySelector('.symptom-card-title') });
         }
       }
     };
+
+    /* ── 面板索引（左欄部位列下方的那 332.7px 空白） ────────────────────────────
+       項目＝`renderedPanels`（中欄那一份），順序也一樣。沒選部位時列全部面板，
+       所以這一塊自己捲（CSS 的 `flex:1` ＋ `overflow-y:auto`）。
+       搜尋結果狀態整塊隱藏：那時中欄的主角是結果，索引指的面板不是使用者在看的東西。 */
+    let indexItems = [];
+
+    U.panelIndex = () => {
+      const searching = ctx.store.getState().query.trim().length >= 2;
+      refs.panelIndex.hidden = searching;
+      for (const old of Array.from(refs.panelIndex.querySelectorAll('.panel-index-item'))) old.remove();
+      indexItems = [];
+      if (searching) { observeCards(); return; }
+      for (const entry of renderedPanels) {
+        const b = R.el('button', 'panel-index-item', entry.name);
+        b.type = 'button';
+        b.dataset.panelIndex = entry.name;
+        b.title = entry.name + '：捲到中欄的這個面板';
+        refs.panelIndex.appendChild(b);
+        indexItems.push({ btn: b, entry });
+      }
+      observeCards();
+    };
+
+    /* 捲到某個面板：把它的標題停在捲動區可視內容的上緣。
+       offset **量出來**不寫死——`.worksheet` 的 padding 是設計值、而且日後若把中欄標題列
+       改成 sticky（1c 的面板標題與慢病速查的分段標題都已經是），這裡會自動跟上；
+       寫死的魔術數字每次改版就失準一次（同 #settings-popover 從 93px 改 100% 的教訓）。 */
+    function contentTopOffset() {
+      const view = sheet.ownerDocument.defaultView;
+      const cs = view.getComputedStyle(sheet);
+      let sticky = 0;
+      for (const kid of sheet.children) {
+        const ks = view.getComputedStyle(kid);
+        if (ks.position !== 'sticky') continue;
+        if ((parseFloat(ks.top) || 0) > 0.5) continue;
+        sticky = Math.max(sticky, kid.getBoundingClientRect().height);
+      }
+      return (parseFloat(cs.paddingTop) || 0) + sticky;
+    }
+
+    /* 停在上緣下面 2px，不是貼齊 0：scrollTop 會被瀏覽器捨入到子像素，貼齊 0 時實測
+       會落在 -0.2px，也就是標題帶最上面那一條被切掉——那條正是它與上一張卡的分界。 */
+    const PANEL_SCROLL_GAP = 2;
+
+    function scrollToPanel(name) {
+      const hit = indexItems.filter((it) => it.entry.name === name)[0];
+      if (!hit) return;
+      const node = hit.entry.title || hit.entry.card;
+      const delta = node.getBoundingClientRect().top
+        - (sheet.getBoundingClientRect().top + contentTopOffset() + PANEL_SCROLL_GAP);
+      sheet.scrollTop += delta;
+      markCurrent(hit.btn);
+    }
+
+    function markCurrent(btn) {
+      for (const it of indexItems) {
+        if (it.btn === btn) it.btn.setAttribute('aria-current', 'true');
+        else it.btn.removeAttribute('aria-current');
+      }
+    }
+
+    /* 「現在捲到哪個面板」用 IntersectionObserver，不用 scroll 事件：scroll 每一格都
+       重新量所有面板的位置，在「全部部位」那 71 張卡片上是每次捲動都跑 71 次 layout。
+       `rootMargin` 的下緣 -72% 讓只有可視區最上面那一段算數，命中的那幾張再依下面
+       那條規則挑出「目前所在」。 */
+    let io = null;
+    const onScreen = new Set();
+
+    function observeCards() {
+      if (io) { io.disconnect(); onScreen.clear(); }
+      const view = sheet.ownerDocument.defaultView;
+      if (!view.IntersectionObserver || !indexItems.length) return;
+      io = new view.IntersectionObserver((entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) onScreen.add(e.target);
+          else onScreen.delete(e.target);
+        }
+        /* 命中的可能有兩三張（上一張的最後幾個像素還在帶子裡），要的是「上緣已經捲過去
+           的那一張的最後一張」，不是 DOM 順序的第一張——不然剛捲到第 4 個面板時，
+           第 3 張只剩 3px 在畫面上卻會被標成「目前所在」。 */
+        const line = sheet.getBoundingClientRect().top + contentTopOffset() + PANEL_SCROLL_GAP + 2;
+        const visible = indexItems.filter((it) => onScreen.has(it.entry.card));
+        if (!visible.length) return;
+        const passed = visible.filter((it) => it.entry.card.getBoundingClientRect().top <= line);
+        markCurrent((passed.length ? passed[passed.length - 1] : visible[0]).btn);
+      }, { root: sheet, rootMargin: '0px 0px -72% 0px', threshold: 0 });
+      for (const it of indexItems) io.observe(it.entry.card);
+    }
 
     U.quick = () => {
       const s = ctx.store.getState();
@@ -8109,7 +8403,10 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
       R.renderCart(refs.cart, refs.cartEmpty, refs.cartCount, ctx);
       R.syncClearBtn(refs.clearCart, ctx);
     };
-    U.his = () => R.renderHis(refs.hisPreview, refs.hisFormat, null, ctx);
+    U.his = () => {
+      R.renderHis(refs.hisPreview, refs.hisFormat, null, ctx);
+      R.renderClipboardSync(wide);
+    };
     U.shelf = () => {
       const s = ctx.store.getState();
       refs.shelf.hidden = !s.shelfOpen;
@@ -8124,9 +8421,29 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
       R.renderChronic(refs.chronicOverlay, ctx);
     };
 
+    /* 面板索引的點擊：規則與其他互動一樣走 interactions.js 的委派，但「捲到哪裡」
+       只有這個版面算得出來（它握著 sheet 與 renderedPanels），所以照 ctx.onCartToggle
+       的既有作法把 handler 掛在 ctx 上往下傳，不讓互動層伸手進渲染層。 */
+    ctx.onPanelIndex = (name) => scrollToPanel(name);
+
     const ALL = Object.keys(U);
 
+    /* 只記本次開啟的瀏覽位置，模式／部位各記一份，不寫 localStorage
+       （與 1b／1c 同一個資料結構與同一套規則，見 render-dock.js 的 positions）。
+       這是「返回」能回到搜尋前那一格的來源。 */
+    const positions = new Map();
+    let viewKey = null;
+    let searching = false;
+    let lastQuery = '';
+
     function update(changed) {
+      const state = ctx.store.getState();
+      const key = state.mode + ':' + state.region;
+      const query = state.query.trim();
+      const nextSearching = query.length >= 2;      // 與 renderResults 同一個門檻
+      const navigated = key !== viewKey;
+      const oldTop = sheet.scrollTop;
+      if (viewKey !== null && !searching) positions.set(viewKey, oldTop);
       let names = ALL;
       if (changed && changed.length) {
         const set = new Set();
@@ -8139,8 +8456,26 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
       if (names.some((name) => ['panels', 'quick', 'results', 'shelf', 'cart'].includes(name))) {
         R.syncInCart(wide, ctx);
       }
+      /* 搜尋狀態下「返回」取代說明文字（同一個位置，不多一列）。 */
+      refs.searchBack.hidden = !nextSearching;
+      refs.modeHint.hidden = nextSearching;
       // 內容變了（搜尋結果出現、清單加碼）就得重新夾一次高度，見 render-dock.js 同一段註解
       applyPanes();
+      /* 捲動位置（三分支與 1b／1c 逐字同義）：
+         進搜尋 → 回到頂端（結果卡在中欄最上面，不然它會開在可視區外）
+         離開搜尋或換部位／模式 → 還原那一格記住的位置
+         其餘（加碼、展開面板…）→ 原地不動
+         一定要排在 applyPanes() 之後：窗格高度會改變 scrollHeight，先寫 scrollTop 會被夾掉。 */
+      if (nextSearching) {
+        sheet.scrollTop = (!searching || query !== lastQuery || navigated) ? 0 : oldTop;
+      } else if (searching || navigated) {
+        sheet.scrollTop = positions.get(key) || 0;
+      } else {
+        sheet.scrollTop = oldTop;
+      }
+      viewKey = key;
+      searching = nextSearching;
+      lastQuery = query;
     }
 
     return { root: wide, refs, update };
@@ -8303,16 +8638,13 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
     search.className = 'input';
     search.type = 'search';
     search.autocomplete = 'off';
-    search.placeholder = '搜尋碼／中英文';
+    search.placeholder = '搜尋碼／中英文　Enter 加第一筆';
     search.setAttribute('aria-label', '搜尋診斷碼');
     refs.search = search;
     const searchBar = R.el('div', 'dock-search-bar');
-    refs.searchBack = R.el('button', 'dock-search-back', '返回');
-    refs.searchBack.id = 'dock-search-back';
-    refs.searchBack.type = 'button';
-    refs.searchBack.title = '結束搜尋，回到原本的部位與位置（Esc）';
-    refs.searchBack.setAttribute('aria-label', refs.searchBack.title);
-    refs.searchBack.hidden = true;
+    /* 「返回」改由 render-shared 的 searchBackEl() 產生（三套版面同一顆、同一個 handler）。
+       id 保留 `dock-search-back`：既有 E2E（test_e2e_dock_flow.py）靠它定位。 */
+    refs.searchBack = R.searchBackEl('dock-search-back');
     searchBar.append(search, refs.searchBack);
     head.appendChild(searchBar);
 
@@ -8444,8 +8776,13 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
     clearBtn.id = 'clear-cart';
     refs.clearCart = clearBtn;
 
+    /* 「已同步 HH:MM」（UX 稽核 U4）擺在摘要列右側，**不是** #cart-toggle 裡面：
+       那是一個 <button>，把時間塞進去會讓它的可讀名稱變成「清單 3 E11.9、I10 已同步 14:32」。
+       這一列的高度由「清空」的 26px 決定，11px 的時間不會把它撐高（量測見
+       tests/test_e2e_navigation.py 的 BASELINE dock_cart_head）。 */
+    refs.clipSync = R.clipboardSyncEl();
     const cartHead = R.el('div', 'dock-cart-head');
-    cartHead.append(clearBtn, cartToggle);
+    cartHead.append(clearBtn, cartToggle, refs.clipSync);
 
     cartBox.append(cartHead, refs.cartInline);
     dock.appendChild(cartBox);
@@ -8697,12 +9034,12 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
     // 同一份實作，這裡不再抄一份——抄的那份正是 R2 M1／I3 兩條缺陷的來源。
     const addFromChip = (chip) => root.ICDInteractions.activateChip(ctx, chip);
 
+    /* 清空搜尋的規則共用 interactions.js 的 leaveSearch（三套版面同一份）；這裡只多清
+       **本檔自己的** debounce——PiP 期間打字走的是下面 dock.addEventListener('input')
+       那條，主文件的 handle 清不到它，尚未送出的字會在返回後又把搜尋打開一次。 */
     function leaveSearch() {
-      refs.search.value = '';
-      // 同時重設主文件／PiP 的輸入 debounce，避免尚未送出的字在返回後又打開搜尋。
-      const Event = refs.search.ownerDocument.defaultView.Event;
-      refs.search.dispatchEvent(new Event('input', { bubbles: true }));
-      ctx.store.setQuery('');
+      clearTimeout(searchTimer);
+      root.ICDInteractions.leaveSearch(ctx, refs.search);
     }
 
     /* 置頂進 PiP 小視窗後，主文件的委派搆不到那棵 DOM，這裡代打。
@@ -8804,6 +9141,12 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
       }
       // 通知列的「復原」也在側欄裡（#notice 掛在 .dock-head），置頂時同樣搆不到主文件
       if (target.closest('#notice-undo')) { root.ICDInteractions.runUndo(); return; }
+      // 「返回」同理：主文件走 interactions.js 的 `.search-back` 委派，這裡只在 PiP 代打
+      if (target.closest('.search-back')) {
+        leaveSearch();
+        refs.search.focus({ preventScroll: true });
+        return;
+      }
       /* 「展開」一定要登記在這份白名單裡：置頂時整條窄欄在 PiP 小視窗那個**另一個
          文件**，主文件的委派完全搆不到，漏掉的症狀是「按了沒反應」而且只在置頂時
          發生——血脂試算就是這樣漏掉過一次。而它偏偏是置頂狀態下唯一的回頭路。 */
@@ -8829,11 +9172,6 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
       const target = ev.target;
       if (!target || !target.closest) return;
       if (target.closest('#pin-toggle')) { togglePin(); return; }
-      if (target.closest('#dock-search-back')) {
-        leaveSearch();
-        refs.search.focus({ preventScroll: true });
-        return;
-      }
       // 模式與部位鈕代表回到導引；清掉搜尋後仍由原本的事件委派完成切換。
       if (target.closest('.region-btn, #mode-switch [data-mode], #seg-mode [data-mode]')
         && refs.search.value) leaveSearch();
@@ -9046,7 +9384,10 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
       refs.cartToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
     };
 
-    U.his = () => R.renderHis(refs.hisScratch, null, null, ctx);
+    U.his = () => {
+      R.renderHis(refs.hisScratch, null, null, ctx);
+      R.renderClipboardSync(dock);
+    };
 
     U.settings = () => R.syncSettings(dock, ctx);
 
@@ -9212,7 +9553,7 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
     search.className = 'input';
     search.type = 'search';
     search.autocomplete = 'off';
-    search.placeholder = '搜尋碼／中英文…';
+    search.placeholder = '搜尋碼／中英文　Enter 加第一筆';
     search.setAttribute('aria-label', '搜尋診斷碼');
     refs.search = search;
 
@@ -9237,8 +9578,13 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
     const modeRow = R.el('div', 'm-mode-row');
     modeRow.append(refs.dateBtn, refs.modeSwitch);
 
+    /* 「返回」排在搜尋框右邊、與「設定」同一列（UX 稽核 U3）——**不多一列**：
+       這一列本來就存在，搜尋框是 flex:1／min-width:0，多這一顆是跟它借寬度。
+       只在搜尋結果狀態出現（update() 收尾處），所以平常一個像素都不佔。
+       行為與另兩套版面完全一致（interactions.js 的 `.search-back` 委派）。 */
+    refs.searchBack = R.searchBackEl();
     const headRow = R.el('div', 'm-head-row');
-    headRow.append(search, settingsToggle);
+    headRow.append(search, refs.searchBack, settingsToggle);
     /* 可見通知列：貼在 header 下緣、覆蓋部位列最上緣而不推擠（三套版面同一個 #notice）。
        手機沒有 hover，這一列是「剛才那一下有沒有生效」的唯一線索。 */
     header.append(modeRow, headRow, pop, R.noticeEl());
@@ -9266,6 +9612,14 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
        放進捲動區：開機第一眼就看得到，往下選碼時讓開，永久成本 0px（1c 同理）。
        按鈕本身仍是 44px 高——讓位讓的是版面，不是觸控目標。 */
     refs.chronicSwitch = R.chronicSwitchEl(true);
+    /* 「全展開／全收合」沿用 1c 的同一顆（id `#expand-all-panels`、行為在
+       interactions.js 的 toggleAllPanels）。**id 不會撞**：app.js 的 mount() 換版面時
+       先 clear(#app) 再掛新版面，同一時刻只有一套版面在 DOM 裡（唯一的例外是 1c 置頂，
+       那條側欄搬到 PiP 那個**另一個文件**，仍然不是同一份 DOM）。
+       擺在這一排的尾巴而不是每個面板頭上：它管的是「下面全部」，不屬於任何一個面板；
+       而這一排在捲動區裡，常駐版面成本 0px（U9 要的就是不新增控制列）。 */
+    refs.expandAll = R.expandAllButtonEl();
+    refs.chronicSwitch.appendChild(refs.expandAll);
     scroll.appendChild(refs.chronicSwitch);
 
     const resultsCard = R.el('div');
@@ -9298,7 +9652,10 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
     clearBtn.type = 'button';
     clearBtn.id = 'clear-cart';
     refs.clearCart = clearBtn;
-    sheetHead.append(R.el('span', 'kicker', '本次就診清單'), refs.hisFormat, clearBtn);
+    /* 「已同步 HH:MM」接在「每行一碼」旁邊（UX 稽核 U4）：這一列的高度由 44px 的
+       「清空」決定，11px 的時間不會把它撐高，也不新增任何一列。 */
+    refs.clipSync = R.clipboardSyncEl();
+    sheetHead.append(R.el('span', 'kicker', '本次就診清單'), refs.hisFormat, refs.clipSync, clearBtn);
 
     refs.cart = R.el('ul');
     refs.cart.id = 'cart';
@@ -9435,7 +9792,18 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
           refs.panels.appendChild(card);
         }
       }
+      syncExpandAll();
     };
+
+    /* 這顆鈕的字要跟著面板狀態走，而它掛在 refs.panels 外面，所以由 U.panels 收尾時
+       一起更新——mode／region／expanded 三個鍵本來就都會重跑 U.panels（與 1c 同一條）。 */
+    function syncExpandAll() {
+      const open = root.ICDInteractions.allPanelsExpanded(ctx);
+      refs.expandAll.textContent = open ? '全收合' : '全展開';
+      refs.expandAll.title = open
+        ? '把目前這一批面板的常見疾病全部收起來'
+        : '把目前這一批面板的常見疾病全部展開';
+    }
 
     U.results = () => {
       R.renderResults(refs.resultsCard, refs.results, refs.resultNote, ctx);
@@ -9471,7 +9839,10 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
         : '尚未選碼';
     };
 
-    U.his = () => R.renderHis(refs.hisPreview, refs.hisFormat, null, ctx);
+    U.his = () => {
+      R.renderHis(refs.hisPreview, refs.hisFormat, null, ctx);
+      R.renderClipboardSync(wrap);
+    };
     U.settings = () => R.syncSettings(wrap, ctx);
     U.ccr = () => R.syncCcr(wrap, ctx);
     U.lipid = () => R.syncLipid(wrap, ctx);
@@ -9496,7 +9867,23 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
 
     const ALL = Object.keys(U);
 
+    /* 只記本次開啟的瀏覽位置，模式／部位各記一份，不寫 localStorage（與 1c 同一個
+       資料結構與同一套規則，見 render-dock.js 的 positions）。
+       這是「返回」能回到搜尋前那一格的來源：醫師搜完一個碼要回去接著選附近的碼，
+       回來落在頂端等於每次搜尋都要重新捲一次。 */
+    const positions = new Map();
+    let viewKey = null;
+    let searching = false;
+    let lastQuery = '';
+
     function update(changed) {
+      const state = ctx.store.getState();
+      const key = state.mode + ':' + state.region;
+      const query = state.query.trim();
+      const nextSearching = query.length >= 2;      // 與 renderResults 同一個門檻
+      const navigated = key !== viewKey;
+      const oldTop = scroll.scrollTop;
+      if (viewKey !== null && !searching) positions.set(viewKey, oldTop);
       let names = ALL;
       if (changed && changed.length) {
         const set = new Set();
@@ -9509,8 +9896,24 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
       if (names.some((name) => ['panels', 'results', 'cartSheet'].includes(name))) {
         R.syncInCart(wrap, ctx);
       }
+      refs.searchBack.hidden = !nextSearching;
       // 內容變了（抽屜展開）就得重新夾一次高度，見 render-dock.js 同一段註解
       refs.paneGroup.applyAll();
+      /* 捲動位置（三分支與 1a／1c 逐字同義）：
+         進搜尋 → 回到頂端（結果卡在捲動區最上面，不然它會開在可視區外）
+         離開搜尋或換部位／模式 → 還原那一格記住的位置
+         其餘（加碼、展開面板…）→ 原地不動
+         一定要排在 applyAll() 之後：窗格高度會改變 scrollHeight，先寫 scrollTop 會被夾掉。 */
+      if (nextSearching) {
+        scroll.scrollTop = (!searching || query !== lastQuery || navigated) ? 0 : oldTop;
+      } else if (searching || navigated) {
+        scroll.scrollTop = positions.get(key) || 0;
+      } else {
+        scroll.scrollTop = oldTop;
+      }
+      viewKey = key;
+      searching = nextSearching;
+      lastQuery = query;
     }
 
     return { root: wrap, refs, update };
@@ -9560,6 +9963,43 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
   }
 
   const setFeedbackDocument = (doc) => { feedbackTarget = doc || null; };
+
+  /* 搜尋輸入的 debounce handle。放模組層而不是 wire() 的閉包，是為了讓 leaveSearch()
+     也清得到它——「返回」按下時若還有一筆沒送出的字，回到導引之後會又被打開一次搜尋。 */
+  let searchDebounce = null;
+
+  /* ── 搜尋的回頭路（三套版面共用一份實作） ─────────────────────────────────────
+     入口有三個：`.search-back` 鈕（class 委派，見下方 click）、搜尋框按 Esc、
+     以及「搜尋中直接點部位／模式鈕」（1c 的 dock.addEventListener）。三者都只做同一件事
+     ——清空 query。「回到搜尋前的捲動位置」不在這裡：那是各版面 update() 裡的 positions
+     還原（1a `.worksheet`、1b `#m-scroll`、1c `.dock-scroll`，同一個資料結構）。
+
+     `node` 決定在哪個文件找搜尋框：1c 置頂時整條側欄在 Document PiP 小視窗那個
+     **另一個文件**裡，寫死 document 會找不到（同 feedbackDoc 的教訓）。 */
+  function leaveSearch(ctx, node, focus) {
+    const doc = (node && node.ownerDocument) || document;
+    const input = doc.getElementById('search');
+    if (input) input.value = '';
+    clearTimeout(searchDebounce);
+    ctx.store.setQuery('');
+    if (focus && input) input.focus({ preventScroll: true });
+  }
+
+  /* ── 剪貼簿最後一次自動同步的結果（UX 稽核 U4） ───────────────────────────────
+     沒有「複製並貼入 HIS」鈕是刻意的（點碼即自動同步），但畫面上一個字都沒說剪貼簿
+     已經同步，醫師只能相信它。狀態放這裡而不是 store：它不是使用者資料，跨診次沒有意義，
+     也不該進 localStorage（清單本身就刻意不持久化）。
+     繪製在 render-shared 的 renderClipboardSync()；各版面的 U.his 會重畫一次，
+     所以換版面／重掛之後仍顯示同一個狀態。 */
+  let clipSync = null;
+  const clipboardSyncInfo = () => clipSync;
+
+  function setClipboardSync(ok) {
+    clipSync = { ok: !!ok, at: new Date() };
+    if (root.ICDRender && root.ICDRender.renderClipboardSync) {
+      root.ICDRender.renderClipboardSync(feedbackDoc());
+    }
+  }
 
   /* ── 通知列（#notice）的逾時規則 ───────────────────────────────────────────
      成功類（已加入、已複製、已切換）2.5 秒自己收掉：看過就沒用的提示不該佔版面
@@ -9981,7 +10421,6 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
   function wire(ctx) {
     const store = ctx.store;
     const data = ctx.data;
-    let debounce = null;
     let copiedTimer = null;
     let dragCode = null;
 
@@ -10000,6 +10439,8 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
       const text = root.ICDRender.hisText(ctx);
       if (!text) return;
       copyText(text, true).then((ok) => {
+        // 成功／失敗都要留痕：「已同步 HH:MM」／「未同步」寫在既有的標題列右側（U4）
+        setClipboardSync(ok);
         if (!ok) announce('自動複製失敗，請點清單裡的代碼逐一複製', { sticky: true });
       });
     }
@@ -10107,6 +10548,19 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
          就靜默 return，等於這顆鈕永遠按不動。 */
       if (target.closest('#notice-undo')) { runUndo(); return; }
 
+      /* 搜尋的「返回」：認 class 不認 id，三套版面共用這一條（UX 稽核 U3）。
+         1c 那顆的 id 仍是 #dock-search-back（既有 E2E 靠它定位），但走的是同一個 handler。
+         焦點回搜尋框：按「返回」通常是要改關鍵字重搜，不是要離開搜尋。 */
+      if (target.closest('.search-back')) { leaveSearch(ctx, target, true); return; }
+
+      /* 1a 左欄的面板索引（UX 稽核 U8）。「捲到哪裡」只有渲染層算得出來（它握著中欄的
+         捲動容器與那一批面板），所以走 ctx.onPanelIndex——與 #cart-toggle 同一個作法。 */
+      const panelIndexItem = target.closest('.panel-index-item');
+      if (panelIndexItem) {
+        if (typeof ctx.onPanelIndex === 'function') ctx.onPanelIndex(panelIndexItem.dataset.panelIndex);
+        return;
+      }
+
       /* 版面切換鈕（1a 的「側掛置頂」／1c 的「展開」）。走 ctx.switchLayout 而不是
          store.setLayout：切到 dock 時還要接著開置頂小視窗，而那個 controller 只有
          app.js 拿得到。1c 置頂時這條委派搆不到，render-dock.js 有一份同樣的代打。 */
@@ -10152,8 +10606,8 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
       if (!ev.target || ev.target.id !== 'search') return;
       const value = ev.target.value;
       if (value.trim().length >= 2) data.ensureDb();     // 觸發全庫延遲載入
-      clearTimeout(debounce);
-      debounce = setTimeout(() => store.setQuery(value), SEARCH_DEBOUNCE);
+      clearTimeout(searchDebounce);
+      searchDebounce = setTimeout(() => store.setQuery(value), SEARCH_DEBOUNCE);
     });
 
     /* 勾選變動走 change：checkbox 的正規事件是 change，input 在部分瀏覽器上不保證。 */
@@ -10166,9 +10620,8 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
     document.addEventListener('keydown', (ev) => {
       if (ev.target && ev.target.id === 'search') {
         if (ev.key === 'Escape') {
-          ev.target.value = '';
-          clearTimeout(debounce);
-          store.setQuery('');
+          // 與「返回」鈕完全同一條路（三版面共用 leaveSearch），title 上寫的 Esc 才算實現
+          leaveSearch(ctx, ev.target);
           // Esc 在其他情境都會關掉開著的浮層，搜尋框裡也要一致（R2 M3）
           if (isFallbackOpen()) closeFallbackCopy();
           else if (store.getState().lipidOpen) closeLipid(ctx, ev.target);
@@ -10179,7 +10632,7 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
         }
         if (ev.key === 'Enter') {
           ev.preventDefault();
-          clearTimeout(debounce);
+          clearTimeout(searchDebounce);
           store.setQuery(ev.target.value);
           const first = document.querySelector('#search-results .chip:not(.cat)');
           if (first) {
@@ -10288,6 +10741,7 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
   root.ICDInteractions = {
     wire, chooseCopyFormat, copyText, openFallbackCopy, closeFallbackCopy, isFallbackOpen, announce,
     activateChip, copyCartCode, setFeedbackDocument,
+    leaveSearch, clipboardSyncInfo,
     // 1c 置頂時 main document 的委派搆不到側欄，render-dock.js 要用同一份實作代打
     removeFromCart, clearCartWithUndo, runUndo,
     chooseMode, chooseAllRegions, resetPanes, chooseChronic, closeChronic,

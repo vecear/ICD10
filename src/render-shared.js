@@ -617,6 +617,60 @@
     return b;
   }
 
+  /* ── 搜尋的「返回」（三套版面共用一顆 .search-back） ──────────────────────────
+     原本只有 1c 有（`#dock-search-back`），1a／1b 要回到原本的部位只能自己清空搜尋框，
+     而 Esc 這條路沒有任何地方寫出來（UX 稽核 U3）。行為的唯一實作在 interactions.js 的
+     `leaveSearch()`——清空 query 之後，「回到搜尋前的捲動位置」由各版面 update() 的
+     positions 還原（三套用同一個資料結構，見各檔的 `positions`）。
+
+     `id` 只有 1c 需要：既有 E2E（test_e2e_dock_flow.py）靠 `#dock-search-back` 定位，
+     共用化不得換掉它。事件委派一律認 class，不認 id。
+     擺在哪一列由各版面決定（1a 中欄標題列、1b 搜尋列、1c 搜尋列），共通點是
+     **都是既有的那一列**——為回頭路另闢一列 chrome 會違反密度原則。 */
+  function searchBackEl(id) {
+    const b = el('button', 'search-back', '返回');
+    b.type = 'button';
+    if (id) b.id = id;
+    b.title = '結束搜尋，回到原本的部位與位置（Esc）';
+    b.setAttribute('aria-label', b.title);
+    b.hidden = true;
+    return b;
+  }
+
+  /* ── 剪貼簿同步狀態（三套版面共用一個 #clipboard-sync） ──────────────────────
+     為什麼要有：沒有「複製並貼入 HIS」鈕是刻意的（點碼即自動同步），但畫面上**一個字
+     都沒說剪貼簿已經同步**，醫師只能相信它；中途複製過別的東西也不會有人提醒
+     （UX 稽核 U4）。
+
+     兩個約束：
+       1. **不新增任何一列**——寫在既有的「貼入 HIS」標題列（1a／1b）與清單摘要列（1c）
+          右側，量測前後那幾列的高度必須相同（tests/test_e2e_navigation.py 的 BASELINE）。
+       2. **失敗不自動消失**——與通知列 `{ sticky: true }` 同一個判準：它講的是使用者
+          下一步該做什麼（剪貼簿被拒，要點清單裡的代碼逐一複製），下次成功才換回時間。
+     狀態由 interactions.js 的 syncClipboard() 持有（`clipboardSyncInfo()`），這裡只畫。 */
+  function clipboardSyncEl() {
+    const s = el('span', 'clip-sync');
+    s.id = 'clipboard-sync';
+    s.hidden = true;
+    return s;
+  }
+
+  function renderClipboardSync(scope) {
+    if (!scope || !scope.querySelector) return;
+    const node = scope.querySelector('#clipboard-sync');
+    if (!node) return;
+    const info = (root.ICDInteractions && root.ICDInteractions.clipboardSyncInfo
+      && root.ICDInteractions.clipboardSyncInfo()) || null;
+    if (!info) { node.hidden = true; node.textContent = ''; node.classList.remove('is-stale'); return; }
+    const ok = !!info.ok;
+    node.hidden = false;
+    node.textContent = ok ? '已同步 ' + root.ICDLogic.clockHM(info.at) : '未同步';
+    node.classList.toggle('is-stale', !ok);
+    node.title = ok
+      ? '清單已於 ' + root.ICDLogic.clockHM(info.at) + ' 同步到剪貼簿，可直接貼入 HIS'
+      : '剪貼簿沒有同步到（被瀏覽器拒絕）；請點清單裡的代碼逐一複製';
+  }
+
   /* ── 可見通知列（三套版面共用一個 #notice） ──────────────────────────────────
      為什麼要有：`#status` 是 1×1px 的 sr-only live region，只有螢幕閱讀器聽得到。
      UX 實測（2026-09-16）點一個已在清單的碼，三套版面的截圖 md5 完全相同——醫師唯一
@@ -2261,6 +2315,7 @@
   root.ICDRender = {
     icon, el, blueprint, clear, regionHeading, srHeading, markRegionSelected, regionGroupEl,
     regionShort, dateBtnEl, noticeEl, syncInCart,
+    searchBackEl, clipboardSyncEl, renderClipboardSync,
     chipEl, chipWith, chipsFromPairs, emptyText,
     renderResults,
     cartItemEl, renderCart, syncClearBtn, hisText, renderHis, renderShelf,
