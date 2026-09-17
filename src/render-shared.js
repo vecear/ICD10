@@ -1200,6 +1200,55 @@
     return box;
   }
 
+  /* 本院實際有的品項。上面那塊列的是全國給付中的品項，但診間能開的只有本院這些，
+     而且 HIS 要打的是收費代碼不是健保代碼——這一段就是把規則收束到「這裡能開什麼」。
+
+     只在血脂主題出現：品項資料是全域一份，不擋 key 的話糖尿病面板也會冒出降血脂品項。 */
+  function chronicHospitalEl(key, ctx) {
+    if (key !== 'lipid') return null;
+    const lp = root.LIPID_PRODUCTS || {};
+    const products = lp.products || [];
+    if (!products.length) return null;
+    const groups = ctx.logic.lipidHospitalByTable(products);
+    const buckets = [
+      ['one', '表一'],
+      ['two', '表二'],
+      ['other', '不走表一／表二'],
+    ].filter((b) => groups[b[0]] && groups[b[0]].length);
+    if (!buckets.length) return null;
+
+    const box = el('section', 'chronic-hosp');
+    box.appendChild(el('h3', 'chronic-hosp-title', '本院品項'));
+    for (const [bucket, label] of buckets) {
+      const rows = groups[bucket];
+      const grp = el('div', 'chronic-hosp-group');
+      const head = el('p', 'chronic-hosp-head');
+      head.appendChild(el('span', 'lipid-hit-table is-' + bucket, label));
+      head.appendChild(el('span', 'chronic-hosp-count', rows.length + ' 支'));
+      grp.appendChild(head);
+      const list = el('ul', 'chronic-hosp-list');
+      for (const r of rows) {
+        const li = el('li', 'chronic-hosp-item' + (r.listed ? '' : ' is-dead'));
+        li.appendChild(el('b', 'lipid-hit-hosp', r.hosp));
+        li.appendChild(el('span', 'chronic-hosp-name', r.short || r.name));
+        if (r.generic) li.appendChild(el('span', 'chronic-hosp-generic', r.generic));
+        list.appendChild(li);
+      }
+      grp.appendChild(list);
+      box.appendChild(grp);
+    }
+    /* 缺藥狀態刻意不記在資料裡（會過期），所以這裡要講清楚這份清單保證的是什麼、
+       不保證什麼——這不是「常駐說明」，是這一塊資料的效力邊界。 */
+    box.appendChild(el('p', 'chronic-hosp-caution',
+      '收費代碼與表別以查證日為準；當天缺不缺藥看 HIS 畫面。'));
+    const meta = el('p', 'chronic-hosp-meta');
+    const hosp = lp.hospital || {};
+    if (hosp.source) meta.appendChild(el('span', 'chronic-source', String(hosp.source)));
+    if (hosp.checked) meta.appendChild(el('span', 'chronic-checked', '查 ' + hosp.checked));
+    if (meta.childNodes.length) box.appendChild(meta);
+    return box;
+  }
+
   function renderChronic(overlay, ctx) {
     const key = ctx.store.getState().chronicTopic;
     const title = overlay.querySelector('#chronic-title');
@@ -1231,6 +1280,10 @@
     if (drugs) body.appendChild(drugs);
     const tableTwo = chronicTableTwoEl(key, ctx);
     if (tableTwo) body.appendChild(tableTwo);
+    /* 收在規則之後：先知道分級、該開什麼、哪些是例外，最後才是「本院有什麼、打哪個碼」。
+       放更前面會變成先看品項再回頭找規則，那順序在核刪上是反的。 */
+    const hospital = chronicHospitalEl(key, ctx);
+    if (hospital) body.appendChild(hospital);
     let sections = 0;
     for (const group of chronicStepGroups(topic)) {
       const node = chronicStepEl(group, today);
@@ -1549,8 +1602,14 @@
   function lipidProductRow(v) {
     const li = el('li', 'lipid-hit'
       + (v.listed === false ? ' is-dead' : '')
-      + (v.meets === true ? ' is-ok' : v.meets === false ? ' is-no' : ''));
+      + ' ' + root.ICDLogic.lipidTreatmentStatus(v).className);
     const head = el('p', 'lipid-hit-head');
+    /* 院內收費代碼排在健保代碼前面：診間打進 HIS 的是這個，健保代碼是查證時才用的。
+       一個健保代碼對到兩個收費代碼（原品項與「(矯正)」）時兩個都列——
+       只列一個的話，醫師打的剛好是另一個就會以為查錯了。 */
+    if (v.hosp && v.hosp.length) {
+      head.appendChild(el('b', 'lipid-hit-hosp', v.hosp.join('／')));
+    }
     head.appendChild(el('b', 'lipid-hit-code', v.code));
     /* 已停付要蓋過表別：對一個不給付的代碼說「走表一」是誤導。 */
     if (v.listed === false) {
@@ -1574,7 +1633,7 @@
     if (v.note) li.appendChild(el('p', 'lipid-hit-note', v.note));
     if (v.meets !== null && v.meets !== undefined) {
       li.appendChild(el('p', 'lipid-hit-verdict',
-        (v.meets ? '本例符合' : '本例不符合') + '（' + v.tableLabel + ' '
+        root.ICDLogic.lipidTreatmentStatus(v).text + '（' + v.tableLabel + ' '
         + v.level + '，門檻 LDL-C ≧ ' + v.threshold + '）'));
     }
     return li;
@@ -1625,18 +1684,18 @@
 
     /* 沒打字：有病人資料時反過來列「符合的那張表底下有哪些藥」。 */
     if (!coverage) return null;
-    box.appendChild(el('b', 'lipid-lookup-title', '這位病人可以用哪些藥'));
+    box.appendChild(el('b', 'lipid-lookup-title', '各表用藥條件與適用品項'));
     const all = ctx.logic.lipidSummarize(products.filter((p) => p.table));
     for (const key of ['one', 'two']) {
       const info = key === 'one' ? r.one : r.two;
       if (info.meets === null) continue;
-      const line = el('p', 'lipid-avail' + (info.meets ? ' is-ok' : ' is-no'));
+      const line = el('p', 'lipid-avail ' + root.ICDLogic.lipidTreatmentStatus(info).className);
       line.appendChild(el('b', 'lipid-hit-table is-' + key, LIPID_TABLE_TAG[key]));
       const names = all.filter((s) => s[key] > 0)
         .sort((a, b) => b[key] - a[key])
         .map((s) => s.ingredient + ' ' + s[key]);
       line.appendChild(document.createTextNode(
-        (info.meets ? '符合，可開這張表的品項：' : '不符合，這張表的品項本例不給付：')
+        root.ICDLogic.lipidTreatmentStatus(info).text + '\n適用品項：'
         + names.join('、')));
       box.appendChild(line);
     }
@@ -1656,7 +1715,7 @@
     panel.setAttribute('aria-labelledby', 'lipid-title');
 
     const head = el('div', 'lipid-head');
-    const title = el('h2', 'lipid-title', '血脂給付試算');
+    const title = el('h2', 'lipid-title', 'Lipid');
     title.id = 'lipid-title';
     const close = el('button', 'lipid-close', '關閉');
     close.type = 'button';
@@ -1735,7 +1794,9 @@
     return out;
   }
 
-  const LIPID_VERDICT = { true: '符合起始門檻', false: '未達起始門檻', null: '待輸入 LDL-C' };
+  const lipidVerdictText = (info) => root.ICDLogic.lipidTreatmentStatus(info).text;
+  const lipidPrescriptionText = (info, detail) => info.meets === true
+    ? detail : lipidVerdictText(info);
 
   /* 一張表的結果區塊。刻意把「判定」「數值比較」「理由」分成三行：
      醫師要能一眼看出這個結論是怎麼來的，而不是接受一個黑箱。 */
@@ -1762,8 +1823,9 @@
      判定、再回頭找理由；而「能不能直接開藥」原本只有 fibrate 那一塊講。 */
   function lipidTableBlock(title, note, info, ldl, tc) {
     const box = el('section', 'lipid-block');
-    if (info.meets === true) box.classList.add('is-ok');
-    else if (info.meets === false) box.classList.add('is-no');
+    const treatment = root.ICDLogic.lipidTreatmentStatus(info);
+    box.classList.add(treatment.className);
+    box.dataset.treatmentStatus = treatment.status;
     const head = el('div', 'lipid-block-head');
     head.append(el('b', 'lipid-block-title', title));
     if (note) head.appendChild(el('span', 'lipid-block-note', note));
@@ -1777,7 +1839,7 @@
     box.appendChild(level);
 
     // 2) 能不能直接開藥
-    box.appendChild(el('p', 'lipid-parallel', lipidParallelText(info.parallel)));
+    box.appendChild(el('p', 'lipid-parallel', lipidPrescriptionText(info, lipidParallelText(info.parallel))));
 
     // 3) 門檻與目標。non-HDL-C 存在時 LDL-C 才標「主要」——沒有次要目標的表二
     //    寫「主要目標」會讓人去找一個不存在的次要目標。
@@ -1794,8 +1856,9 @@
     const cmp = [];
     if (ldl !== null) cmp.push('LDL-C ' + ldl);
     if (tc !== null) cmp.push('TC ' + tc);
+    if (cmp.length) box.appendChild(el('p', 'lipid-values', '本例 ' + cmp.join('、')));
     const verdict = el('p', 'lipid-verdict',
-      LIPID_VERDICT[String(info.meets)] + (cmp.length ? '（' + cmp.join('、') + '）' : ''));
+      lipidVerdictText(info));
     box.appendChild(verdict);
 
     for (const p of info.proof || []) box.appendChild(el('p', 'lipid-proof', '舉證：' + p));
@@ -1913,9 +1976,9 @@
 
     /* 兩張表結論不同時要明講。這正是這個計算機最有價值的一刻——同一位病人，
        開 A 廠牌符合、開 B 廠牌不符合，差別只在健保代碼走哪一張表。 */
-    if (r.one.meets !== null && r.two.meets !== null && r.one.meets !== r.two.meets) {
+    if (r.one.meets !== null && r.two.meets !== null && root.ICDLogic.lipidTreatmentStatus(r.one).status !== root.ICDLogic.lipidTreatmentStatus(r.two).status) {
       box.appendChild(el('p', 'lipid-split',
-        '兩張表結論不同：符合與否取決於你要開的品項走哪一張表，開藥前務必依健保代碼核對當期公告。'));
+        '兩表結論不同，請依所開品項之健保代碼適用之表別認定'));
     }
 
     box.appendChild(el('p', 'lipid-rf',
@@ -1929,7 +1992,9 @@
 
     const f = r.fibrate;
     if (f && f.ok) {
-      const fb = el('section', 'lipid-block' + (f.meets ? ' is-ok' : ' is-no'));
+      const treatment = root.ICDLogic.lipidTreatmentStatus(f);
+      const fb = el('section', 'lipid-block ' + treatment.className);
+      fb.dataset.treatmentStatus = treatment.status;
       fb.appendChild(el('div', 'lipid-block-head')).appendChild(el('b', 'lipid-block-title', 'Fibrate'));
       // 1) 走哪一列，憑什麼（fibrate 的「級」就是官方表的那三列）
       const fLevel = el('p', 'lipid-level', f.route);
@@ -1939,10 +2004,10 @@
       fb.appendChild(fLevel);
       /* 2) 能不能直接開藥。TG ≧ 500 那一列是**不論共病**的，寫成通則會讓人以為
          無心血管疾病就一定要先做 3–6 個月（2026-08-27 使用者指出，附官方表影像）。 */
-      fb.appendChild(el('p', 'lipid-parallel', lipidFibrateParallelText(f)));
+      fb.appendChild(el('p', 'lipid-parallel', lipidPrescriptionText(f, lipidFibrateParallelText(f))));
       // 3) 目標　4) 結論
       fb.appendChild(el('p', 'lipid-threshold', '目標 TG < ' + f.target));
-      fb.appendChild(el('p', 'lipid-verdict', f.meets ? '符合起始門檻' : '未達起始門檻'));
+      fb.appendChild(el('p', 'lipid-verdict', lipidVerdictText(f)));
       for (const n of f.needs || []) fb.appendChild(el('p', 'lipid-proof', '還缺：' + n));
       box.appendChild(fb);
     }
@@ -1992,7 +2057,7 @@
     const rows = ['降膽固醇藥物：依「' + name + '」' + (scope || '')];
     rows.push(lipidRow('分級', info.label
       + (info.why && info.why.length ? '（' + info.why.join('、') + '）' : '')));
-    rows.push(lipidRow('處方', lipidParallelText(info.parallel)));
+    rows.push(lipidRow('處方', lipidPrescriptionText(info, lipidParallelText(info.parallel))));
     const gate = 'LDL-C ≧ ' + info.threshold + (info.tc ? ' 或 TC ≧ ' + info.tc : '');
     /* 只有一個數值時不重複標名稱（門檻那半句已經寫了 LDL-C）；
        兩個數值並列時才標，否則「本例 95、180」看不出哪個是哪個。 */
@@ -2031,7 +2096,7 @@
        更多可挑的地方」。改的理由更強：**同一位病人在兩張表可能結論不同**，而走哪一張
        只看你開的品項健保代碼；病歷只寫一張，等於把「換個代碼就不符合」這件事藏起來，
        而那正是會被核刪的地方。表一先寫（主表），表二接著寫並標明它的適用範圍。 */
-    if (r.ldl !== null || r.tc !== null) {
+    if (r.ldl !== null || r.tc !== null || (r.fibrate && r.fibrate.ok)) {
       out.push('');
       for (const line of lipidChartRows(LIPID_TABLE_ONE_NAME, one, r)) out.push(line);
       out.push('');
@@ -2040,21 +2105,20 @@
       }
       /* 兩張表結論不同時再點一次名：上面兩段各自有已達／未達，但「所以該開哪一種」
          要講出來——那正是這段文字要防的核刪。 */
-      if (one.meets !== null && two.meets !== null && one.meets !== two.meets) {
-        const okName = one.meets ? LIPID_TABLE_ONE_NAME : LIPID_TABLE_TWO_NAME;
-        const noName = one.meets ? LIPID_TABLE_TWO_NAME : LIPID_TABLE_ONE_NAME;
-        out.push(lipidRow('註記', '兩表結論不同：本例符合「' + okName + '」、'
-          + '不符合「' + noName + '」，請依所開品項之健保代碼適用之表別認定'));
+      if (one.meets !== null && two.meets !== null && root.ICDLogic.lipidTreatmentStatus(one).status !== root.ICDLogic.lipidTreatmentStatus(two).status) {
+        out.push(lipidRow('註記', '兩表結論不同，請依所開品項之健保代碼適用之表別認定'));
       }
     }
 
     const f = r.fibrate;
-    if (f && f.ok && f.meets) {
+    if (f && f.ok) {
       out.push('');
       out.push('降三酸甘油酯藥物：依「' + LIPID_TG_TABLE_NAME + '」');
       out.push(lipidRow('適用', f.route + ' 該列'
-        + (f.why && f.why.length ? '（本例 ' + f.why.join('、') + '）' : '') + '，已達'));
-      out.push(lipidRow('處方', lipidFibrateParallelText(f)));
+        + (f.why && f.why.length ? '（本例 ' + f.why.join('、') + '）' : '') + (f.meets === null ? '，待判定' : f.meets ? '，已達' : '，未達')));
+      out.push(lipidRow('結論', lipidVerdictText(f)));
+      for (const n of f.needs || []) out.push(lipidRow('條件', n));
+      out.push(lipidRow('處方', lipidPrescriptionText(f, lipidFibrateParallelText(f))));
       out.push(lipidRow('目標', 'TG < ' + f.target));
     }
 

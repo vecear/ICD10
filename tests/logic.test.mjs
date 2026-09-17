@@ -755,3 +755,69 @@ test('lipidCoverage：空值與非物件吃得下，不丟例外', () => {
     assert.ok(r.one && r.two);
   }
 });
+
+/* 院內收費代碼（build 期由 hospital_lipid_codes.json merge 到品項的 hosp 欄位）。
+   診間畫面上醫師看到的是這個，不是健保代碼。 */
+const HOSP_SAMPLE = [
+  { code: 'BC24129100', en: 'CRESTOR 20MG FILM-COATED TABLETS', zh: '冠脂妥膜衣錠20毫克',
+    ingredient: 'ROSUVASTATIN CALCIUM', generic: 'rosuvastatin', section: '2.6.1.',
+    table: 'two', listed: true, hosp: ['OCRE20'] },
+  { code: 'BC24131100', en: 'CRESTOR 10MG FILM-COATED TABLETS', zh: '冠脂妥膜衣錠10毫克',
+    ingredient: 'ROSUVASTATIN CALCIUM', generic: 'rosuvastatin', section: '2.6.1.',
+    table: 'one', listed: true, hosp: ['OCRE', 'POCRE'] },
+  { code: 'BC22889100', en: 'LIPITOR FILM-COATED TABLETS 40MG', zh: '立普妥膜衣錠40毫克',
+    ingredient: 'ATORVASTATIN CALCIUM', generic: 'atorvastatin', section: '2.6.1.',
+    table: 'one', listed: true, hosp: ['POLIP4'] },
+  { code: 'AC59251100', en: 'Agitin Tablets 10/20mg', zh: '愛脂婷錠10/20毫克',
+    ingredient: 'EZETIMIBE', generic: 'ezetimibe', section: '2.6.3.',
+    table: '', listed: true, hosp: ['OAGI'] },
+  { code: 'AC99999100', en: 'Notinhouse Tablets 10mg', zh: '院外品項',
+    ingredient: 'SIMVASTATIN', generic: 'simvastatin', section: '2.6.1.',
+    table: 'one', listed: true },
+];
+
+test('lipidFindProducts：打院內收費代碼要精準命中', () => {
+  const r = L.lipidFindProducts(HOSP_SAMPLE, 'POLIP4', 10);
+  assert.equal(r.exact && r.exact.code, 'BC22889100', '收費代碼要走 exact，不是混在模糊結果裡');
+  assert.equal(r.exact.table, 'one');
+});
+
+test('lipidFindProducts：院內代碼精準命中優先於前綴相同的另一支', () => {
+  /* OCRE 是 OCRE20 的前綴。打 OCRE 要拿到 CRESTOR 10mg（表一），
+     不能被 OCRE20（表二）搶走——兩支的表別剛好相反，選錯就是核刪。 */
+  const r = L.lipidFindProducts(HOSP_SAMPLE, 'OCRE', 10);
+  assert.equal(r.exact && r.exact.code, 'BC24131100');
+  assert.equal(r.exact.table, 'one');
+  const r20 = L.lipidFindProducts(HOSP_SAMPLE, 'OCRE20', 10);
+  assert.equal(r20.exact && r20.exact.code, 'BC24129100');
+  assert.equal(r20.exact.table, 'two');
+});
+
+test('lipidFindProducts：院內代碼小寫也要命中', () => {
+  assert.equal(L.lipidFindProducts(HOSP_SAMPLE, 'polip4', 10).exact.code, 'BC22889100');
+});
+
+test('lipidHospitalByTable：只列院內有的，依表別分組', () => {
+  const g = L.lipidHospitalByTable(HOSP_SAMPLE);
+  assert.deepEqual(g.one.map((r) => r.hosp), ['OCRE', 'POCRE', 'POLIP4'],
+    '同一健保代碼的多個收費代碼要各自成列——診間打的是收費代碼');
+  assert.deepEqual(g.two.map((r) => r.hosp), ['OCRE20']);
+  assert.deepEqual(g.other.map((r) => r.hosp), ['OAGI'], '2.6.3 複方不歸表一表二');
+  const all = [...g.one, ...g.two, ...g.other].map((r) => r.code);
+  assert.ok(!all.includes('AC99999100'), '沒有 hosp 的品項不該出現在院內清單');
+});
+
+test('lipidHospitalByTable：每列帶得回健保代碼與品名，才能接既有的判定', () => {
+  const row = L.lipidHospitalByTable(HOSP_SAMPLE).one.find((r) => r.hosp === 'POLIP4');
+  assert.equal(row.code, 'BC22889100');
+  assert.equal(row.generic, 'atorvastatin');
+  assert.ok(row.short && row.short.length, '要有縮寫名供掃視');
+});
+
+test('lipidProductVerdict：帶回院內收費代碼，畫面才印得出診間打的那個碼', () => {
+  const p = HOSP_SAMPLE.find((x) => x.code === 'BC24131100');
+  const v = L.lipidProductVerdict(p, null);
+  assert.deepEqual(v.hosp, ['OCRE', 'POCRE']);
+  const none = L.lipidProductVerdict(HOSP_SAMPLE.find((x) => x.code === 'AC99999100'), null);
+  assert.deepEqual(none.hosp, [], '院內沒有的品項回空陣列，不是 undefined');
+});

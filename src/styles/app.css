@@ -658,6 +658,40 @@ details.chronic-drug-more[open] > .chronic-drug-head::before { content: '▾'; }
    每一項後面帶代碼數（`19 項`）是刻意的：只列成分名會被讀成「所有 simvastatin
    都走表二」，而實際上同成分多數品項仍走表一。數字讓人看得出這是**代碼層級**的
    例外清單。grid 自動填欄——1a 排得下三欄，176px 自己塌成一欄。 */
+/* 本院品項：不走 warn 色，它不是警示而是「這裡能開什麼」的落地清單。
+   用中性底與實心左邊界跟上面的規則區塊分開。 */
+.chronic-hosp {
+  margin: 10px 0 0; padding: 8px 10px;
+  background: var(--color-neutral-100); border-left: 3px solid var(--color-neutral-900);
+}
+.chronic-hosp-title {
+  margin: 0; font-family: var(--font-heading); font-size: 12px; letter-spacing: .06em;
+}
+.chronic-hosp-group { margin: 6px 0 0; }
+.chronic-hosp-head {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; margin: 0;
+}
+.chronic-hosp-count {
+  font-size: 10px; font-variant-numeric: tabular-nums; color: var(--color-neutral-700);
+}
+.chronic-hosp-list { margin: 3px 0 0; padding: 0; list-style: none; }
+/* 一列一支，收費代碼靠左對齊成一直行方便掃視；品名折行時不要跑到代碼底下。 */
+.chronic-hosp-item {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 1px 5px;
+  font-size: 12px; line-height: 1.5;
+}
+.chronic-hosp-item .lipid-hit-hosp { flex: none; min-width: 4.6em; }
+.chronic-hosp-name { overflow-wrap: anywhere; }
+.chronic-hosp-generic { font-size: 10px; color: var(--color-neutral-700); white-space: nowrap; }
+.chronic-hosp-item.is-dead .chronic-hosp-name { color: var(--color-neutral-700); }
+.chronic-hosp-item.is-dead .lipid-hit-hosp { background: var(--color-neutral-600); }
+.chronic-hosp-caution {
+  margin: 6px 0 0; font-size: 11px; line-height: 1.5; color: var(--color-neutral-700);
+}
+.chronic-hosp-meta {
+  display: flex; flex-wrap: wrap; gap: 2px 10px; margin: 4px 0 0;
+  font-size: 10px; color: var(--color-neutral-700);
+}
 .chronic-t2 {
   margin: 10px 0 0; padding: 8px 10px;
   background: var(--warn-surface); border-left: 3px solid var(--warn-line);
@@ -922,6 +956,10 @@ details.chronic-more[open] > .chronic-line .chronic-more-toggle { color: var(--c
 }
 .lipid-block.is-ok { border-left-color: var(--color-accent); background: var(--color-accent-100); }
 .lipid-block.is-no { border-left-color: var(--line-strong); }
+.lipid-block.is-lifestyle { border-left-color: var(--warn-ink); }
+.lipid-block.is-lifestyle .lipid-verdict,
+.lipid-hit.is-lifestyle .lipid-hit-verdict,
+.lipid-avail.is-lifestyle { color: var(--warn-ink); }
 /* 表二是例外表：只有公告明列「不適用表一」的那批代碼要看它，所以視覺退一階（虛線、無底色）。
    左緣顏色與判定字樣照留——開到那批代碼（含 atorvastatin、rosuvastatin）時仍要一眼看得出符合與否。 */
 .lipid-block.is-secondary { background: transparent; border-left-style: dashed; }
@@ -933,7 +971,7 @@ details.chronic-more[open] > .chronic-line .chronic-more-toggle { color: var(--c
   margin: 3px 0 0; font-family: var(--font-heading); font-size: 16px; line-height: 1.2;
   letter-spacing: -.01em; color: var(--color-accent-800);
 }
-.lipid-threshold { margin: 2px 0 0; font-size: 12.5px; line-height: 1.45; font-variant-numeric: tabular-nums; }
+.lipid-threshold, .lipid-values { margin: 2px 0 0; font-size: 12.5px; line-height: 1.45; font-variant-numeric: tabular-nums; }
 .lipid-verdict { margin: 3px 0 0; font-size: 13px; font-weight: 600; }
 .lipid-block.is-ok .lipid-verdict { color: var(--color-accent-800); }
 .lipid-parallel, .lipid-proof {
@@ -962,6 +1000,14 @@ details.chronic-more[open] > .chronic-line .chronic-more-toggle { color: var(--c
 .lipid-hit { margin: 4px 0 0; padding: 4px 0 0; border-top: 1px dotted var(--color-divider); }
 .lipid-hit:first-child { border-top: 0; padding-top: 0; margin-top: 0; }
 .lipid-hit-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; margin: 0; }
+/* 院內收費代碼：診間真正要打進 HIS 的那一串，所以比健保代碼更重。
+   健保代碼留在旁邊當查證用，不是給人抄的。 */
+.lipid-hit-hosp {
+  flex: none; padding: 0 4px; font-size: 11.5px; letter-spacing: .04em;
+  font-variant-numeric: tabular-nums;
+  background: var(--color-neutral-900); color: var(--color-neutral-100);
+}
+.lipid-hit.is-dead .lipid-hit-hosp { background: var(--color-neutral-600); }
 .lipid-hit-code { font-size: 12px; font-variant-numeric: tabular-nums; }
 /* 表別是這一列最重要的資訊，所以是標籤不是內文 */
 .lipid-hit-table {
@@ -986,7 +1032,7 @@ details.chronic-more[open] > .chronic-line .chronic-more-toggle { color: var(--c
 }
 /* 並列結果與提示明確分行，寬螢幕也不能再串成一行。 */
 .ccr-hint, .ccr-disclaimer, .lipid-disclaimer, .lipid-lookup-empty,
-.lipid-lookup-sum, .lipid-threshold, .lipid-drug-note, .lipid-rf, .lipid-hit-sub,
+.lipid-lookup-sum, .lipid-avail, .lipid-threshold, .lipid-drug-note, .lipid-rf, .lipid-hit-sub,
 .chronic-ladder-num, .result-note, .result-empty, .cart-empty, .dock-pin-note, .dock-pinned-away,
 #layout-note, #db-note { white-space: pre-line; }
 .lipid-avail { margin: 5px 0 0; font-size: 11.5px; line-height: 1.5; overflow-wrap: anywhere; }

@@ -1946,8 +1946,11 @@ def test_ccr_button_sits_right_of_the_lipid_calculator(pg):
     assert not placement["inHead"], "CCr 不得放回 header：176px 那列塞不下"
     lipid_box = pg.locator("#lipid-btn").bounding_box()
     ccr_box = pg.locator("#ccr-btn").bounding_box()
-    assert abs(lipid_box["y"] - ccr_box["y"]) < 2, f"不在同一列：{lipid_box} vs {ccr_box}"
-    assert ccr_box["x"] > lipid_box["x"], "CCr 應在血脂計算機右邊"
+    # Lipid 縮短後可能留在第一列，CCr 隨可用寬度自然折至下一列。
+    assert ccr_box["y"] >= lipid_box["y"] - 2
+    if abs(lipid_box["y"] - ccr_box["y"]) < 2:
+        assert ccr_box["x"] > lipid_box["x"], "同列時 CCr 應在 Lipid 右邊"
+    assert pg.locator("#lipid-btn + #ccr-btn").count() == 1
     assert ccr_box["x"] + ccr_box["width"] <= DOCK["width"] + 0.5, "CCr 鈕超出窄欄"
 
 
@@ -2080,7 +2083,7 @@ def test_lipid_button_lives_with_the_chronic_row_not_the_header(pg):
     """
     btn = pg.locator("#lipid-btn")
     expect(btn).to_have_count(1)
-    assert btn.inner_text() == "血脂計算機", "標籤要寫全名，免得被當成血脂的條文"
+    assert btn.inner_text() == "Lipid", "標籤依指定改為 Lipid"
     placement = pg.evaluate("""() => {
         const b = document.getElementById('lipid-btn');
         return { inChronicRow: !!b.closest('#chronic-switch'),

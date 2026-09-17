@@ -255,6 +255,15 @@ pravastatin ＋ fenofibrate 複方 1、atorvastatin ＋ amlodipine 複方 4）�
 但健保沒收載，只列學名等於引導醫師去開一個病人要自費的藥；
 計算機那邊用一行帶過（PCSK9 走 2.6.4 須事前審查、那兩類自費）。
 
+**HIS 打的是院內收費代碼，不是健保代碼**：診間畫面（OpoC200 診間批價修改作業）顯示的是
+`OCRE20` 這種院內碼，原本拿著它查不出走表一還是表二。
+[`src/curated/hospital_lipid_codes.json`](src/curated/hospital_lipid_codes.json) 存這批
+hosp→健保代碼的對照，`build.py` 的 `load_hospital_lipid`／`merge_hospital_codes` 在建置時
+把 hosp 併進 `lipid_products.json` 品項的 `hosp` 欄位（計算機的品項列與條文分頁的「本院品項」
+區塊都吃這個欄位）；對不到現行健保代碼就讓建置直接失敗，不留一個查無結果的院內碼在畫面上。
+`lipid_products.json` 每月由 `fetch_lipid_products.py` 重抓，但這個對照檔是分開存、手動維護
+的靜態清單——月更後若某個健保代碼消失，要回來對照 HIS 畫面改這個檔，不會自動同步。
+
 ### CCr 計算機（Cockcroft-Gault）
 
 **血脂計算機**右邊的 **CCr** 鈕叫出肌酸酐廓清率計算機，供抗生素劑量調整用。

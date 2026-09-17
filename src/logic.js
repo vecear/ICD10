@@ -379,7 +379,7 @@
       hit.push(female ? '女性 ≧ 55 歲' : '男性 ≧ 45 歲');
     }
     if (lipBool(c.familyHistory)) hit.push('早發性冠心病家族史');
-    if (Number.isFinite(hdl) && hdl < (female ? 50 : 40)) {
+    if (Number.isFinite(hdl) && hdl > 0 && hdl < (female ? 50 : 40)) {
       hit.push('HDL-C < ' + (female ? 50 : 40));
     }
     if (lipBool(c.smoking)) hit.push('抽菸');
@@ -404,7 +404,7 @@
       hit.push(female ? '女性 ≧ 55 歲或停經' : '男性 ≧ 45 歲');
     }
     if (lipBool(c.familyHistory)) hit.push('早發性冠心病家族史');
-    if (Number.isFinite(hdl) && hdl < 40) hit.push('HDL-C < 40');
+    if (Number.isFinite(hdl) && hdl > 0 && hdl < 40) hit.push('HDL-C < 40');
     if (lipBool(c.smoking)) hit.push('抽菸');
     return hit;
   }
@@ -513,14 +513,15 @@
     }
     const ratio = (Number.isFinite(tc) && Number.isFinite(hdl) && hdl > 0) ? tc / hdl : null;
     const ratioHit = ratio !== null && ratio > 5;
-    const hdlHit = Number.isFinite(hdl) && hdl < 40;
+    const hdlHit = Number.isFinite(hdl) && hdl > 0 && hdl < 40;
     /* why 只放數值與另外那半個條件：「≧ 200」已經由 route（TG 200–499）表達，
        重複寫等於同一件事講兩遍，而這段文字要貼進病歷。 */
     const why = ['TG ' + tg];
     if (ratioHit) why.push('TC/HDL-C ' + (Math.round(ratio * 100) / 100) + ' > 5');
     if (hdlHit) why.push('HDL-C ' + hdl + ' < 40');
     if (!ratioHit && !hdlHit) {
-      return { ok: true, meets: false, route: 'TG 200–499', target: 200, parallel: hasCvd,
+      const complete = Number.isFinite(hdl) && hdl > 0 && Number.isFinite(tc) && tc > 0;
+      return { ok: true, meets: complete ? false : null, route: 'TG 200–499', target: 200, parallel: hasCvd,
                parallelWhy: parallelWhy.slice(), why,
                needs: ['TG 200–499 還須同時 TC/HDL-C > 5 或 HDL-C < 40'] };
     }
@@ -559,15 +560,21 @@
     const cap = Number.isFinite(limit) && limit > 0 ? limit : 20;
     if (q.length < 2) return { query: q, exact: null, hits: [], total: 0, capped: false };
 
-    const exactCode = LIPID_CODE_RE.test(q)
+    /* 精準命中先健保代碼、再院內收費代碼。**院內代碼一定要走精準這條**：
+       OCRE 是 OCRE20 的前綴，而這兩支的表別剛好相反（CRESTOR 10mg 走表一、
+       20mg 走表二），掉到下面的模糊比對就會挑錯一支。 */
+    const exactCode = (LIPID_CODE_RE.test(q)
       ? list.filter((p) => lipidNormalize(p.code) === q)[0] || null
-      : null;
+      : null)
+      || list.filter((p) => Array.isArray(p.hosp)
+        && p.hosp.some((h) => lipidNormalize(h) === q))[0] || null;
 
     const hits = [];
     for (const p of list) {
       if (exactCode && p === exactCode) continue;
       const hay = lipidNormalize(p.code) + '\u0000' + lipidNormalize(p.en)
-        + '\u0000' + String(p.zh || '') + '\u0000' + lipidNormalize(p.ingredient);
+        + '\u0000' + String(p.zh || '') + '\u0000' + lipidNormalize(p.ingredient)
+        + '\u0000' + (Array.isArray(p.hosp) ? lipidNormalize(p.hosp.join(' ')) : '');
       if (hay.indexOf(q) >= 0 || String(p.zh || '').indexOf(String(query).trim()) >= 0) {
         hits.push(p);
       }
@@ -631,6 +638,9 @@
       table,
       tableLabel: LIPID_TABLE_LABEL[table] || '',
       section: product.section || '',
+      /* 院內收費代碼：診間打進 HIS 的是這個，健保代碼只在查證時才用得上。
+         沒有對照就回空陣列而不是 undefined，畫面才不必再判斷一次型別。 */
+      hosp: Array.isArray(product.hosp) ? product.hosp.slice() : [],
       meets: null,
       threshold: null,
       level: '',
@@ -653,6 +663,7 @@
     if (!coverage || !coverage.ok) return out;
     const info = table === 'one' ? coverage.one : coverage.two;
     out.meets = info.meets;
+    out.parallel = info.parallel;
     out.threshold = info.threshold;
     out.level = info.label;
     out.target = info.target;
@@ -695,6 +706,35 @@
     }
     order.sort((a, b) => by[b].items.length - by[a].items.length || a.localeCompare(b));
     return order.map((k) => by[k]);
+  }
+
+  /* 院內品項：把 hosp 展開成「一列一個收費代碼」，依表別分組。
+
+     為什麼一個健保代碼要列成兩列：院內的「(矯正)」品項與原品項共用同一個健保代碼
+     （OCRE 與 POCRE 都是 BC24131100），但診間打的是收費代碼。合併成一列的話，
+     醫師還是得自己想「(矯正)那支算不算」——那正是這個功能要省掉的那一步。 */
+  function lipidHospitalByTable(products) {
+    const out = { one: [], two: [], other: [] };
+    for (const p of (Array.isArray(products) ? products : [])) {
+      if (!p || !Array.isArray(p.hosp) || !p.hosp.length) continue;
+      const bucket = p.table === 'one' ? out.one : p.table === 'two' ? out.two : out.other;
+      for (const h of p.hosp) {
+        bucket.push({
+          hosp: String(h),
+          code: p.code,
+          name: p.en || p.zh || p.code,
+          short: lipidShortName(p.en || p.zh || p.code),
+          generic: String(p.generic || p.ingredient || ''),
+          table: p.table || '',
+          section: p.section || '',
+          listed: p.listed !== false,
+        });
+      }
+    }
+    for (const k of ['one', 'two', 'other']) {
+      out[k].sort((a, b) => a.hosp.localeCompare(b.hosp));
+    }
+    return out;
   }
 
   /* 某一個藥理類別底下、現行給付中的品項，依學名分組，每一筆帶自己的表別。
@@ -787,9 +827,25 @@
     };
   }
 
+  /* meets 只代表數值門檻；用藥結論必須同時納入非藥物治療前置條件。 */
+  function lipidTreatmentStatus(info) {
+    if (!info || info.meets === null || info.meets === undefined) {
+      return { status: 'pending', className: 'is-pending', text: '待判定：資料不足，請補齊所需血脂數值' };
+    }
+    if (!info.meets) {
+      return { status: 'no', className: 'is-no', text: '目前不符合健保起始用藥條件（未達起始門檻）' };
+    }
+    if (info.parallel === true) {
+      return { status: 'direct', className: 'is-ok', text: '可直接開始用藥（符合健保起始門檻，生活型態調整同時進行）' };
+    }
+    return { status: 'lifestyle', className: 'is-lifestyle',
+      text: '須先生活型態調整才可用藥（須先完成 3–6 個月生活型態調整，複評仍達門檻才可開始用藥）' };
+  }
+
   return { buildIndex, search, family, formatCart, mergeRelated, rocDate, splitByEffective,
            splitSentences, splitLead, creatinineClearance,
-           lipidCoverage, lipidRiskFactorsNew, lipidRiskFactorsOld, lipidMetabolic,
+           lipidCoverage, lipidTreatmentStatus, lipidRiskFactorsNew, lipidRiskFactorsOld, lipidMetabolic,
            lipidFindProducts, lipidSummarize, lipidProductVerdict,
-           lipidShortName, lipidProductsByTable, lipidProductsForClass };
+           lipidShortName, lipidProductsByTable, lipidProductsForClass,
+           lipidHospitalByTable };
 });

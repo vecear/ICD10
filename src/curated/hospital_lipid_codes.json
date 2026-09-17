@@ -1,0 +1,152 @@
+{
+  "_schema": {
+    "用途": "院內收費代碼 → 健保代碼的對照。診間 HIS 畫面上醫師看到的是收費代碼（OPIT2 這種），品項檔裡只有健保代碼，中間這一截原本是斷的：手上拿著 OCRE20 沒辦法查出它走表二。",
+    "為什麼不併進 lipid_products.json": "那個檔是 build/fetch_lipid_products.py 每月重抓覆寫的，加在上面的欄位下次更新就沒了。分開存，build 期再 merge。",
+    "hosp": "院內收費代碼，取自 HIS「診間批價修改作業」(OpoC200) 的收費代碼欄。",
+    "code": "對應的健保代碼。build 期會核對它在 lipid_products.json 裡存在，查無就建置失敗——品項檔月更後代碼可能消失，那時要回來改這個檔，而不是讓診間查到一個空的表別。",
+    "name": "院內畫面上的藥品名稱，只為了人工核對用；判定一律以健保代碼為準。",
+    "為什麼不記缺藥狀態": "畫面上的「缺藥」是浮動的，記進來會過期。工具說正常、實際上領不到藥，比不說更糟。缺藥看 HIS 當下的畫面。",
+    "一個健保代碼可以對到多個院內代碼": "院內的「(矯正)」品項與原品項是同一個健保代碼，例如 BC24131100 同時是 OCRE 與 POCRE。反過來一個院內代碼只對一個健保代碼。",
+    "怎麼更新": "照 HIS 的降血脂品項畫面逐筆核對。改完跑 python build/build.py，代碼對不上會直接讓建置失敗。"
+  },
+  "checked": "2026-09-03",
+  "source": "HIS 診間批價修改作業 (OpoC200) 降血脂品項畫面，2026-09-03 擷取",
+  "note": "畫面上另有一筆 OSIM4（Simva F.C. Tab. 40mg，健保價 6.4）無法唯一對應到品項檔的健保代碼（simvastatin 全檔無此支付價），故未收錄。最接近的兩支是 A055967100（\"聯邦\"欣華 40mg，5.4，表二）與 AC52465100（欣癒脂 40mg，已停付），兩者都不會是「表一且現行給付」。",
+  "items": [
+    {
+      "hosp": "OPIT2",
+      "code": "AA58648100",
+      "name": "PITARTY F.C. TAB 2MG"
+    },
+    {
+      "hosp": "OANXO",
+      "code": "AC49226100",
+      "name": "ANXOLIGHTOR F.C. TAB 20 MG"
+    },
+    {
+      "hosp": "OATIN",
+      "code": "AC57133100",
+      "name": "AtoTin F.C. 40mg tablets"
+    },
+    {
+      "hosp": "OATO",
+      "code": "AA49543100",
+      "name": "ATORIN F.C. TAB 10MG"
+    },
+    {
+      "hosp": "OLI4",
+      "code": "AC52301100",
+      "name": "Lipiminus 40mg tab"
+    },
+    {
+      "hosp": "OTUL40",
+      "code": "BA25201100",
+      "name": "TULIP F.C. TAB 40MG"
+    },
+    {
+      "hosp": "POLIP4",
+      "code": "BC22889100",
+      "name": "(矯正)LIPITOR (40mg)"
+    },
+    {
+      "hosp": "POLIPI",
+      "code": "BC22886100",
+      "name": "(矯正)lipitor (10mg)"
+    },
+    {
+      "hosp": "OALAD",
+      "code": "AC58969100",
+      "name": "ALADDIN F.C. Tab 10MG"
+    },
+    {
+      "hosp": "OCRE",
+      "code": "BC24131100",
+      "name": "CRESTOR F.C. TAB 10 MG"
+    },
+    {
+      "hosp": "OCRE20",
+      "code": "BC24129100",
+      "name": "CRESTOR F.C. TAB 20 MG"
+    },
+    {
+      "hosp": "OCRET",
+      "code": "BC28181100",
+      "name": "CRETROL TAB. 10/10 MG"
+    },
+    {
+      "hosp": "ORBS",
+      "code": "BA25797100",
+      "name": "ROBESTAR F.C. TAB 5 MG"
+    },
+    {
+      "hosp": "OROSU",
+      "code": "AB57940100",
+      "name": "ROSULATOR F.C. TAB 10MG"
+    },
+    {
+      "hosp": "OROT2",
+      "code": "AC57803100",
+      "name": "ROTY F.C. TAB 20mg"
+    },
+    {
+      "hosp": "OROZI",
+      "code": "AC58813100",
+      "name": "ROZININ F.C. TAB 20 MG"
+    },
+    {
+      "hosp": "POCRE",
+      "code": "BC24131100",
+      "name": "(矯正)CRESTOR 10MG"
+    },
+    {
+      "hosp": "OFL80",
+      "code": "BC26147100",
+      "name": "FLUVASTATIN XL F.C. TAB 80MG"
+    },
+    {
+      "hosp": "ODEHY",
+      "code": "AB49143100",
+      "name": "DEHYPOTIN Protect TAB 40 MG"
+    },
+    {
+      "hosp": "OPRA",
+      "code": "AB49454100",
+      "name": "Pratin Tab. 40mg"
+    },
+    {
+      "hosp": "OPRAV",
+      "code": "BC26169100",
+      "name": "PRAVAFEN hard CAP 40/160MG"
+    },
+    {
+      "hosp": "OAGI",
+      "code": "AC59251100",
+      "name": "AGITIN TAB 10/20 MG"
+    },
+    {
+      "hosp": "OSIM40",
+      "code": "BC24339100",
+      "name": "Simvahexal F.C. Tab. 40MG"
+    },
+    {
+      "hosp": "OSIV",
+      "code": "AC47928100",
+      "name": "Sivasin 20mg f.c. tab."
+    },
+    {
+      "hosp": "POSIM4",
+      "code": "BC24339100",
+      "name": "(矯正)SIMVAHEXAL 40MG"
+    },
+    {
+      "hosp": "POSO",
+      "code": "AC49792100",
+      "name": "(矯正)So.H.F.C. 20mg"
+    },
+    {
+      "hosp": "POZOLO",
+      "code": "AC44998100",
+      "name": "(矯正)zoloTIN (20MG)"
+    }
+  ]
+}

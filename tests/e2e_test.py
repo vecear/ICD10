@@ -1770,7 +1770,7 @@ def test_chronic_row_is_entry_then_two_calculators_and_starts_closed(page):
         document.getElementById('chronic-switch').children).map((n) => n.id)""")
     assert order == ["chronic-btn", "lipid-btn", "ccr-btn"], order
     assert page.locator("#chronic-btn").inner_text() == "健保規範條文"
-    assert page.locator("#lipid-btn").inner_text() == "血脂計算機"
+    assert page.locator("#lipid-btn").inner_text() == "Lipid"
     assert page.locator("#ccr-btn").inner_text() == "CCr"
     expect(page.locator("#chronic-btn")).to_have_attribute("aria-expanded", "false")
     expect(page.locator("#chronic-overlay")).to_be_hidden()      # 負面：預設不擋住工作區
@@ -2115,9 +2115,9 @@ def test_drug_lookup_merges_with_the_patient_verdict(page):
     by_code = {r["code"]: r for r in rows}
     # 兩個都是現行給付中的代碼（B0… 那批支付價 0，早就停付了）
     assert by_code["BC24131100"]["table"] == "表一", by_code["BC24131100"]
-    assert "本例符合" in by_code["BC24131100"]["verdict"], by_code["BC24131100"]
+    assert "可直接開始用藥" in by_code["BC24131100"]["verdict"], by_code["BC24131100"]
     assert by_code["BC24129100"]["table"] == "表二", by_code["BC24129100"]
-    assert "本例不符合" in by_code["BC24129100"]["verdict"], by_code["BC24129100"]
+    assert "目前不符合健保起始用藥條件" in by_code["BC24129100"]["verdict"], by_code["BC24129100"]
     # 已停付的代碼不得給判定——對一個不給付的品項說「符合表一」是誤導
     dead = by_code["B024129100"]
     assert dead["table"] == "已停付", dead
@@ -2151,8 +2151,8 @@ def test_drug_lookup_lists_what_this_patient_can_be_given(page):
         document.querySelectorAll('#lipid-result .lipid-avail')).map((n) => n.textContent.trim())""")
     assert len(lines) == 2, f"兩張表各一行：{lines}"
     joined = "\n".join(lines)
-    assert "表一符合，可開這張表的品項：" in joined, joined
-    assert "表二不符合，這張表的品項本例不給付：" in joined, joined
+    assert "表一可直接開始用藥" in joined, joined
+    assert "表二目前不符合健保起始用藥條件" in joined, joined
     assert "atorvastatin" in joined and "rosuvastatin" in joined, joined
     page.keyboard.press("Escape")
     reset(page)

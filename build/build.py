@@ -54,6 +54,10 @@ CHRONIC_CARE_FILE = "chronic_care.json"
 # （品項檔每月更新），所以門檻設得比 CHRONIC_CHECK_MAX_MONTHS 短。
 LIPID_PRODUCTS_FILE = "lipid_products.json"
 LIPID_PRODUCTS_MAX_MONTHS = 3
+# 院內收費代碼 → 健保代碼的對照。診間畫面上醫師看到的是收費代碼，品項檔裡只有
+# 健保代碼，中間這一截原本是斷的。分開存而不是加欄位進 lipid_products.json：
+# 那個檔每月被 fetch_lipid_products.py 重抓覆寫，加上去的欄位下次更新就沒了。
+HOSPITAL_LIPID_FILE = "hospital_lipid_codes.json"
 # checked 日期超過這個月數就印醒目警告。
 # **警告不是失敗**：過期的給付規定會誤導醫師，但讓建置失敗等於門診當天沒工具可用，那更糟。
 CHRONIC_CHECK_MAX_MONTHS = 6
@@ -265,6 +269,53 @@ def check_lipid_products(data, today=None):
             "（健保用藥品項每月更新，跑 build/fetch_lipid_products.py 重抓）")
     counts = collections.Counter(str(p.get("table") or "other") for p in products)
     return {"warnings": warnings, "total": len(products), "counts": counts, "checked": checked}
+
+
+def load_hospital_lipid():
+    """讀院內收費代碼對照，剝掉 _schema 再用（同 load_lipid_products 的理由）。"""
+    raw = json.loads((SRC / "curated" / HOSPITAL_LIPID_FILE).read_text(encoding="utf-8"))
+    return {k: v for k, v in raw.items() if k != "_schema"}
+
+
+def merge_hospital_codes(products, mapping):
+    """把院內收費代碼掛到品項上，回傳新的 products（不就地改動）。
+
+    掛在品項物件上而不是另存一份：分頁與計算機共用同一份 window.LIPID_PRODUCTS，
+    掛上去兩邊就自動一起生效，不會養出兩份互相分歧的清單。
+
+    **對不上就讓建置失敗**，理由同 check_chronic_docs：品項檔每月更新、代碼會下架，
+    指到不存在的代碼時工具會對一個有效的收費代碼回「查無」，醫師在診間會以為自己
+    打錯字——而那裡沒有人能查證。
+    """
+    items = (mapping or {}).get("items") or []
+    known = {str((p or {}).get("code") or "") for p in products}
+    by_code = {}
+    seen = {}
+    bad = []
+    for it in items:
+        hosp = str((it or {}).get("hosp") or "").strip()
+        code = str((it or {}).get("code") or "").strip()
+        if not hosp or not code:
+            bad.append(f"有一筆缺 hosp 或 code：{it!r}")
+            continue
+        if hosp in seen:
+            bad.append(f"{hosp}：院內代碼重複（已對到 {seen[hosp]}）")
+            continue
+        seen[hosp] = code
+        if code not in known:
+            bad.append(f"{hosp} → {code}：品項檔查無這個健保代碼")
+            continue
+        by_code.setdefault(code, []).append(hosp)
+    if bad:
+        detail = "\n  ".join(bad[:10])
+        more = "" if len(bad) <= 10 else f"\n  （另有 {len(bad) - 10} 筆）"
+        raise ValueError(f"{HOSPITAL_LIPID_FILE} 有 {len(bad)} 筆問題：\n  {detail}{more}")
+    out = []
+    for p in products:
+        hosps = by_code.get(str((p or {}).get("code") or ""))
+        # 沒有對照的品項不長出空欄位：空陣列會讓畫面誤判成「院內有這支」。
+        out.append({**p, "hosp": sorted(hosps)} if hosps else p)
+    return out
 
 
 def check_chronic_docs(chronic):
@@ -524,6 +575,11 @@ def main():
     products = load_lipid_products()
     renal = load_renal_data(SRC / "curated" / "antibiotic_dosing.json")
     products_report = check_lipid_products(products)
+    hospital_lipid = load_hospital_lipid()
+    products["products"] = merge_hospital_codes(products["products"], hospital_lipid)
+    # items 已經 merge 進品項了，這裡只留 meta：畫面要印出處與查證日
+    # （面板不放常駐說明，可信度由每一塊自己的出處承擔）。
+    products["hospital"] = {k: v for k, v in hospital_lipid.items() if k != "items"}
     chronic_docs = check_chronic_docs(chronic)
     ladder = check_risk_ladder(chronic)
     drug_groups = check_drugs(chronic)
@@ -574,6 +630,8 @@ def main():
         + f"（表一 {products_report['counts'].get('one', 0)}、"
         + f"表二 {products_report['counts'].get('two', 0)}、"
         + f"其他章節 {products_report['counts'].get('other', 0)}）\n"
+        f"  院內收費代碼：{sum(len(p['hosp']) for p in products['products'] if p.get('hosp'))} 個"
+        + f"（對到 {sum(1 for p in products['products'] if p.get('hosp'))} 個健保代碼）\n"
         f"  風險分級階梯："
         + ("、".join(f"{k} {v} 級" for k, v in ladder.items()) or "（無）") + "\n"
         f"  僅適用表二的成分："
