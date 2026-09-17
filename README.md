@@ -306,7 +306,12 @@ pytest 即可，測到的一定是最新的 dist。
 | `logic.js` | 純函式核心（搜尋、格式化、葉碼判斷），無 DOM |
 | `state.js` | 單一 store：狀態、action、localStorage 持久化 |
 | `data.js` | 精選內容與全庫索引的存取層、延遲載入 |
-| `render-shared.js` | 三套版面共用的 DOM 建構與區塊更新（chip、清單、設定面板…） |
+| `clinical-format.js` | 兩個計算機的純文字整形（病歷段落、剪貼簿欄位），無 DOM |
+| `render-dom.js` | 零業務邏輯的 DOM 工具（圖示、element 工廠、chip、部位短名） |
+| `render-common.js` | 三套版面共用的區塊更新（結果、清單、常用列、HIS、通知列、返回） |
+| `render-settings.js` | 設定 popover、版面切換、看診模式、日期鈕 |
+| `render-chronic.js` | 慢病速查（DM／HTN／LIPID）整套 |
+| `render-ccr.js` / `render-lipid.js` | 兩個計算機的浮層與結果渲染 |
 | `render-wide.js` / `render-dock.js` / `render-mobile.js` | 三種版面各自的骨架與更新對照表 |
 | `interactions.js` | document 層事件委派（版面重建也不會漏解事件） |
 | `app.js` | 啟動、依視窗寬度決定生效版面、把狀態變動轉成區塊重繪 |
