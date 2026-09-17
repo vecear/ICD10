@@ -11,6 +11,6 @@
 - [x] 階段 3（src）：header 統一尺寸與顏色語意、手機日期鈕移位、側掛摘要 12px、清空對比、慢病浮層寬度。量測工作台前後數字寫進密度原則。
 - [x] 階段 4（src）：`syncSearchValue`、部位選單／面板工廠、切 `render-shared.js` 六檔、`clinical-format.js` 與單元測試、刪死碼與 `industry.css` 零引用 class。
 - [x] 階段 5（docs）：（5a 已做：README 決策敘事搬 `docs/decisions.md`，467→396 行）README 收斂並補新功能、`tools/診間使用說明.txt` 補新功能後重新打包。
-- [ ] 階段 6：全套測試、建置、打包；全新脈絡 agent 用 Playwright 重走 UX 前五名與抽查文件；推上 GitHub。
+- [x] 階段 6：全套測試、建置、打包；全新脈絡 agent 用 Playwright 重走 UX 前五名與抽查文件；推上 GitHub。
 
-驗證：（完成後填）
+驗證：完整 pytest 547 passed／3 skipped；node 單元測試 199 案例零失敗；三版面切檔前後像素比對零差異；全新脈絡驗收 24 條中 22 PASS，2 條為檢查條件嚴於規格（工作台 placeholder 依規格保留全文；README 364 行）。診間包 3.31 MB 三道閘門通過。
