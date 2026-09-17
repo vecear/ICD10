@@ -268,8 +268,16 @@ body[data-layout="dock"] .dock-cart-kicker {
   color: var(--his-dim); white-space: nowrap;
 }
 body[data-layout="dock"] #cart-count { color: var(--his-ink); font-weight: 600; }
+/* 13 → 12px（2026-09-17，UX 稽核 V5）：這串摘要原本是整個側掛窄欄裡最大的字，
+   比真正要點的診斷碼（面板 11px、清單 12px）還大——層級與重要性相反。
+   它是「已經選好的東西」的回顧，不是操作目標。
+
+   這一列的高度**不是**由「清空」的 26px 決定的（原本的註解寫錯，實測更正）：
+   13px 的摘要加上 #cart-toggle 的 6px 內距是 26.1px，比「清空」高 0.1px，所以它才是
+   決定者。降到 12px 之後換「清空」說了算，`.dock-cart-head` 35.1 → 35.0px。
+   變矮 0.1px 不影響任何東西，但 test_e2e_navigation 的 BASELINE 是等式，要跟著改。 */
 body[data-layout="dock"] .dock-cart-codes {
-  flex: 1; min-width: 0; font-family: var(--font-heading); font-size: 13px; letter-spacing: .03em;
+  flex: 1; min-width: 0; font-family: var(--font-heading); font-size: 12px; letter-spacing: .03em;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 body[data-layout="dock"] #cart-toggle .marker {

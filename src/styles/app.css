@@ -336,6 +336,17 @@ body {
 }
 
 /* ── 就診清單（沿用 ul#cart > li[data-code]） ── */
+/* 「清空」的前景色（UX 稽核 V7）。`.btn-ghost` 用的 --color-accent 是**框線／點綴**
+   用的階，當成 13～14px 的文字就踩線：實測 1a 3.81:1、1b 3.71:1，都低於 WCAG AA 的 4.5。
+   改用同一組色票裡更深的 --color-accent-700（日 #416180、夜 #b5d9fd）之後，
+   1a 5.94／10.65、1b 5.78／12.15。
+
+   寫成不帶版面前綴的 `#clear-cart`，因為 1a 與 1b 是**同一個缺陷的兩個實例**
+   （兩邊都是 `.btn-ghost` 坐在淺灰底上）。1c 不受影響：它自己有
+   `body[data-layout="dock"] #clear-cart`（HIS 深底配 --his-btn，實測 6.76:1），
+   特異度比這條高。稽核當時只記了 1a 一筆，是因為 1b 的清空在清單抽屜收合時是 0×0，
+   沒被「可見元素」掃到——那不是它沒問題。 */
+#clear-cart { color: var(--color-accent-700); }
 #cart { list-style: none; margin: 0; padding: 0; }
 /* 清單列是兩行：第一行拖曳柄／序號／代碼／主★✕，第二行完整中文名（可折行、不截斷）。
    中文名是貼進 HIS 前唯一的核對機會，而它原本在**最寬的版面反而最窄**——1440px 下只有
@@ -528,9 +539,13 @@ body[data-layout="mobile"] .clipboard-editor textarea { font-size: 16px; }
   display: flex; align-items: center; justify-content: center; padding: 16px;
   background: rgba(43, 43, 45, .5);
 }
+/* 寬度 min(720px, 100%) → min(1100px, 92vw)（2026-09-17，UX 稽核 V9）：1440px 的工作台
+   下原本只用掉一半寬度，內容卻要捲好幾屏。1c／1b 各自覆寫成 width:100%，所以這一行
+   實際上只影響 1a。CCr（420）與血脂（480）**不跟著改**：那兩個是輸入表單，欄位數固定、
+   加寬只會讓 label 與輸入框拉開，不會少捲任何一屏。 */
 .chronic-panel {
   display: flex; flex-direction: column; min-height: 0;
-  width: min(720px, 100%); max-height: 100%; padding: 14px 16px;
+  width: min(1100px, 92vw); max-height: 100%; padding: 14px 16px;
   background: var(--color-bg); border: 1px solid var(--color-accent); box-shadow: var(--shadow-lg);
 }
 /* 浮層內的主題分頁：外面那三顆入口鈕在浮層開著時被遮罩蓋住，沒有這一排就換不了主題
@@ -849,12 +864,14 @@ details.chronic-drug-more[open] > .chronic-drug-head::before { content: '▾'; }
 
 /* ── CCr 計算機（Cockcroft-Gault） ──────────────────────────────────────────
    浮層骨架刻意與 .chronic-* 同型（同樣的遮罩、同樣的關閉出口），使用者只要學一次。
-   差別在這個是**輸入**面板，所以主體是表單而不是捲動內文。 */
-#ccr-btn {
-  flex: 0 0 auto; letter-spacing: .04em;
-  background: var(--his-btn); color: var(--his-btn-ink); border: 1px solid var(--his-btn);
-}
-#ccr-btn:hover { background: var(--his-btn-hover); }
+   差別在這個是**輸入**面板，所以主體是表單而不是捲動內文。
+
+   **這裡刻意沒有 `#ccr-btn` 的樣式規則**（2026-09-17，UX 稽核 V1）：它原本吃
+   `--his-btn` 的淺藍填色，可是那個顏色在本產品的意思是「按下去會寫剪貼簿」
+   （`#copy-date`、`.ccr-copy`、`.lipid-copy`），而這顆只是開一個浮層。
+   更糟的是同一排的 `#chronic-btn`、`#lipid-btn` 語意完全相同卻是透明的——
+   同類三顆兩種樣式。規則整段刪掉之後，它與 `#lipid-btn` 是逐字同一組 class
+   （`btn btn-secondary`），不需要也不可以再補任何「幾乎一樣」的覆寫。 */
 
 .ccr-overlay {
   position: fixed; inset: 0; z-index: 30;

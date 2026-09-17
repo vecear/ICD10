@@ -58,14 +58,14 @@
     const wrap = R.el('div');
     wrap.id = 'layout-mobile';
 
-    /* ── header：模式三鈕獨立一行 ＋ 搜尋（44px）＋設定鈕（44×44）（L349-368） ──
+    /* ── header：模式三鈕獨立一行 ＋（搜尋＋日期＋設定）一行（L349-368） ──
        390px 塞不下「三顆模式鈕＋搜尋＋設定」同一列（搜尋會被壓到剩幾十 px），所以
        模式列自己佔一行、三格等寬撐滿；觸控目標仍是 44px。互動與 1a／1c 完全一致
        （一次點擊即切換），差的只是配置——那是空間限制不是功能差異。 */
     const header = R.el('header', 'm-header');
     // 頁面唯一的 H1（sr-only）：手機版 header 沒有可見的品牌字，階層仍要有起點
     header.append(R.srHeading(1, 'ICD-10 門診導引'));
-    refs.dateBtn = R.dateBtnEl(false);       // 「日期」排在模式三鈕左邊（模式列自己一行）
+    refs.dateBtn = R.dateBtnEl(false);       // 「日期」在搜尋列（見下方 headRow）
     refs.modeSwitch = R.modeSwitchEl(false);
 
     const search = document.createElement('input');
@@ -94,17 +94,26 @@
     const shelfBtn = pop.querySelector('#shelf-toggle');
     if (shelfBtn) shelfBtn.classList.add('is-desktop-only');
 
-    /* 「日期」與模式三鈕同一列：模式列本來就獨佔一行，左邊塞得下一顆小鈕。 */
+    /* 模式列**只放模式三鈕**（2026-09-17，UX 稽核 V2）。「日期」原本也在這一列，
+       在 DOM 與視覺上都屬於那個分段控制項，而且是填滿的淺藍，與深藍的「已選中」並排
+       ——390px 下看起來就是第四個模式，按下去卻是把今天的日期複製到剪貼簿。
+       兩種「看起來已選中」的樣式並排是誤讀的來源，不是密度問題，所以修法是搬家不是縮小。 */
     const modeRow = R.el('div', 'm-mode-row');
-    modeRow.append(refs.dateBtn, refs.modeSwitch);
+    modeRow.appendChild(refs.modeSwitch);
 
     /* 「返回」排在搜尋框右邊、與「設定」同一列（UX 稽核 U3）——**不多一列**：
        這一列本來就存在，搜尋框是 flex:1／min-width:0，多這一顆是跟它借寬度。
        只在搜尋結果狀態出現（update() 收尾處），所以平常一個像素都不佔。
-       行為與另兩套版面完全一致（interactions.js 的 `.search-back` 委派）。 */
+       行為與另兩套版面完全一致（interactions.js 的 `.search-back` 委派）。
+
+       「日期」接在「設定」左邊，與它同側：兩顆都不是選碼動線上的東西，而且這一列的
+       高度本來就是 44px，多一顆不多付任何高度（`.m-header` 前後同為 119px）。
+       寬度一樣是跟 flex:1 的搜尋框借——實測 390px 下搜尋框 306 → 240.9px，
+       搜尋狀態下再讓給「返回」剩 178.9px，兩種狀態都不折行、不水平溢出
+       （`tests/test_e2e_visual_semantics.py::test_mobile_search_row_keeps_its_hard_limits`）。 */
     refs.searchBack = R.searchBackEl();
     const headRow = R.el('div', 'm-head-row');
-    headRow.append(search, refs.searchBack, settingsToggle);
+    headRow.append(search, refs.searchBack, refs.dateBtn, settingsToggle);
     /* 可見通知列：貼在 header 下緣、覆蓋部位列最上緣而不推擠（三套版面同一個 #notice）。
        手機沒有 hover，這一列是「剛才那一下有沒有生效」的唯一線索。 */
     header.append(modeRow, headRow, pop, R.noticeEl());

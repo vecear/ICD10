@@ -39,9 +39,14 @@ body[data-layout="mobile"] .m-header {
   padding: 10px 14px; border-bottom: 1px solid var(--color-divider);
 }
 body[data-layout="mobile"] .m-head-row { display: flex; align-items: center; gap: 8px; }
-/* 「日期」＋模式三鈕同一列：日期鈕收成文字寬，剩下的寬度全歸三格等寬的模式鈕 */
+/* 模式列只放模式三鈕，三格等寬撐滿（2026-09-17，UX 稽核 V2）。
+   「日期」原本也在這一列，而且是填滿的淺藍，與深藍的「已選中」並排——看起來像第四個
+   模式，按下去卻是複製日期到剪貼簿。它現在在搜尋列，與「設定」同側。 */
 body[data-layout="mobile"] .m-mode-row { display: flex; align-items: stretch; gap: 8px; }
-body[data-layout="mobile"] #copy-date { flex: 0 0 auto; min-height: 44px; padding: 0 14px; font-size: 14px; }
+/* 「日期」在搜尋列（`.m-head-row`，align-items:center），所以高度就是自己的 44px；
+   它還在模式列時被 align-items:stretch 撐成 46px（跟著 .seg-row 的外框）。
+   44 是硬性下限，不准再往下調。淺藍保留：它確實會寫剪貼簿（顏色語意 V1）。 */
+body[data-layout="mobile"] #copy-date { flex: 0 0 auto; min-height: 44px; padding: 0 12px; font-size: 14px; }
 /* 模式三鈕：整列三格等寬（.seg-btn 的 min-height 在下面統一提到 44px） */
 body[data-layout="mobile"] .mode-switch { display: flex; flex: 1; min-width: 0; }
 /* 底色、選中態、格間分隔線由 app.css 的 .mode-btn 共用區塊提供（v5 收斂）；
@@ -54,8 +59,10 @@ body[data-layout="mobile"] #search {
   font-size: 16px;            /* <16px 會讓行動瀏覽器聚焦時自動放大整頁 */
   background: transparent;
 }
+/* 字級 13 → 14px（UX 稽核 V8）：同一列的日期鈕與模式鈕都是 14px，「設定」與
+   `.m-cart-label` 是全畫面僅有的兩個 13px 元素，而那 1px 的差沒有對應的層級差異。 */
 body[data-layout="mobile"] #settings-toggle {
-  flex: none; min-height: 44px; min-width: 44px; padding: 0 10px; font-size: 13px;
+  flex: none; min-height: 44px; min-width: 44px; padding: 0 10px; font-size: 14px;
 }
 /* 「返回」：44px 觸控門檻不打折（docs/dense-ui-principle.md §1）。它與「設定」同一列，
    寬度是跟 flex:1 的搜尋框借的——實測 390px 下搜尋框 214→158px，仍放得下

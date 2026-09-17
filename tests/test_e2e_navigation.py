@@ -35,11 +35,20 @@ SCROLLER = {"wide": ".worksheet", "dock": ".dock-scroll", "mobile": "#m-scroll"}
 
 # 改動前（HEAD＝735de0a）實測的固定 chrome 高度。這五個數字是這一階段的硬性回歸線：
 # 「返回」與「已同步」一律塞進既有那一列，不得多付任何高度（docs/dense-ui-principle.md）。
+#
+# 2026-09-17 階段 3 改了兩個數字，兩個都是變小：
+#   wide_header    63.0 → 55.0：header 全列統一成 32px 高（原本模式鈕／搜尋框／置頂／
+#                  設定是 40px），是**往下收**不是長高。
+#   dock_cart_head 35.1 → 35.0：摘要字級 13 → 12px（UX 稽核 V5）。原以為這一列的高度
+#                  完全由「清空」的 26px 決定、降字級不會動到它，實際上 13px 的摘要
+#                  連同 6px 內距是 26.1px，剛好比「清空」高 0.1px——所以它本來才是
+#                  決定高度的那一個。這 0.1px 是這個測試抓出來的，不是預期內的。
+# 兩個都跟著改成新值而不是放寬成 `<=`：等式才抓得到「下一次有人把某顆鈕改回 40px」。
 BASELINE = {
-    "wide_header": 63.0,          # .app-header
+    "wide_header": 55.0,          # .app-header
     "dock_head_176": 92.0,        # .dock-head（176px 下控制列折兩行）
     "dock_head_340": 67.0,        # .dock-head（使用者實際的 340px）
-    "dock_cart_head": 35.1,       # .dock-cart-head（清單摘要列）
+    "dock_cart_head": 35.0,       # .dock-cart-head（清單摘要列）
     "mobile_header": 119.0,       # .m-header
     "mobile_chronic_switch": 54.0,  # 健保規範條文｜血脂計算機｜CCr 那一排（加了「全展開」不得折行）
 }

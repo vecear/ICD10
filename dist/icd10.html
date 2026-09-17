@@ -671,6 +671,17 @@ body {
 }
 
 /* ── 就診清單（沿用 ul#cart > li[data-code]） ── */
+/* 「清空」的前景色（UX 稽核 V7）。`.btn-ghost` 用的 --color-accent 是**框線／點綴**
+   用的階，當成 13～14px 的文字就踩線：實測 1a 3.81:1、1b 3.71:1，都低於 WCAG AA 的 4.5。
+   改用同一組色票裡更深的 --color-accent-700（日 #416180、夜 #b5d9fd）之後，
+   1a 5.94／10.65、1b 5.78／12.15。
+
+   寫成不帶版面前綴的 `#clear-cart`，因為 1a 與 1b 是**同一個缺陷的兩個實例**
+   （兩邊都是 `.btn-ghost` 坐在淺灰底上）。1c 不受影響：它自己有
+   `body[data-layout="dock"] #clear-cart`（HIS 深底配 --his-btn，實測 6.76:1），
+   特異度比這條高。稽核當時只記了 1a 一筆，是因為 1b 的清空在清單抽屜收合時是 0×0，
+   沒被「可見元素」掃到——那不是它沒問題。 */
+#clear-cart { color: var(--color-accent-700); }
 #cart { list-style: none; margin: 0; padding: 0; }
 /* 清單列是兩行：第一行拖曳柄／序號／代碼／主★✕，第二行完整中文名（可折行、不截斷）。
    中文名是貼進 HIS 前唯一的核對機會，而它原本在**最寬的版面反而最窄**——1440px 下只有
@@ -863,9 +874,13 @@ body[data-layout="mobile"] .clipboard-editor textarea { font-size: 16px; }
   display: flex; align-items: center; justify-content: center; padding: 16px;
   background: rgba(43, 43, 45, .5);
 }
+/* 寬度 min(720px, 100%) → min(1100px, 92vw)（2026-09-17，UX 稽核 V9）：1440px 的工作台
+   下原本只用掉一半寬度，內容卻要捲好幾屏。1c／1b 各自覆寫成 width:100%，所以這一行
+   實際上只影響 1a。CCr（420）與血脂（480）**不跟著改**：那兩個是輸入表單，欄位數固定、
+   加寬只會讓 label 與輸入框拉開，不會少捲任何一屏。 */
 .chronic-panel {
   display: flex; flex-direction: column; min-height: 0;
-  width: min(720px, 100%); max-height: 100%; padding: 14px 16px;
+  width: min(1100px, 92vw); max-height: 100%; padding: 14px 16px;
   background: var(--color-bg); border: 1px solid var(--color-accent); box-shadow: var(--shadow-lg);
 }
 /* 浮層內的主題分頁：外面那三顆入口鈕在浮層開著時被遮罩蓋住，沒有這一排就換不了主題
@@ -1184,12 +1199,14 @@ details.chronic-drug-more[open] > .chronic-drug-head::before { content: '▾'; }
 
 /* ── CCr 計算機（Cockcroft-Gault） ──────────────────────────────────────────
    浮層骨架刻意與 .chronic-* 同型（同樣的遮罩、同樣的關閉出口），使用者只要學一次。
-   差別在這個是**輸入**面板，所以主體是表單而不是捲動內文。 */
-#ccr-btn {
-  flex: 0 0 auto; letter-spacing: .04em;
-  background: var(--his-btn); color: var(--his-btn-ink); border: 1px solid var(--his-btn);
-}
-#ccr-btn:hover { background: var(--his-btn-hover); }
+   差別在這個是**輸入**面板，所以主體是表單而不是捲動內文。
+
+   **這裡刻意沒有 `#ccr-btn` 的樣式規則**（2026-09-17，UX 稽核 V1）：它原本吃
+   `--his-btn` 的淺藍填色，可是那個顏色在本產品的意思是「按下去會寫剪貼簿」
+   （`#copy-date`、`.ccr-copy`、`.lipid-copy`），而這顆只是開一個浮層。
+   更糟的是同一排的 `#chronic-btn`、`#lipid-btn` 語意完全相同卻是透明的——
+   同類三顆兩種樣式。規則整段刪掉之後，它與 `#lipid-btn` 是逐字同一組 class
+   （`btn btn-secondary`），不需要也不可以再補任何「幾乎一樣」的覆寫。 */
 
 .ccr-overlay {
   position: fixed; inset: 0; z-index: 30;
@@ -1532,25 +1549,63 @@ details.lipid-drug-more[open] > .lipid-drug-toggle::before { content: '▾'; }
   border-bottom: 1px solid var(--color-divider); position: relative; flex: none;
 }
 .app-brand { font-family: var(--font-heading); font-weight: 600; font-size: 18px; letter-spacing: .02em; white-space: nowrap; }
-/* 看診模式三鈕直接排在 header 這一列（1440 空間充足，用全名）；高度與搜尋框、
-   設定鈕齊平的 40px，未選中的底色沿用 accent-100，一眼就看得出這是一組控制項。 */
-#layout-wide .mode-btn {
-  font-size: 13px; letter-spacing: .08em; padding: 0 13px; min-height: 40px; white-space: nowrap;
+
+/* ── header 這一列的尺寸：全部 32px 高、13px 字（2026-09-17，UX 稽核 V3） ──
+   改之前這一列有四種高度（日期 32／模式鈕 40／三顆工具鈕 28／搜尋框、置頂、設定 40）
+   與三種字級（14／13／12／16），醫師要先解讀這排才知道哪些是工具、哪些是設定。
+   而且大小跟頻率相反：最常用的臨床查詢「健保規範條文」是全列最小的一顆（28／12），
+   一次看診只會按一次的「側掛置頂」最大（40）。
+
+   統一成同一個尺寸之後，層級改用**顏色**表達（V1）：淺藍＝按下去會寫剪貼簿，
+   其餘一律次要樣式。尺寸不再攜帶任何語意，所以不需要再為誰破例。
+
+   32 是往下收不是往上加：header 因此 63 → 55px（量測寫在 docs/dense-ui-principle.md），
+   密度原則的方向沒有被這次視覺整理反轉。搜尋框 16 → 13px 只在 1a 成立——
+   1b 的 16px 是「行動瀏覽器聚焦時不自動放大」的硬性下限，那條不准動。 */
+#layout-wide #copy-date,
+#layout-wide .mode-btn,
+#layout-wide #chronic-btn,
+#layout-wide #lipid-btn,
+#layout-wide #ccr-btn,
+#layout-wide #search,
+#layout-wide #go-dock,
+#layout-wide #settings-toggle {
+  min-height: 32px; font-size: 13px;
 }
+/* 看診模式三鈕直接排在 header 這一列（1440 空間充足，用全名）；
+   未選中的底色沿用 accent-100，一眼就看得出這是一組控制項。 */
+#layout-wide .mode-btn {
+  letter-spacing: .08em; padding: 0 13px; white-space: nowrap;
+}
+/* `.seg-row` 的 1px 外框讓這一組比鄰居高 2px（34 vs 32）——那是它「是一組」的身分標記，
+   不是尺寸層級，所以留著並置中對齊。header 的總高由它決定。 */
+#layout-wide .mode-switch { align-self: center; }
 /* 底色、選中態與格間分隔線在 app.css（三版面共用）。
    `:not(.is-on)` 不可省：ID 選擇器的權重高於 `.mode-btn.is-on`，少了它「滑過已選中的
    模式鈕」會把選中底色（--sel-bg）掉回一般 hover 底。setPressed() 一律同時寫
    aria-pressed 與 .is-on，所以判 .is-on 就夠。 */
 #layout-wide .mode-btn:not(.is-on):hover { background: var(--color-accent-200); }
-#layout-wide #search { flex: 1; min-width: 0; min-height: 40px; font-size: 16px; background: transparent; }
-#layout-wide #settings-toggle { min-height: 40px; font-size: 13px; letter-spacing: .05em; white-space: nowrap; }
-/* 「側掛置頂」與「設定」是 header 右側的同一組控制，同高同字級。 */
-#layout-wide #go-dock { min-height: 40px; font-size: 13px; letter-spacing: .05em; white-space: nowrap; }
+/* line-height 1.2 不是裝飾：body 是給內文的 1.55，套在單行不換行的搜尋框上時
+   13px × 1.55 ＋ 內距 12 ＋ 外框 2 ＝ 34.2px，會**壓過** min-height 把這一格撐高 2px，
+   於是「全列同高」只差在它一個（密度原則手法 #3 講的正是這件事）。收到 1.2 之後
+   自然高度 29.6px，min-height 32 才真的說了算。 */
+#layout-wide #search { flex: 1; min-width: 0; background: transparent; line-height: 1.2; }
+#layout-wide #settings-toggle { letter-spacing: .05em; white-space: nowrap; }
+/* 「側掛置頂」與「設定」是 header 右側的同一組控制，同高同字級、同一組 class
+   （`btn btn-secondary`）。稽核 V3 說它「換版面反而最大」指的正是尺寸——40px 的它
+   旁邊站著 28px 的健保規範條文。收到 32px 之後兩顆逐字同款，沒有其他差異要拉平。 */
+#layout-wide #go-dock { letter-spacing: .05em; white-space: nowrap; }
 /* header 是 nowrap，搜尋框（flex:1／min-width:0）是唯一會伸縮的元素——所以這顆鈕的
    文字是直接跟搜尋框借的寬度，不會造成水平溢出，但會把搜尋框壓掉。
-   實測搜尋框寬度：1920→1119、1440→639、1100→299、900→99px（900 是 wide 的下限，
-   也是 test_no_horizontal_overflow 在測的寬度）。「側掛置頂」四個字約 90px，
-   在 900px 會把搜尋框壓到幾乎為 0。所以 ≤1239px 只留 icon，名稱走 aria-label／title
+   實測搜尋框寬度（2026-09-17 header 統一 32px／13px 前後各量一次，同一份 dist、
+   舊尺寸用注入樣式還原）：1920 1118→1110、1440 638→630、1100 358→351、
+   900 158→151px（900 是 wide 的下限，也是 test_no_horizontal_overflow 在測的寬度）。
+   每個寬度都少 8px：高度收掉的那 8px 不會變成寬度，反而是三顆工具鈕字級 12→13
+   之後各寬了幾 px，全部從搜尋框身上扣。**這筆帳是刻意付的**——那三顆是最常用的
+   臨床查詢，8px 的搜尋框換它們不再是全列最小（UX 稽核 V3）。
+   （此處原本寫的是 1100→299、900→99px，與實測不符，已重量更正。）
+   「側掛置頂」四個字約 90px，在 900px 仍會把搜尋框壓到只剩一百出頭，
+   所以 ≤1239px 只留 icon，名稱走 aria-label／title
    ——與 1c 置頂鈕在 ≤239px 的作法是同一套，不另外發明第二種收縮方式。 */
 @media (max-width: 1239px) {
   #layout-wide #go-dock .layout-toggle-label { display: none; }
@@ -1759,12 +1814,16 @@ body[data-layout="wide"] .panel-toggle[aria-expanded="true"] .marker { transform
 /* ── 健保規範條文／血脂計算機／CCr ──
    三顆鈕常駐在 header 那一列。1a 是三套版面裡唯一這樣做的：1440 下搜尋框是 flex:1，
    讓出約 200px 之後仍有八百多，密度預算在這個寬度不是稀缺資源（1c／1b 的帳完全不同，
-   見那兩個檔）。高度刻意做成 28px 而不是跟模式鈕一樣的 40px——它們是偶爾查閱／偶爾試算的
-   次要控制項，小一點才不會被誤認成第四種看診模式。三顆同高，那一列才不會高低參差。 */
+   見那兩個檔）。
+
+   高度原本刻意做成 28px（想讓它們不被誤認成第四種看診模式），2026-09-17 收掉：
+   實測的結果是最常用的臨床查詢變成全列最小的一顆（UX 稽核 V3）。尺寸交給上面的
+   header 統一規則（32／13），這裡只留水平內距——與模式鈕的分辨靠外框與底色。
+   內距仍與那條規則分開寫，因為它是**這一組**的疏密，不是全列共用的尺寸。 */
 #layout-wide .chronic-switch { gap: 5px; flex-wrap: nowrap; }
-#layout-wide .chronic-btn { min-height: 28px; padding: 0 10px; font-size: 12px; }
+#layout-wide .chronic-btn,
 #layout-wide .chronic-switch .lipid-btn,
-#layout-wide .chronic-switch #ccr-btn { min-height: 28px; padding: 0 10px; font-size: 12px; }
+#layout-wide .chronic-switch #ccr-btn { padding: 0 10px; }
 
 
 /* ===== styles/dock.css ===== */
@@ -2038,8 +2097,16 @@ body[data-layout="dock"] .dock-cart-kicker {
   color: var(--his-dim); white-space: nowrap;
 }
 body[data-layout="dock"] #cart-count { color: var(--his-ink); font-weight: 600; }
+/* 13 → 12px（2026-09-17，UX 稽核 V5）：這串摘要原本是整個側掛窄欄裡最大的字，
+   比真正要點的診斷碼（面板 11px、清單 12px）還大——層級與重要性相反。
+   它是「已經選好的東西」的回顧，不是操作目標。
+
+   這一列的高度**不是**由「清空」的 26px 決定的（原本的註解寫錯，實測更正）：
+   13px 的摘要加上 #cart-toggle 的 6px 內距是 26.1px，比「清空」高 0.1px，所以它才是
+   決定者。降到 12px 之後換「清空」說了算，`.dock-cart-head` 35.1 → 35.0px。
+   變矮 0.1px 不影響任何東西，但 test_e2e_navigation 的 BASELINE 是等式，要跟著改。 */
 body[data-layout="dock"] .dock-cart-codes {
-  flex: 1; min-width: 0; font-family: var(--font-heading); font-size: 13px; letter-spacing: .03em;
+  flex: 1; min-width: 0; font-family: var(--font-heading); font-size: 12px; letter-spacing: .03em;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 body[data-layout="dock"] #cart-toggle .marker {
@@ -2308,9 +2375,14 @@ body[data-layout="mobile"] .m-header {
   padding: 10px 14px; border-bottom: 1px solid var(--color-divider);
 }
 body[data-layout="mobile"] .m-head-row { display: flex; align-items: center; gap: 8px; }
-/* 「日期」＋模式三鈕同一列：日期鈕收成文字寬，剩下的寬度全歸三格等寬的模式鈕 */
+/* 模式列只放模式三鈕，三格等寬撐滿（2026-09-17，UX 稽核 V2）。
+   「日期」原本也在這一列，而且是填滿的淺藍，與深藍的「已選中」並排——看起來像第四個
+   模式，按下去卻是複製日期到剪貼簿。它現在在搜尋列，與「設定」同側。 */
 body[data-layout="mobile"] .m-mode-row { display: flex; align-items: stretch; gap: 8px; }
-body[data-layout="mobile"] #copy-date { flex: 0 0 auto; min-height: 44px; padding: 0 14px; font-size: 14px; }
+/* 「日期」在搜尋列（`.m-head-row`，align-items:center），所以高度就是自己的 44px；
+   它還在模式列時被 align-items:stretch 撐成 46px（跟著 .seg-row 的外框）。
+   44 是硬性下限，不准再往下調。淺藍保留：它確實會寫剪貼簿（顏色語意 V1）。 */
+body[data-layout="mobile"] #copy-date { flex: 0 0 auto; min-height: 44px; padding: 0 12px; font-size: 14px; }
 /* 模式三鈕：整列三格等寬（.seg-btn 的 min-height 在下面統一提到 44px） */
 body[data-layout="mobile"] .mode-switch { display: flex; flex: 1; min-width: 0; }
 /* 底色、選中態、格間分隔線由 app.css 的 .mode-btn 共用區塊提供（v5 收斂）；
@@ -2323,8 +2395,10 @@ body[data-layout="mobile"] #search {
   font-size: 16px;            /* <16px 會讓行動瀏覽器聚焦時自動放大整頁 */
   background: transparent;
 }
+/* 字級 13 → 14px（UX 稽核 V8）：同一列的日期鈕與模式鈕都是 14px，「設定」與
+   `.m-cart-label` 是全畫面僅有的兩個 13px 元素，而那 1px 的差沒有對應的層級差異。 */
 body[data-layout="mobile"] #settings-toggle {
-  flex: none; min-height: 44px; min-width: 44px; padding: 0 10px; font-size: 13px;
+  flex: none; min-height: 44px; min-width: 44px; padding: 0 10px; font-size: 14px;
 }
 /* 「返回」：44px 觸控門檻不打折（docs/dense-ui-principle.md §1）。它與「設定」同一列，
    寬度是跟 flex:1 的搜尋框借的——實測 390px 下搜尋框 214→158px，仍放得下
@@ -7978,7 +8052,11 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
        固定 chrome 的——密度預算在這個寬度下不是稀缺資源。1c／1b 的空間帳完全不同，
        見那兩個檔的註解。擺在模式三鈕之後、搜尋之前：控制項集中在左側，
        搜尋仍是那個會伸縮的元素。CCr 原本單獨排在「日期」右邊，現在跟著另一個計算機走。
-       視覺上刻意與模式鈕不同（小、外框、無底色），免得被當成第四種看診模式。 */
+
+       尺寸與這一列的其他控制項一律 32px／13px（2026-09-17，見 wide.css 的 header 區塊）：
+       原本刻意做小（28／12）是想讓它「不像第四種看診模式」，但實測的結果是**最常用的
+       臨床查詢變成全列最小的一顆**。分辨靠的是外框與底色，不是大小——模式鈕有實心
+       選中底色（--sel-bg），這三顆永遠是透明外框。 */
     refs.chronicSwitch = R.chronicSwitchEl(false);
     header.appendChild(refs.chronicSwitch);
 
@@ -9538,14 +9616,14 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
     const wrap = R.el('div');
     wrap.id = 'layout-mobile';
 
-    /* ── header：模式三鈕獨立一行 ＋ 搜尋（44px）＋設定鈕（44×44）（L349-368） ──
+    /* ── header：模式三鈕獨立一行 ＋（搜尋＋日期＋設定）一行（L349-368） ──
        390px 塞不下「三顆模式鈕＋搜尋＋設定」同一列（搜尋會被壓到剩幾十 px），所以
        模式列自己佔一行、三格等寬撐滿；觸控目標仍是 44px。互動與 1a／1c 完全一致
        （一次點擊即切換），差的只是配置——那是空間限制不是功能差異。 */
     const header = R.el('header', 'm-header');
     // 頁面唯一的 H1（sr-only）：手機版 header 沒有可見的品牌字，階層仍要有起點
     header.append(R.srHeading(1, 'ICD-10 門診導引'));
-    refs.dateBtn = R.dateBtnEl(false);       // 「日期」排在模式三鈕左邊（模式列自己一行）
+    refs.dateBtn = R.dateBtnEl(false);       // 「日期」在搜尋列（見下方 headRow）
     refs.modeSwitch = R.modeSwitchEl(false);
 
     const search = document.createElement('input');
@@ -9574,17 +9652,26 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
     const shelfBtn = pop.querySelector('#shelf-toggle');
     if (shelfBtn) shelfBtn.classList.add('is-desktop-only');
 
-    /* 「日期」與模式三鈕同一列：模式列本來就獨佔一行，左邊塞得下一顆小鈕。 */
+    /* 模式列**只放模式三鈕**（2026-09-17，UX 稽核 V2）。「日期」原本也在這一列，
+       在 DOM 與視覺上都屬於那個分段控制項，而且是填滿的淺藍，與深藍的「已選中」並排
+       ——390px 下看起來就是第四個模式，按下去卻是把今天的日期複製到剪貼簿。
+       兩種「看起來已選中」的樣式並排是誤讀的來源，不是密度問題，所以修法是搬家不是縮小。 */
     const modeRow = R.el('div', 'm-mode-row');
-    modeRow.append(refs.dateBtn, refs.modeSwitch);
+    modeRow.appendChild(refs.modeSwitch);
 
     /* 「返回」排在搜尋框右邊、與「設定」同一列（UX 稽核 U3）——**不多一列**：
        這一列本來就存在，搜尋框是 flex:1／min-width:0，多這一顆是跟它借寬度。
        只在搜尋結果狀態出現（update() 收尾處），所以平常一個像素都不佔。
-       行為與另兩套版面完全一致（interactions.js 的 `.search-back` 委派）。 */
+       行為與另兩套版面完全一致（interactions.js 的 `.search-back` 委派）。
+
+       「日期」接在「設定」左邊，與它同側：兩顆都不是選碼動線上的東西，而且這一列的
+       高度本來就是 44px，多一顆不多付任何高度（`.m-header` 前後同為 119px）。
+       寬度一樣是跟 flex:1 的搜尋框借——實測 390px 下搜尋框 306 → 240.9px，
+       搜尋狀態下再讓給「返回」剩 178.9px，兩種狀態都不折行、不水平溢出
+       （`tests/test_e2e_visual_semantics.py::test_mobile_search_row_keeps_its_hard_limits`）。 */
     refs.searchBack = R.searchBackEl();
     const headRow = R.el('div', 'm-head-row');
-    headRow.append(search, refs.searchBack, settingsToggle);
+    headRow.append(search, refs.searchBack, refs.dateBtn, settingsToggle);
     /* 可見通知列：貼在 header 下緣、覆蓋部位列最上緣而不推擠（三套版面同一個 #notice）。
        手機沒有 hover，這一列是「剛才那一下有沒有生效」的唯一線索。 */
     header.append(modeRow, headRow, pop, R.noticeEl());

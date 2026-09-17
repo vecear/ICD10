@@ -13,25 +13,63 @@
   border-bottom: 1px solid var(--color-divider); position: relative; flex: none;
 }
 .app-brand { font-family: var(--font-heading); font-weight: 600; font-size: 18px; letter-spacing: .02em; white-space: nowrap; }
-/* 看診模式三鈕直接排在 header 這一列（1440 空間充足，用全名）；高度與搜尋框、
-   設定鈕齊平的 40px，未選中的底色沿用 accent-100，一眼就看得出這是一組控制項。 */
-#layout-wide .mode-btn {
-  font-size: 13px; letter-spacing: .08em; padding: 0 13px; min-height: 40px; white-space: nowrap;
+
+/* ── header 這一列的尺寸：全部 32px 高、13px 字（2026-09-17，UX 稽核 V3） ──
+   改之前這一列有四種高度（日期 32／模式鈕 40／三顆工具鈕 28／搜尋框、置頂、設定 40）
+   與三種字級（14／13／12／16），醫師要先解讀這排才知道哪些是工具、哪些是設定。
+   而且大小跟頻率相反：最常用的臨床查詢「健保規範條文」是全列最小的一顆（28／12），
+   一次看診只會按一次的「側掛置頂」最大（40）。
+
+   統一成同一個尺寸之後，層級改用**顏色**表達（V1）：淺藍＝按下去會寫剪貼簿，
+   其餘一律次要樣式。尺寸不再攜帶任何語意，所以不需要再為誰破例。
+
+   32 是往下收不是往上加：header 因此 63 → 55px（量測寫在 docs/dense-ui-principle.md），
+   密度原則的方向沒有被這次視覺整理反轉。搜尋框 16 → 13px 只在 1a 成立——
+   1b 的 16px 是「行動瀏覽器聚焦時不自動放大」的硬性下限，那條不准動。 */
+#layout-wide #copy-date,
+#layout-wide .mode-btn,
+#layout-wide #chronic-btn,
+#layout-wide #lipid-btn,
+#layout-wide #ccr-btn,
+#layout-wide #search,
+#layout-wide #go-dock,
+#layout-wide #settings-toggle {
+  min-height: 32px; font-size: 13px;
 }
+/* 看診模式三鈕直接排在 header 這一列（1440 空間充足，用全名）；
+   未選中的底色沿用 accent-100，一眼就看得出這是一組控制項。 */
+#layout-wide .mode-btn {
+  letter-spacing: .08em; padding: 0 13px; white-space: nowrap;
+}
+/* `.seg-row` 的 1px 外框讓這一組比鄰居高 2px（34 vs 32）——那是它「是一組」的身分標記，
+   不是尺寸層級，所以留著並置中對齊。header 的總高由它決定。 */
+#layout-wide .mode-switch { align-self: center; }
 /* 底色、選中態與格間分隔線在 app.css（三版面共用）。
    `:not(.is-on)` 不可省：ID 選擇器的權重高於 `.mode-btn.is-on`，少了它「滑過已選中的
    模式鈕」會把選中底色（--sel-bg）掉回一般 hover 底。setPressed() 一律同時寫
    aria-pressed 與 .is-on，所以判 .is-on 就夠。 */
 #layout-wide .mode-btn:not(.is-on):hover { background: var(--color-accent-200); }
-#layout-wide #search { flex: 1; min-width: 0; min-height: 40px; font-size: 16px; background: transparent; }
-#layout-wide #settings-toggle { min-height: 40px; font-size: 13px; letter-spacing: .05em; white-space: nowrap; }
-/* 「側掛置頂」與「設定」是 header 右側的同一組控制，同高同字級。 */
-#layout-wide #go-dock { min-height: 40px; font-size: 13px; letter-spacing: .05em; white-space: nowrap; }
+/* line-height 1.2 不是裝飾：body 是給內文的 1.55，套在單行不換行的搜尋框上時
+   13px × 1.55 ＋ 內距 12 ＋ 外框 2 ＝ 34.2px，會**壓過** min-height 把這一格撐高 2px，
+   於是「全列同高」只差在它一個（密度原則手法 #3 講的正是這件事）。收到 1.2 之後
+   自然高度 29.6px，min-height 32 才真的說了算。 */
+#layout-wide #search { flex: 1; min-width: 0; background: transparent; line-height: 1.2; }
+#layout-wide #settings-toggle { letter-spacing: .05em; white-space: nowrap; }
+/* 「側掛置頂」與「設定」是 header 右側的同一組控制，同高同字級、同一組 class
+   （`btn btn-secondary`）。稽核 V3 說它「換版面反而最大」指的正是尺寸——40px 的它
+   旁邊站著 28px 的健保規範條文。收到 32px 之後兩顆逐字同款，沒有其他差異要拉平。 */
+#layout-wide #go-dock { letter-spacing: .05em; white-space: nowrap; }
 /* header 是 nowrap，搜尋框（flex:1／min-width:0）是唯一會伸縮的元素——所以這顆鈕的
    文字是直接跟搜尋框借的寬度，不會造成水平溢出，但會把搜尋框壓掉。
-   實測搜尋框寬度：1920→1119、1440→639、1100→299、900→99px（900 是 wide 的下限，
-   也是 test_no_horizontal_overflow 在測的寬度）。「側掛置頂」四個字約 90px，
-   在 900px 會把搜尋框壓到幾乎為 0。所以 ≤1239px 只留 icon，名稱走 aria-label／title
+   實測搜尋框寬度（2026-09-17 header 統一 32px／13px 前後各量一次，同一份 dist、
+   舊尺寸用注入樣式還原）：1920 1118→1110、1440 638→630、1100 358→351、
+   900 158→151px（900 是 wide 的下限，也是 test_no_horizontal_overflow 在測的寬度）。
+   每個寬度都少 8px：高度收掉的那 8px 不會變成寬度，反而是三顆工具鈕字級 12→13
+   之後各寬了幾 px，全部從搜尋框身上扣。**這筆帳是刻意付的**——那三顆是最常用的
+   臨床查詢，8px 的搜尋框換它們不再是全列最小（UX 稽核 V3）。
+   （此處原本寫的是 1100→299、900→99px，與實測不符，已重量更正。）
+   「側掛置頂」四個字約 90px，在 900px 仍會把搜尋框壓到只剩一百出頭，
+   所以 ≤1239px 只留 icon，名稱走 aria-label／title
    ——與 1c 置頂鈕在 ≤239px 的作法是同一套，不另外發明第二種收縮方式。 */
 @media (max-width: 1239px) {
   #layout-wide #go-dock .layout-toggle-label { display: none; }
@@ -240,9 +278,13 @@ body[data-layout="wide"] .panel-toggle[aria-expanded="true"] .marker { transform
 /* ── 健保規範條文／血脂計算機／CCr ──
    三顆鈕常駐在 header 那一列。1a 是三套版面裡唯一這樣做的：1440 下搜尋框是 flex:1，
    讓出約 200px 之後仍有八百多，密度預算在這個寬度不是稀缺資源（1c／1b 的帳完全不同，
-   見那兩個檔）。高度刻意做成 28px 而不是跟模式鈕一樣的 40px——它們是偶爾查閱／偶爾試算的
-   次要控制項，小一點才不會被誤認成第四種看診模式。三顆同高，那一列才不會高低參差。 */
+   見那兩個檔）。
+
+   高度原本刻意做成 28px（想讓它們不被誤認成第四種看診模式），2026-09-17 收掉：
+   實測的結果是最常用的臨床查詢變成全列最小的一顆（UX 稽核 V3）。尺寸交給上面的
+   header 統一規則（32／13），這裡只留水平內距——與模式鈕的分辨靠外框與底色。
+   內距仍與那條規則分開寫，因為它是**這一組**的疏密，不是全列共用的尺寸。 */
 #layout-wide .chronic-switch { gap: 5px; flex-wrap: nowrap; }
-#layout-wide .chronic-btn { min-height: 28px; padding: 0 10px; font-size: 12px; }
+#layout-wide .chronic-btn,
 #layout-wide .chronic-switch .lipid-btn,
-#layout-wide .chronic-switch #ccr-btn { min-height: 28px; padding: 0 10px; font-size: 12px; }
+#layout-wide .chronic-switch #ccr-btn { padding: 0 10px; }
