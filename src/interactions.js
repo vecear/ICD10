@@ -96,11 +96,13 @@
 
   /* 清單列上的代碼是可點擊複製的控制項（render-shared.js 給它 role="button" ＋ tabindex）。
      滑鼠點擊、鍵盤 Enter／Space、以及 1c 進 PiP 小視窗時的代打全部共用這一份實作。 */
-  function copyCartCode(node) {
+  function copyCartCode(node, ctx) {
     const li = node && node.closest ? node.closest('li[data-code]') : null;
     if (!li) return;
     const code = li.dataset.code;
-    copyText(code).then((ok) => { if (ok) announce('已複製 ' + code); });
+    const item = ctx.store.getState().cart.find(x => x.code === code) || { code, zh: '' };
+    const text = root.ICDClipboard.format('single', item, ctx.store.getState().clipboardFormats);
+    copyText(text).then((ok) => { if (ok) announce('已複製 ' + code); });
   }
 
   // ---- 加碼（三套版面 ＋ PiP 代打共用同一份實作） ----
@@ -281,7 +283,7 @@
   async function copyCcr(ctx, node) {
     const doc = ccrDoc(node);
     const r = ctx.logic.creatinineClearance(root.ICDRender.ccrInputs(doc));
-    const text = root.ICDRender.ccrResultText(r);
+    const text = root.ICDRender.ccrResultText(r, ctx.store.getState().clipboardFormats);
     if (!text) { announce('還沒有可複製的結果'); return; }
     if (await copyText(text)) announce('已複製：' + text);
   }
@@ -345,7 +347,7 @@
     const doc = lipidDoc(node);
     const input = root.ICDRender.lipidInputs(doc);
     const r = ctx.logic.lipidCoverage(input);
-    const text = root.ICDRender.lipidResultText(r, input);
+    const text = root.ICDRender.lipidResultText(r, input, ctx.store.getState().clipboardFormats);
     if (!text) { announce('還沒有可複製的結果'); return; }
     if (await copyText(text)) announce('已複製血脂給付試算結果');
   }
@@ -368,6 +370,19 @@
       return;
     }
     addCode(ctx, code, chipLabel(ctx, chip, code));
+  }
+
+  function chooseCopyFormat(ctx, format) {
+    const previous = ctx.store.getState();
+    const sameWithCustom = previous.format === format && !!previous.clipboardFormats.cart;
+    if (!ctx.store.setFormat(format)) return;
+    // 切回同一個舊格式時，format 值沒變；仍需把已停用的自訂內容從剪貼簿更新。
+    if (sameWithCustom) {
+      const text = root.ICDRender.hisText(ctx);
+      if (text) copyText(text, true).then(ok => {
+        if (!ok) announce('自動複製失敗，請點清單裡的代碼逐一複製');
+      });
+    }
   }
 
   function wire(ctx) {
@@ -404,7 +419,7 @@
     /* 「日期」鈕：HIS 就診日期欄位吃民國格式。這是使用者主動按的，失敗要跳手動複製
        視窗（不像自動同步那樣靜默），否則他會以為複製成功而貼到舊內容。 */
     async function copyDate() {
-      const text = ctx.logic.rocDate();
+      const text = root.ICDClipboard.format('date', new Date(), ctx.store.getState().clipboardFormats);
       if (await copyText(text)) announce('已複製日期 ' + text);
     }
 
@@ -474,7 +489,7 @@
       if (quickToggle) { store.toggleQuick(quickToggle.dataset.quickToggle); return; }
 
       const cartCode = target.closest('b.cart-code');
-      if (cartCode) { copyCartCode(cartCode); return; }
+      if (cartCode) { copyCartCode(cartCode, ctx); return; }
       const primary = target.closest('.cart-primary');
       if (primary) {
         const code = primary.closest('li').dataset.code;
@@ -506,7 +521,7 @@
       const seg = target.closest('.seg-btn');
       if (seg) {
         if (seg.dataset.mode) store.setMode(seg.dataset.mode);
-        else if (seg.dataset.format) store.setFormat(seg.dataset.format);
+        else if (seg.dataset.format) chooseCopyFormat(ctx, seg.dataset.format);
         return;
       }
 
@@ -586,7 +601,7 @@
       const codeBtn = ev.target && ev.target.closest ? ev.target.closest('b.cart-code') : null;
       if (codeBtn && (ev.key === 'Enter' || ev.key === ' ' || ev.key === 'Spacebar')) {
         ev.preventDefault();
-        copyCartCode(codeBtn);
+        copyCartCode(codeBtn, ctx);
         return;
       }
       if (ev.key === 'Escape') {
@@ -676,7 +691,7 @@
   }
 
   root.ICDInteractions = {
-    wire, copyText, openFallbackCopy, closeFallbackCopy, isFallbackOpen, announce,
+    wire, chooseCopyFormat, copyText, openFallbackCopy, closeFallbackCopy, isFallbackOpen, announce,
     activateChip, copyCartCode, setFeedbackDocument,
     // 1c 置頂時 main document 的委派搆不到側欄，render-dock.js 要用同一份實作代打
     chooseMode, chooseAllRegions, resetPanes, chooseChronic, closeChronic,

@@ -31,6 +31,8 @@
     favs: ['cartSheet'],
     recent: [],
     format: ['his', 'settings'],
+    clipboardFormats: ['his', 'settings'],
+    clipboardWarning: ['settings'],
     copied: ['his'],
     theme: ['settings'],
     layout: ['settings'],

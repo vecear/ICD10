@@ -320,14 +320,14 @@
   /* 預覽文字必須與剪貼簿內容同源：兩邊都呼叫 logic.formatCart，看到的＝貼出去的。 */
   function hisText(ctx) {
     const s = ctx.store.getState();
-    return ctx.logic.formatCart(s.cart, s.format);
+    return root.ICDClipboard.format('cart', s.cart, s.clipboardFormats, s.format);
   }
 
   function renderHis(pre, formatLabel, copyBtn, ctx) {
     const s = ctx.store.getState();
     const text = hisText(ctx);
     pre.textContent = text || '（清單為空）';
-    if (formatLabel) formatLabel.textContent = FORMAT_LABEL[s.format] || FORMAT_LABEL.lines;
+    if (formatLabel) formatLabel.textContent = s.clipboardFormats.cart ? '自訂格式' : (FORMAT_LABEL[s.format] || FORMAT_LABEL.lines);
     if (copyBtn) {
       copyBtn.textContent = s.copied ? '已複製 ✓ 可貼入 HIS' : '複製並貼入 HIS';
       blueprint(copyBtn);
@@ -520,9 +520,10 @@
   }
 
   function syncSettings(root2, ctx) {
+    root.ICDClipboardUI.mount(root2.querySelector('#settings-popover'), ctx);
     const s = ctx.store.getState();
     setPressed(root2.querySelector('#seg-mode'), 'data-mode', s.mode);
-    setPressed(root2.querySelector('#seg-format'), 'data-format', s.format);
+    setPressed(root2.querySelector('#seg-format'), 'data-format', s.clipboardFormats.cart ? 'custom' : s.format);
     const theme = root2.querySelector('#theme-toggle');
     if (theme) theme.textContent = s.theme === 'dark' ? '日間模式' : '夜間模式';
     const shelf = root2.querySelector('#shelf-toggle');
@@ -608,7 +609,7 @@
     const b = el('button', 'btn btn-secondary date-btn' + (compact ? ' seg-btn--sm' : ''), '日期');
     b.type = 'button';
     b.id = 'copy-date';
-    b.title = '複製今天的日期（民國格式，例 115-08-13）到剪貼簿';
+    b.title = '複製今天的日期；可在設定調整輸出格式';
     return b;
   }
 
@@ -1378,9 +1379,16 @@
     };
   }
 
-  function ccrResultText(r) {
+  function ccrClipboardData(r) {
+    return { CCr: r.crcl, 單位: 'mL/min', 體重依據: CCR_BASIS_LABEL[r.basis], 所用體重: r.weightUsed,
+      BSA: Number.isFinite(r.bsaRaw) ? r.bsaRaw.toFixed(2) : '',
+      校正CCr: Number.isFinite(r.crclIndexedRaw) ? r.crclIndexedRaw.toFixed(1) : '',
+      實際CCr: r.actual, 理想CCr: r.ideal, 調整CCr: r.adjusted };
+  }
+
+  function ccrResultText(r, preferences) {
     if (!r || !r.ok) return '';
-    return 'CCr ' + r.crcl + ' mL/min（' + CCR_BASIS_LABEL[r.basis] + ' ' + r.weightUsed + ' kg）';
+    return root.ICDClipboard.format('ccr', ccrClipboardData(r), preferences);
   }
 
   function ccrAltRow(key, kg, value, activeKey) {
@@ -1996,17 +2004,18 @@
       : got.map((g) => g.name + ' ' + g.value).join('、');
     rows.push(lipidRow('門檻', gate
       + (got.length ? ' → 本例 ' + shown + ' mg/dL' : '')
-      + '，' + (info.meets === true ? '已達' : '未達')));
+      + '，' + (info.meets === null ? '待判定' : info.meets ? '已達' : '未達')));
     if (info.target) {
       rows.push(lipidRow('目標', 'LDL-C < ' + info.target
         + (info.targetTc ? ' 或 TC < ' + info.targetTc : '')));
       if (info.nonHdlTarget) rows.push(lipidRow('次要目標', 'non-HDL-C < ' + info.nonHdlTarget));
     }
+    rows.push(lipidRow('結論', lipidVerdictText(info)));
     for (const p of info.proof || []) rows.push(lipidRow('檢附', p));
     return rows;
   }
 
-  function lipidResultText(r, input) {
+  function lipidDefaultResultText(r, input) {
     if (!r || !r.ok) return '';
     const c = input || {};
     if (r.ldl === null && r.tc === null && !(r.fibrate && r.fibrate.ok)) return '';
@@ -2054,12 +2063,44 @@
     return out.join('\n');
   }
 
+  function lipidClipboardData(r, input) {
+    const data = { 完整結果: lipidDefaultResultText(r, input), 個案資料: lipidProfileLine(r, input || {}), 來源: LIPID_SOURCE_NOTE, sections: {} };
+    for (const [key, info, name, scope] of [
+      ['表一', r.one, LIPID_TABLE_ONE_NAME, ''], ['表二', r.two, LIPID_TABLE_TWO_NAME, LIPID_TWO_SCOPE],
+    ]) {
+      const rows = lipidChartRows(name, info, r, scope);
+      const section = { 完整段落: rows.join('\n'), 表名: name, 適用範圍: scope, 依據: (info.why || []).join('、') };
+      for (const line of rows.slice(1)) {
+        const parts = line.slice(1).split('　');
+        const label = parts.shift();
+        const value = parts.join('　');
+        section[label] = section[label] ? section[label] + '\n' + value : value;
+      }
+      data.sections[key] = section;
+    }
+    const f = r.fibrate;
+    if (f && f.ok) {
+      const section = { 表名: LIPID_TG_TABLE_NAME, 分級: f.route, 依據: (f.why || []).join('、'),
+        處方: lipidPrescriptionText(f, lipidFibrateParallelText(f)), 結論: lipidVerdictText(f),
+        目標: 'TG < ' + f.target, 條件: (f.needs || []).join('\n') };
+      // 沿用原始病歷的 Fibrate 段落，預設內容與實際複製相同。
+      const start = data.完整結果.indexOf('降三酸甘油酯藥物：');
+      section.完整段落 = data.完整結果.slice(start, data.完整結果.lastIndexOf('\n\n')).trim();
+      data.sections.Fibrate = section;
+    }
+    return data;
+  }
+
+  function lipidResultText(r, input, preferences) {
+    if (!r || !r.ok || (r.ldl === null && r.tc === null && !(r.fibrate && r.fibrate.ok))) return '';
+    return root.ICDClipboard.format('lipid', lipidClipboardData(r, input), preferences);
+  }
+
   /* 血脂給付試算的入口鈕。排在「健保規範條文」右邊、「CCr」左邊——兩個計算機都是
      「輸入數值換一個判斷」的工具，放在一起使用者只要記一個位置。
-     標籤寫全名「血脂計算機」：與同排的「健保規範條文」只差一個字時（舊標籤是「血脂」），
-     很容易被當成「血脂的條文」而不是計算機。1c 窄欄用 seg-btn--sm 與鄰居同尺寸。 */
+     標籤依使用者指定為 Lipid。窄欄用 seg-btn--sm 與鄰居同尺寸。 */
   function lipidButtonEl(compact) {
-    const b = el('button', 'btn btn-secondary lipid-btn' + (compact ? ' seg-btn--sm' : ''), '血脂計算機');
+    const b = el('button', 'btn btn-secondary lipid-btn' + (compact ? ' seg-btn--sm' : ''), 'Lipid');
     b.type = 'button';
     b.id = 'lipid-btn';
     b.setAttribute('aria-haspopup', 'dialog');
@@ -2112,9 +2153,9 @@
     layoutToggleEl,
     modeSwitchEl, syncModeSwitch,
     chronicSwitchEl, chronicTabsEl, syncChronicSwitch, chronicOverlayEl, renderChronic,
-    ccrButtonEl, ccrOverlayEl, renderCcrResult, syncCcr, ccrResultText, ccrInputs,
+    ccrButtonEl, ccrOverlayEl, renderCcrResult, syncCcr, ccrResultText, ccrClipboardData, ccrInputs,
     expandAllButtonEl,
-    lipidButtonEl, lipidOverlayEl, renderLipidResult, syncLipid, lipidResultText, lipidInputs,
+    lipidButtonEl, lipidOverlayEl, renderLipidResult, syncLipid, lipidResultText, lipidClipboardData, lipidInputs,
     syncLipidSexRows,
     chronicToday, chronicTopics, chronicDocsEl, chronicDocHref,
     chronicTableTwo, chronicTableTwoEl, chronicTableTwoNames,

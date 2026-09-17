@@ -2,16 +2,16 @@
    三套版面（桌機工作台／側掛窄欄／手機）共用同一份狀態：渲染層只做「讀狀態、畫畫面、送動作」，
    所有不變量（切模式清空相關碼、清單去重、主診斷在 index 0…）都必須寫在這裡，不得散落在渲染層。 */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory();
-  else root.ICDState = factory();
-})(typeof self !== 'undefined' ? self : this, function () {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./clipboard-format.js'));
+  else root.ICDState = factory(root.ICDClipboard);
+})(typeof self !== 'undefined' ? self : this, function (Clipboard) {
   'use strict';
 
   const STORAGE_PREFIX = 'icd10.';
   const RECENT_LIMIT = 8;                 // 設計交付物 L512
   const FAVS_LIMIT = 40;                  // 常用列放得下的上限；避免壞掉的寫入無限膨脹 localStorage
-  // 只有這六個欄位跨診次保留。cart 絕不持久化：跨診次殘留＝臨床事故（impl-plan R-9）。
-  const PERSISTED_KEYS = ['favs', 'theme', 'layout', 'format', 'recent', 'paneSizes'];
+  // 只有下列欄位跨診次保留。cart 絕不持久化：跨診次殘留＝臨床事故（impl-plan R-9）。
+  const PERSISTED_KEYS = ['favs', 'theme', 'layout', 'format', 'recent', 'paneSizes', 'clipboardFormats'];
 
   const MODES = ['outpatient', 'emergency', 'surg'];
   const FORMATS = ['lines', 'comma', 'names'];
@@ -107,6 +107,8 @@
       query: '',
       expanded: {},              // { 面板名: true } 常見疾病展開
       quickOpen: {},             // { 快選分組標題: true }
+      clipboardFormats: {},      // 只存輸出範本，不存個案資料
+      clipboardWarning: '',       // 設定損壞或無法持久保存的提示
       format: 'lines',           // lines | comma | names（持久化）
       cart: [],                  // [{code, zh}]，順序即優先序，index 0 為主診斷；不持久化
       recent: [],                // 最近使用代碼，最新在前，上限 RECENT_LIMIT（持久化）
@@ -198,6 +200,16 @@
     if (recent) patch.recent = recent;
     const paneSizes = sanitizePaneSizes(readJson(storage, 'paneSizes'));
     if (paneSizes) patch.paneSizes = paneSizes;
+    const rawClipboard = storage.get(STORAGE_PREFIX + 'clipboardFormats');
+    if (rawClipboard !== null) {
+      try {
+        const normalized = Clipboard.normalize(JSON.parse(rawClipboard));
+        patch.clipboardFormats = normalized.value;
+        if (normalized.invalid) patch.clipboardWarning = '部分剪貼簿設定無效，已改用預設格式，請重新檢查並儲存。';
+      } catch (e) {
+        patch.clipboardWarning = '剪貼簿設定無法讀取，已改用預設格式，請重新儲存。';
+      }
+    }
     return patch;
   }
 
@@ -369,9 +381,27 @@
 
     const toggleTheme = () => { setState({ theme: state.theme === 'dark' ? 'light' : 'dark' }); return state.theme; };
 
+    function setClipboardFormat(kind, config) {
+      if (Clipboard.validate(kind, config).length) return false;
+      const clean = Clipboard.normalize({ [kind]: config }).value[kind];
+      setState({ clipboardFormats: Object.assign({}, state.clipboardFormats, { [kind]: clean }) });
+      setState({ clipboardWarning: storage.available ? '' : '目前瀏覽器無法保存設定，這次開啟期間仍可使用。' });
+      return true;
+    }
+
+    function resetClipboardFormat(kind) {
+      if (!Object.prototype.hasOwnProperty.call(Clipboard.defs, kind)) return false;
+      const next = Object.assign({}, state.clipboardFormats);
+      delete next[kind];
+      setState({ clipboardFormats: next, clipboardWarning: '' });
+      return true;
+    }
+
     function setFormat(format) {
       if (FORMATS.indexOf(format) < 0) return false;
-      setState({ format, copied: false });
+      const next = Object.assign({}, state.clipboardFormats);
+      delete next.cart;
+      setState({ format, clipboardFormats: next, copied: false });
       return true;
     }
 
@@ -532,6 +562,7 @@
       storage,                    // 讓渲染層／測試能問 storage.available
       addCode, removeCode, clearCart, setPrimary, reorder,
       setMode, setRegion, toggleRegion, setLayout, setTheme, toggleTheme, setFormat,
+      setClipboardFormat, resetClipboardFormat,
       setPaneSize, resetPaneSizes, paneSizeFor, hasPaneSizes,
       toggleFav, isFav,
       toggleExpanded, setExpandedAll, toggleQuick, isExpanded, isQuickOpen,

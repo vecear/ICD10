@@ -108,6 +108,8 @@
     favs: [],
     recent: [],
     format: ['his', 'settings'],
+    clipboardFormats: ['his', 'settings'],
+    clipboardWarning: ['settings'],
     copied: ['his'],
     theme: ['settings', 'pip'],
     layout: ['settings'],
@@ -548,7 +550,7 @@
     /* 置頂進 PiP 小視窗後，主文件的委派搆不到那棵 DOM，這裡代打。
        規則與 interactions.js 同源，只是那邊的 copyText 要用在這個文件上。 */
     function copyDate() {
-      const text = ctx.logic.rocDate();
+      const text = root.ICDClipboard.format('date', new Date(), ctx.store.getState().clipboardFormats);
       root.ICDInteractions.copyText(text).then((ok) => {
         if (ok) announce('已複製日期 ' + text);
       });
@@ -622,7 +624,7 @@
       }
 
       const cartCode = target.closest('b.cart-code');
-      if (cartCode) { root.ICDInteractions.copyCartCode(cartCode); return; }
+      if (cartCode) { root.ICDInteractions.copyCartCode(cartCode, ctx); return; }
       const primary = target.closest('.cart-primary');
       if (primary) {
         const code = primary.closest('li').dataset.code;
@@ -652,7 +654,7 @@
       const seg = target.closest('.seg-btn');
       if (seg) {
         if (seg.dataset.mode) store.setMode(seg.dataset.mode);
-        else if (seg.dataset.format) store.setFormat(seg.dataset.format);
+        else if (seg.dataset.format) root.ICDInteractions.chooseCopyFormat(ctx, seg.dataset.format);
         return;
       }
       const btn = target.closest('button');
@@ -726,7 +728,7 @@
       const codeBtn = ev.target && ev.target.closest ? ev.target.closest('b.cart-code') : null;
       if (codeBtn && (ev.key === 'Enter' || ev.key === ' ' || ev.key === 'Spacebar')) {
         ev.preventDefault();
-        root.ICDInteractions.copyCartCode(codeBtn);
+        root.ICDInteractions.copyCartCode(codeBtn, ctx);
         return;
       }
       if (!ev.target || ev.target.id !== 'search') return;

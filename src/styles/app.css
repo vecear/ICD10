@@ -339,6 +339,25 @@ b.cart-code {
   display: flex; flex-direction: column; gap: 12px;
 }
 .settings-section > .kicker { display: block; margin-bottom: 5px; }
+.settings-general { display: flex; flex-direction: column; gap: 10px; }
+#settings-popover.is-clipboard { max-height: 78vh; overflow-y: auto; overflow-x: hidden; }
+#layout-wide #settings-popover.is-clipboard { width: min(560px, calc(100vw - 32px)); }
+.clipboard-editor { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.clipboard-editor p { margin: 0; font-size: 12px; overflow-wrap: anywhere; }
+.clipboard-editor label { display: flex; flex-direction: column; gap: 3px; min-width: 0; font-size: 12px; }
+.clipboard-editor select, .clipboard-editor textarea {
+  width: 100%; min-width: 0; box-sizing: border-box; border: 1px solid var(--line-strong);
+  background: var(--color-bg); color: var(--color-text); padding: 5px; font: inherit;
+}
+.clipboard-editor textarea { resize: vertical; font-size: 13px; }
+.clipboard-fields { display: flex; flex-direction: column; gap: 5px; }
+.clipboard-tokens { display: flex; flex-wrap: wrap; gap: 3px; }
+.clipboard-tokens .btn { padding: 2px 5px; min-height: 24px; font-size: 11px; white-space: normal; }
+#clipboard-preview { margin: 0; padding: 7px; border: 1px solid var(--color-divider); white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; max-height: 220px; overflow-y: auto; }
+#clipboard-error, #clipboard-warning { white-space: pre-line; color: var(--warn-ink); }
+body[data-layout="mobile"] .clipboard-editor button,
+body[data-layout="mobile"] .clipboard-editor select { min-height: 44px; }
+body[data-layout="mobile"] .clipboard-editor textarea { font-size: 16px; }
 .settings-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .settings-note { font-size: 12px; color: var(--color-neutral-700); border-top: 1px solid var(--color-divider); padding-top: 8px; }
 /* 全庫載入失敗時才出現（syncSettings 控制 hidden）；沒有它使用者只能重開整個檔案 */
