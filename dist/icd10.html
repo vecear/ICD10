@@ -468,6 +468,44 @@ body {
   overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0;
 }
 
+/* ── 可見通知列（#notice；三套版面共用，各自掛在自己 header 的下緣） ──────────
+   為什麼存在：`#status` 是 sr-only，只有螢幕閱讀器聽得到——UX 實測（2026-09-16）點一個
+   已在清單的碼，三套版面前後截圖的 md5 完全相同（稽核 U1）。行為（逾時、sticky、復原）
+   在 interactions.js 的 announce()，節點在 render-shared.js 的 noticeEl()。
+
+   `position:absolute; top:100%`：包含塊是各版面 position:relative 的 header
+   （.app-header／.dock-head／.m-header 三個本來都是），所以它貼著 header 下緣浮在內容
+   上面、**不佔任何版面高度**——提示出現時醫師正要點的那個碼不會移位。同一招已經用在
+   三套版面的 #settings-popover（寫死 top 會失準的教訓見 wide.css 那段註解）。
+
+   `pointer-events:none` 是硬性要求不是微調：這一列正好蓋在第一批診斷碼上面，
+   讓它攔下點擊等於用回饋換掉主要動線。只有「復原」鈕自己把 pointer-events 收回來。
+
+   z-index 3（取既有的值集合）：高於捲動區裡 sticky 的分段標題（1），低於設定 popover
+   （20）與浮層（30／40）——popover 從同一個 header 下緣展開，該是它蓋住提示。 */
+#notice {
+  position: absolute; top: 100%; left: 0; right: 0; z-index: 3;
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  padding: 4px 10px; pointer-events: none;
+  background: var(--color-accent-100); color: var(--color-accent-800);
+  border-bottom: 1px solid var(--color-accent);
+  font-size: 12px; line-height: 1.35;
+}
+.notice-text { flex: 1 1 auto; min-width: 0; }
+/* 失敗／未解決的那一則（announce 的 `{ sticky: true }`，不自動收掉）改用警示配色：
+   它講的是使用者下一步該做什麼，不該和「已加入」長得一模一樣。 */
+#notice[data-kind="stay"] {
+  background: var(--warn-bg); color: var(--warn-ink); border-bottom-color: var(--warn-line);
+}
+/* 「復原」是這一列唯一可按的東西。字級不低於 11px（密度原則硬性邊界 #2）；
+   高度 20px 是側掛窄欄的下限，手機另外套 44px（見 mobile.css）。 */
+.notice-undo {
+  flex: none; pointer-events: auto; cursor: pointer;
+  min-height: 20px; padding: 1px 8px; font: inherit; font-size: 12px;
+  border: 1px solid currentColor; background: transparent; color: inherit;
+}
+.notice-undo:hover { background: var(--color-bg); }
+
 /* 小標籤（設計稿 L58 等的 kicker 樣式） */
 .kicker {
   font-family: var(--font-heading); font-size: 11px; letter-spacing: .12em;
@@ -527,6 +565,15 @@ body {
   border-bottom: 1px solid var(--chip-line); text-align: left;
 }
 .chip-row { display: flex; gap: 4px; flex-wrap: wrap; }
+
+/* 「已加入清單」勾號（三套版面共用）。原本只寫在 dock.css，所以工作台與手機完全看不出
+   哪些碼已經在清單裡，只能回頭數右欄（UX 稽核 U2）。
+   **一律只動 ::after，不碰 border／background**：紅旗的警示邊框、類目碼的虛線、
+   附加碼的 --chip-* 配色因此完全不受影響（硬性邊界 #3，也是 dock 已經驗證過的疊法）。
+   顏色跟著 --chip-code-ink 走，所以紅旗 chip 的勾號自然是警示色而不是一般藍。 */
+.chip[data-in-cart="true"]::after {
+  content: '✓'; flex: none; font-size: 11px; color: var(--chip-code-ink); font-weight: 700;
+}
 
 /* ── 臨床視覺分層（docs/dense-ui-principle.md 硬性邊界 #3）────────────────────
    這一段刻意排在所有 .chip--* 幾何規則**之後**：自訂屬性本來就不怕順序，這裡再加一道
@@ -598,8 +645,14 @@ body {
 
 /* ── 就診清單（沿用 ul#cart > li[data-code]） ── */
 #cart { list-style: none; margin: 0; padding: 0; }
+/* 清單列是兩行：第一行拖曳柄／序號／代碼／主★✕，第二行完整中文名（可折行、不截斷）。
+   中文名是貼進 HIS 前唯一的核對機會，而它原本在**最寬的版面反而最窄**——1440px 下只有
+   136px、三筆測試碼全部截斷，比 340px 窄欄的 327px 還少一半（UX 稽核 V4）。
+   1c 早就是兩行，這裡把它提成三套版面共用的預設，dock.css 只留自己的尺寸差異。
+   這是 2026-09-07「一項資訊一行，直接換行」的直接套用，不是為了留白。
+   DOM 順序不動（換序靠 #cart 的 li 索引），第二行用 order 達成。 */
 #cart li {
-  display: flex; align-items: center; gap: 8px; padding: 9px 4px;
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 9px 4px;
   border-bottom: 1px solid var(--color-divider); cursor: grab;
 }
 #cart li.is-dragging { opacity: .45; }
@@ -626,7 +679,15 @@ b.cart-code {
   color: var(--color-accent-700); min-width: 74px; cursor: pointer;
   font-variant-numeric: tabular-nums;      /* 清單各列代碼要成欄，理由同 .chip b */
 }
-.cart-zh { flex: 1; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cart-zh {
+  order: 5; flex: 0 0 100%; font-size: 14px;
+  white-space: normal; overflow: visible; text-overflow: clip;
+}
+/* 中文名移到第二行之後，第一行沒有東西吸收剩餘寬度了，主／★／✕ 會黏在代碼右邊。
+   用 margin 把那組鈕推到右緣，而不是給代碼 flex:1——代碼一伸長就得補 ellipsis，
+   等於把剛剛解決的截斷問題搬到代碼欄。1c 的代碼本來就是 flex:1，那邊沒有剩餘寬度，
+   這條 margin 自然是 0，不會打架。 */
+#cart li .cart-primary { margin-left: auto; }
 #cart li button {
   display: flex; align-items: center; border: 0; background: none; cursor: pointer;
   font: inherit; font-size: 12px; color: var(--color-neutral-700); padding: 2px 4px;
@@ -1753,6 +1814,11 @@ body[data-layout="dock"] .dock-pinned-away {
    的下緣，它是 position:relative 的包含塊）就跟著 header 高度自動走——header 少一列、
    或置頂提示出現讓 header 長高，都不必再回來改這個數字。1b 的 #settings-popover 早已
    是同一招（mobile.css 的 calc(100% - 4px)）。 */
+/* 通知列（幾何與行為在 app.css）：內距與字級收到 1c 的基準（5〜6px／11px，仍在
+   密度原則硬性邊界 #2 的 11px 下限上）。它是絕對定位、蓋在捲動區最上緣，
+   所以 176px 下折成兩三行也不會改變 .dock-scroll 的高度。 */
+body[data-layout="dock"] #notice { padding: 3px 6px; gap: 5px; font-size: 11px; }
+body[data-layout="dock"] .notice-undo { padding: 0 5px; font-size: 11px; }
 body[data-layout="dock"] #settings-popover { top: 100%; left: 6px; right: 6px; padding: 7px; gap: 6px; }
 body[data-layout="dock"] #settings-popover .kicker { font-size: 10px; letter-spacing: .1em; }
 body[data-layout="dock"] .settings-section > .kicker { margin-bottom: 3px; }
@@ -1812,10 +1878,9 @@ body[data-layout="dock"] .chip-row { flex-direction: column; flex-wrap: nowrap; 
 body[data-layout="dock"] .chip--dock { font-size: 11px; }
 body[data-layout="dock"] .chip--dock b { font-size: 12px; letter-spacing: .02em; }
 body[data-layout="dock"] .chip--dock span { flex: 1; min-width: 0; font-size: 11px; line-height: 1.25; }
-/* 勾號只標記已加入，不改紅旗底色、虛線類目或附加碼標記。 */
-body[data-layout="dock"] .chip--dock[data-in-cart="true"]::after {
-  content: '✓'; flex: none; font-size: 11px; color: var(--chip-code-ink); font-weight: 700;
-}
+/* 已加入勾號（只標記已加入，不改紅旗底色、虛線類目或附加碼標記）已搬到 app.css 的
+   `.chip[data-in-cart="true"]::after`，三套版面共用（UX 稽核 U2）。1c 沒有尺寸差異要補，
+   所以本檔不再有這條規則。 */
 /* hover 走 --chip-bg-hover／--chip-line-hover（app.css 的 chip 慣例），不寫死 accent：
    寫死 accent 的舊版本讓紅旗 chip 一 hover 就掉成一般藍底、警示配色在「準備點下去」
    那一刻消失（0,3,0 壓過 .chip--warn:hover 的 0,2,0）。 */
@@ -1895,10 +1960,11 @@ body[data-layout="dock"] #cart-toggle .marker {
 body[data-layout="dock"] #cart-toggle[aria-expanded="true"] .marker { transform: rotate(90deg); }
 body[data-layout="dock"] #cart-inline { max-height: 120px; overflow-y: auto; }
 
-/* 每筆兩行：第一行「徽章 + 代碼 + 主 + ✕」，第二行中文（一定要看得到，故 order 排到最後）。
-   .cart-grip／.cart-fav 在 176px 下擠不進第一行，且 1c 沒有常用列可放最愛，一併隱藏。 */
+/* 每筆兩行（第一行「徽章 + 代碼 + 主 + ✕」、第二行中文）已是 app.css 的三版面預設，
+   本檔只留 1c 自己的尺寸差異。.cart-grip／.cart-fav 在 176px 下擠不進第一行，
+   且 1c 沒有常用列可放最愛，一併隱藏。 */
 body[data-layout="dock"] #cart li {
-  flex-wrap: wrap; gap: 5px; padding: 4px 6px;
+  gap: 5px; padding: 4px 6px;
   border-bottom: 0; border-top: 1px solid var(--color-divider);
 }
 body[data-layout="dock"] #cart li .cart-grip,
@@ -1907,10 +1973,15 @@ body[data-layout="dock"] #cart b.cart-code {
   flex: 1; min-width: 0; font-size: 12px; letter-spacing: .02em;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+/* order／flex 由 app.css 給（三版面共用的第二行），這裡只補 1c 的縮排與字級：
+   23px 讓中文對齊上一行的代碼起點。 */
 body[data-layout="dock"] #cart .cart-zh {
-  order: 5; flex: 0 0 100%; padding-left: 23px; font-size: 11px; line-height: 1.3;
+  padding-left: 23px; font-size: 11px; line-height: 1.3;
 }
-body[data-layout="dock"] #cart li button { font-size: 10px; padding: 1px 3px; }
+/* 內距 1px 3px → 3px 4px：實測「主」只有 18×16px，低於 docs/dense-ui-principle.md §1
+   自訂的「側掛窄欄仍不宜低於 20px 高」（UX 稽核 V6）。字級不動（10px 是這一列的基準，
+   且這兩顆是 icon／單字鈕，不是內容文字），只把垂直內距補回門檻。 */
+body[data-layout="dock"] #cart li button { font-size: 10px; padding: 3px 4px; }
 /* 附加碼警示與標記在 176px 下要縮，否則會撐出水平捲動 */
 body[data-layout="dock"] #cart[data-primary-adjunct="true"]::before {
   font-size: 10px; line-height: 1.4; padding: 4px 5px; margin-bottom: 4px;
@@ -2170,6 +2241,13 @@ body[data-layout="mobile"] #settings-popover {
   top: calc(100% - 4px); left: 12px; right: 12px; padding: 12px;
   max-height: calc(100dvh - 190px); overflow-y: auto;
 }
+/* 通知列（幾何與行為在 app.css）：手機沒有 hover，這一列是「剛才那一下有沒有生效」的
+   唯一線索，所以字級給 13px 而不是共用的 12px。「復原」是真的要用手指按的控制項，
+   套 44px 硬性邊界（docs/dense-ui-principle.md §1，不打折）。
+   它是絕對定位的，這個高度蓋掉部位列一部分約 2.5 秒，不改變任何區塊的版面高度。 */
+body[data-layout="mobile"] #notice { padding: 6px 14px; font-size: 13px; }
+body[data-layout="mobile"] .notice-undo { min-height: 44px; padding: 0 14px; font-size: 14px; }
+
 /* 「桌機版面」與「常用列」在手機沒有對應 UI，由 render-mobile.js 標上類名後藏起來 */
 body[data-layout="mobile"] .is-desktop-only { display: none; }
 body[data-layout="mobile"] .seg-btn { min-height: 44px; }
@@ -2232,6 +2310,14 @@ body[data-layout="mobile"] .chip--row::after {
 body[data-layout="mobile"] .chip--row.chip--warn::after { color: var(--warn-ink); }
 /* 類目碼不可申報，不給「＋」暗示（設計稿的類目列仍留著＋，這裡刻意拿掉） */
 body[data-layout="mobile"] .chip--row.cat::after { content: none; }
+/* 已加入清單：同一個位置從「＋」（可以加）換成「✓」（已經加了）。
+   app.css 的共用勾號規則是 `.chip[data-in-cart="true"]::after`（0,2,0），贏不過上面那條
+   帶版面前綴的「＋」（0,2,0＋element 且在後），所以 1b 必須自己寫一條——1b 是三套版面裡
+   唯一把 ::after 拿去做別的用途的。字級與 line-height 照「＋」那組，換字不換幾何，
+   列高不跳動。顏色走 --chip-code-ink，紅旗列的勾號自然是警示色。 */
+body[data-layout="mobile"] .chip--row[data-in-cart="true"]::after {
+  content: "✓"; font-size: 16px; line-height: 1; font-weight: 700; color: var(--chip-code-ink);
+}
 
 /* 搜尋結果卡（L378-385） */
 body[data-layout="mobile"] #results-card { padding: 10px; }
@@ -3937,6 +4023,22 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
       setState({ cart: [], relatedCode: null, copied: false });
     }
 
+    /* 復原一次清單操作（移除單筆／清空）。快照由 interactions.js 在動作**之前**存進記憶體，
+       不持久化——cart 絕不跨診次保留（impl-plan R-9），所以復原也只在同一個 session 有效。
+
+       一律重建成新陣列再塞回去，不直接用呼叫者手上那個快照：setState 以 Object.is 判斷變更，
+       而快照本來就是某個舊 state 的那個陣列，原樣塞回去在「清空後立刻復原」這條路上
+       仍然是新的（clearCart 已換成 []），但在其他路徑上會靜默變成「什麼都沒發生」。
+       順手把欄位洗乾淨，外部傳進來的東西一律不信。 */
+    function restoreCart(items) {
+      if (!Array.isArray(items)) return false;
+      const cart = items
+        .filter((x) => x && typeof x.code === 'string' && x.code)
+        .map((x) => ({ code: x.code, zh: typeof x.zh === 'string' ? x.zh : '' }));
+      setState({ cart, copied: false });
+      return true;
+    }
+
     /* 設為主診斷：移到 index 0，其餘維持原相對順序。 */
     function setPrimary(code) {
       const item = state.cart.find((x) => x.code === code);
@@ -4186,7 +4288,7 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
     return {
       getState, setState, subscribe,
       storage,                    // 讓渲染層／測試能問 storage.available
-      addCode, removeCode, clearCart, setPrimary, reorder,
+      addCode, removeCode, clearCart, restoreCart, setPrimary, reorder,
       setMode, setRegion, toggleRegion, setLayout, setTheme, toggleTheme, setFormat,
       setClipboardFormat, resetClipboardFormat,
       setPaneSize, resetPaneSizes, paneSizeFor, hasPaneSizes,
@@ -5471,8 +5573,12 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
      **只改可見文字**——資料檔的分類名維持原樣，因為「顯示全部部位」時的分組標題、
      E2E 的 data-region 定位、臨床內容清單都靠它。全名一律留在 title。
      外科的九個是情境不是部位，同樣縮成兩字（滑鼠停留看得到全名）。 */
+  /* 「感染」給常見感染那一格，不給長期追蹤（UX 稽核 U5）：醫師臨時要編一個感染碼時
+     看的就是「感染」二字，而「感染科追蹤」是 HIV／結核／OPAT 的長期追蹤，「追蹤」才是
+     它的身分。原本的對應剛好顛倒，是這份清單裡唯一會讓人**選到錯的碼**的問題，
+     而且手機是觸控、title 永遠不會浮出來，等於無從辨識。全名一律留在 title。 */
   const REGION_SHORT = {
-    '全身／感染': '全身', 感染科追蹤: '感染',
+    '全身／感染': '感染', 感染科追蹤: '追蹤',
     '神經／精神': '神經', '神經／頭頸': '頭頸', 眼耳鼻喉: '頭頸',
     '胸肺／心臟': '心肺', '腹部／消化': '腹部', '泌尿／生殖': '泌尿',
     '皮膚／軟組織': '皮膚', 肌肉骨骼: '骨骼', '代謝／檢驗': '代謝',
@@ -5971,6 +6077,53 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
     b.id = 'copy-date';
     b.title = '複製今天的日期；可在設定調整輸出格式';
     return b;
+  }
+
+  /* ── 可見通知列（三套版面共用一個 #notice） ──────────────────────────────────
+     為什麼要有：`#status` 是 1×1px 的 sr-only live region，只有螢幕閱讀器聽得到。
+     UX 實測（2026-09-16）點一個已在清單的碼，三套版面的截圖 md5 完全相同——醫師唯一
+     能做的是回頭數清單，而那是每一次點擊都在發生的事。
+
+     三個設計約束，都不是可有可無的：
+       1. **覆蓋、不推擠**（`position:absolute; top:100%`，包含塊是各版面 position:relative
+          的 header）：提示出現時若把內容往下推，醫師正要點的那個碼就會移位。
+       2. **不吃點擊**（`pointer-events:none`，只有「復原」鈕自己收回 auto）：這一列蓋在
+          第一批診斷碼上面，讓它攔下點擊等於用回饋換掉主要動線。
+       3. **沒訊息時不存在**（`hidden`）：一次性提示要自己消失（密度原則手法 #4）。
+     逾時與 sticky 的規則在 interactions.js 的 announce()；這裡只建節點。
+
+     文字段落掛 `aria-hidden`：同一則訊息已經由 #status 播報過，這裡再讀一次是重複。
+     「復原」鈕**不能**一起 aria-hidden（那會讓可聚焦元素消失在 AT 的樹裡），所以它是
+     #notice 的兄弟節點而不是被隱藏那段的子節點。 */
+  function noticeEl() {
+    const box = el('div');
+    box.id = 'notice';
+    box.hidden = true;
+    const text = el('span', 'notice-text');
+    text.setAttribute('aria-hidden', 'true');
+    const undo = el('button', 'notice-undo', '復原');
+    undo.type = 'button';
+    undo.id = 'notice-undo';
+    undo.title = '復原剛才的清單變更';
+    undo.hidden = true;
+    box.append(text, undo);
+    return box;
+  }
+
+  /* 「已加入清單」勾號的唯一同步實作（三套版面共用）。原本只有 render-dock.js 有一份，
+     所以工作台與手機完全看不出哪些碼已經在清單裡（UX 稽核 U2）。
+     類目碼排除在外：它加不進清單，掛勾號只會製造矛盾的訊號。
+     勾號本身是 app.css 的 `.chip[data-in-cart="true"]::after`——用 ::after 而不是動
+     border/background，紅旗警示色、類目虛線與附加碼標記才不會被蓋掉（硬性邊界 #3）。 */
+  function syncInCart(scope, ctx) {
+    if (!scope) return;
+    const selected = new Set(ctx.store.getState().cart.map((item) => item.code));
+    for (const chip of scope.querySelectorAll('.chip:not(.cat)')) {
+      const on = selected.has(chip.dataset.code);
+      if (on) chip.dataset.inCart = 'true';
+      else delete chip.dataset.inCart;
+      chip.setAttribute('aria-label', chip.title + (on ? '（已加入清單）' : ''));
+    }
   }
 
   // ---- 慢病速查（DM／HTN／LIPID） ----
@@ -7569,7 +7722,7 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
 
   root.ICDRender = {
     icon, el, blueprint, clear, regionHeading, srHeading, markRegionSelected, regionGroupEl,
-    regionShort, dateBtnEl,
+    regionShort, dateBtnEl, noticeEl, syncInCart,
     chipEl, chipWith, chipsFromPairs, emptyText,
     renderResults,
     cartItemEl, renderCart, syncClearBtn, hisText, renderHis, renderShelf,
@@ -7684,6 +7837,9 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
     settingsToggle.appendChild(R.icon('chevronDown', 14));
     header.appendChild(settingsToggle);
     header.appendChild(R.settingsPopoverEl(false));
+    /* 可見通知列：絕對定位貼在 header 下緣，覆蓋常用列／內容最上緣而不推擠它們
+       （醫師正要點的碼不能移位）。三套版面同一個 #notice，見 render-shared 的 noticeEl。 */
+    header.appendChild(R.noticeEl());
     wide.appendChild(header);
 
     // ── 常用列 ──────────────────────────────────────────────────────────
@@ -7978,6 +8134,11 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
         names = ALL.filter((n) => set.has(n));
       }
       for (const name of names) U[name]();
+      /* 「已加入」勾號：chip 是在 panels／quick／results／shelf 裡重建的，清單變動時
+         那些區塊不會重畫，所以掛號要獨立跑一次（與 1c 同一條規則、同一份實作）。 */
+      if (names.some((name) => ['panels', 'quick', 'results', 'shelf', 'cart'].includes(name))) {
+        R.syncInCart(wide, ctx);
+      }
       // 內容變了（搜尋結果出現、清單加碼）就得重新夾一次高度，見 render-dock.js 同一段註解
       applyPanes();
     }
@@ -8186,6 +8347,11 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
     refs.pinNote.id = 'pin-note';
     refs.pinNote.hidden = true;
     head.appendChild(refs.pinNote);
+    /* 可見通知列：貼在 header 下緣、覆蓋捲動區最上緣，不改 .dock-scroll 的高度。
+       **不必**加進 dressPipDocument 的複製清單**：它在 .dock-head 裡，整條側欄搬進
+       PiP 小視窗時就跟著過去了；再複製一份會讓小視窗同時有兩個 #notice
+       （#status／#fallback-copy 需要複製是因為它們掛在 body 上、不在側欄子樹裡）。 */
+    head.appendChild(R.noticeEl());
     head.appendChild(shortenSegLabels(R.settingsPopoverEl(true)));   // small：seg 用 22px／10px 的小號
     dock.appendChild(head);
 
@@ -8633,11 +8799,11 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
       }
       const remove = target.closest('.cart-remove');
       if (remove) {
-        const code = remove.closest('li').dataset.code;
-        store.removeCode(code);
-        announce('已移除 ' + code);
+        root.ICDInteractions.removeFromCart(ctx, remove.closest('li').dataset.code);
         return;
       }
+      // 通知列的「復原」也在側欄裡（#notice 掛在 .dock-head），置頂時同樣搆不到主文件
+      if (target.closest('#notice-undo')) { root.ICDInteractions.runUndo(); return; }
       /* 「展開」一定要登記在這份白名單裡：置頂時整條窄欄在 PiP 小視窗那個**另一個
          文件**，主文件的委派完全搆不到，漏掉的症狀是「按了沒反應」而且只在置頂時
          發生——血脂試算就是這樣漏掉過一次。而它偏偏是置頂狀態下唯一的回頭路。 */
@@ -8654,7 +8820,7 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
       if (btn.id === 'settings-toggle') store.toggleSettings();
       else if (btn.id === 'theme-toggle') store.toggleTheme();
       else if (btn.id === 'reset-panes') root.ICDInteractions.resetPanes(ctx);
-      else if (btn.id === 'clear-cart') { store.clearCart(); announce('已清空就診清單'); }
+      else if (btn.id === 'clear-cart') root.ICDInteractions.clearCartWithUndo(ctx);
       else if (btn.id === 'copy-date') copyDate();
       else if (btn.id === 'db-retry') { announce('正在重新載入全庫…'); ctx.data.retryDb(); }
     }
@@ -8867,15 +9033,8 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
       dockify(refs.results);
     };
 
-    function syncSelected() {
-      const selected = new Set(ctx.store.getState().cart.map((item) => item.code));
-      for (const chip of dock.querySelectorAll('.chip:not(.cat)')) {
-        const on = selected.has(chip.dataset.code);
-        if (on) chip.dataset.inCart = 'true';
-        else delete chip.dataset.inCart;
-        chip.setAttribute('aria-label', chip.title + (on ? '（已加入清單）' : ''));
-      }
-    }
+    // 勾號的同步邏輯已收斂到 render-shared 的 syncInCart（三套版面同一份，UX 稽核 U2）
+    const syncSelected = () => R.syncInCart(dock, ctx);
 
     U.cart = () => {
       const s = ctx.store.getState();
@@ -9080,7 +9239,9 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
 
     const headRow = R.el('div', 'm-head-row');
     headRow.append(search, settingsToggle);
-    header.append(modeRow, headRow, pop);
+    /* 可見通知列：貼在 header 下緣、覆蓋部位列最上緣而不推擠（三套版面同一個 #notice）。
+       手機沒有 hover，這一列是「剛才那一下有沒有生效」的唯一線索。 */
+    header.append(modeRow, headRow, pop, R.noticeEl());
     wrap.appendChild(header);
 
     // ── 部位／情境：橫向捲動 pill 列（L370-374） ──────────────────────────
@@ -9343,6 +9504,11 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
         names = ALL.filter((n) => set.has(n));
       }
       for (const name of names) U[name]();
+      /* 「已加入」勾號：chip 在 panels／results 裡重建，清單變動時那兩塊不重畫，
+         所以掛號要獨立跑一次（三套版面同一份實作，見 render-shared 的 syncInCart）。 */
+      if (names.some((name) => ['panels', 'results', 'cartSheet'].includes(name))) {
+        R.syncInCart(wrap, ctx);
+      }
       // 內容變了（抽屜展開）就得重新夾一次高度，見 render-dock.js 同一段註解
       refs.paneGroup.applyAll();
     }
@@ -9395,9 +9561,79 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
 
   const setFeedbackDocument = (doc) => { feedbackTarget = doc || null; };
 
-  function announce(message) {
+  /* ── 通知列（#notice）的逾時規則 ───────────────────────────────────────────
+     成功類（已加入、已複製、已切換）2.5 秒自己收掉：看過就沒用的提示不該佔版面
+     （docs/dense-ui-principle.md 手法 #4）。失敗／未解決的相反——`{ sticky: true }`
+     的訊息留到下一則為止，因為它講的是使用者下一步該做什麼（類目碼要改選細碼、
+     全庫還沒載入、剪貼簿被拒要逐碼複製）。附「復原」的那種給 10 秒：要讀完一句話、
+     判斷是不是真的要復原、再把指標移過去，2.5 秒不夠。 */
+  const NOTICE_TTL = 2500;
+  const NOTICE_UNDO_TTL = 10000;
+  let noticeTimer = null;
+  let undoAction = null;
+
+  function hideNotice(box) {
+    box.hidden = true;
+    const undo = box.querySelector('#notice-undo');
+    if (undo) undo.hidden = true;
+  }
+
+  /* 可見通知列。與 #status 同一則訊息、同一個呼叫點——兩條線索不得各自漂移。
+     節點由各版面的 header 掛上（render-shared 的 noticeEl），不存在就只剩播報，
+     不拋錯：1c 進 PiP 小視窗那段期間節點在另一個文件裡，feedbackDoc() 已經處理。 */
+  function showNotice(message, opts) {
+    clearTimeout(noticeTimer);
+    noticeTimer = null;
+    undoAction = typeof opts.undo === 'function' ? opts.undo : null;
+    const doc = feedbackDoc();
+    const box = doc.getElementById('notice');
+    if (!box) return;
+    if (!message) { hideNotice(box); return; }
+    const text = box.querySelector('.notice-text');
+    if (text) text.textContent = message;
+    const undo = box.querySelector('#notice-undo');
+    if (undo) undo.hidden = !undoAction;
+    box.hidden = false;
+    box.dataset.kind = opts.sticky ? 'stay' : 'transient';
+    if (opts.sticky) return;                       // 留到下一則訊息
+    const ttl = undoAction ? NOTICE_UNDO_TTL : NOTICE_TTL;
+    noticeTimer = setTimeout(() => {
+      noticeTimer = null;
+      undoAction = null;
+      hideNotice(box);
+    }, ttl);
+  }
+
+  /* opts: { sticky, undo }。沒有 opts 就是「成功類、無復原」，也就是絕大多數呼叫點。 */
+  function announce(message, opts) {
     const status = feedbackDoc().getElementById('status');
     if (status) status.textContent = message;
+    showNotice(message, opts || {});
+  }
+
+  /* 「復原」被按下。動作只跑一次就拋掉：清單復原後再按第二次會把使用者剛加的碼洗掉。 */
+  function runUndo() {
+    const action = undoAction;
+    if (!action) return;
+    undoAction = null;
+    action();
+    announce('已復原上一個清單變更');
+  }
+
+  /* 移除單筆／清空一律走這兩個入口，快照在動作**之前**取。
+     快照只放記憶體（這個閉包），不持久化——cart 跨診次殘留＝臨床事故（impl-plan R-9）。
+     1c 置頂時 render-dock.js 的代打也呼叫這兩個，規則不會兩邊漂移。 */
+  function removeFromCart(ctx, code) {
+    const snapshot = ctx.store.getState().cart;
+    if (!ctx.store.removeCode(code)) return;
+    announce('已移除 ' + code, { undo: () => ctx.store.restoreCart(snapshot) });
+  }
+
+  function clearCartWithUndo(ctx) {
+    const snapshot = ctx.store.getState().cart;
+    if (!snapshot.length) return;
+    ctx.store.clearCart();
+    announce('已清空 ' + snapshot.length + ' 筆', { undo: () => ctx.store.restoreCart(snapshot) });
   }
 
   // ---- 剪貼簿（原 app.js copyText，行為不變，只把目標文件換成 feedbackDoc()） ----
@@ -9487,7 +9723,7 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
     if (result !== 'rejected') { announce(addedMessage(ctx, result, code, label)); return; }
     announce(ctx.data.getDbState() === 'error'
       ? '全庫載入失敗，' + code + ' 目前無法加入；請在設定面板按「重新載入全庫」'
-      : code + ' 是類目碼或不存在，無法加入清單');
+      : code + ' 是類目碼或不存在，無法加入清單', { sticky: true });
   }
 
   function addCode(ctx, code, zh) {
@@ -9497,11 +9733,11 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
          以前一律播報「是類目碼或不存在」，與事實相反（R2 I3）。三態的 addability()
          能分辨「明確不可加」與「此刻無從判斷」，後者改成誠實說明並在就緒後自動補加。 */
       if (ctx.data.addability(code) === 'unknown') {
-        announce('全庫尚未載入完成，' + code + ' 將在載入後自動加入…');
+        announce('全庫尚未載入完成，' + code + ' 將在載入後自動加入…', { sticky: true });
         ctx.data.ensureDb().then(() => retryAdd(ctx, code, zh));
         return;
       }
-      announce(code + ' 是類目碼或不存在，無法加入清單');
+      announce(code + ' 是類目碼或不存在，無法加入清單', { sticky: true });
       return;
     }
     announce(addedMessage(ctx, result, code, zh));
@@ -9723,7 +9959,7 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
     const code = chip.dataset.code;
     if (chip.classList.contains('cat') || chip.getAttribute('aria-disabled') === 'true') {
       // 以前直接 return，連播報都沒有，使用者只覺得「按了沒反應」（R2 M2）
-      announce(code + ' 是類目碼，不可申報；請改選它下層的細碼');
+      announce(code + ' 是類目碼，不可申報；請改選它下層的細碼', { sticky: true });
       return;
     }
     addCode(ctx, code, chipLabel(ctx, chip, code));
@@ -9737,7 +9973,7 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
     if (sameWithCustom) {
       const text = root.ICDRender.hisText(ctx);
       if (text) copyText(text, true).then(ok => {
-        if (!ok) announce('自動複製失敗，請點清單裡的代碼逐一複製');
+        if (!ok) announce('自動複製失敗，請點清單裡的代碼逐一複製', { sticky: true });
       });
     }
   }
@@ -9764,7 +10000,7 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
       const text = root.ICDRender.hisText(ctx);
       if (!text) return;
       copyText(text, true).then((ok) => {
-        if (!ok) announce('自動複製失敗，請點清單裡的代碼逐一複製');
+        if (!ok) announce('自動複製失敗，請點清單裡的代碼逐一複製', { sticky: true });
       });
     }
 
@@ -9863,11 +10099,13 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
       }
       const remove = target.closest('.cart-remove');
       if (remove) {
-        const code = remove.closest('li').dataset.code;
-        store.removeCode(code);
-        announce('已移除 ' + code);
+        removeFromCart(ctx, remove.closest('li').dataset.code);
         return;
       }
+
+      /* 通知列的「復原」。排在泛用 `button` 那條之前——那條會先看到 id 不在白名單裡
+         就靜默 return，等於這顆鈕永遠按不動。 */
+      if (target.closest('#notice-undo')) { runUndo(); return; }
 
       /* 版面切換鈕（1a 的「側掛置頂」／1c 的「展開」）。走 ctx.switchLayout 而不是
          store.setLayout：切到 dock 時還要接著開置頂小視窗，而那個 controller 只有
@@ -9889,7 +10127,7 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
       if (btn.id === 'shelf-toggle') { store.toggleShelf(); return; }
       if (btn.id === 'reset-panes') { resetPanes(ctx); return; }
       if (btn.id === 'cart-toggle') { if (typeof ctx.onCartToggle === 'function') ctx.onCartToggle(); return; }
-      if (btn.id === 'clear-cart') { store.clearCart(); announce('已清空就診清單'); return; }
+      if (btn.id === 'clear-cart') { clearCartWithUndo(ctx); return; }
       if (btn.id === 'copy-date') { copyDate(); return; }
       if (btn.id === 'fallback-close') { closeFallbackCopy(); return; }
       // 全庫載入失敗後的重試入口（R2 I2）；ensureDb() 會回傳快取的失敗 Promise，只能走 retryDb()
@@ -10051,6 +10289,7 @@ window.ANTIBIOTIC_DOSING = {"version":1,"reviewedOn":"2026-09-07","source":{"nam
     wire, chooseCopyFormat, copyText, openFallbackCopy, closeFallbackCopy, isFallbackOpen, announce,
     activateChip, copyCartCode, setFeedbackDocument,
     // 1c 置頂時 main document 的委派搆不到側欄，render-dock.js 要用同一份實作代打
+    removeFromCart, clearCartWithUndo, runUndo,
     chooseMode, chooseAllRegions, resetPanes, chooseChronic, closeChronic,
     toggleAllPanels, allPanelsExpanded,
     openCcr, closeCcr, recalcCcr, chooseCcrSex, resetCcr, copyCcr,

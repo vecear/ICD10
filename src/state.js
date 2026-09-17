@@ -311,6 +311,22 @@
       setState({ cart: [], relatedCode: null, copied: false });
     }
 
+    /* 復原一次清單操作（移除單筆／清空）。快照由 interactions.js 在動作**之前**存進記憶體，
+       不持久化——cart 絕不跨診次保留（impl-plan R-9），所以復原也只在同一個 session 有效。
+
+       一律重建成新陣列再塞回去，不直接用呼叫者手上那個快照：setState 以 Object.is 判斷變更，
+       而快照本來就是某個舊 state 的那個陣列，原樣塞回去在「清空後立刻復原」這條路上
+       仍然是新的（clearCart 已換成 []），但在其他路徑上會靜默變成「什麼都沒發生」。
+       順手把欄位洗乾淨，外部傳進來的東西一律不信。 */
+    function restoreCart(items) {
+      if (!Array.isArray(items)) return false;
+      const cart = items
+        .filter((x) => x && typeof x.code === 'string' && x.code)
+        .map((x) => ({ code: x.code, zh: typeof x.zh === 'string' ? x.zh : '' }));
+      setState({ cart, copied: false });
+      return true;
+    }
+
     /* 設為主診斷：移到 index 0，其餘維持原相對順序。 */
     function setPrimary(code) {
       const item = state.cart.find((x) => x.code === code);
@@ -560,7 +576,7 @@
     return {
       getState, setState, subscribe,
       storage,                    // 讓渲染層／測試能問 storage.available
-      addCode, removeCode, clearCart, setPrimary, reorder,
+      addCode, removeCode, clearCart, restoreCart, setPrimary, reorder,
       setMode, setRegion, toggleRegion, setLayout, setTheme, toggleTheme, setFormat,
       setClipboardFormat, resetClipboardFormat,
       setPaneSize, resetPaneSizes, paneSizeFor, hasPaneSizes,

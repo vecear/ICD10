@@ -38,9 +38,79 @@
 
   const setFeedbackDocument = (doc) => { feedbackTarget = doc || null; };
 
-  function announce(message) {
+  /* ── 通知列（#notice）的逾時規則 ───────────────────────────────────────────
+     成功類（已加入、已複製、已切換）2.5 秒自己收掉：看過就沒用的提示不該佔版面
+     （docs/dense-ui-principle.md 手法 #4）。失敗／未解決的相反——`{ sticky: true }`
+     的訊息留到下一則為止，因為它講的是使用者下一步該做什麼（類目碼要改選細碼、
+     全庫還沒載入、剪貼簿被拒要逐碼複製）。附「復原」的那種給 10 秒：要讀完一句話、
+     判斷是不是真的要復原、再把指標移過去，2.5 秒不夠。 */
+  const NOTICE_TTL = 2500;
+  const NOTICE_UNDO_TTL = 10000;
+  let noticeTimer = null;
+  let undoAction = null;
+
+  function hideNotice(box) {
+    box.hidden = true;
+    const undo = box.querySelector('#notice-undo');
+    if (undo) undo.hidden = true;
+  }
+
+  /* 可見通知列。與 #status 同一則訊息、同一個呼叫點——兩條線索不得各自漂移。
+     節點由各版面的 header 掛上（render-shared 的 noticeEl），不存在就只剩播報，
+     不拋錯：1c 進 PiP 小視窗那段期間節點在另一個文件裡，feedbackDoc() 已經處理。 */
+  function showNotice(message, opts) {
+    clearTimeout(noticeTimer);
+    noticeTimer = null;
+    undoAction = typeof opts.undo === 'function' ? opts.undo : null;
+    const doc = feedbackDoc();
+    const box = doc.getElementById('notice');
+    if (!box) return;
+    if (!message) { hideNotice(box); return; }
+    const text = box.querySelector('.notice-text');
+    if (text) text.textContent = message;
+    const undo = box.querySelector('#notice-undo');
+    if (undo) undo.hidden = !undoAction;
+    box.hidden = false;
+    box.dataset.kind = opts.sticky ? 'stay' : 'transient';
+    if (opts.sticky) return;                       // 留到下一則訊息
+    const ttl = undoAction ? NOTICE_UNDO_TTL : NOTICE_TTL;
+    noticeTimer = setTimeout(() => {
+      noticeTimer = null;
+      undoAction = null;
+      hideNotice(box);
+    }, ttl);
+  }
+
+  /* opts: { sticky, undo }。沒有 opts 就是「成功類、無復原」，也就是絕大多數呼叫點。 */
+  function announce(message, opts) {
     const status = feedbackDoc().getElementById('status');
     if (status) status.textContent = message;
+    showNotice(message, opts || {});
+  }
+
+  /* 「復原」被按下。動作只跑一次就拋掉：清單復原後再按第二次會把使用者剛加的碼洗掉。 */
+  function runUndo() {
+    const action = undoAction;
+    if (!action) return;
+    undoAction = null;
+    action();
+    announce('已復原上一個清單變更');
+  }
+
+  /* 移除單筆／清空一律走這兩個入口，快照在動作**之前**取。
+     快照只放記憶體（這個閉包），不持久化——cart 跨診次殘留＝臨床事故（impl-plan R-9）。
+     1c 置頂時 render-dock.js 的代打也呼叫這兩個，規則不會兩邊漂移。 */
+  function removeFromCart(ctx, code) {
+    const snapshot = ctx.store.getState().cart;
+    if (!ctx.store.removeCode(code)) return;
+    announce('已移除 ' + code, { undo: () => ctx.store.restoreCart(snapshot) });
+  }
+
+  function clearCartWithUndo(ctx) {
+    const snapshot = ctx.store.getState().cart;
+    if (!snapshot.length) return;
+    ctx.store.clearCart();
+    announce('已清空 ' + snapshot.length + ' 筆', { undo: () => ctx.store.restoreCart(snapshot) });
   }
 
   // ---- 剪貼簿（原 app.js copyText，行為不變，只把目標文件換成 feedbackDoc()） ----
@@ -130,7 +200,7 @@
     if (result !== 'rejected') { announce(addedMessage(ctx, result, code, label)); return; }
     announce(ctx.data.getDbState() === 'error'
       ? '全庫載入失敗，' + code + ' 目前無法加入；請在設定面板按「重新載入全庫」'
-      : code + ' 是類目碼或不存在，無法加入清單');
+      : code + ' 是類目碼或不存在，無法加入清單', { sticky: true });
   }
 
   function addCode(ctx, code, zh) {
@@ -140,11 +210,11 @@
          以前一律播報「是類目碼或不存在」，與事實相反（R2 I3）。三態的 addability()
          能分辨「明確不可加」與「此刻無從判斷」，後者改成誠實說明並在就緒後自動補加。 */
       if (ctx.data.addability(code) === 'unknown') {
-        announce('全庫尚未載入完成，' + code + ' 將在載入後自動加入…');
+        announce('全庫尚未載入完成，' + code + ' 將在載入後自動加入…', { sticky: true });
         ctx.data.ensureDb().then(() => retryAdd(ctx, code, zh));
         return;
       }
-      announce(code + ' 是類目碼或不存在，無法加入清單');
+      announce(code + ' 是類目碼或不存在，無法加入清單', { sticky: true });
       return;
     }
     announce(addedMessage(ctx, result, code, zh));
@@ -366,7 +436,7 @@
     const code = chip.dataset.code;
     if (chip.classList.contains('cat') || chip.getAttribute('aria-disabled') === 'true') {
       // 以前直接 return，連播報都沒有，使用者只覺得「按了沒反應」（R2 M2）
-      announce(code + ' 是類目碼，不可申報；請改選它下層的細碼');
+      announce(code + ' 是類目碼，不可申報；請改選它下層的細碼', { sticky: true });
       return;
     }
     addCode(ctx, code, chipLabel(ctx, chip, code));
@@ -380,7 +450,7 @@
     if (sameWithCustom) {
       const text = root.ICDRender.hisText(ctx);
       if (text) copyText(text, true).then(ok => {
-        if (!ok) announce('自動複製失敗，請點清單裡的代碼逐一複製');
+        if (!ok) announce('自動複製失敗，請點清單裡的代碼逐一複製', { sticky: true });
       });
     }
   }
@@ -407,7 +477,7 @@
       const text = root.ICDRender.hisText(ctx);
       if (!text) return;
       copyText(text, true).then((ok) => {
-        if (!ok) announce('自動複製失敗，請點清單裡的代碼逐一複製');
+        if (!ok) announce('自動複製失敗，請點清單裡的代碼逐一複製', { sticky: true });
       });
     }
 
@@ -506,11 +576,13 @@
       }
       const remove = target.closest('.cart-remove');
       if (remove) {
-        const code = remove.closest('li').dataset.code;
-        store.removeCode(code);
-        announce('已移除 ' + code);
+        removeFromCart(ctx, remove.closest('li').dataset.code);
         return;
       }
+
+      /* 通知列的「復原」。排在泛用 `button` 那條之前——那條會先看到 id 不在白名單裡
+         就靜默 return，等於這顆鈕永遠按不動。 */
+      if (target.closest('#notice-undo')) { runUndo(); return; }
 
       /* 版面切換鈕（1a 的「側掛置頂」／1c 的「展開」）。走 ctx.switchLayout 而不是
          store.setLayout：切到 dock 時還要接著開置頂小視窗，而那個 controller 只有
@@ -532,7 +604,7 @@
       if (btn.id === 'shelf-toggle') { store.toggleShelf(); return; }
       if (btn.id === 'reset-panes') { resetPanes(ctx); return; }
       if (btn.id === 'cart-toggle') { if (typeof ctx.onCartToggle === 'function') ctx.onCartToggle(); return; }
-      if (btn.id === 'clear-cart') { store.clearCart(); announce('已清空就診清單'); return; }
+      if (btn.id === 'clear-cart') { clearCartWithUndo(ctx); return; }
       if (btn.id === 'copy-date') { copyDate(); return; }
       if (btn.id === 'fallback-close') { closeFallbackCopy(); return; }
       // 全庫載入失敗後的重試入口（R2 I2）；ensureDb() 會回傳快取的失敗 Promise，只能走 retryDb()
@@ -694,6 +766,7 @@
     wire, chooseCopyFormat, copyText, openFallbackCopy, closeFallbackCopy, isFallbackOpen, announce,
     activateChip, copyCartCode, setFeedbackDocument,
     // 1c 置頂時 main document 的委派搆不到側欄，render-dock.js 要用同一份實作代打
+    removeFromCart, clearCartWithUndo, runUndo,
     chooseMode, chooseAllRegions, resetPanes, chooseChronic, closeChronic,
     toggleAllPanels, allPanelsExpanded,
     openCcr, closeCcr, recalcCcr, chooseCcrSex, resetCcr, copyCcr,

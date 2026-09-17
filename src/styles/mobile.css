@@ -65,6 +65,13 @@ body[data-layout="mobile"] #settings-popover {
   top: calc(100% - 4px); left: 12px; right: 12px; padding: 12px;
   max-height: calc(100dvh - 190px); overflow-y: auto;
 }
+/* 通知列（幾何與行為在 app.css）：手機沒有 hover，這一列是「剛才那一下有沒有生效」的
+   唯一線索，所以字級給 13px 而不是共用的 12px。「復原」是真的要用手指按的控制項，
+   套 44px 硬性邊界（docs/dense-ui-principle.md §1，不打折）。
+   它是絕對定位的，這個高度蓋掉部位列一部分約 2.5 秒，不改變任何區塊的版面高度。 */
+body[data-layout="mobile"] #notice { padding: 6px 14px; font-size: 13px; }
+body[data-layout="mobile"] .notice-undo { min-height: 44px; padding: 0 14px; font-size: 14px; }
+
 /* 「桌機版面」與「常用列」在手機沒有對應 UI，由 render-mobile.js 標上類名後藏起來 */
 body[data-layout="mobile"] .is-desktop-only { display: none; }
 body[data-layout="mobile"] .seg-btn { min-height: 44px; }
@@ -127,6 +134,14 @@ body[data-layout="mobile"] .chip--row::after {
 body[data-layout="mobile"] .chip--row.chip--warn::after { color: var(--warn-ink); }
 /* 類目碼不可申報，不給「＋」暗示（設計稿的類目列仍留著＋，這裡刻意拿掉） */
 body[data-layout="mobile"] .chip--row.cat::after { content: none; }
+/* 已加入清單：同一個位置從「＋」（可以加）換成「✓」（已經加了）。
+   app.css 的共用勾號規則是 `.chip[data-in-cart="true"]::after`（0,2,0），贏不過上面那條
+   帶版面前綴的「＋」（0,2,0＋element 且在後），所以 1b 必須自己寫一條——1b 是三套版面裡
+   唯一把 ::after 拿去做別的用途的。字級與 line-height 照「＋」那組，換字不換幾何，
+   列高不跳動。顏色走 --chip-code-ink，紅旗列的勾號自然是警示色。 */
+body[data-layout="mobile"] .chip--row[data-in-cart="true"]::after {
+  content: "✓"; font-size: 16px; line-height: 1; font-weight: 700; color: var(--chip-code-ink);
+}
 
 /* 搜尋結果卡（L378-385） */
 body[data-layout="mobile"] #results-card { padding: 10px; }

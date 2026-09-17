@@ -194,6 +194,11 @@
     refs.pinNote.id = 'pin-note';
     refs.pinNote.hidden = true;
     head.appendChild(refs.pinNote);
+    /* 可見通知列：貼在 header 下緣、覆蓋捲動區最上緣，不改 .dock-scroll 的高度。
+       **不必**加進 dressPipDocument 的複製清單**：它在 .dock-head 裡，整條側欄搬進
+       PiP 小視窗時就跟著過去了；再複製一份會讓小視窗同時有兩個 #notice
+       （#status／#fallback-copy 需要複製是因為它們掛在 body 上、不在側欄子樹裡）。 */
+    head.appendChild(R.noticeEl());
     head.appendChild(shortenSegLabels(R.settingsPopoverEl(true)));   // small：seg 用 22px／10px 的小號
     dock.appendChild(head);
 
@@ -641,11 +646,11 @@
       }
       const remove = target.closest('.cart-remove');
       if (remove) {
-        const code = remove.closest('li').dataset.code;
-        store.removeCode(code);
-        announce('已移除 ' + code);
+        root.ICDInteractions.removeFromCart(ctx, remove.closest('li').dataset.code);
         return;
       }
+      // 通知列的「復原」也在側欄裡（#notice 掛在 .dock-head），置頂時同樣搆不到主文件
+      if (target.closest('#notice-undo')) { root.ICDInteractions.runUndo(); return; }
       /* 「展開」一定要登記在這份白名單裡：置頂時整條窄欄在 PiP 小視窗那個**另一個
          文件**，主文件的委派完全搆不到，漏掉的症狀是「按了沒反應」而且只在置頂時
          發生——血脂試算就是這樣漏掉過一次。而它偏偏是置頂狀態下唯一的回頭路。 */
@@ -662,7 +667,7 @@
       if (btn.id === 'settings-toggle') store.toggleSettings();
       else if (btn.id === 'theme-toggle') store.toggleTheme();
       else if (btn.id === 'reset-panes') root.ICDInteractions.resetPanes(ctx);
-      else if (btn.id === 'clear-cart') { store.clearCart(); announce('已清空就診清單'); }
+      else if (btn.id === 'clear-cart') root.ICDInteractions.clearCartWithUndo(ctx);
       else if (btn.id === 'copy-date') copyDate();
       else if (btn.id === 'db-retry') { announce('正在重新載入全庫…'); ctx.data.retryDb(); }
     }
@@ -875,15 +880,8 @@
       dockify(refs.results);
     };
 
-    function syncSelected() {
-      const selected = new Set(ctx.store.getState().cart.map((item) => item.code));
-      for (const chip of dock.querySelectorAll('.chip:not(.cat)')) {
-        const on = selected.has(chip.dataset.code);
-        if (on) chip.dataset.inCart = 'true';
-        else delete chip.dataset.inCart;
-        chip.setAttribute('aria-label', chip.title + (on ? '（已加入清單）' : ''));
-      }
-    }
+    // 勾號的同步邏輯已收斂到 render-shared 的 syncInCart（三套版面同一份，UX 稽核 U2）
+    const syncSelected = () => R.syncInCart(dock, ctx);
 
     U.cart = () => {
       const s = ctx.store.getState();

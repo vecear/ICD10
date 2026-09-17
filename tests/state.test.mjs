@@ -285,6 +285,33 @@ test('清空清單會一併重設相關碼', () => {
   assert.equal(store.getState().relatedCode, null);
 });
 
+test('復原清單：還原快照、不就地改、也不信任外部資料', () => {
+  const store = newStore();
+  store.addCode('R51.9', '頭痛');
+  store.addCode('I10', '高血壓');
+  const snapshot = store.getState().cart;
+
+  store.clearCart();
+  assert.deepEqual(store.getState().cart, []);
+  assert.equal(store.restoreCart(snapshot), true);
+  assert.deepEqual(store.getState().cart.map((x) => x.code), ['R51.9', 'I10']);
+  assert.deepEqual(store.getState().cart.map((x) => x.zh), ['頭痛', '高血壓']);
+  assert.notEqual(store.getState().cart, snapshot, '必須是新陣列，快照不得被後續操作改到');
+
+  // 移除單筆的復原要把順序也放回去（第一位＝主診斷，順序錯就是主診斷錯）
+  const three = store.getState().cart;
+  store.removeCode('R51.9');
+  assert.deepEqual(store.getState().cart.map((x) => x.code), ['I10']);
+  store.restoreCart(three);
+  assert.deepEqual(store.getState().cart.map((x) => x.code), ['R51.9', 'I10']);
+
+  // 外部輸入一律不信：非陣列拒絕，壞掉的項目濾掉，缺 zh 補空字串
+  assert.equal(store.restoreCart(null), false);
+  assert.equal(store.restoreCart('E11.9'), false);
+  store.restoreCart([{ code: 'E11.9' }, null, { zh: '沒有代碼' }, { code: '' }]);
+  assert.deepEqual(store.getState().cart, [{ code: 'E11.9', zh: '' }]);
+});
+
 test('展開／收合是不可變更新，且互不干擾', () => {
   const store = newStore();
   const before = store.getState().expanded;

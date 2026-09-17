@@ -133,6 +133,44 @@ body {
   overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0;
 }
 
+/* ── 可見通知列（#notice；三套版面共用，各自掛在自己 header 的下緣） ──────────
+   為什麼存在：`#status` 是 sr-only，只有螢幕閱讀器聽得到——UX 實測（2026-09-16）點一個
+   已在清單的碼，三套版面前後截圖的 md5 完全相同（稽核 U1）。行為（逾時、sticky、復原）
+   在 interactions.js 的 announce()，節點在 render-shared.js 的 noticeEl()。
+
+   `position:absolute; top:100%`：包含塊是各版面 position:relative 的 header
+   （.app-header／.dock-head／.m-header 三個本來都是），所以它貼著 header 下緣浮在內容
+   上面、**不佔任何版面高度**——提示出現時醫師正要點的那個碼不會移位。同一招已經用在
+   三套版面的 #settings-popover（寫死 top 會失準的教訓見 wide.css 那段註解）。
+
+   `pointer-events:none` 是硬性要求不是微調：這一列正好蓋在第一批診斷碼上面，
+   讓它攔下點擊等於用回饋換掉主要動線。只有「復原」鈕自己把 pointer-events 收回來。
+
+   z-index 3（取既有的值集合）：高於捲動區裡 sticky 的分段標題（1），低於設定 popover
+   （20）與浮層（30／40）——popover 從同一個 header 下緣展開，該是它蓋住提示。 */
+#notice {
+  position: absolute; top: 100%; left: 0; right: 0; z-index: 3;
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  padding: 4px 10px; pointer-events: none;
+  background: var(--color-accent-100); color: var(--color-accent-800);
+  border-bottom: 1px solid var(--color-accent);
+  font-size: 12px; line-height: 1.35;
+}
+.notice-text { flex: 1 1 auto; min-width: 0; }
+/* 失敗／未解決的那一則（announce 的 `{ sticky: true }`，不自動收掉）改用警示配色：
+   它講的是使用者下一步該做什麼，不該和「已加入」長得一模一樣。 */
+#notice[data-kind="stay"] {
+  background: var(--warn-bg); color: var(--warn-ink); border-bottom-color: var(--warn-line);
+}
+/* 「復原」是這一列唯一可按的東西。字級不低於 11px（密度原則硬性邊界 #2）；
+   高度 20px 是側掛窄欄的下限，手機另外套 44px（見 mobile.css）。 */
+.notice-undo {
+  flex: none; pointer-events: auto; cursor: pointer;
+  min-height: 20px; padding: 1px 8px; font: inherit; font-size: 12px;
+  border: 1px solid currentColor; background: transparent; color: inherit;
+}
+.notice-undo:hover { background: var(--color-bg); }
+
 /* 小標籤（設計稿 L58 等的 kicker 樣式） */
 .kicker {
   font-family: var(--font-heading); font-size: 11px; letter-spacing: .12em;
@@ -192,6 +230,15 @@ body {
   border-bottom: 1px solid var(--chip-line); text-align: left;
 }
 .chip-row { display: flex; gap: 4px; flex-wrap: wrap; }
+
+/* 「已加入清單」勾號（三套版面共用）。原本只寫在 dock.css，所以工作台與手機完全看不出
+   哪些碼已經在清單裡，只能回頭數右欄（UX 稽核 U2）。
+   **一律只動 ::after，不碰 border／background**：紅旗的警示邊框、類目碼的虛線、
+   附加碼的 --chip-* 配色因此完全不受影響（硬性邊界 #3，也是 dock 已經驗證過的疊法）。
+   顏色跟著 --chip-code-ink 走，所以紅旗 chip 的勾號自然是警示色而不是一般藍。 */
+.chip[data-in-cart="true"]::after {
+  content: '✓'; flex: none; font-size: 11px; color: var(--chip-code-ink); font-weight: 700;
+}
 
 /* ── 臨床視覺分層（docs/dense-ui-principle.md 硬性邊界 #3）────────────────────
    這一段刻意排在所有 .chip--* 幾何規則**之後**：自訂屬性本來就不怕順序，這裡再加一道
@@ -263,8 +310,14 @@ body {
 
 /* ── 就診清單（沿用 ul#cart > li[data-code]） ── */
 #cart { list-style: none; margin: 0; padding: 0; }
+/* 清單列是兩行：第一行拖曳柄／序號／代碼／主★✕，第二行完整中文名（可折行、不截斷）。
+   中文名是貼進 HIS 前唯一的核對機會，而它原本在**最寬的版面反而最窄**——1440px 下只有
+   136px、三筆測試碼全部截斷，比 340px 窄欄的 327px 還少一半（UX 稽核 V4）。
+   1c 早就是兩行，這裡把它提成三套版面共用的預設，dock.css 只留自己的尺寸差異。
+   這是 2026-09-07「一項資訊一行，直接換行」的直接套用，不是為了留白。
+   DOM 順序不動（換序靠 #cart 的 li 索引），第二行用 order 達成。 */
 #cart li {
-  display: flex; align-items: center; gap: 8px; padding: 9px 4px;
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 9px 4px;
   border-bottom: 1px solid var(--color-divider); cursor: grab;
 }
 #cart li.is-dragging { opacity: .45; }
@@ -291,7 +344,15 @@ b.cart-code {
   color: var(--color-accent-700); min-width: 74px; cursor: pointer;
   font-variant-numeric: tabular-nums;      /* 清單各列代碼要成欄，理由同 .chip b */
 }
-.cart-zh { flex: 1; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cart-zh {
+  order: 5; flex: 0 0 100%; font-size: 14px;
+  white-space: normal; overflow: visible; text-overflow: clip;
+}
+/* 中文名移到第二行之後，第一行沒有東西吸收剩餘寬度了，主／★／✕ 會黏在代碼右邊。
+   用 margin 把那組鈕推到右緣，而不是給代碼 flex:1——代碼一伸長就得補 ellipsis，
+   等於把剛剛解決的截斷問題搬到代碼欄。1c 的代碼本來就是 flex:1，那邊沒有剩餘寬度，
+   這條 margin 自然是 0，不會打架。 */
+#cart li .cart-primary { margin-left: auto; }
 #cart li button {
   display: flex; align-items: center; border: 0; background: none; cursor: pointer;
   font: inherit; font-size: 12px; color: var(--color-neutral-700); padding: 2px 4px;

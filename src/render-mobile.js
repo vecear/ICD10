@@ -100,7 +100,9 @@
 
     const headRow = R.el('div', 'm-head-row');
     headRow.append(search, settingsToggle);
-    header.append(modeRow, headRow, pop);
+    /* 可見通知列：貼在 header 下緣、覆蓋部位列最上緣而不推擠（三套版面同一個 #notice）。
+       手機沒有 hover，這一列是「剛才那一下有沒有生效」的唯一線索。 */
+    header.append(modeRow, headRow, pop, R.noticeEl());
     wrap.appendChild(header);
 
     // ── 部位／情境：橫向捲動 pill 列（L370-374） ──────────────────────────
@@ -363,6 +365,11 @@
         names = ALL.filter((n) => set.has(n));
       }
       for (const name of names) U[name]();
+      /* 「已加入」勾號：chip 在 panels／results 裡重建，清單變動時那兩塊不重畫，
+         所以掛號要獨立跑一次（三套版面同一份實作，見 render-shared 的 syncInCart）。 */
+      if (names.some((name) => ['panels', 'results', 'cartSheet'].includes(name))) {
+        R.syncInCart(wrap, ctx);
+      }
       // 內容變了（抽屜展開）就得重新夾一次高度，見 render-dock.js 同一段註解
       refs.paneGroup.applyAll();
     }

@@ -126,6 +126,11 @@ body[data-layout="dock"] .dock-pinned-away {
    的下緣，它是 position:relative 的包含塊）就跟著 header 高度自動走——header 少一列、
    或置頂提示出現讓 header 長高，都不必再回來改這個數字。1b 的 #settings-popover 早已
    是同一招（mobile.css 的 calc(100% - 4px)）。 */
+/* 通知列（幾何與行為在 app.css）：內距與字級收到 1c 的基準（5〜6px／11px，仍在
+   密度原則硬性邊界 #2 的 11px 下限上）。它是絕對定位、蓋在捲動區最上緣，
+   所以 176px 下折成兩三行也不會改變 .dock-scroll 的高度。 */
+body[data-layout="dock"] #notice { padding: 3px 6px; gap: 5px; font-size: 11px; }
+body[data-layout="dock"] .notice-undo { padding: 0 5px; font-size: 11px; }
 body[data-layout="dock"] #settings-popover { top: 100%; left: 6px; right: 6px; padding: 7px; gap: 6px; }
 body[data-layout="dock"] #settings-popover .kicker { font-size: 10px; letter-spacing: .1em; }
 body[data-layout="dock"] .settings-section > .kicker { margin-bottom: 3px; }
@@ -185,10 +190,9 @@ body[data-layout="dock"] .chip-row { flex-direction: column; flex-wrap: nowrap; 
 body[data-layout="dock"] .chip--dock { font-size: 11px; }
 body[data-layout="dock"] .chip--dock b { font-size: 12px; letter-spacing: .02em; }
 body[data-layout="dock"] .chip--dock span { flex: 1; min-width: 0; font-size: 11px; line-height: 1.25; }
-/* 勾號只標記已加入，不改紅旗底色、虛線類目或附加碼標記。 */
-body[data-layout="dock"] .chip--dock[data-in-cart="true"]::after {
-  content: '✓'; flex: none; font-size: 11px; color: var(--chip-code-ink); font-weight: 700;
-}
+/* 已加入勾號（只標記已加入，不改紅旗底色、虛線類目或附加碼標記）已搬到 app.css 的
+   `.chip[data-in-cart="true"]::after`，三套版面共用（UX 稽核 U2）。1c 沒有尺寸差異要補，
+   所以本檔不再有這條規則。 */
 /* hover 走 --chip-bg-hover／--chip-line-hover（app.css 的 chip 慣例），不寫死 accent：
    寫死 accent 的舊版本讓紅旗 chip 一 hover 就掉成一般藍底、警示配色在「準備點下去」
    那一刻消失（0,3,0 壓過 .chip--warn:hover 的 0,2,0）。 */
@@ -268,10 +272,11 @@ body[data-layout="dock"] #cart-toggle .marker {
 body[data-layout="dock"] #cart-toggle[aria-expanded="true"] .marker { transform: rotate(90deg); }
 body[data-layout="dock"] #cart-inline { max-height: 120px; overflow-y: auto; }
 
-/* 每筆兩行：第一行「徽章 + 代碼 + 主 + ✕」，第二行中文（一定要看得到，故 order 排到最後）。
-   .cart-grip／.cart-fav 在 176px 下擠不進第一行，且 1c 沒有常用列可放最愛，一併隱藏。 */
+/* 每筆兩行（第一行「徽章 + 代碼 + 主 + ✕」、第二行中文）已是 app.css 的三版面預設，
+   本檔只留 1c 自己的尺寸差異。.cart-grip／.cart-fav 在 176px 下擠不進第一行，
+   且 1c 沒有常用列可放最愛，一併隱藏。 */
 body[data-layout="dock"] #cart li {
-  flex-wrap: wrap; gap: 5px; padding: 4px 6px;
+  gap: 5px; padding: 4px 6px;
   border-bottom: 0; border-top: 1px solid var(--color-divider);
 }
 body[data-layout="dock"] #cart li .cart-grip,
@@ -280,10 +285,15 @@ body[data-layout="dock"] #cart b.cart-code {
   flex: 1; min-width: 0; font-size: 12px; letter-spacing: .02em;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+/* order／flex 由 app.css 給（三版面共用的第二行），這裡只補 1c 的縮排與字級：
+   23px 讓中文對齊上一行的代碼起點。 */
 body[data-layout="dock"] #cart .cart-zh {
-  order: 5; flex: 0 0 100%; padding-left: 23px; font-size: 11px; line-height: 1.3;
+  padding-left: 23px; font-size: 11px; line-height: 1.3;
 }
-body[data-layout="dock"] #cart li button { font-size: 10px; padding: 1px 3px; }
+/* 內距 1px 3px → 3px 4px：實測「主」只有 18×16px，低於 docs/dense-ui-principle.md §1
+   自訂的「側掛窄欄仍不宜低於 20px 高」（UX 稽核 V6）。字級不動（10px 是這一列的基準，
+   且這兩顆是 icon／單字鈕，不是內容文字），只把垂直內距補回門檻。 */
+body[data-layout="dock"] #cart li button { font-size: 10px; padding: 3px 4px; }
 /* 附加碼警示與標記在 176px 下要縮，否則會撐出水平捲動 */
 body[data-layout="dock"] #cart[data-primary-adjunct="true"]::before {
   font-size: 10px; line-height: 1.4; padding: 4px 5px; margin-bottom: 4px;

@@ -90,6 +90,9 @@
     settingsToggle.appendChild(R.icon('chevronDown', 14));
     header.appendChild(settingsToggle);
     header.appendChild(R.settingsPopoverEl(false));
+    /* 可見通知列：絕對定位貼在 header 下緣，覆蓋常用列／內容最上緣而不推擠它們
+       （醫師正要點的碼不能移位）。三套版面同一個 #notice，見 render-shared 的 noticeEl。 */
+    header.appendChild(R.noticeEl());
     wide.appendChild(header);
 
     // ── 常用列 ──────────────────────────────────────────────────────────
@@ -384,6 +387,11 @@
         names = ALL.filter((n) => set.has(n));
       }
       for (const name of names) U[name]();
+      /* 「已加入」勾號：chip 是在 panels／quick／results／shelf 裡重建的，清單變動時
+         那些區塊不會重畫，所以掛號要獨立跑一次（與 1c 同一條規則、同一份實作）。 */
+      if (names.some((name) => ['panels', 'quick', 'results', 'shelf', 'cart'].includes(name))) {
+        R.syncInCart(wide, ctx);
+      }
       // 內容變了（搜尋結果出現、清單加碼）就得重新夾一次高度，見 render-dock.js 同一段註解
       applyPanes();
     }

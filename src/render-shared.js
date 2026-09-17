@@ -111,8 +111,12 @@
      **只改可見文字**——資料檔的分類名維持原樣，因為「顯示全部部位」時的分組標題、
      E2E 的 data-region 定位、臨床內容清單都靠它。全名一律留在 title。
      外科的九個是情境不是部位，同樣縮成兩字（滑鼠停留看得到全名）。 */
+  /* 「感染」給常見感染那一格，不給長期追蹤（UX 稽核 U5）：醫師臨時要編一個感染碼時
+     看的就是「感染」二字，而「感染科追蹤」是 HIV／結核／OPAT 的長期追蹤，「追蹤」才是
+     它的身分。原本的對應剛好顛倒，是這份清單裡唯一會讓人**選到錯的碼**的問題，
+     而且手機是觸控、title 永遠不會浮出來，等於無從辨識。全名一律留在 title。 */
   const REGION_SHORT = {
-    '全身／感染': '全身', 感染科追蹤: '感染',
+    '全身／感染': '感染', 感染科追蹤: '追蹤',
     '神經／精神': '神經', '神經／頭頸': '頭頸', 眼耳鼻喉: '頭頸',
     '胸肺／心臟': '心肺', '腹部／消化': '腹部', '泌尿／生殖': '泌尿',
     '皮膚／軟組織': '皮膚', 肌肉骨骼: '骨骼', '代謝／檢驗': '代謝',
@@ -611,6 +615,53 @@
     b.id = 'copy-date';
     b.title = '複製今天的日期；可在設定調整輸出格式';
     return b;
+  }
+
+  /* ── 可見通知列（三套版面共用一個 #notice） ──────────────────────────────────
+     為什麼要有：`#status` 是 1×1px 的 sr-only live region，只有螢幕閱讀器聽得到。
+     UX 實測（2026-09-16）點一個已在清單的碼，三套版面的截圖 md5 完全相同——醫師唯一
+     能做的是回頭數清單，而那是每一次點擊都在發生的事。
+
+     三個設計約束，都不是可有可無的：
+       1. **覆蓋、不推擠**（`position:absolute; top:100%`，包含塊是各版面 position:relative
+          的 header）：提示出現時若把內容往下推，醫師正要點的那個碼就會移位。
+       2. **不吃點擊**（`pointer-events:none`，只有「復原」鈕自己收回 auto）：這一列蓋在
+          第一批診斷碼上面，讓它攔下點擊等於用回饋換掉主要動線。
+       3. **沒訊息時不存在**（`hidden`）：一次性提示要自己消失（密度原則手法 #4）。
+     逾時與 sticky 的規則在 interactions.js 的 announce()；這裡只建節點。
+
+     文字段落掛 `aria-hidden`：同一則訊息已經由 #status 播報過，這裡再讀一次是重複。
+     「復原」鈕**不能**一起 aria-hidden（那會讓可聚焦元素消失在 AT 的樹裡），所以它是
+     #notice 的兄弟節點而不是被隱藏那段的子節點。 */
+  function noticeEl() {
+    const box = el('div');
+    box.id = 'notice';
+    box.hidden = true;
+    const text = el('span', 'notice-text');
+    text.setAttribute('aria-hidden', 'true');
+    const undo = el('button', 'notice-undo', '復原');
+    undo.type = 'button';
+    undo.id = 'notice-undo';
+    undo.title = '復原剛才的清單變更';
+    undo.hidden = true;
+    box.append(text, undo);
+    return box;
+  }
+
+  /* 「已加入清單」勾號的唯一同步實作（三套版面共用）。原本只有 render-dock.js 有一份，
+     所以工作台與手機完全看不出哪些碼已經在清單裡（UX 稽核 U2）。
+     類目碼排除在外：它加不進清單，掛勾號只會製造矛盾的訊號。
+     勾號本身是 app.css 的 `.chip[data-in-cart="true"]::after`——用 ::after 而不是動
+     border/background，紅旗警示色、類目虛線與附加碼標記才不會被蓋掉（硬性邊界 #3）。 */
+  function syncInCart(scope, ctx) {
+    if (!scope) return;
+    const selected = new Set(ctx.store.getState().cart.map((item) => item.code));
+    for (const chip of scope.querySelectorAll('.chip:not(.cat)')) {
+      const on = selected.has(chip.dataset.code);
+      if (on) chip.dataset.inCart = 'true';
+      else delete chip.dataset.inCart;
+      chip.setAttribute('aria-label', chip.title + (on ? '（已加入清單）' : ''));
+    }
   }
 
   // ---- 慢病速查（DM／HTN／LIPID） ----
@@ -2209,7 +2260,7 @@
 
   root.ICDRender = {
     icon, el, blueprint, clear, regionHeading, srHeading, markRegionSelected, regionGroupEl,
-    regionShort, dateBtnEl,
+    regionShort, dateBtnEl, noticeEl, syncInCart,
     chipEl, chipWith, chipsFromPairs, emptyText,
     renderResults,
     cartItemEl, renderCart, syncClearBtn, hisText, renderHis, renderShelf,
