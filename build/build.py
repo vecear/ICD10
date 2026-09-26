@@ -183,9 +183,8 @@ def load_chronic_care():
 def check_chronic_care(chronic, today=None):
     """慢病速查的建置期時效檢查。**只回報，永不丟例外。**
 
-    為什麼要有這一關：ICD 代碼可以逐碼比對官方全庫、錯了 validate_curated() 就讓建置失敗；
-    健保給付規定沒有任何機器可驗的權威來源，唯一的防線就是「每條自帶查證日期」＋「定期重查」。
-    沒有這個提醒，這份速查會安靜地變成一個看起來權威、實際上過期的東西——那比沒有更危險。
+    ICD 代碼可由 validate_curated() 比對官方全庫；給付規定的解讀仍須人工核對。
+    此處以查證日期提醒維護者重查過期內容，不驗證條文的臨床或給付解讀。
 
     回傳 dict：warnings（字串清單，空＝通過）、items（總條數）、oldest（最舊的 checked）、
     cutoff（門檻日期）。
@@ -325,9 +324,8 @@ def merge_hospital_codes(products, mapping):
 def check_chronic_docs(chronic):
     """核對 chronic_care.json 的 docs[].file 都真的存在於 健保條文/。**對不上就丟例外。**
 
-    與 check_chronic_care() 只警告不同，這一關要讓建置失敗：檔名寫錯的表現是醫師在診間
-    點下連結、瀏覽器說找不到檔案——那是到了診間才會發現、而診間補不了的錯。而且這條檢查
-    本身是機器可驗的（檔案在不在是事實，不是判斷），沒有理由只給警告。
+    檔案是否存在可直接驗證，缺檔時中止建置，避免診間開啟連結時才發現缺漏。
+    check_chronic_care() 的時效警告則保留人工判斷，不中止建置。
 
     回傳實際被引用到的檔名集合。
     """

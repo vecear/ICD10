@@ -5,9 +5,10 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
   const normalize = (s) => String(s || '').normalize('NFKC').toLowerCase().replace(/\s+/g, ' ').trim();
-  function search(guide, query, group) {
+  function search(guide, query, group, topic) {
     const terms = normalize(query).split(' ').filter(Boolean);
     return guide.cards.filter(c => !group || group === 'all' || c.groups.includes(group))
+      .filter(c => !topic || topic === 'all' || c.topics.includes(topic))
       .map((card, index) => {
         const title = normalize([card.title, ...card.aliases].join(' '));
         const text = normalize([title, ...card.answer, ...card.cautions].join(' '));

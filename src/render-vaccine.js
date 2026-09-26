@@ -29,12 +29,14 @@
   function renderResults(overlay) {
     const query = overlay.querySelector('#vac-search').value;
     const group = overlay.dataset.group || 'all';
-    const cards = V.search(guide, query, group);
+    const topic = overlay.dataset.topic || 'all';
+    const cards = V.search(guide, query, group, topic);
     const results = overlay.querySelector('#vac-results');
     R.clear(results);
     overlay.querySelector('.vac-body').scrollTop = 0;
     overlay.querySelector('#vac-count').textContent = cards.length + ' 個問題 · 點擊問題展開';
     for (const b of overlay.querySelectorAll('[data-vac-group]')) b.setAttribute('aria-pressed', String(b.dataset.vacGroup === group));
+    for (const b of overlay.querySelectorAll('[data-vac-topic]')) b.setAttribute('aria-pressed', String(b.dataset.vacTopic === topic));
     if (!cards.length) results.appendChild(R.el('p', 'vac-empty', '沒有符合的問題。可清除條件，或改搜疫苗名稱／縮寫。'));
     for (const category of guide.groups.filter(g => g.id !== 'all')) {
       const questions = cards.filter(c => c.groups.includes(category.id));
@@ -105,14 +107,17 @@
     const groups = R.el('div', 'vac-groups');
     groups.setAttribute('role', 'group'); groups.setAttribute('aria-label', '疫苗種類');
     guide.groups.forEach(g => { const b = button(g.label); b.dataset.vacGroup = g.id; groups.appendChild(b); });
+    const topics = R.el('div', 'vac-groups vac-topics');
+    topics.setAttribute('role', 'group'); topics.setAttribute('aria-label', '問題主題');
+    guide.topics.forEach(t => { const b = button(t.label); b.dataset.vacTopic = t.id; topics.appendChild(b); });
 
     const count = R.el('span', 'vac-count'); count.id = 'vac-count'; count.setAttribute('role', 'status');
     panel.appendChild(tools);
     const body = R.el('div', 'vac-body');
-    body.append(groups, count);
+    body.append(R.el('p', 'vac-filter-label', '疫苗種類'), groups, R.el('p', 'vac-filter-label', '問題主題'), topics, count);
     const results = R.el('div'); results.id = 'vac-results'; body.appendChild(results);
     const library = R.el('details', 'vac-library');
-    library.appendChild(R.el('summary', null, '原始文件（' + guide.sources.length + ' 份，離線可開啟）'));
+    library.appendChild(R.el('summary', null, '來源文件（' + guide.sources.length + ' 份，離線可開啟）'));
     guide.sources.forEach(s => { const row = R.el('div', 'vac-source'); row.append(sourceLink(s, 1), R.el('span', 'vac-version', s.version)); library.appendChild(row); });
     body.append(library, R.el('p', 'vac-note', guide.notice + '\n整理日期：' + guide.version));
     panel.appendChild(body); overlay.appendChild(panel);
@@ -134,11 +139,13 @@
         const target = ev.target;
         if (target === overlay || target.closest('#vac-close')) { ev.stopPropagation(); close(); return; }
         if (target.closest('#vac-reset')) {
-          overlay.querySelector('#vac-search').value = ''; overlay.dataset.group = 'all';
+          overlay.querySelector('#vac-search').value = ''; overlay.dataset.group = 'all'; overlay.dataset.topic = 'all';
           renderResults(overlay); overlay.querySelector('#vac-search').focus();
         }
         const group = target.closest('[data-vac-group]');
         if (group) { overlay.dataset.group = group.dataset.vacGroup; renderResults(overlay); overlay.querySelector('.vac-body').scrollTop = 0; }
+        const topic = target.closest('[data-vac-topic]');
+        if (topic) { overlay.dataset.topic = topic.dataset.vacTopic; renderResults(overlay); }
         const copy = target.closest('[data-vac-copy]');
         if (copy) {
           const card = guide.cards.find(c => c.id === copy.dataset.vacCopy);
@@ -161,7 +168,7 @@
     overlay.hidden = !open;
     entry.setAttribute('aria-expanded', String(open));
     if (!open) {
-      overlay.querySelector('#vac-search').value = ''; overlay.dataset.group = 'all';
+      overlay.querySelector('#vac-search').value = ''; overlay.dataset.group = 'all'; overlay.dataset.topic = 'all';
       R.clear(overlay.querySelector('#vac-results'));
     }
   }

@@ -33,7 +33,7 @@
   透過 `documentPictureInPicture.requestWindow()` 拿到視窗才呼叫 `ctx.store.setPinned(true)`；
   被擋下或不支援時只顯示提示文字，`pinned` 維持 `false`。
 - 理由：交付物原型的行為會讓「置頂」鈕呈現 active／選中樣式，但畫面上根本沒有置頂小視窗，
-  等於 UI 在說謊。改成「失敗只顯示提示，不假裝已置頂」，避免使用者以為視窗開在背後找不到。
+  與實際視窗狀態不符。失敗時改為只顯示提示，避免使用者誤以為置頂視窗已開啟。
 - 對應測試：`tests/test_e2e_dock.py::test_pin_unsupported_shows_note` 驗證降級路徑
   `pinned` 維持 `false` 且不拋例外。
 

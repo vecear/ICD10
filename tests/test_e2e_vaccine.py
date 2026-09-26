@@ -1,8 +1,12 @@
 from pathlib import Path
+import json
 import pytest
 from playwright.sync_api import sync_playwright, expect
 
 ROOT = Path(__file__).resolve().parents[1]
+GUIDE = json.loads((ROOT / 'src/curated/vaccine_guide.json').read_text(encoding='utf-8'))
+def group_count(group):
+    return sum(c['groups'] == [group] for c in GUIDE['cards'])
 
 @pytest.fixture
 def browser():
@@ -27,10 +31,10 @@ def test_vac_search_close_sources_and_width(browser, width, layout):
         assert box['height'] >= 44 and box['width'] >= 44
     page.locator('#vac-btn').click()
     expect(page.locator('#vac-panel')).to_be_visible()
-    expect(page.locator('.vac-section')).to_have_count(15)
+    expect(page.locator('.vac-section')).to_have_count(len(GUIDE['groups']) - 1)
     expect(page.locator('.vac-card[open]')).to_have_count(0)
     page.locator('[data-vac-group="pneumococcal"]').click()
-    expect(page.locator('.vac-card')).to_have_count(2)
+    expect(page.locator('.vac-card')).to_have_count(group_count('pneumococcal'))
     expect(page.locator('.vac-answer').first).not_to_be_visible()
     page.locator('.vac-card > summary').first.click()
     expect(page.locator('.vac-answer').first).to_be_visible()
@@ -38,17 +42,17 @@ def test_vac_search_close_sources_and_width(browser, width, layout):
     expect(page.locator('.vac-answer').first).not_to_be_visible()
     page.locator('#vac-reset').click()
     page.locator('#vac-search').fill('皮蛇')
-    expect(page.locator('.vac-card')).to_have_count(1)
+    expect(page.locator('[data-vac-question="zoster"]')).to_be_visible()
     expect(page.locator('.vac-card[open]')).to_have_count(0)
-    page.locator('.vac-card > summary').click()
-    expect(page.locator('.vac-card')).to_contain_text('2–6 個月')
+    page.locator('[data-vac-question="zoster"] > summary').click()
+    expect(page.locator('[data-vac-question="zoster"]')).to_contain_text('2–6 個月')
     assert page.locator('.vac-card .vac-source a').first.get_attribute('href').startswith('file:')
     page.locator('#vac-search').fill('沒有這種疫苗xyz')
     expect(page.locator('#vac-results')).to_contain_text('沒有符合')
     page.locator('#vac-reset').click()
     page.locator('[data-vac-group="tdap"]').click()
     expect(page.locator('.vac-card[open]')).to_have_count(0)
-    page.locator('.vac-card > summary').click()
+    page.locator('[data-vac-question="tdap"] > summary').click()
     expect(page.locator('#vac-results')).to_contain_text('27–36 週')
     assert page.locator('#vac-panel').evaluate('(e) => e.scrollWidth <= e.clientWidth + 1')
     page.keyboard.press('Escape')
@@ -64,6 +68,8 @@ def test_vac_in_real_pip(browser):
         page.locator('#pin-toggle').click()
     pip = event.value
     pip.locator('#vac-btn').click()
+    pip.locator('[data-vac-group="hpv"]').click()
+    pip.locator('[data-vac-topic="contraindications"]').click()
     pip.locator('#vac-search').fill('HPV')
     expect(pip.locator('.vac-card').first).to_contain_text('HPV')
     expect(pip.locator('.vac-card[open]')).to_have_count(0)
@@ -72,6 +78,35 @@ def test_vac_in_real_pip(browser):
     pip.keyboard.press('Escape')
     expect(pip.locator('#vac-btn')).to_be_focused()
     pip.close()
+
+@pytest.mark.parametrize('width,layout', [(1440, 'wide'), (390, 'wide'), (340, 'dock'), (176, 'dock')])
+def test_topics_intersect_with_vaccine_and_query_and_reset(browser, width, layout):
+    page = open_app(browser, width, layout)
+    page.locator('#vac-btn').click()
+    page.locator('[data-vac-group="rotavirus"]').click()
+    page.locator('[data-vac-topic="contraindications"]').click()
+    expect(page.locator('[data-vac-topic="contraindications"]')).to_have_attribute('aria-pressed', 'true')
+    expected = [c['id'] for c in GUIDE['cards'] if c['groups'] == ['rotavirus'] and 'contraindications' in c['topics']]
+    assert page.locator('.vac-card').evaluate_all('(es) => es.map(e => e.dataset.vacQuestion)') == expected
+    expect(page.locator('.vac-card[open]')).to_have_count(0)
+    card = page.locator('[data-vac-question="rotavirus-contra"]')
+    card.locator('summary').click()
+    expect(card).to_contain_text('腸套疊')
+    page.locator('#vac-search').fill('SCID')
+    expect(page.locator('.vac-card')).to_have_count(1)
+    expect(page.locator('.vac-card[open]')).to_have_count(0)
+    page.locator('#vac-search').fill('找不到xyz')
+    expect(page.locator('.vac-empty')).to_be_visible()
+    page.locator('#vac-reset').click()
+    expect(page.locator('.vac-card')).to_have_count(len(GUIDE['cards']))
+    expect(page.locator('[data-vac-topic="all"]')).to_have_attribute('aria-pressed', 'true')
+    page.locator('[data-vac-topic="schedule"]').click()
+    page.keyboard.press('Escape')
+    page.locator('#vac-btn').click()
+    expect(page.locator('[data-vac-topic="all"]')).to_have_attribute('aria-pressed', 'true')
+    expect(page.locator('.vac-card[open]')).to_have_count(0)
+    assert page.locator('#vac-panel').evaluate('(e) => e.scrollWidth <= e.clientWidth + 1')
+    page.close()
 
 def test_vac_copy_focus_and_offline_links(browser):
     page = open_app(browser)
@@ -83,11 +118,12 @@ def test_vac_copy_focus_and_offline_links(browser):
     page.locator('#vac-search').fill('MMR')
     assert page.locator('.vac-body').evaluate('(e) => e.scrollTop') == 0
     page.locator('#vac-search').fill('皮蛇')
-    page.locator('.vac-card > summary').focus()
+    card = page.locator('[data-vac-question="zoster"]')
+    card.locator('summary').focus()
     page.keyboard.press('Enter')
-    expect(page.locator('.vac-answer')).to_be_visible()
-    page.locator('.vac-copy').click()
-    expect(page.locator('.vac-copy')).to_have_text('已複製')
+    expect(card.locator('.vac-answer')).to_be_visible()
+    card.locator('.vac-copy').click()
+    expect(card.locator('.vac-copy')).to_have_text('已複製')
     copied = page.evaluate('window.__vacCopied')
     assert '2–6 個月' in copied and '注意：' in copied and '115 年 5 月' in copied
     page.locator('#vac-close').focus()
@@ -106,7 +142,7 @@ def test_flu_children_updated_schedule_is_searchable_and_collapsed(browser):
     page = open_app(browser, 390)
     page.locator('#vac-btn').click()
     page.locator('[data-vac-group="flu"]').click()
-    expect(page.locator('.vac-card')).to_have_count(2)
+    expect(page.locator('.vac-card')).to_have_count(group_count('flu'))
     expect(page.locator('.vac-card[open]')).to_have_count(0)
     page.locator('#vac-search').fill('兒童')
     card = page.locator('[data-vac-question="flu-child"]')

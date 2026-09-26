@@ -181,7 +181,7 @@
       box.appendChild(table);
     } else {
       box.appendChild(R.el('p', 'ccr-hint',
-        '填身高就會依 BMI 自動選用理想／調整體重——體重極端時那才是建議的算法。'));
+        '填入身高後，會依 BMI 選用計算體重。\n結果另列實際／理想／調整體重的計算值，供醫師核對。'));
     }
     return r;
   }

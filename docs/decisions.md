@@ -176,7 +176,7 @@ pravastatin ＋ fenofibrate 複方 1、atorvastatin ＋ amlodipine 複方 4）�
 **不能假設「大多數走表一」**：就現行給付中的品項而言表二反而較多（116 vs 49），
 逐學名看每一種 statin 都是表二多於表一。這一條是實際寫錯過的判斷——
 把已停付的死碼算進去會得到「表一 255／表二 116」的相反印象，
-而錯的方向會讓醫師少對代碼。`tests/test_lipid_products.py` 把它釘住了。
+而錯的方向會讓醫師少對代碼。`tests/test_lipid_products.py` 會檢查這項數量關係。
 
 （出自 README 的『品項反查（代碼／商品名／學名 → 表一或表二）』節）
 

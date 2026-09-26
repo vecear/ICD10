@@ -50,10 +50,9 @@
    模式鈕」會把選中底色（--sel-bg）掉回一般 hover 底。setPressed() 一律同時寫
    aria-pressed 與 .is-on，所以判 .is-on 就夠。 */
 #layout-wide .mode-btn:not(.is-on):hover { background: var(--color-accent-200); }
-/* line-height 1.2 不是裝飾：body 是給內文的 1.55，套在單行不換行的搜尋框上時
-   13px × 1.55 ＋ 內距 12 ＋ 外框 2 ＝ 34.2px，會**壓過** min-height 把這一格撐高 2px，
-   於是「全列同高」只差在它一個（密度原則手法 #3 講的正是這件事）。收到 1.2 之後
-   自然高度 29.6px，min-height 32 才真的說了算。 */
+/* 搜尋框若繼承 body 的 line-height 1.55，高度為
+   13px × 1.55 ＋ 內距 12 ＋ 外框 2 ＝ 34.2px，會超過 min-height，較同列控制項高 2px。
+   設為 1.2 後自然高度為 29.6px，由 min-height 32 決定最終高度（密度原則手法 #3）。 */
 #layout-wide #search { flex: 1; min-width: 0; background: transparent; line-height: 1.2; }
 #layout-wide #settings-toggle { letter-spacing: .05em; white-space: nowrap; }
 /* 「側掛置頂」與「設定」是 header 右側的同一組控制，同高同字級、同一組 class

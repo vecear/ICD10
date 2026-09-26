@@ -54,3 +54,4 @@ body[data-layout="mobile"] .chronic-switch { gap: 6px; }
   .vac-groups button { font-size: 11px; padding: 3px; }
 }
 body[data-layout="mobile"] .vac-panel button, body[data-layout="mobile"] .vac-panel summary { min-height: 44px; }
+.vac-filter-label { margin: 4px 0; font-size: 12px; font-weight: 600; }

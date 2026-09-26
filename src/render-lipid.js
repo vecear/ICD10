@@ -181,7 +181,7 @@
       if (found.capped) {
         box.appendChild(R.el('p', 'lipid-lookup-more',
           '只列前 ' + rows.length + ' 筆，另有 ' + (found.total - rows.length)
-          + ' 筆未列出——打得更精確（代碼或完整商品名）可以縮小範圍。'));
+          + ' 筆未列出。\n可輸入健保代碼或完整商品名縮小範圍。'));
       }
       const sum = ctx.logic.lipidSummarize(
         ctx.logic.lipidFindProducts(products, query, products.length).hits);
@@ -211,7 +211,7 @@
       box.appendChild(line);
     }
     box.appendChild(R.el('p', 'lipid-lookup-sum',
-      '數字是品項數，不是劑量。同一個學名可能兩張表都有——開藥前用上面的欄位查代碼。'));
+      '數字代表品項數，不是劑量。\n同一學名可能適用不同表別，開藥前請用上方欄位查健保代碼。'));
     return box;
   }
 
@@ -461,13 +461,12 @@
     if (twoList) twoBlock.appendChild(twoList);
     if (t2) {
       twoBlock.appendChild(R.el('p', 'lipid-t2-caution',
-        '同一個學名底下表一表二都有，且現行給付中是表二較多——依健保代碼認定，'
-        + '用下面的「查品項」對一次。'));
+        '同一學名可能適用不同表別。\n內建資料中，現行給付品項以表二較多。\n'
+        + '請用下方「查品項」核對健保代碼與適用表別。'));
     }
     box.appendChild(twoBlock);
 
-    /* 兩張表結論不同時要明講。這正是這個計算機最有價值的一刻——同一位病人，
-       開 A 廠牌符合、開 B 廠牌不符合，差別只在健保代碼走哪一張表。 */
+    /* 同一位病人可能因品項的適用表別不同而得到不同結論，需明確提示核對健保代碼。 */
     if (r.one.meets !== null && r.two.meets !== null && root.ICDLogic.lipidTreatmentStatus(r.one).status !== root.ICDLogic.lipidTreatmentStatus(r.two).status) {
       box.appendChild(R.el('p', 'lipid-split',
         '兩表結論不同，請依所開品項之健保代碼適用之表別認定'));

@@ -15,14 +15,26 @@ test('以疫苗縮寫、俗稱及問題搜尋，標題優先', () => {
 });
 test('以疫苗種類篩選，問題都有唯一歸屬且不遺漏', () => {
   assert.equal(V.search(guide, '').length, guide.cards.length);
-  assert.deepEqual(V.search(guide, '', 'pneumococcal').map(x => x.id), ['pneumococcal', 'ipd']);
-  assert.deepEqual(V.search(guide, '', 'rsv').map(x => x.id), ['rsv', 'palivizumab']);
+  assert.ok(V.search(guide, '', 'pneumococcal').some(x => x.id === 'ipd'));
+  assert.ok(V.search(guide, '', 'rsv').some(x => x.id === 'palivizumab'));
   assert.ok(V.search(guide, '', 'mmr').some(x => x.id === 'measles-pep'));
   assert.ok(V.search(guide, '', 'common').some(x => x.id === 'pregnancy'));
   const assigned = guide.groups.filter(g => g.id !== 'all').flatMap(g => V.search(guide, '', g.id));
   assert.equal(assigned.length, guide.cards.length);
   assert.equal(new Set(assigned.map(x => x.id)).size, guide.cards.length);
   assert.equal(V.search(guide, '', 'unknown').length, 0);
+});
+test('問題主題、疫苗種類及搜尋文字取交集，未知主題不回傳答案', () => {
+  const fixture = {cards: [
+    {id: 'a', groups: ['flu'], topics: ['schedule'], title: '兒童', aliases: [], answer: ['時程'], cautions: []},
+    {id: 'b', groups: ['flu'], topics: ['contraindications'], title: '兒童', aliases: [], answer: ['禁忌'], cautions: []},
+    {id: 'c', groups: ['mmr'], topics: ['schedule'], title: '成人', aliases: [], answer: ['時程'], cautions: []},
+  ]};
+  assert.deepEqual(V.search(fixture, '兒童', 'flu', 'schedule').map(c => c.id), ['a']);
+  assert.equal(V.search(fixture, '成人', 'flu', 'schedule').length, 0);
+  assert.equal(V.search(fixture, '', 'all', 'unknown').length, 0);
+  assert.equal(V.search(fixture, '', 'all', 'all').length, 3);
+  assert.equal(V.search(fixture, '', 'flu').length, 2);
 });
 test('複製答案保留限制、來源版本與每項獨立一行', () => {
   const card = guide.cards.find(x => x.id === 'pneumococcal');

@@ -4,8 +4,7 @@
 所以條文必須跟 `icd10.html` 一起寄過去、放在同一層的 `健保條文/` 資料夾裡。
 
 `src/curated/chronic_care.json` 的 `docs[].file` 只寫檔名。檔名對不上這裡的實際檔案，
-`python build/build.py` 就會失敗——因為那種錯到了診間只會表現成「點下去找不到檔案」，
-而診間補不了檔。
+`python build/build.py` 就會失敗，避免診間點開連結時才發現缺檔。
 
 ## 目前收錄
 
@@ -45,5 +44,5 @@
 3. 上面那張表的下載網址與下載日一起更新（網址每次改版都會換）。
 4. `python build/build.py && python tools/pack_for_clinic.py`，重新寄一次診間包。
 
-條文換版時，`chronic_care.json` 裡逐條的 `checked` 日期也該一併重查——PDF 換了新的、
-條目還停在舊版摘要，是這份速查最危險的失敗方式。
+條文換版時，須逐條核對 `chronic_care.json` 的摘要，再更新 `checked` 日期，
+避免 PDF 已換版、摘要仍沿用舊內容。

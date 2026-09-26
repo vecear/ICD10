@@ -130,7 +130,7 @@
     }
   }
 
-  /* 全庫狀態說明。數字讀 window.ICD_META.rowCount，不得寫死（換版資料後數字會說謊）。 */
+  /* 全庫狀態說明。數字讀 window.ICD_META.rowCount，不得寫死，以免換版後筆數不符。 */
   function dbNoteText(ctx) {
     const s = ctx.store.getState();
     if (s.dbState === 'ready') {

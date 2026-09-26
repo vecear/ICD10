@@ -510,8 +510,8 @@ body[data-layout="mobile"] .clipboard-editor textarea { font-size: 16px; }
    顏色語意：
      * 三顆按鈕刻意**不長得像 .seg-btn**——那組視覺在本產品的意思是「選一個狀態」
        （看診模式、複製格式），慢病鈕點下去是開一個查閱浮層，不改變工具的任何狀態。
-     * 但書與「新版將於 X 日生效」走 --warn-* 系列：這兩件事都是「注意，這裡會咬人」，
-       與紅旗同一個語意層級，不另立第三套顏色。
+     * 但書與「新版將於 X 日生效」使用 --warn-* 警示色，
+       與紅旗共用同一組顏色。
      * 出處／查證日期用 --color-neutral-700（深淺兩套都定義過，對比皆達正文門檻）。 */
 /* flex-wrap 不是裝飾：這一排現在有「健保規範條文」「血脂計算機」「CCr」三顆，
    1c 的 164px 可用寬度放不下一整列，不換行就會水平溢出（test_no_hscroll 會抓）。 */
@@ -758,14 +758,13 @@ details.chronic-drug-more[open] > .chronic-drug-head::before { content: '▾'; }
    排在速判摘要之後、分段內容之前：它決定底下每一條門檻要讀表一還是表二，
    是讀下面所有數字的前提。
 
-   走 --warn-* 而不是 accent：這是「注意，這裡會咬人」——同一位病人、同一組檢驗值，
-   換一個健保代碼就可能從符合變成不符合。與「新版將於 X 日生效」同一個語意層級。
+   使用 --warn-* 警示色：同一位病人、同一組檢驗值，換健保代碼可能改變給付判定。
+   與「新版將於 X 日生效」共用警示配色。
 
    每一項後面帶代碼數（`19 項`）是刻意的：只列成分名會被讀成「所有 simvastatin
-   都走表二」，而實際上同成分多數品項仍走表一。數字讓人看得出這是**代碼層級**的
+   都走表二」，但同成分可能有不同表別。數字讓人看得出這是**代碼層級**的
    例外清單。grid 自動填欄——1a 排得下三欄，176px 自己塌成一欄。 */
-/* 本院品項：不走 warn 色，它不是警示而是「這裡能開什麼」的落地清單。
-   用中性底與實心左邊界跟上面的規則區塊分開。 */
+/* 本院品項列出院內可用的藥品，以中性底與實心左邊界區別上方規則區塊。 */
 .chronic-hosp {
   margin: 10px 0 0; padding: 8px 10px;
   background: var(--color-neutral-100); border-left: 3px solid var(--color-neutral-900);
@@ -1139,7 +1138,7 @@ details.chronic-more[open] > .chronic-line .chronic-more-toggle { color: var(--c
   margin: 5px 0 0; font-size: 11px; line-height: 1.5; color: var(--color-neutral-700);
 }
 /* 並列結果與提示明確分行，寬螢幕也不能再串成一行。 */
-.ccr-hint, .ccr-disclaimer, .lipid-disclaimer, .lipid-lookup-empty,
+.ccr-hint, .ccr-disclaimer, .lipid-disclaimer, .lipid-lookup-empty, .lipid-lookup-more, .lipid-t2-caution,
 .lipid-lookup-sum, .lipid-avail, .lipid-threshold, .lipid-drug-note, .lipid-rf, .lipid-hit-sub,
 .chronic-ladder-num, .result-note, .result-empty, .cart-empty, .dock-pin-note, .dock-pinned-away,
 #layout-note, #db-note { white-space: pre-line; }

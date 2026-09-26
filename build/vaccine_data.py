@@ -26,20 +26,32 @@ def validate_vaccine_data(data, root):
         if source.get('url'):
             url = urlsplit(source['url'])
             require(url.scheme == 'https' and url.netloc in {
-                'www.cdc.gov.tw', 'labeling.pfizer.com', 'www.tspccm.org.tw',
+                'www.cdc.gov.tw', 'www.cdc.gov', 'health.gov.taipei', 'mcp.fda.gov.tw',
+                'labeling.pfizer.com', 'www.tspccm.org.tw',
             }, '線上來源非核准的第一方網站')
         sources[key] = source
     groups = {g['id'] for g in data['groups']}
+    require(len(groups) == len(data['groups']), '分類 ID 重複')
+    required_topics = {'types', 'indications', 'schedule', 'catchup', 'contraindications', 'special', 'reactions'}
+    topics = {t['id'] for t in data.get('topics', [])}
+    require(topics == required_topics | {'all'} and len(topics) == len(data.get('topics', [])), '主題定義不完整或重複')
+    coverage = {g: set() for g in groups - {'all', 'common'}}
     ids = set()
     for card in data['cards']:
         require(card['id'] not in ids, '卡片 ID 重複')
         ids.add(card['id'])
         require(card['title'] and card['answer'] and card['refs'], '答案或引用空白')
-        require(set(card['groups']) <= groups, '未知情境分類')
+        require(len(card['groups']) == 1 and set(card['groups']) <= groups - {'all'}, '未知情境分類或歸屬不唯一')
+        card_topics = card.get('topics', [])
+        require(card_topics and set(card_topics) <= required_topics and len(set(card_topics)) == len(card_topics), '卡片主題空白、未知或重複')
+        if card['groups'][0] in coverage:
+            coverage[card['groups'][0]].update(card_topics)
         require(all(isinstance(x, str) and x.strip() for x in card['answer'] + card['cautions']), '答案含空行')
         for ref in card['refs']:
             require(ref['source'] in sources, '引用不存在')
             require(type(ref['page']) is int and 1 <= ref['page'] <= sources[ref['source']]['pages'], '引用頁碼超出範圍')
+    for group, covered in coverage.items():
+        require(covered == required_topics, '疫苗主題缺漏：' + group)
     return data
 
 
