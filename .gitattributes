@@ -5,3 +5,5 @@ dist/*.html text eol=lf
 *.md text eol=lf
 *.json text eol=lf
 *.html text eol=lf
+# VAC 查核摘要以原始位元組驗證 SHA-256，Windows checkout 亦須保留 LF。
+疫苗/*.txt text eol=lf

@@ -1757,8 +1757,8 @@ def chronic_page(browser_ctx, page_url, today):
     return pg
 
 
-def test_chronic_row_is_entry_then_two_calculators_and_starts_closed(page):
-    """這一排的組成與順序：健保規範條文 → 血脂計算機 → CCr。
+def test_chronic_row_is_entry_then_calculators_and_vac_and_starts_closed(page):
+    """這一排的組成與順序：健保規範條文 → 血脂計算機 → CCr → VAC。
 
     順序不是美觀問題：第一顆是「看規定」，後兩顆是「算數字」，
     而 CCr 是從 header 搬過來的——搬錯位置（例如排到入口鈕左邊）會讓兩群混在一起。
@@ -1768,10 +1768,12 @@ def test_chronic_row_is_entry_then_two_calculators_and_starts_closed(page):
     expect(row.locator(".chronic-btn")).to_have_count(1)          # 負面：三顆主題鈕不再排在外面
     order = page.evaluate("""() => Array.from(
         document.getElementById('chronic-switch').children).map((n) => n.id)""")
-    assert order == ["chronic-btn", "lipid-btn", "ccr-btn"], order
+    assert order == ["chronic-btn", "lipid-btn", "ccr-btn", "vac-btn"], order
     assert page.locator("#chronic-btn").inner_text() == "健保規範條文"
     assert page.locator("#lipid-btn").inner_text() == "Lipid"
     assert page.locator("#ccr-btn").inner_text() == "CCr"
+    assert page.locator("#vac-btn").inner_text() == "VAC"
+    expect(page.locator("#vac-overlay")).to_be_hidden()
     expect(page.locator("#chronic-btn")).to_have_attribute("aria-expanded", "false")
     expect(page.locator("#chronic-overlay")).to_be_hidden()      # 負面：預設不擋住工作區
 

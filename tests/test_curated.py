@@ -18,7 +18,8 @@ CODE_SHAPE_RE = re.compile(r"^[A-Z]\d[A-Z0-9](\.[A-Z0-9]{1,4})?$")
 # build.py 也刻意把它排除在 CURATED_KEYS 之外（理由見該處註解），這裡跟上同一個契約；
 # 契約本身由 test_chronic_care.py::test_chronic_care_stays_out_of_the_icd_code_validation_path 守。
 # 抗菌藥方案亦不是 [ICD code, label]，由 test_renal_data.py 驗證其專用契約。
-NO_ICD_CODE_FILES = {"chronic_care.json", "antibiotic_dosing.json"}
+# 疫苗問答同樣不含 ICD 選碼，來源／引用由 test_vaccine_data.py 守門。
+NO_ICD_CODE_FILES = {"chronic_care.json", "antibiotic_dosing.json", "vaccine_guide.json"}
 
 @pytest.fixture(scope="module")
 def leafset():

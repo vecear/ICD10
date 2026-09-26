@@ -51,6 +51,7 @@ WIDE_HEADER_CONTROLS = (
     "#chronic-btn",
     "#lipid-btn",
     "#ccr-btn",
+    "#vac-btn",
     "#search",
     "#go-dock",
     "#settings-toggle",

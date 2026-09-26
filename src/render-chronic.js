@@ -85,7 +85,7 @@
     /* 兩個計算機接在後面。血脂試算算的就是 LIPID 的給付門檻，CCr 是調劑量用的，
        兩者都是「輸入數值換一個判斷」，與條文查閱同一個動線，放同一排。
        這一排跟著內容捲動（1c／1b），常駐版面成本是 0。 */
-    row.append(R.lipidButtonEl(compact), R.ccrButtonEl(compact));
+    row.append(R.lipidButtonEl(compact), R.ccrButtonEl(compact), R.vacButtonEl(compact));
     return row;
   }
 

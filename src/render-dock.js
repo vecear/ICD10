@@ -119,6 +119,7 @@
     chronicLast: [],
     ccrOpen: ['ccr'],
     lipidOpen: ['lipid'],
+    vacOpen: ['vac'],
     cartOpen: ['cart'],
     pinned: ['pin'],
     // 窗格高度本身由 update() 末尾的 paneGroup.applyAll() 統一處理，這裡只需同步
@@ -314,6 +315,7 @@
     refs.lipidOverlay = R.lipidOverlayEl();
     dock.appendChild(refs.ccrOverlay);
     dock.appendChild(refs.lipidOverlay);
+    dock.appendChild(R.vacOverlayEl());
 
     host.appendChild(dock);
 
@@ -884,6 +886,7 @@
     /* PiP 小視窗裡主文件的委派搆不到，這裡代打（與 chip／模式鈕同一條路）。 */
     U.ccr = () => R.syncCcr(dock, ctx);
     U.lipid = () => R.syncLipid(dock, ctx);
+    U.vac = () => R.syncVac(dock, ctx);
 
     U.chronic = () => {
       R.syncChronicSwitch(dock, ctx);

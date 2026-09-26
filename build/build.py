@@ -5,6 +5,7 @@ from pathlib import Path
 
 from source_manifest import SOURCE_SHA256, SOURCE_VERSION
 from renal_data import load_renal_data, renal_script
+from vaccine_data import load_vaccine_data, copy_vaccine_sources, vaccine_script
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC, DATA, DIST = ROOT / "src", ROOT / "data", ROOT / "dist"
@@ -24,15 +25,15 @@ FONTS = [
 ]
 # 設計系統 → 產品共用元件 → 各版面骨架。都在 :root 定義 token，靠來源順序讓後者覆寫。
 # 版面各一檔（wide／後續 dock、mobile）是為了讓不同階段能並行實作而不互相覆蓋。
-STYLESHEETS = ["styles/industry.css", "styles/app.css", "styles/wide.css", "styles/dock.css", "styles/mobile.css", "styles/renal.css"]
+STYLESHEETS = ["styles/industry.css", "styles/app.css", "styles/wide.css", "styles/dock.css", "styles/mobile.css", "styles/renal.css", "styles/vaccine.css"]
 # 有序：每個模組都是 IIFE／UMD，靠這個順序保證依賴先於使用者掛上 window（無 bundler）。
 # logic → state → data 都是零 DOM 的純模組（node --test 直接測），其後才碰 DOM。
 SOURCES = [
-    "logic.js", "renal-dosing.js", "clipboard-format.js", "clinical-format.js", "state.js", "data.js",
+    "logic.js", "renal-dosing.js", "vaccine.js", "clipboard-format.js", "clinical-format.js", "state.js", "data.js",
     "resize.js",
     "render-renal.js", "clipboard-settings.js",
     # render-* 六檔共用同一個 window.ICDRender 物件，dom 先建立、其餘疊加；順序＝相依順序。
-    "render-dom.js", "render-common.js", "render-settings.js", "render-chronic.js", "render-ccr.js", "render-lipid.js",
+    "render-dom.js", "render-common.js", "render-settings.js", "render-chronic.js", "render-ccr.js", "render-lipid.js", "render-vaccine.js",
     "render-wide.js", "render-dock.js", "render-mobile.js",
     "interactions.js", "app.js",
 ]
@@ -588,6 +589,7 @@ def main():
     drug_groups = check_drugs(chronic)
     table_two = check_table_two_only(chronic)
     chronic_report = check_chronic_care(chronic)
+    vaccine = load_vaccine_data(ROOT)
     styles, font_bytes = build_styles()
     scripts = (
         "<script>\nwindow.ICD_META = " + json.dumps(metadata, ensure_ascii=False, separators=(",", ":")) + ";\n</script>\n"
@@ -604,6 +606,7 @@ def main():
         + "   由 build/fetch_lipid_products.py 產生，守門是 check_lipid_products()。 */\n"
         + "window.LIPID_PRODUCTS = " + json.dumps(products, ensure_ascii=False, separators=(",", ":")) + ";\n</script>\n"
         + renal_script(renal)
+        + vaccine_script(vaccine)
         + "\n".join(
             "<script>\n" + (SRC / rel).read_text(encoding="utf-8") + "\n</script>"
             for rel in SOURCES
@@ -621,6 +624,7 @@ def main():
     with io.open(out, "w", encoding="utf-8", newline="\n") as f:
         f.write(html)
     copied_docs = copy_nhi_docs()
+    copy_vaccine_sources(vaccine, ROOT, DIST)
     print(
         f"輸出 {out}（{out.stat().st_size:,} bytes）\n"
         f"  字型：{len(FONTS)} 個 woff2，{font_bytes:,} bytes → base64 {(font_bytes + 2) // 3 * 4:,} bytes\n"

@@ -31,6 +31,7 @@
 #layout-wide #chronic-btn,
 #layout-wide #lipid-btn,
 #layout-wide #ccr-btn,
+#layout-wide #vac-btn,
 #layout-wide #search,
 #layout-wide #go-dock,
 #layout-wide #settings-toggle {
@@ -287,4 +288,5 @@ body[data-layout="wide"] .panel-toggle[aria-expanded="true"] .marker { transform
 #layout-wide .chronic-switch { gap: 5px; flex-wrap: nowrap; }
 #layout-wide .chronic-btn,
 #layout-wide .chronic-switch .lipid-btn,
-#layout-wide .chronic-switch #ccr-btn { padding: 0 10px; }
+#layout-wide .chronic-switch #ccr-btn,
+#layout-wide .chronic-switch #vac-btn { padding: 0 10px; }

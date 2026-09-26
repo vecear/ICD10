@@ -1107,8 +1107,8 @@ def test_chronic_buttons_sit_in_the_scroll_area_with_44px_targets(page):
     order = page.evaluate("""() => Array.from(
         document.getElementById('chronic-switch').children).map((n) => n.id)""")
     # 「全展開／全收合」2026-09-17 加在這一排的尾巴（UX 稽核 U9，與 1c 同一個擺法）
-    assert order == ["chronic-btn", "lipid-btn", "ccr-btn", "expand-all-panels"], order
-    # 四顆仍要排成一列：折行＝第一屏少 44px 的代碼（內距帳見 mobile.css 那一段註解）
+    assert order == ["chronic-btn", "lipid-btn", "ccr-btn", "vac-btn", "expand-all-panels"], order
+    # 五顆仍要排成一列：折行＝第一屏少 44px 的代碼（內距帳見 mobile.css 那一段註解）
     geom = page.evaluate("""() => {
         const row = document.getElementById('chronic-switch');
         const btn = document.getElementById('expand-all-panels');
@@ -1123,7 +1123,7 @@ def test_chronic_buttons_sit_in_the_scroll_area_with_44px_targets(page):
         return { inHeader: !!row.closest('.m-header'), inScroll: !!row.closest('.m-scroll') };
     }""")
     assert placement["inScroll"] and not placement["inHeader"], placement
-    for sel in ("#chronic-btn", "#lipid-btn", "#ccr-btn", "#expand-all-panels"):
+    for sel in ("#chronic-btn", "#lipid-btn", "#ccr-btn", "#vac-btn", "#expand-all-panels"):
         b = page.locator(sel)
         expect(b).to_be_visible()
         rect = box(b)

@@ -30,6 +30,8 @@ sys.stdout.reconfigure(encoding="utf-8")
 
 ROOT = Path(__file__).resolve().parent.parent
 TOOLS = ROOT / "tools"
+sys.path.insert(0, str(ROOT / "build"))
+from vaccine_data import load_vaccine_data, copy_vaccine_sources
 NHI_DOC_DIR_NAME = "健保條文"
 NHI_DOCS = ROOT / NHI_DOC_DIR_NAME
 CHRONIC_CARE = ROOT / "src" / "curated" / "chronic_care.json"
@@ -197,6 +199,7 @@ def main():
 
     check_dist_freshness(dist)
 
+    vaccine = load_vaccine_data(ROOT)
     wanted_docs = nhi_docs_referenced()
     missing_docs = sorted(n for n in wanted_docs if not (NHI_DOCS / n).is_file())
     if missing_docs:
@@ -222,6 +225,7 @@ def main():
     OUT_DIR.mkdir()
 
     shutil.copy2(dist, OUT_DIR / "icd10.html")
+    copy_vaccine_sources(vaccine, ROOT, OUT_DIR)
     shutil.copy2(script, OUT_DIR / SCRIPT_AS)
     shutil.copy2(manual, OUT_DIR / "使用說明.txt")
     (OUT_DIR / ENCODED_AS).write_text(to_pem_base64(exe_bytes), encoding="ascii", newline="\n")
@@ -262,6 +266,12 @@ def main():
     if lost:
         raise SystemExit("zip 裡缺少慢病速查引用的條文檔：\n  " + "\n  ".join(lost))
 
+    with zipfile.ZipFile(OUT_ZIP) as zf:
+        for source in vaccine['sources']:
+            name = '疫苗/' + source['file']
+            if name not in zipped or hashlib.sha256(zf.read(name)).hexdigest() != source['sha256']:
+                raise SystemExit('VAC：zip 來源遺漏或 SHA-256 不符 ' + name)
+    print(f"VAC：{len(vaccine['cards'])} 張問答卡、{len(vaccine['sources'])} 份來源，zip SHA-256 核對通過")
     print(f"AutoHotkey 來源：{exe}")
     print(f"  SHA-256 {exe_sha}")
     print(f"  轉成文字後還原比對：相同 ✔")
