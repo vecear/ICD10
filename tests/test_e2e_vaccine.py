@@ -103,7 +103,7 @@ def test_topics_intersect_with_vaccine_and_query_and_reset(browser, width, layou
     page.locator('[data-vac-topic="schedule"]').click()
     page.keyboard.press('Escape')
     page.locator('#vac-btn').click()
-    expect(page.locator('[data-vac-topic="all"]')).to_have_attribute('aria-pressed', 'true')
+    expect(page.locator('[data-vac-topic="schedule"]')).to_have_attribute('aria-pressed', 'true')
     expect(page.locator('.vac-card[open]')).to_have_count(0)
     assert page.locator('#vac-panel').evaluate('(e) => e.scrollWidth <= e.clientWidth + 1')
     page.close()
@@ -134,8 +134,8 @@ def test_vac_copy_focus_and_offline_links(browser):
     assert not any(url.startswith(('https:', 'http:')) for url in requested)
     page.locator('#vac-close').click()
     page.locator('#vac-btn').click()
-    expect(page.locator('#vac-search')).to_have_value('')
-    expect(page.locator('.vac-card[open]')).to_have_count(0)
+    expect(page.locator('#vac-search')).to_have_value('皮蛇')
+    expect(page.locator('[data-vac-question="zoster"]')).to_have_attribute('open', '')
     page.close()
 
 def test_flu_children_updated_schedule_is_searchable_and_collapsed(browser):

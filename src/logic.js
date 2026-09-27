@@ -5,16 +5,28 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
+  // 只擴充已核對的名稱對照，不推論診斷；UTI 不可命中 hirsutism／cutis 的片段。
+  // N39.0 官方中文含相容字「泌尿」，僅搜尋索引正規化，原始資料與顯示名稱不變。
+  const normalizeSearch = (text) => text.normalize('NFKC').toLowerCase();
+  const UTI_NAME = /\buti\b|\burinary tract infection\b|泌尿道感染|尿路感染/;
+  const UTI_ALIASES = 'uti urinary tract infection 泌尿道感染 尿路感染';
+
   function buildIndex(db, curatedCodes) {
     const nodot = new Array(db.length);
     const lowerEn = new Array(db.length);
+    const lowerZh = new Array(db.length);
+    const aliases = new Array(db.length);
     const byCode = new Map();
     for (let i = 0; i < db.length; i++) {
       nodot[i] = db[i][0].replace('.', '');
-      lowerEn[i] = db[i][2].toLowerCase();
+      lowerEn[i] = normalizeSearch(db[i][2]);
+      lowerZh[i] = normalizeSearch(db[i][3]);
+      // 「生殖泌尿道感染」範圍較廣（例如 A60 疱疹），不能單憑其中片段套上 UTI。
+      const aliasSource = lowerEn[i] + ' ' + lowerZh[i].replace(/生殖泌尿道感染/g, '');
+      aliases[i] = UTI_NAME.test(aliasSource) ? UTI_ALIASES : '';
       byCode.set(db[i][0], db[i]);
     }
-    return { db, nodot, lowerEn, byCode, curatedCodes: curatedCodes || new Set() };
+    return { db, nodot, lowerEn, lowerZh, aliases, byCode, curatedCodes: curatedCodes || new Set() };
   }
 
   // 回傳的陣列另帶 total（截斷前的命中總數），供 UI 顯示「共 N 筆，顯示前 M 筆」。
@@ -30,14 +42,28 @@
     const out = [];
     const seen = new Set();
     const ranks = new Map();
-    const { db, nodot, lowerEn, curatedCodes } = index;
-    const ql = q.toLowerCase();
+    const { db, nodot, lowerEn, lowerZh, aliases, curatedCodes } = index;
+    const ql = normalizeSearch(q);
     const isCode = /^[a-z][0-9a-z.]*$/i.test(q);   // 像代碼：先做代碼前綴
     const qc = isCode ? q.toUpperCase().replace(/\./g, '') : '';
+    // 空白分詞後每詞都要命中，可跨代碼、中英文欄位，英文不必連成片語。
+    const terms = ql.split(/\s+/).map(text => ({
+      text,
+      code: /^[a-z][0-9a-z.]*$/i.test(text) ? text.toUpperCase().replace(/\./g, '') : '',
+    }));
+    const matches = (i, term) => {
+      if (term.code && nodot[i].startsWith(term.code)) return true;
+      if (term.text === 'uti') return aliases[i] !== '';
+      // 官方名稱有「右腳趾／左腳趾」等省略「側」的寫法，仍須被側別篩選找到。
+      if (term.text === '右側') return lowerZh[i].includes('右') || /\bright\b/.test(lowerEn[i]);
+      if (term.text === '左側') return lowerZh[i].includes('左') || /\bleft\b/.test(lowerEn[i]);
+      return lowerEn[i].includes(term.text) || lowerZh[i].includes(term.text)
+        || aliases[i].includes(term.text);
+    };
     // 命中層級：0 完全相符、1 開頭相符、2 其他（僅作為「精選碼優先」之後的次要排序）
     const rankOf = (i) => {
-      if ((isCode && nodot[i] === qc) || db[i][3] === q || lowerEn[i] === ql) return 0;
-      if ((isCode && nodot[i].startsWith(qc)) || db[i][3].startsWith(q) || lowerEn[i].startsWith(ql)) return 1;
+      if ((isCode && nodot[i] === qc) || lowerZh[i] === ql || lowerEn[i] === ql) return 0;
+      if ((isCode && nodot[i].startsWith(qc)) || lowerZh[i].startsWith(ql) || lowerEn[i].startsWith(ql)) return 1;
       return 2;
     };
     const push = (i) => {
@@ -52,7 +78,7 @@
         if (nodot[i].startsWith(qc)) push(i);
     }
     for (let i = 0; i < db.length; i++)
-      if (lowerEn[i].includes(ql) || db[i][3].includes(q)) push(i);
+      if (terms.every(term => matches(i, term))) push(i);
     // 人工精選（門診常用）碼優先顯示，其次依命中層級，同層級維持原順序（穩定排序）
     out.sort((a, b) =>
       ((curatedCodes.has(b[0]) ? 1 : 0) - (curatedCodes.has(a[0]) ? 1 : 0))

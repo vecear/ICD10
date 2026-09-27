@@ -385,11 +385,11 @@ def test_clipboard_sync_says_未同步_and_stays_when_the_clipboard_refuses(page
         if pg.locator("#cart-sheet").count():
             pg.click("#cart-toggle")
         mark = pg.locator("#clipboard-sync")
-        expect(mark).to_have_text("未同步")
+        expect(mark).to_have_text("未同步・重送")
         assert "is-stale" in (mark.get_attribute("class") or ""), mark.get_attribute("class")
         # 不自動消失：通知列的 2.5 秒逾時過了，它還在
         pg.wait_for_timeout(2800)
-        expect(mark).to_have_text("未同步")
+        expect(mark).to_have_text("未同步・重送")
     finally:
         pg.evaluate("""() => {
             navigator.clipboard.writeText = window.__realWrite;

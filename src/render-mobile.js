@@ -115,9 +115,7 @@
     refs.searchBack = R.searchBackEl();
     const headRow = R.el('div', 'm-head-row');
     headRow.append(search, refs.searchBack, refs.dateBtn, settingsToggle);
-    /* 可見通知列：貼在 header 下緣、覆蓋部位列最上緣而不推擠（三套版面同一個 #notice）。
-       手機沒有 hover，這一列是「剛才那一下有沒有生效」的唯一線索。 */
-    header.append(modeRow, headRow, pop, R.noticeEl());
+    header.append(modeRow, headRow, pop);
     wrap.appendChild(header);
 
     // ── 部位／情境：橫向捲動 pill 列（L370-374） ──────────────────────────
@@ -212,7 +210,9 @@
     refs.cartToggle.append(label, refs.cartInline);
 
     // 沒有複製鈕：清單一變就自動同步到剪貼簿（interactions.js 的 syncClipboard）
-    bar.append(refs.cartToggle);
+    bar.classList.add("feedback-row");
+    bar.append(refs.cartToggle, R.noticeEl());
+    wrap.appendChild(R.copyRecoveryEl());
     wrap.appendChild(bar);
 
     // 慢病速查浮層：掛在版面根節點底下（三套版面一致）
@@ -306,9 +306,7 @@
     function syncExpandAll() {
       const open = root.ICDInteractions.allPanelsExpanded(ctx);
       refs.expandAll.textContent = open ? '全收合' : '全展開';
-      refs.expandAll.title = open
-        ? '把目前這一批面板的常見疾病全部收起來'
-        : '把目前這一批面板的常見疾病全部展開';
+      refs.expandAll.removeAttribute('title');
     }
 
     U.results = () => {
@@ -339,6 +337,7 @@
       // 摘要用「、」串代碼（設計 L787）；真正要貼出去的字串在抽屜裡的 #his-preview
       refs.cartInline.textContent = s.cart.length ? s.cart.map((x) => x.code).join('、') : '尚未選碼';
       refs.cartToggle.disabled = !s.cart.length;
+      refs.cartToggle.setAttribute('aria-label', '就診清單 ' + s.cart.length + ' 筆，' + (sheetOpen ? '收合' : '展開'));
       refs.cartToggle.setAttribute('aria-expanded', sheetOpen && s.cart.length ? 'true' : 'false');
       refs.cartToggle.title = s.cart.length
         ? (sheetOpen ? '收合就診清單' : '展開就診清單，可設主診斷或移除')

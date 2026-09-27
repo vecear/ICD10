@@ -12,13 +12,6 @@
 <!-- 版面掛載根。任一時刻只掛一套版面（wide／dock／mobile），
      所以 #search／#cart／#copy-all 這些 id 三套共用但全域唯一。 -->
 <div id="app"></div>
-<div id="fallback-copy" class="dialog-backdrop" role="dialog" aria-modal="true" aria-label="手動複製" hidden>
-  <div class="dialog">
-    <p class="dialog-body">自動複製失敗，請手動全選複製（按 Esc 關閉）：</p>
-    <textarea class="input" readonly></textarea>
-    <div class="dialog-actions"><button id="fallback-close" type="button" class="btn btn-secondary">關閉</button></div>
-  </div>
-</div>
 <script id="icd-data" type="application/gzip-base64">%DATA%</script>
 <!--%SCRIPTS%-->
 </body>

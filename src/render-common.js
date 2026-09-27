@@ -35,13 +35,19 @@
   function syncSearchValue(input, ctx) {
     const s = ctx.store.getState();
     if (input.value !== s.query) input.value = s.query;
+    input.setAttribute('aria-description', '可輸入多個條件，例如：蜂窩 右、UTI。↑／↓ 選擇結果，Enter 加入並返回，Shift＋Enter 加入後繼續搜尋，非輸入狀態按 / 回到搜尋框。');
   }
 
   /* card 是外層（要 hidden 切換），host 是 chip 容器，note 是右上角說明。 */
   function renderResults(card, host, note, ctx) {
     const s = ctx.store.getState();
     const q = s.query.trim();
+    const active = host.dataset.query === q && host.querySelector('[data-search-active="true"]');
+    const activeCode = active ? active.dataset.code : null;
+    host.dataset.query = q;
     R.clear(host);
+    let filters = card.querySelector('.search-refinements');
+    if (filters) filters.remove();
     if (q.length < 2) {
       card.hidden = true;
       note.textContent = '';
@@ -49,6 +55,33 @@
     }
     card.hidden = false;
     const rows = ctx.data.search(q);
+    if (rows.some(row => /右|左|未明示側/.test(row[3])) || /(?:^|\s)(?:右|左|右側|左側|未明示側)(?:\s|$)/.test(q)) {
+      filters = R.el('div', 'search-refinements');
+      filters.setAttribute('role', 'group'); filters.setAttribute('aria-label', '縮小側別');
+      const rawSide = q.split(/\s+/).find(part => ['右', '左', '右側', '左側', '未明示側'].includes(part));
+      const side = rawSide === '右' ? '右側' : rawSide === '左' ? '左側' : rawSide;
+      for (const value of ['', '右側', '左側', '未明示側']) {
+        const b = R.el('button', 'search-side', value || '全部側別');
+        b.type = 'button'; b.dataset.searchSide = value;
+        b.setAttribute('aria-pressed', String((side || '') === value));
+        b.addEventListener('click', () => {
+          const doc = b.ownerDocument;
+          const input = doc.getElementById('search');
+          // 使用尚未 debounce 的輸入，並經 input 事件取消舊排程（主視窗與 PiP 同效）。
+          const base = (input ? input.value : q).trim().split(/\s+/)
+            .filter(part => !['右', '左', '右側', '左側', '未明示側'].includes(part)).join(' ');
+          const query = (base + ' ' + value).trim();
+          if (input) {
+            input.value = query;
+            input.dispatchEvent(new doc.defaultView.Event('input', { bubbles: true }));
+          }
+          ctx.store.setQuery(query);
+          if (input) input.focus({ preventScroll: true });
+        });
+        filters.appendChild(b);
+      }
+      card.insertBefore(filters, host);
+    }
     if (!rows.length) {
       host.appendChild(R.el('span', 'result-empty', emptyText(rows.pool, s.dbState)));
       note.textContent = rows.pool === 'full' ? '' : DB_NOTE[s.dbState] || '';
@@ -56,8 +89,17 @@
     }
     for (const row of rows) {
       const leaf = row[1] === 1;
-      host.appendChild(R.chipWith(ctx, row[0], row[3], { cat: !leaf }));
+      const chip = R.chipWith(ctx, row[0], row[3], { cat: !leaf });
+      // 僅凸顯原有側別文字，不產生或省略臨床條件。
+      const zh = chip.querySelector('.chip-zh');
+      const parts = row[3].split(/(未明示側性|未明示側|右側|左側)/g);
+      if (parts.length > 1) {
+        R.clear(zh);
+        parts.forEach((part, i) => zh.appendChild(i % 2 ? R.el('strong', 'search-match', part) : document.createTextNode(part)));
+      }
+      host.appendChild(chip);
     }
+    selectSearchResult(host, activeCode);
     if (rows.pool === 'full') {
       note.textContent = '全庫命中 ' + rows.total.toLocaleString() + ' 筆'
         + (rows.total > rows.length ? '，顯示前 ' + rows.length + ' 筆' : '')
@@ -65,6 +107,18 @@
     } else {
       note.textContent = DB_NOTE[s.dbState] || '精選面板結果';
     }
+  }
+
+  function selectSearchResult(host, code) {
+    const rows = Array.from(host.querySelectorAll('.chip:not(.cat)'));
+    const selected = rows.find(row => row.dataset.code === code) || rows[0];
+    for (const row of rows) {
+      const active = row === selected;
+      row.dataset.searchActive = String(active);
+      if (active) row.setAttribute('aria-current', 'true');
+      else row.removeAttribute('aria-current');
+    }
+    return selected;
   }
 
   // ---- 就診清單 ----
@@ -214,7 +268,8 @@
           下一步該做什麼（剪貼簿被拒，要點清單裡的代碼逐一複製），下次成功才換回時間。
      狀態由 interactions.js 的 syncClipboard() 持有（`clipboardSyncInfo()`），這裡只畫。 */
   function clipboardSyncEl() {
-    const s = R.el('span', 'clip-sync');
+    const s = R.el('button', 'clip-sync');
+    s.type = 'button';
     s.id = 'clipboard-sync';
     s.hidden = true;
     return s;
@@ -229,29 +284,19 @@
     if (!info) { node.hidden = true; node.textContent = ''; node.classList.remove('is-stale'); return; }
     const ok = !!info.ok;
     node.hidden = false;
-    node.textContent = ok ? '已同步 ' + root.ICDLogic.clockHM(info.at) : '未同步';
-    node.classList.toggle('is-stale', !ok);
-    node.title = ok
-      ? '清單已於 ' + root.ICDLogic.clockHM(info.at) + ' 同步到剪貼簿，可直接貼入 HIS'
-      : '剪貼簿沒有同步到（被瀏覽器拒絕）；請點清單裡的代碼逐一複製';
+    const cart = info.kind === '診斷清單';
+    node.textContent = info.pending ? '複製中…' : info.manual ? '手動複製・重送' : !ok ? '未同步・重送'
+      : cart ? '已同步 ' + root.ICDLogic.clockHM(info.at) : info.kind + '・重送';
+    node.classList.toggle('is-stale', !ok || !cart);
+    node.title = info.pending ? '正在寫入剪貼簿'
+      : (info.manual ? '使用者已標記為手動複製' : ok ? '本工具最後複製：' + info.kind : '上次複製失敗')
+      + '。點擊重送完整診斷清單；不代表 HIS 已收到，也無法確認外部程式是否改寫剪貼簿。';
+    node.setAttribute('aria-label', node.title);
+    node.title = '重送完整診斷清單';
   }
 
-  /* ── 可見通知列（三套版面共用一個 #notice） ──────────────────────────────────
-     為什麼要有：`#status` 是 1×1px 的 sr-only live region，只有螢幕閱讀器聽得到。
-     UX 實測（2026-09-16）點一個已在清單的碼，三套版面的截圖 md5 完全相同——醫師唯一
-     能做的是回頭數清單，而那是每一次點擊都在發生的事。
-
-     三個設計約束，都不是可有可無的：
-       1. **覆蓋、不推擠**（`position:absolute; top:100%`，包含塊是各版面 position:relative
-          的 header）：提示出現時若把內容往下推，醫師正要點的那個碼就會移位。
-       2. **不吃點擊**（`pointer-events:none`，只有「復原」鈕自己收回 auto）：這一列蓋在
-          第一批診斷碼上面，讓它攔下點擊等於用回饋換掉主要動線。
-       3. **沒訊息時不存在**（`hidden`）：一次性提示要自己消失（密度原則手法 #4）。
-     逾時與 sticky 的規則在 interactions.js 的 announce()；這裡只建節點。
-
-     文字段落掛 `aria-hidden`：同一則訊息已經由 #status 播報過，這裡再讀一次是重複。
-     「復原」鈕**不能**一起 aria-hidden（那會讓可聚焦元素消失在 AT 的樹裡），所以它是
-     #notice 的兄弟節點而不是被隱藏那段的子節點。 */
+  /* 共用底部通知：一般訊息使用清單摘要列，重要訊息完整換行。
+     #status 負責播報；可見文字不重複播報，「復原」按鈕仍保留於無障礙樹。 */
   function noticeEl() {
     const box = R.el('div');
     box.id = 'notice';
@@ -265,6 +310,38 @@
     undo.hidden = true;
     box.append(text, undo);
     return box;
+  }
+
+  // 只在失敗時占用清單空間；不使用遮罩，也不自動移動焦點。
+  function copyRecoveryEl() {
+    const home = R.el('div'); home.id = 'copy-recovery-home';
+    const box = R.el('section', 'copy-recovery'); box.id = 'copy-recovery'; box.hidden = true;
+    box.setAttribute('aria-label', '複製失敗處理');
+    const label = R.el('div', 'copy-error-label'); label.id = 'copy-error-label';
+    const actions = R.el('div', 'copy-recovery-actions');
+    const action = (id, text, handler) => {
+      const btn = R.el('button', 'btn btn-secondary', text); btn.id = id; btn.type = 'button';
+      btn.addEventListener('click', ev => { ev.stopPropagation(); handler(); });
+      return btn;
+    };
+    const retry = action('copy-retry', '重試', () => root.ICDInteractions.retryFailedCopy());
+    const manual = action('copy-manual', '手動複製', () => root.ICDInteractions.openFallbackCopy());
+    manual.setAttribute('aria-controls', 'fallback-copy'); manual.setAttribute('aria-expanded', 'false');
+    actions.append(retry, manual);
+    const fallback = R.el('div'); fallback.id = 'fallback-copy'; fallback.hidden = true;
+    const hint = R.el('label', 'manual-copy-hint', '選取下方文字後按 Ctrl+C，再貼入目標欄位。');
+    hint.htmlFor = 'manual-copy-text';
+    const text = R.el('textarea', 'input'); text.id = 'manual-copy-text'; text.readOnly = true;
+    text.addEventListener('keydown', ev => {
+      if (ev.key === 'Escape' && !ev.isComposing && ev.keyCode !== 229) {
+        ev.preventDefault(); ev.stopPropagation(); root.ICDInteractions.closeFallbackCopy();
+      }
+    });
+    const close = action('fallback-close', '收合', () => root.ICDInteractions.closeFallbackCopy());
+    const done = action('copy-done', '已手動複製', () => root.ICDInteractions.finishManualCopy());
+    const tail = R.el('div', 'copy-recovery-actions'); tail.append(close, done);
+    fallback.append(hint, text, tail); box.append(label, actions, fallback); home.appendChild(box);
+    return home;
   }
 
   /* 「已加入清單」勾號的唯一同步實作（三套版面共用）。原本只有 render-dock.js 有一份，
@@ -349,14 +426,13 @@
     const b = R.el('button', 'btn btn-secondary seg-btn--sm expand-all-btn', '全展開');
     b.type = 'button';
     b.id = 'expand-all-panels';
-    b.title = '把目前這一批面板的常見疾病全部展開';
     return b;
   }
 
   Object.assign(root.ICDRender = root.ICDRender || {}, {
-    syncSearchValue, renderResults, emptyText,
+    syncSearchValue, renderResults, emptyText, selectSearchResult,
     cartItemEl, renderCart, syncClearBtn, hisText, renderHis, renderShelf,
-    noticeEl, syncInCart, searchBackEl, clipboardSyncEl, renderClipboardSync,
+    noticeEl, copyRecoveryEl, syncInCart, searchBackEl, clipboardSyncEl, renderClipboardSync,
     renderRegionMenu, renderPanels,
     expandAllButtonEl, FORMAT_LABEL,
   });

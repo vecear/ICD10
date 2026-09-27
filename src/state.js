@@ -483,6 +483,16 @@
 
     const isFav = (code) => state.favs.indexOf(code) >= 0;
 
+    function moveFavorite(code, direction) {
+      if (direction !== -1 && direction !== 1) return false;
+      const from = state.favs.indexOf(code), to = from + direction;
+      if (from < 0 || to < 0 || to >= state.favs.length) return false;
+      const favs = state.favs.slice();
+      [favs[from], favs[to]] = [favs[to], favs[from]];
+      setState({ favs });
+      return true;
+    }
+
     // ---- 展開／收合 ----
     function toggleFlag(field, key) {
       if (typeof key !== 'string' || !key) return false;
@@ -585,7 +595,7 @@
       setMode, setRegion, toggleRegion, setLayout, setTheme, toggleTheme, setFormat,
       setClipboardFormat, resetClipboardFormat,
       setPaneSize, resetPaneSizes, paneSizeFor, hasPaneSizes,
-      toggleFav, isFav,
+      toggleFav, isFav, moveFavorite,
       toggleExpanded, setExpandedAll, toggleQuick, isExpanded, isQuickOpen,
       setQuery, setRelatedCode, setCopied, setDbState,
       setSettingsOpen, toggleSettings, setShelfOpen, toggleShelf,

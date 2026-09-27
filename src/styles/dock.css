@@ -132,10 +132,8 @@ body[data-layout="dock"] .dock-pinned-away {
    的下緣，它是 position:relative 的包含塊）就跟著 header 高度自動走——header 少一列、
    或置頂提示出現讓 header 長高，都不必再回來改這個數字。1b 的 #settings-popover 早已
    是同一招（mobile.css 的 calc(100% - 4px)）。 */
-/* 通知列（幾何與行為在 app.css）：內距與字級收到 1c 的基準（5〜6px／11px，仍在
-   密度原則硬性邊界 #2 的 11px 下限上）。它是絕對定位、蓋在捲動區最上緣，
-   所以 176px 下折成兩三行也不會改變 .dock-scroll 的高度。 */
-body[data-layout="dock"] #notice { padding: 3px 6px; gap: 5px; font-size: 11px; }
+/* 通知使用底部摘要列，維持窄欄 11px 字級與 20px 操作高度下限。 */
+body[data-layout="dock"] #notice { padding: 0; gap: 4px; font-size: 11px; }
 body[data-layout="dock"] .notice-undo { padding: 0 5px; font-size: 11px; }
 body[data-layout="dock"] #settings-popover { top: 100%; left: 6px; right: 6px; padding: 7px; gap: 6px; }
 body[data-layout="dock"] #settings-popover .kicker { font-size: 10px; letter-spacing: .1em; }
@@ -286,15 +284,14 @@ body[data-layout="dock"] #cart-toggle .marker {
 body[data-layout="dock"] #cart-toggle[aria-expanded="true"] .marker { transform: rotate(90deg); }
 body[data-layout="dock"] #cart-inline { max-height: 120px; overflow-y: auto; }
 
-/* 每筆兩行（第一行「徽章 + 代碼 + 主 + ✕」、第二行中文）已是 app.css 的三版面預設，
-   本檔只留 1c 自己的尺寸差異。.cart-grip／.cart-fav 在 176px 下擠不進第一行，
-   且 1c 沒有常用列可放最愛，一併隱藏。 */
+/* 每筆兩行（第一行操作與代碼、第二行中文）沿用 app.css 的三版面預設。
+   側掛隱藏拖曳把手，保留 ★ 以加入個人常用；176px 下按鈕仍維持 20px 操作高度。 */
 body[data-layout="dock"] #cart li {
   gap: 5px; padding: 4px 6px;
   border-bottom: 0; border-top: 1px solid var(--color-divider);
 }
-body[data-layout="dock"] #cart li .cart-grip,
-body[data-layout="dock"] #cart li .cart-fav { display: none; }
+body[data-layout="dock"] #cart li .cart-grip { display: none; }
+body[data-layout="dock"] #cart li .cart-fav { display: inline-flex; }
 body[data-layout="dock"] #cart b.cart-code {
   flex: 1; min-width: 0; font-size: 12px; letter-spacing: .02em;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -502,3 +499,36 @@ body[data-layout="dock"] .lipid-proof,
 body[data-layout="dock"] .lipid-rf,
 body[data-layout="dock"] .lipid-split,
 body[data-layout="dock"] .lipid-disclaimer { font-size: 11px; line-height: 1.45; }
+
+/* 長名稱跨欄，仍保留短名稱並列；176px 時自然單欄換行。 */
+body[data-layout="dock"] .dock-panel-rows .dock-chip-wide { grid-column: 1 / -1; }
+body[data-layout="dock"] .chip--dock .chip-zh {
+  white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere;
+}
+body[data-layout="dock"] .chip--dock .chip-zh strong { font: inherit; font-weight: 700; }
+body[data-layout="dock"] .dock-favorites-toggle {
+  min-height: 20px; padding: 0 6px; font: inherit; font-size: 12px; line-height: 1.25;
+  border: 1px solid var(--color-divider); background: transparent; color: var(--color-accent-800); cursor: pointer;
+}
+body[data-layout="dock"] .dock-favorites-toggle[aria-pressed="true"] { background: var(--color-accent-800); color: var(--color-bg); }
+body[data-layout="dock"] .favorite-row { display: flex; align-items: start; min-width: 0; }
+body[data-layout="dock"] .favorite-row .chip { flex: 1; min-width: 0; }
+body[data-layout="dock"] .favorite-order, body[data-layout="dock"] .favorite-remove {
+  flex: none; width: 22px; min-height: 22px; padding: 0; font: inherit; font-size: 11px;
+  background: transparent; border: 0; color: var(--color-accent-800); cursor: pointer;
+}
+body[data-layout="dock"] .favorite-order:disabled { opacity: .35; cursor: default; }
+body[data-layout="dock"] .favorite-empty { margin: 4px 0 8px; font-size: 11px; }
+body[data-layout="dock"] .dock-favorites > .dock-panel-head {
+  font-family: var(--font-heading); font-size: 12px; font-weight: 600; line-height: 1.25;
+  margin: 6px 0 3px; align-items: center;
+}
+body[data-layout="dock"] .clip-sync { max-width: 48%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-height: 22px; }
+
+/* 通知出現時保留清單開關；代碼摘要暫讓位給回饋，不增高一般通知列。 */
+body[data-layout="dock"] .dock-cart-head[data-notice]:not([data-notice=""]) #cart-toggle { flex: 0 0 26px; justify-content: center; padding: 0; white-space: nowrap; }
+body[data-layout="dock"] .dock-cart-head[data-notice]:not([data-notice=""]) .dock-cart-kicker,
+body[data-layout="dock"] .dock-cart-head[data-notice]:not([data-notice=""]) .dock-cart-codes { display: none; }
+body[data-layout="dock"] .dock-cart-head[data-notice]:not([data-notice=""]) #cart-toggle::before { content: '清單'; font-size: 11px; }
+body[data-layout="dock"] .dock-cart-head[data-notice]:not([data-notice=""]) #cart-toggle .marker { display: none; }
+body[data-layout="dock"] .copy-recovery { font-size: 11px; }

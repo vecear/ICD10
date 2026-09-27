@@ -95,9 +95,6 @@
     settingsToggle.appendChild(R.icon('chevronDown', 14));
     header.appendChild(settingsToggle);
     header.appendChild(R.settingsPopoverEl(false));
-    /* 可見通知列：絕對定位貼在 header 下緣，覆蓋常用列／內容最上緣而不推擠它們
-       （醫師正要點的碼不能移位）。三套版面同一個 #notice，見 render-common.js 的 noticeEl。 */
-    header.appendChild(R.noticeEl());
     wide.appendChild(header);
 
     // ── 常用列 ──────────────────────────────────────────────────────────
@@ -215,12 +212,13 @@
     /* 「已同步 HH:MM」（UX 稽核 U4）接在「每行一碼」旁邊：沒有複製鈕是刻意的，
        但也因此畫面上沒有任何一處說剪貼簿已經同步。不新增任何一列。 */
     refs.clipSync = R.clipboardSyncEl();
-    hisHead.append(R.el('span', 'kicker', '貼入 HIS'), refs.hisFormat, refs.clipSync);
+    hisHead.classList.add('feedback-row');
+    hisHead.append(R.el('span', 'kicker', '貼入 HIS'), refs.hisFormat, refs.clipSync, R.noticeEl());
     refs.hisPreview = R.el('pre', null, '（清單為空）');
     refs.hisPreview.id = 'his-preview';
     /* 沒有複製鈕：清單一變就自動同步到剪貼簿（interactions.js 的 syncClipboard）。
        預覽區留著——它顯示的就是剪貼簿內容，貼進 HIS 前可以先核對。 */
-    his.append(hisHead, refs.hisPreview);
+    his.append(hisHead, R.copyRecoveryEl(), refs.hisPreview);
     aside.appendChild(his);
 
     bench.appendChild(aside);

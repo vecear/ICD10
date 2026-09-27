@@ -3,7 +3,7 @@
 守的是五件事，全部來自 UX 稽核（U1／U2／U5／U6／V4／V6）與
 docs/superpowers/specs/2026-09-17-usability-overhaul-design.md：
 
-  A 可見通知列 `#notice`：三版面共用、覆蓋不推擠、成功類逾時收掉、失敗類留著、
+  A 可見通知列 `#notice`：三版面共用、位於清單區且一般提示不推擠、成功類逾時收掉、失敗類留著、
     移除與清空附一顆「復原」。
   B 已加入勾號三版面共用（原本只有側掛窄欄有）。
   C 部位短名：「感染」屬於常見感染那一格，長期追蹤那格叫「追蹤」。
@@ -192,7 +192,7 @@ def test_clear_and_remove_are_undoable(pages, layout):
 
 
 @pytest.mark.parametrize("layout", ["wide", "dock", "mobile"])
-def test_notice_overlays_the_content_without_pushing_it(pages, layout):
+def test_notice_uses_cart_area_without_pushing_content(pages, layout):
     """通知列不得推擠內容：醫師正要點的那個碼不能在提示出現時移位。"""
     pg = pages(layout)
     reset(pg)

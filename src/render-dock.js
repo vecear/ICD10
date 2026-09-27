@@ -95,18 +95,18 @@
   }
 
   /* 狀態欄位 → 需要重跑的更新器。**沒列到的欄位一律全部重跑**，所以「不影響 1c 的欄位」
-     要顯式寫成空陣列（例如 recent：1c 沒有常用列，每次加碼都全量重繪太浪費）。 */
+     要顯式寫成空陣列；收藏與最近使用只更新個人常用，避免每次加碼都重建面板。 */
   const DEPS = {
     mode: ['header', 'pills', 'panels', 'settings', 'pip'],
     region: ['pills', 'panels'],
     query: ['results', 'searchValue'],
-    dbState: ['results', 'settings', 'pip'],
+    dbState: ['results', 'favorites', 'settings', 'pip'],
     expanded: ['panels'],
     quickOpen: [],
     cart: ['cart', 'his'],
     relatedCode: [],
-    favs: [],
-    recent: [],
+    favs: ['favorites', 'cart'],
+    recent: ['favorites'],
     format: ['his', 'settings'],
     clipboardFormats: ['his', 'settings'],
     clipboardWarning: ['settings'],
@@ -129,6 +129,7 @@
 
   function mount(host, ctx) {
     const refs = {};
+    let favoritesOpen = false;
     const dock = R.el('div');
     dock.id = 'layout-dock';
 
@@ -192,11 +193,6 @@
     refs.pinNote.id = 'pin-note';
     refs.pinNote.hidden = true;
     head.appendChild(refs.pinNote);
-    /* 可見通知列：貼在 header 下緣、覆蓋捲動區最上緣，不改 .dock-scroll 的高度。
-       **不必**加進 dressPipDocument 的複製清單**：它在 .dock-head 裡，整條側欄搬進
-       PiP 小視窗時就跟著過去了；再複製一份會讓小視窗同時有兩個 #notice
-       （#status／#fallback-copy 需要複製是因為它們掛在 body 上、不在側欄子樹裡）。 */
-    head.appendChild(R.noticeEl());
     head.appendChild(shortenSegLabels(R.settingsPopoverEl(true)));   // small：seg 用 22px／10px 的小號
     dock.appendChild(head);
 
@@ -239,6 +235,12 @@
     refs.expandAll = R.expandAllButtonEl();
     refs.chronicSwitch.appendChild(refs.expandAll);
     body.appendChild(refs.chronicSwitch);
+
+    refs.favorites = R.el('section', 'dock-favorites');
+    refs.favorites.id = 'dock-favorites';
+    refs.favorites.setAttribute('aria-label', '我的常用');
+    refs.favorites.hidden = true;
+    body.appendChild(refs.favorites);
 
     const resultsCard = R.el('div');
     resultsCard.id = 'results-card';
@@ -295,9 +297,10 @@
        tests/test_e2e_navigation.py 的 BASELINE dock_cart_head）。 */
     refs.clipSync = R.clipboardSyncEl();
     const cartHead = R.el('div', 'dock-cart-head');
-    cartHead.append(clearBtn, cartToggle, refs.clipSync);
+    cartHead.classList.add("feedback-row");
+    cartHead.append(clearBtn, cartToggle, refs.clipSync, R.noticeEl());
 
-    cartBox.append(cartHead, refs.cartInline);
+    cartBox.append(cartHead, R.copyRecoveryEl(), refs.cartInline);
     dock.appendChild(cartBox);
 
     /* renderHis 會把 HIS 文字寫進一個 <pre>；1c 沒有預覽區，給它一個不掛進 DOM 的，
@@ -318,6 +321,35 @@
     dock.appendChild(R.vacOverlayEl());
 
     host.appendChild(dock);
+
+    // 依實際字型與欄寬決定跨欄；長名稱換行，不再靠省略號隱藏條件。
+    const measure = document.createElement('canvas').getContext('2d');
+    function fitDockRows() {
+      if (!measure || !dock.isConnected) return;
+      const view = dock.ownerDocument.defaultView;
+      for (const rows of dock.querySelectorAll('.dock-panel-rows')) {
+        if (!rows.getClientRects().length) continue;
+        const columns = view.getComputedStyle(rows).gridTemplateColumns.split(' ');
+        const width = parseFloat(columns[0]);
+        for (const chip of rows.querySelectorAll('.chip')) {
+          const label = chip.querySelector('.chip-zh');
+          const style = view.getComputedStyle(label);
+          measure.font = style.font;
+          const spacing = parseFloat(style.letterSpacing) || 0;
+          const extras = Array.from(chip.children).filter(el => el !== label)
+            .reduce((sum, el) => sum + el.getBoundingClientRect().width + 5, 0);
+          const needed = measure.measureText(label.textContent).width + spacing * label.textContent.length + extras + 22;
+          chip.classList.toggle('dock-chip-wide', columns.length > 1 && needed > width);
+        }
+      }
+    }
+    let fittedWidth = 0;
+    const fitObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(() => {
+      const width = dock.getBoundingClientRect().width;
+      if (width !== fittedWidth) { fittedWidth = width; fitDockRows(); }
+    }) : null;
+    if (fitObserver) fitObserver.observe(dock);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitDockRows);
 
     /* ── 可拖曳的窗格分隔條（使用者要求：各窗格高度可手動調整） ─────────────
        1c 是使用者提出這個需求的版面，兩條分界可調：
@@ -387,28 +419,17 @@
       doc.body.dataset.mode = state.mode;
       doc.body.dataset.db = state.dbState;
       doc.body.dataset.ready = '1';
-      /* 回饋 UI 也要跟過來（R2 I5）：#status（sr-only live region）與 #fallback-copy
-         （自動複製失敗時的手動複製對話框）都只存在於主文件。少了這一步，醫師在小視窗按
-         「複製並貼入 HIS」而剪貼簿被拒時，對話框會開在被小視窗擋住的主視窗，
-         小視窗零回饋、剪貼簿也空的。 */
-      for (const id of ['status', 'fallback-copy']) {
+      // 可見回饋跟隨側欄移動；另複製主文件的無障礙播報節點。
+      for (const id of ['status']) {
         const node = document.getElementById(id);
         if (node) doc.body.appendChild(node.cloneNode(true));
       }
     }
 
-    /* 小視窗裡的 #status／#fallback-copy 不在 dock 子樹底下，dock 上的監聽搆不到，
-       關閉鈕／背景點擊／Esc 只能掛在小視窗自己的 document 上。 */
-    function onPipDocClick(ev) {
-      const t = ev.target;
-      if (t && t.closest && t.closest('#fallback-close')) root.ICDInteractions.closeFallbackCopy();
-    }
-
-    function onPipDocMouseDown(ev) {
-      if (ev.target && ev.target.id === 'fallback-copy') root.ICDInteractions.closeFallbackCopy();
-    }
-
+    // PiP 文件的 Esc 與搜尋捷徑；手動複製按鈕的事件隨節點一起移動。
     function onPipDocKeyDown(ev) {
+      if (ev.isComposing || ev.keyCode === 229 || ev.defaultPrevented) return;
+      if (root.ICDInteractions.searchKeydown(ctx, ev, () => clearTimeout(searchTimer))) return;
       if (ev.key !== 'Escape') return;
       if (root.ICDInteractions.isFallbackOpen()) { root.ICDInteractions.closeFallbackCopy(); return; }
       // 順序與 interactions.js 的 Esc 鏈一致：最上層的浮層先關
@@ -505,14 +526,12 @@
         w.document.body.appendChild(dock);
         body.scrollTop = scrollTop; // adopt 到另一份文件會歸零；在 store 更新前還原
         host.appendChild(refs.placeholder);
-        w.document.addEventListener('click', onPipDocClick);
-        w.document.addEventListener('mousedown', onPipDocMouseDown);
         w.document.addEventListener('keydown', onPipDocKeyDown);
         root.ICDInteractions.setFeedbackDocument(w.document);
         w.addEventListener('pagehide', restoreFromPip);
         // 小視窗自己的縮放不會經過主視窗；窗格高度要跟著重新夾（ResizeObserver 跨文件時
         // 未必送得到，這條是明確的第二層保險）
-        w.addEventListener('resize', () => refs.paneGroup.applyAll());
+        w.addEventListener('resize', () => { fitDockRows(); refs.paneGroup.applyAll(); });
         ctx.store.setPinned(true);
         setNote(PIN_NOTE.open, true);
         refs.paneGroup.applyAll();
@@ -525,6 +544,7 @@
     /* app.js 換掉這套版面前呼叫（R2 C1）。順序不可對調：closePip() 要在 alive 還是 true
        時跑完，dock 才會正常回到 #app 再由 ICDRender.clear() 移除。 */
     function teardown() {
+      if (fitObserver) fitObserver.disconnect();
       closePip();
       clearTimeout(noteTimer);      // 逾時若在版面換掉後才到，U.pin() 會去動已卸下的節點
       noteTimer = null;
@@ -560,13 +580,14 @@
        規則與 interactions.js 同源，只是那邊的 copyText 要用在這個文件上。 */
     function copyDate() {
       const text = root.ICDClipboard.format('date', new Date(), ctx.store.getState().clipboardFormats);
-      root.ICDInteractions.copyText(text).then((ok) => {
+      root.ICDInteractions.copyText(text, false, '日期').then((ok) => {
         if (ok) announce('已複製日期 ' + text);
       });
     }
 
     function pipDelegate(target) {
       const store = ctx.store;
+      if (target.closest('#clipboard-sync')) { root.ICDInteractions.resendCart(ctx); return; }
       if (store.getState().settingsOpen
         && !target.closest('#settings-popover') && !target.closest('#settings-toggle')) {
         store.setSettingsOpen(false);
@@ -653,7 +674,7 @@
         root.ICDInteractions.removeFromCart(ctx, remove.closest('li').dataset.code);
         return;
       }
-      // 通知列的「復原」也在側欄裡（#notice 掛在 .dock-head），置頂時同樣搆不到主文件
+      // 通知列的「復原」也在側欄清單區，置頂時同樣搆不到主文件
       if (target.closest('#notice-undo')) { root.ICDInteractions.runUndo(); return; }
       // 「返回」同理：主文件走 interactions.js 的 `.search-back` 委派，這裡只在 PiP 代打
       if (target.closest('.search-back')) {
@@ -686,6 +707,13 @@
       const target = ev.target;
       if (!target || !target.closest) return;
       if (target.closest('#pin-toggle')) { togglePin(); return; }
+      if (target.closest('#dock-favorites-toggle')) {
+        leaveSearch(); favoritesOpen = !favoritesOpen; update(); return;
+      }
+      if (favoritesOpen && target.closest('.region-btn, #mode-switch [data-mode], #seg-mode [data-mode]')) {
+        favoritesOpen = false;
+        update(); // 相同模式不會送出 store 變更，仍須退出個人常用。
+      }
       // 模式與部位鈕代表回到導引；清掉搜尋後仍由原本的事件委派完成切換。
       if (target.closest('.region-btn, #mode-switch [data-mode], #seg-mode [data-mode]')
         && refs.search.value) leaveSearch();
@@ -733,6 +761,8 @@
 
     dock.addEventListener('keydown', (ev) => {
       if (dock.ownerDocument === document) return;
+      if (ev.isComposing || ev.keyCode === 229) return;
+      if (root.ICDInteractions.searchKeydown(ctx, ev, () => clearTimeout(searchTimer))) return;
       /* PiP 期間主文件的委派搆不到這棵 DOM，b.cart-code 的鍵盤觸發也要在這裡代打，
          規則與 interactions.js 同一份（Enter／Space，Space 要擋掉捲頁）。 */
       const codeBtn = ev.target && ev.target.closest ? ev.target.closest('b.cart-code') : null;
@@ -747,17 +777,6 @@
         clearTimeout(searchTimer);
         ctx.store.setQuery('');
         return;                       // 浮層由 onPipDocKeyDown 一併關掉（R2 M3）
-      }
-      if (ev.key === 'Enter') {
-        ev.preventDefault();
-        clearTimeout(searchTimer);
-        ctx.store.setQuery(ev.target.value);
-        const first = refs.results.querySelector('.chip:not(.cat)');
-        if (first) {
-          addFromChip(first);
-          ev.target.value = '';
-          ctx.store.setQuery('');
-        }
       }
     });
 
@@ -774,6 +793,45 @@
     U.pills = () => {
       // 鈕上只放兩字短名（1c 只有 176–565px），塞不下筆數 span；全名與筆數都在 title
       R.renderRegionMenu(refs.pills, ctx, { className: 'region-pill--dock', short: true, count: false });
+      const star = R.el('button', 'dock-favorites-toggle', '★');
+      star.type = 'button'; star.id = 'dock-favorites-toggle';
+      star.title = '我的常用：收藏與最近使用';
+      star.setAttribute('aria-label', star.title);
+      star.setAttribute('aria-pressed', String(favoritesOpen));
+      star.setAttribute('aria-controls', 'dock-favorites');
+      refs.pills.appendChild(star);
+    };
+
+    U.favorites = () => {
+      const s = ctx.store.getState();
+      R.clear(refs.favorites);
+      refs.favorites.appendChild(R.el('h3', 'dock-panel-head', '我的最愛'));
+      if (!s.favs.length) refs.favorites.appendChild(R.el('p', 'favorite-empty', '在已選清單按 ★ 收藏診斷碼。'));
+      s.favs.forEach((code, i) => {
+        const row = R.el('div', 'favorite-row'); row.dataset.favoriteRow = code;
+        row.appendChild(R.chipWith(ctx, code, ctx.data.labelOf(code), { className: 'chip--dock' }));
+        for (const direction of [-1, 1]) {
+          const btn = R.el('button', 'favorite-order', direction < 0 ? '↑' : '↓');
+          btn.type = 'button'; btn.title = direction < 0 ? '往前移' : '往後移';
+          btn.setAttribute('aria-label', btn.title);
+          btn.disabled = direction < 0 ? i === 0 : i === s.favs.length - 1;
+          btn.addEventListener('click', () => {
+            ctx.store.moveFavorite(code, direction);
+            const moved = Array.from(refs.favorites.querySelectorAll('[data-favorite-row]')).find(el => el.dataset.favoriteRow === code);
+            if (moved) moved.querySelector('.chip').focus({ preventScroll: true });
+          });
+          row.appendChild(btn);
+        }
+        const remove = R.el('button', 'favorite-remove', '×');
+        remove.type = 'button'; remove.title = '取消收藏 ' + code; remove.setAttribute('aria-label', remove.title);
+        remove.addEventListener('click', () => ctx.store.toggleFav(code));
+        row.appendChild(remove);
+        refs.favorites.appendChild(row);
+      });
+      refs.favorites.appendChild(R.el('h3', 'dock-panel-head', '最近使用'));
+      const recent = s.recent.filter(code => !s.favs.includes(code));
+      if (!recent.length) refs.favorites.appendChild(R.el('p', 'favorite-empty', '尚無其他最近使用的診斷碼。'));
+      for (const code of recent) refs.favorites.appendChild(R.chipWith(ctx, code, ctx.data.labelOf(code), { className: 'chip--dock' }));
     };
 
     U.panels = () => {
@@ -853,9 +911,7 @@
     function syncExpandAll() {
       const open = root.ICDInteractions.allPanelsExpanded(ctx);
       refs.expandAll.textContent = open ? '全收合' : '全展開';
-      refs.expandAll.title = open
-        ? '把目前這一批面板的常見疾病全部收起來'
-        : '把目前這一批面板的常見疾病全部展開';
+      refs.expandAll.removeAttribute('title');
     }
 
     U.results = () => {
@@ -874,6 +930,7 @@
       const open = !!(s.cartOpen && s.cart.length);
       refs.cartInline.hidden = !open;
       refs.cartToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      refs.cartToggle.setAttribute('aria-label', '就診清單 ' + s.cart.length + ' 筆，' + (open ? '收合' : '展開'));
     };
 
     U.his = () => {
@@ -920,7 +977,7 @@
        成功就直接 return，舊 controller 根本收不到 update(['layout'])（R2 C1）。 */
     function update(changed) {
       const state = ctx.store.getState();
-      const key = state.mode + ':' + state.region;
+      const key = state.mode + ':' + state.region + (favoritesOpen ? ':favorites' : '');
       const query = state.query.trim();
       const nextSearching = query.length >= 2;
       const navigated = key !== viewKey;
@@ -933,10 +990,14 @@
         names = ALL.filter((n) => set.has(n));
       }
       for (const name of names) U[name]();
-      if (names.some((name) => ['panels', 'results', 'cart'].includes(name))) syncSelected();
-      refs.panels.hidden = nextSearching;
+      if (names.some((name) => ['panels', 'results', 'cart', 'favorites'].includes(name))) syncSelected();
+      refs.panels.hidden = nextSearching || favoritesOpen;
+      refs.favorites.hidden = nextSearching || !favoritesOpen;
       refs.chronicSwitch.hidden = nextSearching;
       refs.searchBack.hidden = !nextSearching;
+      const star = refs.pills.querySelector('#dock-favorites-toggle');
+      if (star) star.setAttribute('aria-pressed', String(favoritesOpen && !nextSearching));
+      fitDockRows();
       /* 窗格高度不進 DEPS，一律在每次重繪後重跑：內容變了（換模式部位變多、
          清單展開）原本合法的高度就可能超出可用空間，得當場重新夾一次。成本是量三個元素。 */
       refs.paneGroup.applyAll();

@@ -133,43 +133,30 @@ body {
   overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0;
 }
 
-/* ── 可見通知列（#notice；三套版面共用，各自掛在自己 header 的下緣） ──────────
-   為什麼存在：`#status` 是 sr-only，只有螢幕閱讀器聽得到——UX 實測（2026-09-16）點一個
-   已在清單的碼，三套版面前後截圖的 md5 完全相同（稽核 U1）。行為（逾時、sticky、復原）
-   在 interactions.js 的 announce()，節點在 render-shared.js 的 noticeEl()。
-
-   `position:absolute; top:100%`：包含塊是各版面 position:relative 的 header
-   （.app-header／.dock-head／.m-header 三個本來都是），所以它貼著 header 下緣浮在內容
-   上面、**不佔任何版面高度**——提示出現時醫師正要點的那個碼不會移位。同一招已經用在
-   三套版面的 #settings-popover（寫死 top 會失準的教訓見 wide.css 那段註解）。
-
-   `pointer-events:none` 是硬性要求不是微調：這一列正好蓋在第一批診斷碼上面，
-   讓它攔下點擊等於用回饋換掉主要動線。只有「復原」鈕自己把 pointer-events 收回來。
-
-   z-index 3（取既有的值集合）：高於捲動區裡 sticky 的分段標題（1），低於設定 popover
-   （20）與浮層（30／40）——popover 從同一個 header 下緣展開，該是它蓋住提示。 */
+/* 底部提示沿用清單摘要列；一般訊息不覆蓋選碼，也不增加固定列高度。 */
 #notice {
-  position: absolute; top: 100%; left: 0; right: 0; z-index: 3;
-  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
-  padding: 4px 10px; pointer-events: none;
-  background: var(--color-accent-100); color: var(--color-accent-800);
-  border-bottom: 1px solid var(--color-accent);
-  font-size: 12px; line-height: 1.35;
+  flex: 1 1 0; min-width: 0; display: flex; align-items: center; gap: 4px;
+  padding: 0; color: var(--his-ink); font-size: 12px; line-height: 1.35;
 }
-.notice-text { flex: 1 1 auto; min-width: 0; }
-/* 失敗／未解決的那一則（announce 的 `{ sticky: true }`，不自動收掉）改用警示配色：
-   它講的是使用者下一步該做什麼，不該和「已加入」長得一模一樣。 */
-#notice[data-kind="stay"] {
-  background: var(--warn-bg); color: var(--warn-ink); border-bottom-color: var(--warn-line);
-}
-/* 「復原」是這一列唯一可按的東西。字級不低於 11px（密度原則硬性邊界 #2）；
-   高度 20px 是側掛窄欄的下限，手機另外套 44px（見 mobile.css）。 */
+.notice-text { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#notice[data-kind="stay"] { color: var(--warn-ink); background: var(--warn-bg); }
+#notice[data-kind="stay"] .notice-text { white-space: normal; overflow-wrap: anywhere; }
 .notice-undo {
-  flex: none; pointer-events: auto; cursor: pointer;
-  min-height: 20px; padding: 1px 8px; font: inherit; font-size: 12px;
-  border: 1px solid currentColor; background: transparent; color: inherit;
+  flex: none; min-height: 20px; padding: 0 4px; font: inherit; cursor: pointer;
+  border: 1px solid currentColor; color: inherit; background: transparent;
 }
-.notice-undo:hover { background: var(--color-bg); }
+.feedback-row[data-notice]:not([data-notice=""]) > .clip-sync { display: none; }
+.his-head[data-notice]:not([data-notice=""]) > :not(#notice) { display: none; }
+.copy-recovery {
+  flex: none; min-width: 0; max-height: 36vh; overflow: auto; padding: 6px;
+  color: var(--warn-ink); background: var(--warn-bg); border: 1px solid var(--warn-line);
+  font-size: 12px; line-height: 1.4; overflow-wrap: anywhere;
+}
+.copy-recovery-actions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.copy-recovery .btn { min-height: 24px; padding: 1px 6px; font-size: 12px; }
+.manual-copy-hint { display: block; margin: 6px 0 4px; }
+#fallback-copy { position: static; }
+#fallback-copy textarea { display: block; width: 100%; min-width: 0; height: 90px; resize: vertical; font: inherit; font-size: 13px; }
 
 /* ── 搜尋的「返回」（三版面共用 .search-back；節點在 render-shared 的 searchBackEl） ──
    外觀共用、幾何各版面自己給（1a 26px／1b 44px 觸控門檻／1c 28px 與搜尋框齊高）：
@@ -494,9 +481,6 @@ body[data-layout="mobile"] .clipboard-editor textarea { font-size: 16px; }
 /* 被調整過的窗格自己捲動；細捲軸讓內容寬度損失最小（1c 只有 164px 可用） */
 [data-pane-sized] { scrollbar-width: thin; }
 
-/* ── 複製後備視窗（沿用 #fallback-copy / #fallback-close） ── */
-#fallback-copy { position: fixed; inset: 0; z-index: 40; }
-#fallback-copy textarea { width: min(480px, 90vw); height: 160px; font: inherit; font-size: 14px; }
 
 /* ── 致命錯誤 ── */
 #fatal-error { margin: 24px; padding: 16px 18px; border: 1px solid var(--fatal-line); background: var(--color-bg); }
@@ -1195,3 +1179,16 @@ details.lipid-drug-more[open] > .lipid-drug-toggle::before { content: '▾'; }
   flex: none; margin: 10px 0 0; padding: 6px 9px; font-size: 12px; line-height: 1.5;
   border-left: 2px solid var(--warn-line); background: var(--warn-bg); color: var(--warn-ink);
 }
+
+/* 搜尋鍵盤游標：框線與底色並用，保留急診紅旗與附加碼語意。 */
+#search-results .chip[data-search-active="true"] {
+  outline: 2px solid var(--color-accent-800); outline-offset: -2px; background: var(--chip-bg-hover);
+}
+.search-match { font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
+.search-refinements { display: flex; flex-wrap: wrap; gap: 3px; margin: 4px 0; }
+.search-side { font: inherit; font-size: 11px; min-height: 22px; padding: 1px 5px; cursor: pointer;
+  border: 1px solid var(--color-divider); background: var(--color-bg); color: var(--color-text); }
+.search-side[aria-pressed="true"] { border-color: var(--color-accent-800); font-weight: 700; }
+button.clip-sync { font-family: inherit; background: transparent; border: 0; padding: 0; cursor: pointer; }
+button.clip-sync:hover { text-decoration: underline; }
+body[data-layout="mobile"] .search-side, body[data-layout="mobile"] button.clip-sync { min-height: 44px; }

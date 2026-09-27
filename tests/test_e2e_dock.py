@@ -1232,7 +1232,7 @@ def test_pip_copy_failure_shows_fallback_inside_pip(browser_ctx, page_url):
     剪貼簿也是空的——對話框開在被小視窗擋住、根本看不到的主視窗。
 
     改用「日期」鈕觸發：清單的自動同步刻意是靜默的（每點一個代碼就彈一次對話框
-    比沒複製到更糟），而使用者**主動按**的複製失敗時仍必須跳後備視窗。
+    比沒複製到更糟），主動按的複製失敗也只顯示處理列，按「手動複製」才展開文字。
     """
     page, pip = open_pinned(browser_ctx, page_url)
     # 小視窗自己要有這兩個節點
@@ -1255,6 +1255,9 @@ def test_pip_copy_failure_shows_fallback_inside_pip(browser_ctx, page_url):
     pip.click("#copy-date")
     pip.wait_for_timeout(500)
 
+    expect(pip.locator("#copy-recovery")).to_be_visible()
+    expect(pip.locator("#fallback-copy")).to_be_hidden()
+    pip.click("#copy-manual")
     expect(pip.locator("#fallback-copy")).to_be_visible()
     assert pip.input_value("#fallback-copy textarea") != "", "後備視窗裡沒有可複製的文字"
     expect(page.locator("#fallback-copy")).to_be_hidden()       # 主視窗不該冒出對話框

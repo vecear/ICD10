@@ -96,7 +96,7 @@ def test_expanding_one_panel_keeps_other_nodes_and_keyboard_focus(page):
 
 
 def test_whole_panel_heading_toggles_diseases_and_stays_reachable(page):
-    header = page.locator('.dock-panel-head').first
+    header = page.locator('#dock-panels .dock-panel-head').first
     header.locator('.dock-panel-name').click()
     expect(header.locator('.panel-toggle')).to_have_attribute('aria-expanded', 'true')
     scroll_to(page, 150)

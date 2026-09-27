@@ -984,7 +984,7 @@ def test_storage_unavailable_degrades(fresh_page, page_url):
 
 
 def test_clipboard_fallback_dialog(fresh_page, page_url):
-    """剪貼簿與 execCommand 都失敗時要跳出可手動複製的後備視窗（C5，改版前無測試守）。"""
+    """複製失敗顯示處理列，使用者按手動複製才展開文字。"""
     fresh_page.add_init_script(
         """
         Object.defineProperty(navigator, 'clipboard', {
@@ -1000,15 +1000,21 @@ def test_clipboard_fallback_dialog(fresh_page, page_url):
     # 清單的自動同步刻意靜默：每點一個代碼就彈一次對話框比沒複製到更糟
     expect(fresh_page.locator("#fallback-copy")).to_be_hidden()
 
-    # 使用者**主動按**的複製（日期）失敗時，仍必須跳後備視窗
+    # 日期複製失敗也不搶焦點，按手動複製才展開
     today = datetime.date.today()
     want_date = f"{today.year - 1911}-{today.month:02d}-{today.day:02d}"
     fresh_page.click("#copy-date")
+    expect(fresh_page.locator("#copy-recovery")).to_be_visible()
+    expect(fresh_page.locator("#fallback-copy")).to_be_hidden()
+    fresh_page.click("#copy-manual")
     expect(fresh_page.locator("#fallback-copy")).to_be_visible()
     assert fresh_page.input_value("#fallback-copy textarea") == want_date
     fresh_page.keyboard.press("Escape")
     expect(fresh_page.locator("#fallback-copy")).to_be_hidden()
     fresh_page.click("#copy-date")
+    expect(fresh_page.locator("#copy-recovery")).to_be_visible()
+    expect(fresh_page.locator("#fallback-copy")).to_be_hidden()
+    fresh_page.click("#copy-manual")
     expect(fresh_page.locator("#fallback-copy")).to_be_visible()
     fresh_page.click("#fallback-close")
     expect(fresh_page.locator("#fallback-copy")).to_be_hidden()

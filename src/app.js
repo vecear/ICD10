@@ -93,6 +93,7 @@
         current = { layout, controller: rendererFor(layout).mount(host, ctx) };
         document.body.dataset.layout = layout;
         current.controller.update(null);
+        window.ICDInteractions.refreshFeedback();
         return true;
       }
 
@@ -132,6 +133,7 @@
         // 偏好版面改變可能整組換掉 DOM；換掉的話新版面已經全量重繪過，不用再 update
         if (changed.indexOf('layout') >= 0 && mount()) return;
         if (current) current.controller.update(changed);
+        window.ICDInteractions.refreshFeedback();
       });
 
       window.addEventListener('resize', () => {

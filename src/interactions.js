@@ -21,10 +21,7 @@
 
   const SEARCH_DEBOUNCE = 150;
 
-  /* 回饋 UI 所在的文件（R2 I5）。#status（live region）與 #fallback-copy（手動複製對話框）
-     原本寫死 `document`，但 1c 把整個側欄搬進 Document PiP 小視窗後，那是**另一個文件**：
-     複製失敗時對話框開在看不見的主視窗、播報也沒人聽得到，小視窗裡完全零回饋。
-     render-dock.js 開／關 PiP 時呼叫 setFeedbackDocument() 切換目標。 */
+  /* PiP 有自己的文件。回饋使用目前的文件，通知、錯誤與手動文字只留在本次記憶體。 */
   let feedbackTarget = null;
 
   function feedbackDoc() {
@@ -36,7 +33,7 @@
     return document;
   }
 
-  const setFeedbackDocument = (doc) => { feedbackTarget = doc || null; };
+  const setFeedbackDocument = (doc) => { feedbackTarget = doc || null; refreshFeedback(); };
 
   /* 搜尋輸入的 debounce handle。放模組層而不是 wire() 的閉包，是為了讓 leaveSearch()
      也清得到它——「返回」按下時若還有一筆沒送出的字，回到導引之後會又被打開一次搜尋。 */
@@ -66,10 +63,16 @@
      繪製在 render-common.js 的 renderClipboardSync()；各版面的 U.his 會重畫一次，
      所以換版面／重掛之後仍顯示同一個狀態。 */
   let clipSync = null;
-  const clipboardSyncInfo = () => clipSync;
+  let clipboardHasCart = false;
+  let copyQueue = Promise.resolve();
+  let copyRevision = 0;
+  let failedCopy = null;
+  let manualOpen = false;
+  let lastCopyKind = null;
+  const clipboardSyncInfo = () => clipboardHasCart ? clipSync : null;
 
-  function setClipboardSync(ok) {
-    clipSync = { ok: !!ok, at: new Date() };
+  function setClipboardSync(ok, kind, pending) {
+    clipSync = { ok: !!ok, kind: kind || '診斷清單', pending: !!pending, at: new Date() };
     if (root.ICDRender && root.ICDRender.renderClipboardSync) {
       root.ICDRender.renderClipboardSync(feedbackDoc());
     }
@@ -79,26 +82,65 @@
      成功類（已加入、已複製、已切換）2.5 秒自己收掉：看過就沒用的提示不該佔版面
      （docs/dense-ui-principle.md 手法 #4）。失敗／未解決的相反——`{ sticky: true }`
      的訊息留到下一則為止，因為它講的是使用者下一步該做什麼（類目碼要改選細碼、
-     全庫還沒載入、剪貼簿被拒要逐碼複製）。附「復原」的那種給 10 秒：要讀完一句話、
+     全庫還沒載入；剪貼簿失敗另有常駐處理列）。附「復原」的那種給 10 秒：要讀完一句話、
      判斷是不是真的要復原、再把指標移過去，2.5 秒不夠。 */
   const NOTICE_TTL = 2500;
   const NOTICE_UNDO_TTL = 10000;
   let noticeTimer = null;
   let undoAction = null;
+  let noticeState = null;
+
+  function refreshFeedback() {
+    const doc = feedbackDoc();
+    const notice = doc.getElementById('notice');
+    if (notice) {
+      notice.hidden = !noticeState;
+      notice.parentNode.dataset.notice = noticeState ? (noticeState.sticky ? 'stay' : 'transient') : '';
+      if (noticeState) {
+        notice.querySelector('.notice-text').textContent = noticeState.message;
+        notice.querySelector('#notice-undo').hidden = !undoAction;
+        notice.dataset.kind = noticeState.sticky ? 'stay' : 'transient';
+      }
+    }
+    const box = doc.getElementById('copy-recovery');
+    const home = doc.getElementById('copy-recovery-home');
+    if (!box || !home) return;
+    // 計算機／VAC 開著時，處理列放在該面板內；關閉後回到清單區，避免被面板遮住。
+    const dialog = Array.from(doc.querySelectorAll('#ccr-overlay [role="dialog"], #lipid-overlay [role="dialog"], #vac-overlay [role="dialog"]'))
+      .find(el => el.getClientRects().length);
+    const destination = dialog || home;
+    if (box.parentNode !== destination) destination.appendChild(box);
+    box.hidden = !failedCopy;
+    if (!failedCopy) return;
+    const pending = !!(clipSync && clipSync.pending);
+    box.querySelector('#copy-error-label').textContent = (pending ? '正在重試：' : '複製失敗：') + failedCopy.kind;
+    box.querySelector('#copy-retry').disabled = pending;
+    box.querySelector('#copy-manual').disabled = pending;
+    box.querySelector('#copy-done').disabled = pending;
+    box.querySelector('#copy-manual').setAttribute('aria-expanded', String(manualOpen));
+    const panel = box.querySelector('#fallback-copy');
+    panel.hidden = !manualOpen;
+    const text = panel.querySelector('textarea');
+    if (text.value !== failedCopy.text) text.value = failedCopy.text;
+    text.disabled = pending; // 寫入中的舊內容不可被誤複製。
+  }
 
   function hideNotice(box) {
+    noticeState = null;
     box.hidden = true;
+    box.parentNode.dataset.notice = '';
     const undo = box.querySelector('#notice-undo');
     if (undo) undo.hidden = true;
   }
 
   /* 可見通知列。與 #status 同一則訊息、同一個呼叫點——兩條線索不得各自漂移。
-     節點由各版面的 header 掛上（render-common.js 的 noticeEl），不存在就只剩播報，
+     節點由各版面的清單區掛上（render-common.js 的 noticeEl），不存在就只剩播報，
      不拋錯：1c 進 PiP 小視窗那段期間節點在另一個文件裡，feedbackDoc() 已經處理。 */
   function showNotice(message, opts) {
     clearTimeout(noticeTimer);
     noticeTimer = null;
     undoAction = typeof opts.undo === 'function' ? opts.undo : null;
+    noticeState = message ? { message, sticky: !!opts.sticky } : null;
     const doc = feedbackDoc();
     const box = doc.getElementById('notice');
     if (!box) return;
@@ -109,12 +151,14 @@
     if (undo) undo.hidden = !undoAction;
     box.hidden = false;
     box.dataset.kind = opts.sticky ? 'stay' : 'transient';
+    box.parentNode.dataset.notice = box.dataset.kind;
     if (opts.sticky) return;                       // 留到下一則訊息
     const ttl = undoAction ? NOTICE_UNDO_TTL : NOTICE_TTL;
     noticeTimer = setTimeout(() => {
       noticeTimer = null;
       undoAction = null;
-      hideNotice(box);
+      noticeState = null;
+      refreshFeedback();
     }, ttl);
   }
 
@@ -122,6 +166,12 @@
   function announce(message, opts) {
     const status = feedbackDoc().getElementById('status');
     if (status) status.textContent = message;
+    if (opts && opts.visual === false) return;
+    if (failedCopy && /複製.*失敗|重送失敗/.test(message)) return;
+    // 「日期・重送」等已有可操作狀態，不再用成功訊息暫時遮掉它。
+    if (message.startsWith('已複製') && clipboardHasCart && clipSync && clipSync.ok && clipSync.kind !== '診斷清單') {
+      showNotice('', {}); return;
+    }
     showNotice(message, opts || {});
   }
 
@@ -152,18 +202,42 @@
 
   // ---- 剪貼簿（原 app.js copyText，行為不變，只把目標文件換成 feedbackDoc()） ----
   function openFallbackCopy(text) {
+    if (typeof text === 'string') failedCopy = { text, kind: '其他內容' };
+    if (!failedCopy || (clipSync && clipSync.pending)) return;
+    manualOpen = true;
+    refreshFeedback();
     const box = feedbackDoc().getElementById('fallback-copy');
     if (!box) return;
     box.hidden = false;
     const ta = box.querySelector('textarea');
-    ta.value = text;
     ta.focus();
     ta.select();
   }
 
   function closeFallbackCopy() {
-    const box = feedbackDoc().getElementById('fallback-copy');
-    if (box) box.hidden = true;
+    manualOpen = false;
+    refreshFeedback();
+    const button = feedbackDoc().getElementById('copy-manual');
+    if (button && button.getClientRects().length) button.focus({ preventScroll: true });
+  }
+
+  function retryFailedCopy() {
+    if (!failedCopy || (clipSync && clipSync.pending)) return;
+    const { text, kind } = failedCopy;
+    copyText(text, false, kind).then(ok => { if (ok) announce('已重新複製 ' + kind); });
+  }
+
+  function finishManualCopy() {
+    if (!failedCopy || (clipSync && clipSync.pending)) return;
+    failedCopy = null; manualOpen = false;
+    if (clipSync) clipSync.manual = true;
+    root.ICDRender.renderClipboardSync(feedbackDoc());
+    refreshFeedback();
+    const doc = feedbackDoc();
+    const dialog = Array.from(doc.querySelectorAll('[role="dialog"]')).find(el => el.getClientRects().length);
+    const input = dialog ? dialog.querySelector('input:not([disabled]), button:not([disabled])') : doc.getElementById('search');
+    if (input) input.focus({ preventScroll: true });
+    announce('已標記為手動複製，請確認貼入內容');
   }
 
   function isFallbackOpen() {
@@ -171,12 +245,36 @@
     return !!box && !box.hidden;
   }
 
-  /* silent＝失敗時不跳手動複製視窗。自動同步剪貼簿（每加一個代碼就跑一次）走這條：
-     那個視窗一秒跳一次比沒複製到還糟；失敗改用播報告知，使用者仍有機會發現。 */
-  async function copyText(text, silent) {
+  /* 保留 silent 參數供既有呼叫端相容；所有失敗都使用按需展開的處理列，不自動開窗。 */
+  function copyText(text, silent, kind) {
+    const doc = feedbackDoc();
+    const revision = ++copyRevision;
+    const label = kind || '其他內容';
+    lastCopyKind = label;
+    setClipboardSync(false, label, true);
+    refreshFeedback();
+    // 依使用者操作順序寫入，避免較早的非同步寫入蓋掉剛重送的清單。
+    const run = async () => {
+      const ok = await writeClipboard(text, silent, doc);
+      if (revision === copyRevision) {
+        setClipboardSync(ok, label, false);
+        failedCopy = ok ? null : { text, kind: label };
+        if (ok) manualOpen = false;
+        refreshFeedback();
+        if (!ok) {
+          const status = feedbackDoc().getElementById('status');
+          if (status) status.textContent = '複製失敗：' + label + '。可在處理列重試或手動複製。';
+        }
+      }
+      return ok;
+    };
+    copyQueue = copyQueue.then(run, run);
+    return copyQueue;
+  }
+
+  async function writeClipboard(text, silent, doc) {
     // 焦點在 PiP 小視窗時，主文件的 clipboard 會以「document is not focused」被拒；
     // 用目前有焦點的那個文件自己的 clipboard 才會成功。
-    const doc = feedbackDoc();
     try {
       const view = doc.defaultView;
       const clipboard = view && view.navigator && view.navigator.clipboard;
@@ -184,8 +282,12 @@
       await clipboard.writeText(text);
       return true;
     } catch (e) {
+      let ta = null;
+      const previous = doc.activeElement;
+      const start = previous && previous.selectionStart;
+      const end = previous && previous.selectionEnd;
       try {
-        const ta = doc.createElement('textarea');
+        ta = doc.createElement('textarea');
         ta.value = text;
         // 離屏：避免暫存 textarea 取得焦點時整頁跳動
         ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;border:0;padding:0;';
@@ -193,10 +295,15 @@
         doc.body.appendChild(ta);
         ta.select();
         const ok = doc.execCommand('copy');
-        ta.remove();
         if (ok) return true;
       } catch (e2) { /* fall through */ }
-      if (!silent) openFallbackCopy(text);
+      finally {
+        if (ta) ta.remove();
+        if (previous && previous.isConnected) {
+          previous.focus({ preventScroll: true });
+          if (typeof start === 'number' && typeof previous.setSelectionRange === 'function') previous.setSelectionRange(start, end);
+        }
+      }
       return false;
     }
   }
@@ -209,7 +316,51 @@
     const code = li.dataset.code;
     const item = ctx.store.getState().cart.find(x => x.code === code) || { code, zh: '' };
     const text = root.ICDClipboard.format('single', item, ctx.store.getState().clipboardFormats);
-    copyText(text).then((ok) => { if (ok) announce('已複製 ' + code); });
+    copyText(text, false, '單一診斷').then((ok) => { if (ok) announce('已複製 ' + code); });
+  }
+
+  function resendCart(ctx) {
+    const text = root.ICDRender.hisText(ctx);
+    if (!text) return;
+    copyText(text, false, '診斷清單').then(ok => {
+      if (ok) announce('已重送完整診斷清單');
+    });
+  }
+
+  // 三版面與 PiP 共用；組字期間不得把選字的 Enter 當作加入診斷。
+  function searchKeydown(ctx, ev, cancelPending) {
+    if (ev.isComposing || ev.keyCode === 229 || ev.defaultPrevented) return false;
+    const target = ev.target;
+    const doc = target && target.ownerDocument;
+    if (!doc) return false;
+    const overlayOpen = Array.from(doc.querySelectorAll('[role="dialog"], #settings-popover'))
+      .some(el => el.getClientRects().length > 0);
+    if (ev.key === '/' && !ev.ctrlKey && !ev.altKey && !ev.metaKey
+      && !target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])') && !overlayOpen) {
+      const input = doc.getElementById('search');
+      if (input) { ev.preventDefault(); input.focus(); input.select(); return true; }
+    }
+    if (target.id !== 'search' || overlayOpen || !['ArrowUp', 'ArrowDown', 'Enter'].includes(ev.key)) return false;
+    ev.preventDefault();
+    cancelPending();
+    ctx.store.setQuery(target.value);
+    const host = doc.getElementById('search-results');
+    if (!host) return true;
+    const rows = Array.from(host.querySelectorAll('.chip:not(.cat)'));
+    if (!rows.length) return true;
+    let index = rows.findIndex(row => row.dataset.searchActive === 'true');
+    if (index < 0) index = 0;
+    if (ev.key !== 'Enter') {
+      index = Math.max(0, Math.min(rows.length - 1, index + (ev.key === 'ArrowDown' ? 1 : -1)));
+      const row = root.ICDRender.selectSearchResult(host, rows[index].dataset.code);
+      row.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      const status = doc.getElementById('status');
+      if (status) status.textContent = row.title;
+    } else {
+      activateChip(ctx, rows[index]);
+      if (!ev.shiftKey) { target.value = ''; ctx.store.setQuery(''); }
+    }
+    return true;
   }
 
   // ---- 加碼（三套版面 ＋ PiP 代打共用同一份實作） ----
@@ -392,7 +543,7 @@
     const r = ctx.logic.creatinineClearance(root.ICDRender.ccrInputs(doc));
     const text = root.ICDClinicalFormat.ccrResultText(r, ctx.store.getState().clipboardFormats);
     if (!text) { announce('還沒有可複製的結果'); return; }
-    if (await copyText(text)) announce('已複製：' + text);
+    if (await copyText(text, false, 'CCr 結果')) announce('已複製：' + text);
   }
 
   /* 血脂給付試算。與 CCr 完全同型的浮層，使用者只要學一次。 */
@@ -456,7 +607,7 @@
     const r = ctx.logic.lipidCoverage(input);
     const text = root.ICDClinicalFormat.lipidResultText(r, input, ctx.store.getState().clipboardFormats);
     if (!text) { announce('還沒有可複製的結果'); return; }
-    if (await copyText(text)) announce('已複製血脂給付試算結果');
+    if (await copyText(text, false, 'Lipid 結果')) announce('已複製血脂給付試算結果');
   }
 
   /* 設定面板的「回復預設高度」（三套版面共用）。只清**生效版面**那一組：在 176px 窄欄
@@ -486,15 +637,14 @@
     // 切回同一個舊格式時，format 值沒變；仍需把已停用的自訂內容從剪貼簿更新。
     if (sameWithCustom) {
       const text = root.ICDRender.hisText(ctx);
-      if (text) copyText(text, true).then(ok => {
-        if (!ok) announce('自動複製失敗，請點清單裡的代碼逐一複製', { sticky: true });
-      });
+      if (text) copyText(text, true, '診斷清單');
     }
   }
 
   function wire(ctx) {
     const store = ctx.store;
     const data = ctx.data;
+    clipboardHasCart = !!store.getState().cart.length;
     let copiedTimer = null;
     let dragCode = null;
 
@@ -510,31 +660,34 @@
 
        靜默失敗但要播報——剪貼簿沒同步到卻無聲無息，下一次按 F9 會把舊清單再貼一次。 */
     function syncClipboard() {
+      clipboardHasCart = !!store.getState().cart.length;
       const text = root.ICDRender.hisText(ctx);
-      if (!text) return;
-      copyText(text, true).then((ok) => {
-        // 成功／失敗都要留痕：「已同步 HH:MM」／「未同步」寫在既有的標題列右側（U4）
-        setClipboardSync(ok);
-        if (!ok) announce('自動複製失敗，請點清單裡的代碼逐一複製', { sticky: true });
-      });
+      if (!text) {
+        if (lastCopyKind === '診斷清單') {
+          ++copyRevision; failedCopy = null; manualOpen = false; clipSync = null;
+          refreshFeedback();
+        }
+        root.ICDRender.renderClipboardSync(feedbackDoc()); return;
+      }
+      copyText(text, true, '診斷清單');
     }
 
     store.subscribe((state, changed) => {
-      if (changed.indexOf('cart') < 0 && changed.indexOf('format') < 0) return;
+      if (!changed.some(key => ['cart', 'format', 'clipboardFormats'].includes(key))) return;
       syncClipboard();
     });
 
-    /* 「日期」鈕：HIS 就診日期欄位吃民國格式。這是使用者主動按的，失敗要跳手動複製
-       視窗（不像自動同步那樣靜默），否則他會以為複製成功而貼到舊內容。 */
+    // 日期複製與清單同步共用失敗處理列，不搶走目前焦點。
     async function copyDate() {
       const text = root.ICDClipboard.format('date', new Date(), ctx.store.getState().clipboardFormats);
-      if (await copyText(text)) announce('已複製日期 ' + text);
+      if (await copyText(text, false, '日期')) announce('已複製日期 ' + text);
     }
 
     // ---- 點擊委派 ----
     document.addEventListener('click', (ev) => {
       const target = ev.target;
       if (!target || !target.closest) return;
+      if (target.closest('#clipboard-sync')) { resendCart(ctx); return; }
 
       // 設定 popover 外點關閉（要在其他處理之前判斷，但不能吃掉該次點擊）
       if (store.getState().settingsOpen
@@ -662,11 +815,6 @@
       if (btn.id === 'db-retry') { announce('正在重新載入全庫…'); data.retryDb(); return; }
     });
 
-    // 點擊後備視窗的背景關閉
-    document.addEventListener('mousedown', (ev) => {
-      if (ev.target && ev.target.id === 'fallback-copy') closeFallbackCopy();
-    });
-
     // ---- 搜尋 ----
     document.addEventListener('input', (ev) => {
       if (ev.target && ev.target.classList && ev.target.classList.contains('ccr-input')) {
@@ -692,6 +840,8 @@
     });
 
     document.addEventListener('keydown', (ev) => {
+      if (ev.isComposing || ev.keyCode === 229) return;
+      if (searchKeydown(ctx, ev, () => clearTimeout(searchDebounce))) return;
       if (ev.target && ev.target.id === 'search') {
         if (ev.key === 'Escape') {
           // 與「返回」鈕完全同一條路（三版面共用 leaveSearch），title 上寫的 Esc 才算實現
@@ -702,18 +852,6 @@
           else if (store.getState().ccrOpen) closeCcr(ctx, ev.target);
           else if (store.getState().chronicTopic) closeChronic(ctx, ev.target);
           else if (store.getState().settingsOpen) store.setSettingsOpen(false);
-          return;
-        }
-        if (ev.key === 'Enter') {
-          ev.preventDefault();
-          clearTimeout(searchDebounce);
-          store.setQuery(ev.target.value);
-          const first = document.querySelector('#search-results .chip:not(.cat)');
-          if (first) {
-            addFromChip(first);
-            ev.target.value = '';
-            store.setQuery('');
-          }
           return;
         }
       }
@@ -809,13 +947,14 @@
     if (!names.length) return;
     const open = !allPanelsExpanded(ctx);
     ctx.store.setExpandedAll(names, open);
-    announce(open ? '已展開全部常見疾病' : '已收合全部常見疾病');
+    announce(open ? '已展開全部常見疾病' : '已收合全部常見疾病', { visual: false });
   }
 
   root.ICDInteractions = {
     wire, chooseCopyFormat, copyText, openFallbackCopy, closeFallbackCopy, isFallbackOpen, announce,
+    refreshFeedback, retryFailedCopy, finishManualCopy,
     activateChip, copyCartCode, setFeedbackDocument,
-    leaveSearch, clipboardSyncInfo,
+    leaveSearch, clipboardSyncInfo, resendCart, searchKeydown,
     // 1c 置頂時 main document 的委派搆不到側欄，render-dock.js 要用同一份實作代打
     removeFromCart, clearCartWithUndo, runUndo,
     chooseMode, chooseAllRegions, resetPanes, chooseChronic, closeChronic,

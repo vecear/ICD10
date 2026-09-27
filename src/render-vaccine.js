@@ -5,6 +5,37 @@
   const guide = root.VACCINE_GUIDE;
   const V = root.ICDVaccine;
   const baseURI = document.baseURI;
+  // 查閱條件只留在本次 app；跨版面重建共用，不寫入瀏覽器儲存。
+  const reading = {query: '', group: 'all', topic: 'all', expanded: [], scrollTop: 0};
+  let activeOverlay = null;
+  let restoreVersion = 0;
+  let restoringScroll = false;
+  function rememberReading(overlay) {
+    if (overlay !== activeOverlay || !overlay.querySelector('#vac-results').childNodes.length) return;
+    reading.query = overlay.querySelector('#vac-search').value;
+    reading.group = overlay.dataset.group || 'all';
+    reading.topic = overlay.dataset.topic || 'all';
+    reading.expanded = Array.from(overlay.querySelectorAll('.vac-card[open]'), card => card.dataset.vacQuestion);
+    // 移除／隱藏 DOM 後 scrollTop 可能回報 0，不能覆蓋上一次可見位置。
+    if (overlay.isConnected && !overlay.hidden && !restoringScroll) reading.scrollTop = overlay.querySelector('.vac-body').scrollTop;
+  }
+  function restoreScroll(overlay) {
+    restoringScroll = true;
+    const version = ++restoreVersion;
+    const scrollTop = reading.scrollTop;
+    const body = overlay.querySelector('.vac-body');
+    body.scrollTop = scrollTop;
+    // 新版面的 body[data-layout] 要等 mount 完成才生效；用節點所屬視窗處理 PiP。
+    overlay.ownerDocument.defaultView.requestAnimationFrame(() => {
+      if (version !== restoreVersion || overlay !== activeOverlay || overlay.hidden || !overlay.isConnected) return;
+      body.scrollTop = scrollTop;
+      restoringScroll = false;
+    });
+  }
+  root.addEventListener('resize', () => {
+    // responsive 重建有 debounce；先擋住舊版面因 resize 歸零的 scroll 事件。
+    if (activeOverlay && !activeOverlay.hidden && activeOverlay.ownerDocument === document) restoreScroll(activeOverlay);
+  });
   function button(text, id, cls) {
     const b = R.el('button', cls || 'btn btn-secondary', text);
     b.type = 'button';
@@ -26,7 +57,13 @@
     a.rel = 'noopener';
     return a;
   }
-  function renderResults(overlay) {
+  function renderResults(overlay, restore = false) {
+    if (!restore) {
+      restoreVersion++;
+      restoringScroll = false;
+      reading.expanded = [];
+      reading.scrollTop = 0;
+    }
     const query = overlay.querySelector('#vac-search').value;
     const group = overlay.dataset.group || 'all';
     const topic = overlay.dataset.topic || 'all';
@@ -46,9 +83,14 @@
       heading.id = 'vac-category-' + category.id;
       section.setAttribute('aria-labelledby', heading.id);
       section.appendChild(heading);
-      questions.forEach(card => section.appendChild(questionEl(card)));
+      questions.forEach(card => {
+        const question = questionEl(card);
+        question.open = restore && reading.expanded.includes(card.id);
+        section.appendChild(question);
+      });
       results.appendChild(section);
     }
+    if (!restore) rememberReading(overlay);
   }
   function questionEl(card) {
     const article = R.el('details', 'vac-card');
@@ -86,7 +128,9 @@
     return article;
   }
   function vacOverlayEl() {
+    if (activeOverlay) rememberReading(activeOverlay);
     const overlay = R.el('div', 'vac-overlay');
+    activeOverlay = overlay;
     overlay.id = 'vac-overlay'; overlay.hidden = true;
     const panel = R.el('section', 'vac-panel');
     panel.id = 'vac-panel'; panel.setAttribute('role', 'dialog');
@@ -122,6 +166,12 @@
     body.append(library, R.el('p', 'vac-note', guide.notice + '\n整理日期：' + guide.version));
     panel.appendChild(body); overlay.appendChild(panel);
     input.addEventListener('input', () => renderResults(overlay));
+    body.addEventListener('scroll', () => {
+      if (!overlay.hidden) rememberReading(overlay);
+    });
+    overlay.addEventListener('toggle', () => {
+      if (!overlay.hidden) rememberReading(overlay);
+    }, true);
     return overlay;
   }
   function syncVac(container, ctx) {
@@ -149,7 +199,7 @@
         const copy = target.closest('[data-vac-copy]');
         if (copy) {
           const card = guide.cards.find(c => c.id === copy.dataset.vacCopy);
-          const ok = await root.ICDInteractions.copyText(V.answerText(guide, card));
+          const ok = await root.ICDInteractions.copyText(V.answerText(guide, card), false, '疫苗答案');
           if (copy.isConnected) copy.textContent = ok ? '已複製' : '請手動複製';
         }
       });
@@ -164,13 +214,21 @@
       });
     }
     const open = !!ctx.store.getState().vacOpen;
-    if (open && overlay.hidden) renderResults(overlay);
-    overlay.hidden = !open;
-    entry.setAttribute('aria-expanded', String(open));
-    if (!open) {
-      overlay.querySelector('#vac-search').value = ''; overlay.dataset.group = 'all'; overlay.dataset.topic = 'all';
-      R.clear(overlay.querySelector('#vac-results'));
+    if (open && overlay.hidden) {
+      overlay.querySelector('#vac-search').value = reading.query;
+      overlay.dataset.group = reading.group;
+      overlay.dataset.topic = reading.topic;
+      restoringScroll = true;
+      renderResults(overlay, true);
+      overlay.hidden = false;
+      restoreScroll(overlay);
+    } else if (!open && !overlay.hidden) {
+      rememberReading(overlay);
+      restoreVersion++;
+      restoringScroll = false;
+      overlay.hidden = true;
     }
+    entry.setAttribute('aria-expanded', String(open));
   }
   Object.assign(R, {vacButtonEl, vacOverlayEl, syncVac});
 })(typeof self !== 'undefined' ? self : this);
