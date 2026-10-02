@@ -10,7 +10,7 @@
 [`健保條文/README.md`](../健保條文/README.md)。建置與打包會依序檢查：
 
 1. `build/build.py` 的 `check_chronic_docs()`：`docs[].file` 對不上實際檔案就**建置失敗**。
-2. `build/build.py` 的 `copy_nhi_docs()`：複製一份到 `dist/健保條文/`（進 `.gitignore`），
+2. `build/build.py` 的 `copy_nhi_docs()`：複製一份到 `dist/健保條文/`（與原始 PDF 一起納入 Git，供完整專案交付），
    讓 `dist/icd10.html` 在本機與 E2E 也點得開。
 3. `tools/pack_for_clinic.py`：把 `健保條文/` 整個放進診間包，並回頭核對 zip 裡真的有那幾份。
 

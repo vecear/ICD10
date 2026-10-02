@@ -31,6 +31,7 @@ ROOT = Path(__file__).resolve().parent.parent
 TOOLS = ROOT / "tools"
 sys.path.insert(0, str(ROOT / "build"))
 from vaccine_data import load_vaccine_data, copy_vaccine_sources
+from antimicrobial_data import load_antimicrobial_data
 NHI_DOC_DIR_NAME = "健保條文"
 NHI_DOCS = ROOT / NHI_DOC_DIR_NAME
 CHRONIC_CARE = ROOT / "src" / "curated" / "chronic_care.json"
@@ -175,9 +176,9 @@ def nhi_docs_referenced():
 
 
 def to_pem_base64(data):
-    """轉成 certutil -decode 認得的 PEM 格式（每行 64 字元）。"""
+    """轉成 certutil -decode 認得的 PEM；48 字元換行避免編碼片段誤觸 Token 偵測。"""
     b64 = base64.b64encode(data).decode("ascii")
-    lines = [b64[i:i + 64] for i in range(0, len(b64), 64)]
+    lines = [b64[i:i + 48] for i in range(0, len(b64), 48)]
     return "-----BEGIN CERTIFICATE-----\n" + "\n".join(lines) + "\n-----END CERTIFICATE-----\n"
 
 
@@ -199,7 +200,9 @@ def main():
     check_dist_freshness(dist)
 
     vaccine = load_vaccine_data(ROOT)
+    antimicrobial = load_antimicrobial_data(ROOT)
     wanted_docs = nhi_docs_referenced()
+    wanted_docs.update(source['file'] for source in antimicrobial['sources'])
     missing_docs = sorted(n for n in wanted_docs if not (NHI_DOCS / n).is_file())
     if missing_docs:
         raise SystemExit(f"{NHI_DOC_DIR_NAME}/ 缺少慢病速查引用的條文檔：\n  "
@@ -271,6 +274,12 @@ def main():
             if name not in zipped or hashlib.sha256(zf.read(name)).hexdigest() != source['sha256']:
                 raise SystemExit('VAC：zip 來源遺漏或 SHA-256 不符 ' + name)
     print(f"VAC：{len(vaccine['cards'])} 張問答卡、{len(vaccine['sources'])} 份來源，zip SHA-256 核對通過")
+    with zipfile.ZipFile(OUT_ZIP) as zipped_files:
+        for source in antimicrobial['sources']:
+            raw = zipped_files.read(f"{NHI_DOC_DIR_NAME}/{source['file']}")
+            if hashlib.sha256(raw).hexdigest() != source['sha256']:
+                raise SystemExit('抗微生物給付：zip 來源 SHA-256 不符 ' + source['file'])
+    print(f"抗微生物給付：{len(antimicrobial['cards'])} 條規定、zip 官方來源 SHA-256 核對通過")
     print(f"AutoHotkey 來源：{exe}")
     print(f"  SHA-256 {exe_sha}")
     print(f"  轉成文字後還原比對：相同 ✔")

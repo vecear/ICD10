@@ -1,4 +1,5 @@
-data/
+# 專案資料、官方來源、dist、診間包及 tools 二進位均納入 Git。
+# 僅排除可重建的快取、測試暫存與本機憑證。
 __pycache__/
 .pytest_cache/
 node_modules/
@@ -6,20 +7,11 @@ node_modules/
 .review/
 .playwright-mcp/
 .superpowers/
-# 帶去診間用的 AutoHotkey 執行檔／安裝檔：第三方二進位，不進版控
-tools/*.exe
-tools/*.zip
-# 診間包：由 dist 與 tools 的檔案組出來的拷貝，不是原始碼
-診間包/
-診間包*.zip
-# 你自己壓的診間包（rar／7z 等），與 診間包.zip 同理不進版控
-診間包*.rar
-診間包*.7z
-# dist/健保條文/：由 build.py 從 健保條文/ 複製過來，讓 dist/icd10.html 在本機也點得開條文。
-# 原始檔在 健保條文/，同一批 PDF 不進版控兩次。
-dist/健保條文/
 # 抓官方來源檔的快取（96 MB 的品項檔等），不是原始碼
 build/.cache/
 
-# VAC 離線來源由建置從原始疫苗資料夾複製。
-dist/疫苗/
+# 本機憑證不隨整個專案上傳；範本可以提交。
+.env
+.env.*
+!.env.example
+!.env.sample

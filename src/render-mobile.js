@@ -42,6 +42,7 @@
     ccrOpen: ['ccr'],
     lipidOpen: ['lipid'],
     vacOpen: ['vac'],
+    amOpen: ['am'],
     cartOpen: ['cartSheet', 'cartBar'],
     pinned: [],
     // 高度本身由 update() 末尾的 paneGroup.applyAll() 統一處理；這裡只同步設定面板的
@@ -223,6 +224,7 @@
     wrap.appendChild(refs.ccrOverlay);
     wrap.appendChild(refs.lipidOverlay);
     wrap.appendChild(R.vacOverlayEl());
+    wrap.appendChild(R.amOverlayEl());
 
     host.appendChild(wrap);
 
@@ -352,6 +354,7 @@
     U.ccr = () => R.syncCcr(wrap, ctx);
     U.lipid = () => R.syncLipid(wrap, ctx);
     U.vac = () => R.syncVac(wrap, ctx);
+    U.am = () => R.syncAm(wrap, ctx);
 
     U.chronic = () => {
       R.syncChronicSwitch(wrap, ctx);

@@ -1,0 +1,69 @@
+.am-btn { flex: 0 0 auto; }
+body[data-layout="dock"] .chronic-switch .lipid-btn { margin-left: 0; }
+#layout-wide #am-btn { min-height: 32px; font-size: 13px; padding: 0 10px; white-space: nowrap; }
+/* 900px 仍為工作台：新入口約 96px，縮小六個 header 間距省 60px、
+   三個模式鈕水平內距省 54px，維持單列並保留搜尋欄至少 120px。 */
+/* 也涵蓋切回手機前短暫存在的工作台，避免工具列把 mobile layout viewport 撐至 900px 以上。 */
+@media (max-width: 1100px) {
+  #layout-wide .app-header { gap: 4px; }
+  #layout-wide .mode-btn { padding-left: 4px; padding-right: 4px; }
+  #layout-wide .chronic-switch > button { padding-left: 6px; padding-right: 6px; }
+}
+.am-overlay { position: fixed; inset: 0; z-index: 70; display: flex; align-items: center; justify-content: center; padding: 16px; background: #0006; }
+.am-overlay[hidden] { display: none; }
+.am-panel { display: flex; flex-direction: column; width: min(100%, 1050px); max-height: 94dvh; min-width: 0; background: var(--color-bg); color: var(--color-text); border: 1px solid var(--color-divider); border-radius: 6px; box-shadow: 0 12px 48px #0004; }
+.am-head { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--color-divider); }
+.am-head h2 { margin: 0; flex: 1; min-width: 0; font-size: 18px; overflow-wrap: anywhere; }
+.am-head button { flex-shrink: 0; }
+.am-tools { padding: 8px 12px; border-bottom: 1px solid var(--color-divider); }
+.am-search-row { display: flex; align-items: end; gap: 6px; }
+.am-search-label { flex: 1; min-width: 0; font-size: 12px; }
+#am-search { display: block; width: 100%; margin-top: 3px; min-width: 0; font-size: 16px; }
+.am-groups { display: flex; flex-wrap: wrap; gap: 4px; }
+.am-groups button { padding: 4px 7px; font-size: 12px; letter-spacing: 0; white-space: normal; }
+.am-groups button[aria-pressed=true] { background: var(--sel-bg); color: var(--sel-ink); }
+.am-body { overflow: auto; min-height: 0; padding: 8px 12px 12px; overscroll-behavior: contain; }
+.am-count, .am-note { margin: 6px 0; font-size: 12px; }
+#am-results { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; align-items: start; }
+.am-card { border: 1px solid var(--color-divider); border-radius: 4px; background: var(--color-surface); min-width: 0; overflow-wrap: anywhere; }
+.am-question { cursor: pointer; padding: 7px 9px; font-size: 13px; line-height: 1.5; font-weight: 600; }
+.am-section-id { display: block; font-size: 11px; font-weight: normal; }
+.am-preview { display: block; margin-top: 3px; font-size: 12px; font-weight: normal; }
+.am-question:focus-visible { outline: 2px solid var(--sel-bg); outline-offset: -2px; }
+.am-content { padding: 7px 9px; }
+.am-card[open] > .am-question { border-bottom: 1px solid var(--color-divider); }
+.am-card-head { display: flex; justify-content: flex-end; }
+.am-content button { padding: 3px 6px; font-size: 11px; white-space: normal; max-width: 100%; }
+.am-label { font-size: 12px; font-weight: 600; margin: 6px 0; }
+.am-answer { margin: 6px 0; padding-left: 18px; font-size: 13px; line-height: 1.55; }
+.am-answer li { margin-bottom: 3px; }
+.am-original { margin: 8px 0; border-top: 1px solid var(--color-divider); }
+.am-original > summary { cursor: pointer; font-size: 13px; padding: 6px 0; }
+.am-line { margin: 5px 0; font-size: 13px; line-height: 1.55; }
+.am-sub { margin-left: 10px; }
+.am-leaf { margin-left: 20px; }
+.am-source { font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; border-top: 1px solid var(--color-divider); padding-top: 6px; }
+.am-source a { color: var(--sel-bg); text-decoration: underline; }
+.am-version { display: block; }
+.am-upcoming { display: block; color: var(--warn-ink); background: var(--warn-bg); }
+.am-empty { grid-column: 1 / -1; font-size: 13px; }
+@media (max-width: 760px) {
+  .am-overlay { padding: 0; }
+  .am-panel { width: 100%; height: 100dvh; max-height: 100dvh; border-radius: 0; }
+  #am-results { grid-template-columns: minmax(0, 1fr); }
+  .am-head, .am-tools, .am-body { padding-left: 7px; padding-right: 7px; }
+}
+@media (max-width: 260px) {
+  .am-head { flex-wrap: wrap; }
+  .am-head h2 { font-size: 15px; }
+  .am-search-row { flex-wrap: wrap; }
+  .am-search-label { flex-basis: 100%; }
+}
+body[data-layout="mobile"] .am-btn, body[data-layout="mobile"] .am-panel button, body[data-layout="mobile"] .am-panel summary { min-height: 44px; }
+/* 六個入口在 390px 保持一列，仍保留 44px 觸控高度。 */
+body[data-layout="mobile"] .chronic-switch { gap: 3px; padding-left: 4px; padding-right: 4px; }
+body[data-layout="mobile"] .chronic-switch .lipid-btn { margin-left: 0; }
+body[data-layout="mobile"] .chronic-switch > button,
+body[data-layout="mobile"] #lipid-btn,
+body[data-layout="mobile"] #ccr-btn { padding-left: 4px; padding-right: 4px; }
+body[data-layout="mobile"] .am-btn { font-size: 12px; }

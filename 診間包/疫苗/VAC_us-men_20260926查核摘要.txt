@@ -1,0 +1,10 @@
+美國 CDC：MenACWY 追加年齡及密切接觸者處置（補充）
+版本：疫苗頁 2026-03-30；2026-09-26 查核
+查核日期：2026-09-26
+原始來源：https://www.cdc.gov/meningococcal/hcp/vaccine-recommendations/index.html
+
+本工具整理摘要，非官方原文。適用範圍及限制如下；線上原文更新後須重新查核。
+
+只補充持續高風險者的 MenACWY 追加間隔分界；台灣基礎劑次及品項依本地資料。完成基礎系列時未滿 7 歲者，3 年後首次追加，此後每 5 年；7 歲以上者每 5 年追加。
+接觸者處置來源：https://www.cdc.gov/surv-manual/php/table-of-contents/chapter-8-meningococcal-disease.html
+侵襲性腦膜炎雙球菌病人的密切接觸者，不論是否接種疫苗，都需儘速接受抗生素化學預防評估；包括同住、托育接觸及直接接觸口鼻分泌物者。不要為等待培養或疫苗效果而延誤。抗生素選擇須依當地抗藥性、公衛指示及個人禁忌處理。

@@ -74,7 +74,7 @@
     row.id = 'chronic-switch';
     row.setAttribute('role', 'group');
     row.setAttribute('aria-label', '健保規範條文與計算機');
-    const b = R.el('button', 'chronic-btn', '健保規範條文');
+    const b = R.el('button', 'chronic-btn', '三高');
     b.type = 'button';
     b.id = 'chronic-btn';
     b.setAttribute('aria-haspopup', 'dialog');
@@ -85,7 +85,7 @@
     /* 兩個計算機接在後面。血脂試算算的就是 LIPID 的給付門檻，CCr 是調劑量用的，
        兩者都是「輸入數值換一個判斷」，與條文查閱同一個動線，放同一排。
        這一排跟著內容捲動（1c／1b），常駐版面成本是 0。 */
-    row.append(R.lipidButtonEl(compact), R.ccrButtonEl(compact), R.vacButtonEl(compact));
+    row.append(R.lipidButtonEl(compact), R.ccrButtonEl(compact), R.vacButtonEl(compact), R.amButtonEl(compact));
     return row;
   }
 

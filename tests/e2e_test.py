@@ -1772,8 +1772,9 @@ def test_chronic_row_is_entry_then_calculators_and_vac_and_starts_closed(page):
     expect(row.locator(".chronic-btn")).to_have_count(1)          # 負面：三顆主題鈕不再排在外面
     order = page.evaluate("""() => Array.from(
         document.getElementById('chronic-switch').children).map((n) => n.id)""")
-    assert order == ["chronic-btn", "lipid-btn", "ccr-btn", "vac-btn"], order
-    assert page.locator("#chronic-btn").inner_text() == "健保規範條文"
+    assert order == ["chronic-btn", "lipid-btn", "ccr-btn", "vac-btn", "am-btn"], order
+    expect(page.locator("#am-overlay")).to_be_hidden()
+    assert page.locator("#chronic-btn").inner_text() == "三高"
     assert page.locator("#lipid-btn").inner_text() == "Lipid"
     assert page.locator("#ccr-btn").inner_text() == "CCr"
     assert page.locator("#vac-btn").inner_text() == "VAC"

@@ -19,6 +19,7 @@ class PreparePagesTests(unittest.TestCase):
         (self.root / 'dist/icd10.html').write_bytes(b'<html>verified app</html>')
         self.write_json('chronic_care.json', {'topics': [{'docs': [{'file': '條文.pdf'}]}]})
         self.write_json('vaccine_guide.json', {'sources': [{'file': '來源 摘要.txt'}]})
+        self.write_json('antimicrobial_coverage.json', {'sources': []})
         (self.root / '健保條文/條文.pdf').write_bytes(b'%PDF-test')
         (self.root / '疫苗/來源 摘要.txt').write_text('來源', encoding='utf-8')
         spec = importlib.util.spec_from_file_location('prepare_pages', SCRIPT)
@@ -58,6 +59,18 @@ class PreparePagesTests(unittest.TestCase):
         with self.assertRaises(FileExistsError):
             self.prepare(self.root, self.output)
         self.assertEqual(keep.read_text(), 'keep')
+
+    def test_antimicrobial_official_source_is_published(self):
+        self.write_json('antimicrobial_coverage.json', {'sources':[{'file':'抗微生物.pdf'}]})
+        (self.root / '健保條文/抗微生物.pdf').write_bytes(b'%PDF-antimicrobial')
+        self.prepare(self.root, self.output)
+        self.assertEqual((self.output / '健保條文/抗微生物.pdf').read_bytes(), b'%PDF-antimicrobial')
+
+    def test_missing_antimicrobial_source_aborts_before_output(self):
+        self.write_json('antimicrobial_coverage.json', {'sources':[{'file':'缺少條文.pdf'}]})
+        with self.assertRaises(FileNotFoundError):
+            self.prepare(self.root, self.output)
+        self.assertFalse(self.output.exists())
 
 
 if __name__ == '__main__':

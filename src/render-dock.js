@@ -120,6 +120,7 @@
     ccrOpen: ['ccr'],
     lipidOpen: ['lipid'],
     vacOpen: ['vac'],
+    amOpen: ['am'],
     cartOpen: ['cart'],
     pinned: ['pin'],
     // 窗格高度本身由 update() 末尾的 paneGroup.applyAll() 統一處理，這裡只需同步
@@ -319,6 +320,7 @@
     dock.appendChild(refs.ccrOverlay);
     dock.appendChild(refs.lipidOverlay);
     dock.appendChild(R.vacOverlayEl());
+    dock.appendChild(R.amOverlayEl());
 
     host.appendChild(dock);
 
@@ -944,6 +946,7 @@
     U.ccr = () => R.syncCcr(dock, ctx);
     U.lipid = () => R.syncLipid(dock, ctx);
     U.vac = () => R.syncVac(dock, ctx);
+    U.am = () => R.syncAm(dock, ctx);
 
     U.chronic = () => {
       R.syncChronicSwitch(dock, ctx);

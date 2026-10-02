@@ -14,8 +14,9 @@ def prepare_pages(root, output):
     curated = root / 'src/curated'
     chronic = json.loads((curated / 'chronic_care.json').read_text(encoding='utf-8'))
     vaccine = json.loads((curated / 'vaccine_guide.json').read_text(encoding='utf-8'))
+    antimicrobial = json.loads((curated / 'antimicrobial_coverage.json').read_text(encoding='utf-8'))
     documents = {
-        '健保條文': {doc['file'] for topic in chronic['topics'] for doc in topic['docs']},
+        '健保條文': {doc['file'] for topic in chronic['topics'] for doc in topic['docs']} | {s['file'] for s in antimicrobial['sources']},
         '疫苗': {source['file'] for source in vaccine['sources']},
     }
     files = {Path('index.html'): root / 'dist/icd10.html',

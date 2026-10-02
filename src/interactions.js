@@ -105,8 +105,8 @@
     const box = doc.getElementById('copy-recovery');
     const home = doc.getElementById('copy-recovery-home');
     if (!box || !home) return;
-    // 計算機／VAC 開著時，處理列放在該面板內；關閉後回到清單區，避免被面板遮住。
-    const dialog = Array.from(doc.querySelectorAll('#ccr-overlay [role="dialog"], #lipid-overlay [role="dialog"], #vac-overlay [role="dialog"]'))
+    // 計算機／速查開著時，處理列放在該面板內；關閉後回到清單區，避免被面板遮住。
+    const dialog = Array.from(doc.querySelectorAll('#ccr-overlay [role="dialog"], #lipid-overlay [role="dialog"], #vac-overlay [role="dialog"], #am-overlay [role="dialog"]'))
       .find(el => el.getClientRects().length);
     const destination = dialog || home;
     if (box.parentNode !== destination) destination.appendChild(box);

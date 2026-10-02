@@ -1,0 +1,11 @@
+美國 CDC：A 肝暴露後預防與接種評估（補充）
+版本：2026-09-26 查核；原網頁版本見摘要
+查核日期：2026-09-26
+原始來源：https://www.cdc.gov/hepatitis-a/hcp/clinical-care/index.html
+
+本工具整理摘要，非官方原文。適用範圍及限制如下；線上原文更新後須重新查核。
+
+未完成接種且近期暴露：滿 12 個月起，儘速於 14 天內給單價 A 肝疫苗。免疫不全或慢性肝病者另加 IG，分開部位；40 歲以上依暴露及重症風險評估是否加 IG。未滿 12 個月或疫苗禁忌者使用 IG。超過 14 天的 PEP 效益未確立。IG 製品、濃度與取得方式須核對台灣現用品項，不在本工具直接套用美國毫升劑量。
+Twinrix 不作 PEP；混合 A＋B 肝疫苗一般 0、1、6 個月，特定成人加速為 0、7、21–30 天與 12 個月，須依本地產品仿單。
+補充：https://www.cdc.gov/yellow-book/hcp/travel-associated-infections-diseases/hepatitis-a.html
+一般完整接種者不常規驗抗體或追加；免疫不全等若結果影響處置可驗抗體。補充：https://www.cdc.gov/std/treatment-guidelines/hav.htm

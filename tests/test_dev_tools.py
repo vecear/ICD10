@@ -133,3 +133,16 @@ def test_lookup_finds_codes_by_prefix_keyword_and_respects_limit():
     en = _lookup("CELLULITIS", "5")
     assert en, "英文關鍵字查不到任何結果"
     assert all("cellulitis" in ln.split("\t")[3].lower() for ln in en), en
+def test_encoded_executable_uses_short_lines_and_restores_identically():
+    import importlib.util
+    import base64
+    path = ROOT / 'tools/pack_for_clinic.py'
+    spec = importlib.util.spec_from_file_location('pack_short_lines', path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    raw = bytes(range(256)) * 100
+    encoded = module.to_pem_base64(raw)
+    lines = [line for line in encoded.splitlines() if not line.startswith('-----')]
+    assert all(1 <= len(line) <= 48 for line in lines)
+    assert base64.b64decode(''.join(lines), validate=True) == raw
+    assert module.from_pem_base64(encoded) == raw
