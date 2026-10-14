@@ -134,6 +134,7 @@
       lipidOpen: false,
       vacOpen: false,
       amOpen: false,
+      dateCalcOpen: false,
       shelfOpen: true,           // 常用列
       cartOpen: true,            // 1c/1b 的清單摺疊
       pinned: false,             // Document PiP 置頂
@@ -533,7 +534,7 @@
     const setQuery = (query) => { setState({ query: typeof query === 'string' ? query : '' }); };
     const setRelatedCode = (code) => { setState({ relatedCode: code || null }); };
     const setCopied = (copied) => { setState({ copied: !!copied }); };
-    const setSettingsOpen = (open) => { setState(open ? { settingsOpen: true, vacOpen: false, amOpen: false } : { settingsOpen: false }); };
+    const setSettingsOpen = (open) => { setState(open ? { settingsOpen: true, vacOpen: false, amOpen: false, dateCalcOpen: false } : { settingsOpen: false }); };
     const toggleSettings = () => {
       setSettingsOpen(!state.settingsOpen);
       return state.settingsOpen;
@@ -550,7 +551,7 @@
       if (CHRONIC_TOPICS.indexOf(key) < 0) return false;
       setState({
         chronicTopic: key, chronicLast: key,
-        settingsOpen: false, ccrOpen: false, lipidOpen: false, vacOpen: false, amOpen: false,
+        settingsOpen: false, ccrOpen: false, lipidOpen: false, vacOpen: false, amOpen: false, dateCalcOpen: false,
       });
       return true;
     }
@@ -560,7 +561,7 @@
        不會被持久化、也不會被別的版面撿去用。 */
     function setCcrOpen(open) {
       const next = !!open;
-      if (next) setState({ ccrOpen: true, settingsOpen: false, chronicTopic: null, lipidOpen: false, vacOpen: false, amOpen: false });
+      if (next) setState({ ccrOpen: true, settingsOpen: false, chronicTopic: null, lipidOpen: false, vacOpen: false, amOpen: false, dateCalcOpen: false });
       else setState({ ccrOpen: false });
       return next;
     }
@@ -569,16 +570,20 @@
        同時開兩個沒有意義，而且 Esc 該關掉哪一個會變成猜謎。 */
     function setLipidOpen(open) {
       const next = !!open;
-      if (next) setState({ lipidOpen: true, settingsOpen: false, chronicTopic: null, ccrOpen: false, vacOpen: false, amOpen: false });
+      if (next) setState({ lipidOpen: true, settingsOpen: false, chronicTopic: null, ccrOpen: false, vacOpen: false, amOpen: false, dateCalcOpen: false });
       else setState({ lipidOpen: false });
     }
 
     function setVacOpen(open) {
-      setState(open ? {amOpen: false, vacOpen: true, ccrOpen: false, lipidOpen: false, chronicTopic: null, settingsOpen: false} : {vacOpen: false});
+      setState(open ? {amOpen: false, vacOpen: true, ccrOpen: false, lipidOpen: false, chronicTopic: null, settingsOpen: false, dateCalcOpen: false} : {vacOpen: false});
     }
 
     function setAmOpen(open) {
-      setState(open ? {amOpen: true, vacOpen: false, ccrOpen: false, lipidOpen: false, chronicTopic: null, settingsOpen: false} : {amOpen: false});
+      setState(open ? {amOpen: true, vacOpen: false, ccrOpen: false, lipidOpen: false, chronicTopic: null, settingsOpen: false, dateCalcOpen: false} : {amOpen: false});
+    }
+
+    function setDateCalcOpen(open) {
+      setState(open ? {dateCalcOpen: true, amOpen: false, vacOpen: false, ccrOpen: false, lipidOpen: false, chronicTopic: null, settingsOpen: false} : {dateCalcOpen: false});
     }
 
     const setShelfOpen = (open) => { setState({ shelfOpen: !!open }); };
@@ -605,7 +610,7 @@
       setQuery, setRelatedCode, setCopied, setDbState,
       setSettingsOpen, toggleSettings, setShelfOpen, toggleShelf,
       setCartOpen, toggleCart, setPinned,
-      setChronicTopic, setCcrOpen, setLipidOpen, setVacOpen, setAmOpen,
+      setChronicTopic, setCcrOpen, setLipidOpen, setVacOpen, setAmOpen, setDateCalcOpen,
     };
   }
 

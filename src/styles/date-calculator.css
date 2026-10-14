@@ -1,0 +1,30 @@
+.date-calc-btn { flex: 0 0 auto; }
+#layout-wide #date-calc-btn { min-height: 32px; padding: 0 10px; font-size: 13px; white-space: nowrap; }
+.date-calc-overlay { position: fixed; inset: 0; z-index: 70; display: flex; align-items: center; justify-content: center; padding: 12px; background: #0006; }
+.date-calc-overlay[hidden] { display: none; }
+.date-calc-panel { width: min(100%, 460px); min-width: 0; max-height: 94dvh; overflow-y: auto; background: var(--color-bg); color: var(--color-text); border: 1px solid var(--color-divider); border-radius: 6px; box-shadow: 0 12px 48px #0004; }
+.date-calc-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--color-divider); }
+.date-calc-head h2 { margin: 0; font-size: 18px; }
+.date-calc-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; padding: 12px; }
+.date-calc-field { display: flex; flex-direction: column; gap: 3px; min-width: 0; font-size: 13px; }
+.date-calc-field:first-child { grid-column: 1 / -1; }
+.date-calc-field .input { width: 100%; min-width: 0; min-height: 34px; padding: 4px 6px; font-size: 16px; }
+.date-calc-result { margin: 0 12px; padding: 10px; background: var(--color-surface); border: 1px solid var(--color-divider); border-radius: 4px; overflow-wrap: anywhere; }
+.date-calc-result p { margin: 0; font-size: 13px; }
+.date-calc-value { display: block; font-size: 24px; line-height: 1.5; }
+.date-calc-note { margin: 8px 12px 12px; font-size: 12px; }
+@media (max-width: 360px) {
+  .date-calc-overlay { padding: 4px; }
+  .date-calc-head, .date-calc-form { padding: 7px; }
+  .date-calc-form { grid-template-columns: minmax(0, 1fr); }
+  .date-calc-result { margin: 0 7px; padding: 6px; }
+  .date-calc-value { font-size: 20px; }
+  .date-calc-note { margin: 7px; }
+}
+body[data-layout="mobile"] .date-calc-btn,
+body[data-layout="mobile"] .date-calc-panel button,
+body[data-layout="mobile"] .date-calc-panel .input { min-height: 44px; }
+body[data-layout="mobile"] .date-calc-btn { font-size: 12px; }
+@media (max-width: 260px) {
+  .date-calc-value { font-size: 16px; }
+}

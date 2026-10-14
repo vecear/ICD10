@@ -121,6 +121,7 @@
     lipidOpen: ['lipid'],
     vacOpen: ['vac'],
     amOpen: ['am'],
+    dateCalcOpen: ['dateCalc'],
     cartOpen: ['cart'],
     pinned: ['pin'],
     // 窗格高度本身由 update() 末尾的 paneGroup.applyAll() 統一處理，這裡只需同步
@@ -321,6 +322,7 @@
     dock.appendChild(refs.lipidOverlay);
     dock.appendChild(R.vacOverlayEl());
     dock.appendChild(R.amOverlayEl());
+    dock.appendChild(R.dateCalcOverlayEl());
 
     host.appendChild(dock);
 
@@ -947,6 +949,7 @@
     U.lipid = () => R.syncLipid(dock, ctx);
     U.vac = () => R.syncVac(dock, ctx);
     U.am = () => R.syncAm(dock, ctx);
+    U.dateCalc = () => R.syncDateCalc(dock, ctx);
 
     U.chronic = () => {
       R.syncChronicSwitch(dock, ctx);

@@ -1738,7 +1738,7 @@ def test_chronic_buttons_live_in_the_scroll_area_not_the_header(pg):
     order = pg.evaluate("""() => Array.from(
         document.getElementById('chronic-switch').children).map((n) => n.id)""")
     # 「全展開／全收合」2026-09-02 加在這一排的尾巴，靠 margin-left:auto 貼右
-    assert order == ["chronic-btn", "lipid-btn", "ccr-btn", "vac-btn", "am-btn", "expand-all-panels"], order
+    assert order == ["chronic-btn", "lipid-btn", "ccr-btn", "vac-btn", "am-btn", "date-calc-btn", "expand-all-panels"], order
     rows = pg.evaluate("""() => {
         const row = document.getElementById('chronic-switch');
         const btn = document.getElementById('expand-all-panels');

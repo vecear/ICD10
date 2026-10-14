@@ -35,6 +35,7 @@
     lipidOpen: ['lipid'],
     vacOpen: ['vac'],
     amOpen: ['am'],
+    dateCalcOpen: ['dateCalc'],
     // 高度本身由 update() 末尾的 applyPanes() 統一處理；這裡只同步設定面板的
     // 「回復預設高度」可按狀態（不寫這條會退回全量重繪，每拖一次整片重畫）
     paneSizes: ['settings'],
@@ -234,6 +235,7 @@
     wide.appendChild(refs.lipidOverlay);
     wide.appendChild(R.vacOverlayEl());
     wide.appendChild(R.amOverlayEl());
+    wide.appendChild(R.dateCalcOverlayEl());
 
     host.appendChild(wide);
 
@@ -481,6 +483,7 @@
     U.lipid = () => R.syncLipid(wide, ctx);
     U.vac = () => R.syncVac(wide, ctx);
     U.am = () => R.syncAm(wide, ctx);
+    U.dateCalc = () => R.syncDateCalc(wide, ctx);
 
     U.chronic = () => {
       R.syncChronicSwitch(wide, ctx);

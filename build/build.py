@@ -26,15 +26,15 @@ FONTS = [
 ]
 # 設計系統 → 產品共用元件 → 各版面骨架。都在 :root 定義 token，靠來源順序讓後者覆寫。
 # 版面各一檔（wide／後續 dock、mobile）是為了讓不同階段能並行實作而不互相覆蓋。
-STYLESHEETS = ["styles/industry.css", "styles/app.css", "styles/wide.css", "styles/dock.css", "styles/mobile.css", "styles/renal.css", "styles/vaccine.css", "styles/antimicrobial.css"]
+STYLESHEETS = ["styles/industry.css", "styles/app.css", "styles/wide.css", "styles/dock.css", "styles/mobile.css", "styles/renal.css", "styles/vaccine.css", "styles/antimicrobial.css", "styles/date-calculator.css"]
 # 有序：每個模組都是 IIFE／UMD，靠這個順序保證依賴先於使用者掛上 window（無 bundler）。
 # logic → state → data 都是零 DOM 的純模組（node --test 直接測），其後才碰 DOM。
 SOURCES = [
-    "logic.js", "renal-dosing.js", "vaccine.js", "antimicrobial.js", "clipboard-format.js", "clinical-format.js", "state.js", "data.js",
+    "logic.js", "renal-dosing.js", "vaccine.js", "antimicrobial.js", "date-calculator.js", "clipboard-format.js", "clinical-format.js", "state.js", "data.js",
     "resize.js",
     "render-renal.js", "clipboard-settings.js",
     # render-* 六檔共用同一個 window.ICDRender 物件，dom 先建立、其餘疊加；順序＝相依順序。
-    "render-dom.js", "render-common.js", "render-settings.js", "render-chronic.js", "render-ccr.js", "render-lipid.js", "render-vaccine.js", "render-antimicrobial.js",
+    "render-dom.js", "render-common.js", "render-settings.js", "render-chronic.js", "render-ccr.js", "render-lipid.js", "render-vaccine.js", "render-antimicrobial.js", "render-date.js",
     "render-wide.js", "render-dock.js", "render-mobile.js",
     "interactions.js", "app.js",
 ]
