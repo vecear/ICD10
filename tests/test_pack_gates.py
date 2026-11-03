@@ -198,7 +198,11 @@ def test_line_check_same_line_control(tmp_path):
 def test_line_check_does_not_borrow_a_next_line_that_has_its_own_number(tmp_path):
     """下一行自己寫了「第 N 行」時不借它的設定名，否則兩句會互相誤報。"""
     text = "先把第 2 行的\n再確認第 3 行的 CODE_DELAY\n"
-    assert _line_check(tmp_path, text) == []
+    problems = _line_check(tmp_path, text)
+    # 第一句自己沒有設定名，依新規則要被擋下；但擋的理由必須是「沒有設定名」，
+    # 不能是借了下一行的 CODE_DELAY 之後誤報「說明寫第 2 行」。
+    assert not any(p.startswith("CODE_DELAY") for p in problems), problems
+    assert problems == ["說明第 1 行提到「第 2 行」，但那一句（含下一行）沒有可核對的設定名"]
 
 
 def test_line_check_rejects_a_line_number_with_no_setting_name(tmp_path):
