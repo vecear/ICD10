@@ -237,7 +237,7 @@ Ctrl+Alt+D 貼齊的寬度。置頂小視窗**不**套這個上限——那個�
 **不能假設「大多數走表一」**：就現行給付中的品項而言表二反而較多（116 vs 49），逐學名看每一種 statin 都是表二多於表一。`tests/test_lipid_products.py` 會檢查這項數量關係（原因見 [docs/decisions.md](docs/decisions.md#表一表二品項數量不能憑印象假設)）。
 
 資料在 [`src/curated/lipid_products.json`](src/curated/lipid_products.json)，約 130 KB、
-611 個代碼，其中現行給付中 241 個（表二 116、表一 49、其他章節 76）。欄位、產製來源與
+614 個代碼，其中現行給付中 244 個（表二 116、表一 52、其他章節 76）。欄位、產製來源與
 `build.py` 的建置檢查規則見 [docs/maintaining-content.md](docs/maintaining-content.md#血脂品項資料lipid_productsjson與hospital_lipid_codesjson)。
 
 搜尋與判定是 `logic.js` 的純函式（`lipidFindProducts`／`lipidSummarize`／`lipidProductVerdict`），
@@ -399,7 +399,10 @@ pytest 即可，測到的一定是最新的 dist。
 | `render-wide.js` / `render-dock.js` / `render-mobile.js` | 三種版面各自的骨架與更新對照表 |
 | `interactions.js` | document 層事件委派（版面重建也不會漏解事件） |
 | `app.js` | 啟動、依視窗寬度決定生效版面、把狀態變動轉成區塊重繪 |
-| `styles/` | 串接順序（`build.py` 的 `STYLESHEETS`）：`industry`（設計系統）→ `app`（共用元件）→ `wide` / `dock` / `mobile` → `renal` → `vaccine` → `antimicrobial` → `date-calculator` |
+| `styles/` | 串接順序（`build.py` 的 `STYLESHEETS`）：`industry`（設計系統）→ `app`（共用元件）→ `chronic` → `ccr` → `lipid` → `wide` / `dock` / `mobile` → `renal` → `vaccine` → `antimicrobial` → `date-calculator` |
+| `styles/chronic.css` | 慢病速查浮層（DM／HTN／LIPID 條文、表一階梯與用藥） |
+| `styles/ccr.css` | CCr 計算機浮層 |
+| `styles/lipid.css` | 血脂給付試算、品項查詢、表一適用藥物 |
 | `styles/renal.css` | 腎劑量元件，跟隨既有主題 |
 | `styles/vaccine.css` | VAC 入口鈕與浮層 |
 | `styles/antimicrobial.css` | 抗微生物給付入口鈕與浮層 |

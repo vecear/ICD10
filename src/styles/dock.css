@@ -380,7 +380,6 @@ body[data-layout="dock"] :is(#chronic-close, #lipid-close, #ccr-close, #vac-clos
 body[data-layout="dock"] .chronic-body { margin-top: 6px; }
 body[data-layout="dock"] .chronic-section { margin-bottom: 9px; }
 body[data-layout="dock"] .chronic-section-title { font-size: 12px; }
-body[data-layout="dock"] .chronic-kind { font-size: 10px; }
 body[data-layout="dock"] .chronic-item { padding: 5px 0; }
 body[data-layout="dock"] .chronic-item.is-upcoming { padding: 5px 5px; }
 body[data-layout="dock"] .chronic-text { font-size: 12px; line-height: 1.45; }

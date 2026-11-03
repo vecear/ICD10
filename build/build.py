@@ -27,7 +27,7 @@ FONTS = [
 ]
 # 設計系統 → 產品共用元件 → 各版面骨架。都在 :root 定義 token，靠來源順序讓後者覆寫。
 # 版面各一檔（wide／後續 dock、mobile）是為了讓不同階段能並行實作而不互相覆蓋。
-STYLESHEETS = ["styles/industry.css", "styles/app.css", "styles/wide.css", "styles/dock.css", "styles/mobile.css", "styles/renal.css", "styles/vaccine.css", "styles/antimicrobial.css", "styles/date-calculator.css"]
+STYLESHEETS = ["styles/industry.css", "styles/app.css", "styles/chronic.css", "styles/ccr.css", "styles/lipid.css", "styles/wide.css", "styles/dock.css", "styles/mobile.css", "styles/renal.css", "styles/vaccine.css", "styles/antimicrobial.css", "styles/date-calculator.css"]
 # 有序：每個模組都是 IIFE／UMD，靠這個順序保證依賴先於使用者掛上 window（無 bundler）。
 # logic → state → data 都是零 DOM 的純模組（node --test 直接測），其後才碰 DOM。
 SOURCES = [
