@@ -835,3 +835,28 @@ test('lipidProductVerdict：帶回院內收費代碼，畫面才印得出診間�
   const none = L.lipidProductVerdict(HOSP_SAMPLE.find((x) => x.code === 'AC99999100'), null);
   assert.deepEqual(none.hosp, [], '院內沒有的品項回空陣列，不是 undefined');
 });
+
+test('buildIndexAsync：分段版與同步版產出的索引深度相等，且確實分段讓出', async () => {
+  const { readFileSync } = await import('node:fs');
+  const full = JSON.parse(readFileSync(new URL('../data/codes.min.json', import.meta.url), 'utf8'));
+  const curated = new Set(['N39.0', 'E11.9']);
+  for (const rows of [DB, full, full.slice(0, 40000).reverse()]) {
+    let pauses = 0;
+    const chunked = await L.buildIndexAsync(rows, curated, { chunk: 15000, yieldFn: async () => { pauses += 1; } });
+    assert.deepEqual(chunked, L.buildIndex(rows, curated));
+    assert.equal(pauses, Math.ceil(rows.length / 15000));
+  }
+  // 預設的讓出方式（MessageChannel）在 node 也要能跑完，不可卡住
+  assert.deepEqual(await L.buildIndexAsync(DB, curated), L.buildIndex(DB, curated));
+});
+
+test('search：資料未依代碼排序時，代碼前綴仍依列序回傳', () => {
+  const shuffled = [DB[1], DB[4], DB[2], DB[0], DB[3]];   // E11.9 排在 E11.65 前面，與代碼排序相反
+  assert.deepEqual(L.search(L.buildIndex(shuffled), 'E11').map(r => r[0]), ['E11', 'E11.9', 'E11.65']);
+});
+
+test('MIN_QUERY 為 2，搜尋與品項反查共用', () => {
+  assert.equal(L.MIN_QUERY, 2);
+  assert.equal(L.search(idx, 'e1').total > 0, true);
+  assert.equal(L.search(idx, 'e').total, 0);
+});

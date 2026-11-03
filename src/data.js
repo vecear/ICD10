@@ -69,7 +69,11 @@
     const host = doc || (typeof document !== 'undefined' ? document : null);
     if (!host) throw new Error('沒有 document，無法讀取內嵌資料');
     const b64 = host.getElementById('icd-data').textContent.trim();
-    const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+    // 普通 for 迴圈：Uint8Array.from(str, cb) 每個位元組呼叫一次回呼，1.5 MB 要 200～300 ms，迴圈只要 10 ms。
+    // 不用 Uint8Array.fromBase64：診間瀏覽器版本未知。
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
     const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
     return new Response(stream).text().then((text) => JSON.parse(text));
   }
@@ -228,8 +232,13 @@
       setDbState('loading');
       dbPromise = Promise.resolve()
         .then(() => loadDb())
-        .then((db) => {
-          index = logic.buildIndex(db, curatedCodes);
+        // 分段建索引，期間讓出主執行緒（全庫一口氣建會有 300～700 ms 打字卡住）；
+        // 測試注入的 logic 若沒有分段版就用同步版。
+        .then((db) => (typeof logic.buildIndexAsync === 'function'
+          ? logic.buildIndexAsync(db, curatedCodes)
+          : logic.buildIndex(db, curatedCodes)))
+        .then((built) => {
+          index = built;
           lastError = null;
           setDbState('ready');
           return index;

@@ -5,28 +5,99 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
+  // 搜尋至少要幾個字（去頭尾空白後）。一個字會命中數萬列，等於沒篩。
+  const MIN_QUERY = 2;
+
   // 只擴充已核對的名稱對照，不推論診斷；UTI 不可命中 hirsutism／cutis 的片段。
-  // N39.0 官方中文含相容字「泌尿」，僅搜尋索引正規化，原始資料與顯示名稱不變。
-  const normalizeSearch = (text) => text.normalize('NFKC').toLowerCase();
+  // N39.0 官方中文含相容字「泌尿」，僅搜尋索引正規化，原始資料與顯示名稱不變。
+  // 純 ASCII 本來就是 NFKC 的不動點，跳過 normalize 省掉英文欄約 2 成建索引時間。
+  const ASCII_ONLY = /^[\x00-\x7f]*$/;
+  const normalizeSearch = (text) => (ASCII_ONLY.test(text) ? text : text.normalize('NFKC')).toLowerCase();
   const UTI_NAME = /\buti\b|\burinary tract infection\b|泌尿道感染|尿路感染/;
   const UTI_ALIASES = 'uti urinary tract infection 泌尿道感染 尿路感染';
 
-  function buildIndex(db, curatedCodes) {
-    const nodot = new Array(db.length);
-    const lowerEn = new Array(db.length);
-    const lowerZh = new Array(db.length);
-    const aliases = new Array(db.length);
-    const byCode = new Map();
-    for (let i = 0; i < db.length; i++) {
-      nodot[i] = db[i][0].replace('.', '');
-      lowerEn[i] = normalizeSearch(db[i][2]);
-      lowerZh[i] = normalizeSearch(db[i][3]);
+  /* 索引的文字欄不是一列一個字串，而是整欄串成一條長字串（列與列之間隔一個換行），
+     另配一張「第 i 列從第幾個字元開始」的起點表。搜尋時對長字串做 indexOf，
+     命中位置用二分法換回列號——比 9 萬多列逐列 includes 快 2～10 倍，記憶體也只有一份。
+     查詢詞以空白切開，不會含換行，所以命中不會跨列。 */
+  function startIndex(db) {
+    const n = db.length;
+    return {
+      n, nodot: new Array(n), en: new Array(n), zh: new Array(n),
+      enStart: new Int32Array(n + 1), zhStart: new Int32Array(n + 1),
+      enPos: 0, zhPos: 0, aliasRows: [], byCode: new Map(),
+    };
+  }
+
+  function indexRows(db, acc, from, to) {
+    for (let i = from; i < to; i++) {
+      const row = db[i];
+      const en = normalizeSearch(row[2]);
+      const zh = normalizeSearch(row[3]);
+      acc.nodot[i] = row[0].replace('.', '');
+      acc.en[i] = en;
+      acc.zh[i] = zh;
+      acc.enStart[i] = acc.enPos;
+      acc.zhStart[i] = acc.zhPos;
+      acc.enPos += en.length + 1;
+      acc.zhPos += zh.length + 1;
       // 「生殖泌尿道感染」範圍較廣（例如 A60 疱疹），不能單憑其中片段套上 UTI。
-      const aliasSource = lowerEn[i] + ' ' + lowerZh[i].replace(/生殖泌尿道感染/g, '');
-      aliases[i] = UTI_NAME.test(aliasSource) ? UTI_ALIASES : '';
-      byCode.set(db[i][0], db[i]);
+      if (UTI_NAME.test(en + ' ' + zh.replace(/生殖泌尿道感染/g, ''))) acc.aliasRows.push(i);
+      acc.byCode.set(row[0], row);
     }
-    return { db, nodot, lowerEn, lowerZh, aliases, byCode, curatedCodes: curatedCodes || new Set() };
+  }
+
+  function finishIndex(db, acc, curatedCodes) {
+    const { n, nodot } = acc;
+    acc.enStart[n] = acc.enPos;
+    acc.zhStart[n] = acc.zhPos;
+    // 代碼前綴走二分：要一份依 nodot 排序的列號。全庫與精選池本來就照代碼排好，檢查一遍即可省掉排序。
+    let sorted = true;
+    for (let i = 1; i < n && sorted; i++) if (nodot[i - 1] > nodot[i]) sorted = false;
+    let codeOrder = null;
+    let codeSorted = nodot;
+    if (!sorted) {
+      const order = Array.from({ length: n }, (_, i) => i)
+        .sort((a, b) => (nodot[a] < nodot[b] ? -1 : nodot[a] > nodot[b] ? 1 : a - b));
+      codeOrder = Int32Array.from(order);
+      codeSorted = order.map((i) => nodot[i]);
+    }
+    return {
+      db, nodot, codeSorted, codeOrder,
+      en: { text: acc.en.join('\n') + '\n', start: acc.enStart },
+      zh: { text: acc.zh.join('\n') + '\n', start: acc.zhStart },
+      aliasRows: acc.aliasRows, byCode: acc.byCode,
+      curatedCodes: curatedCodes || new Set(),
+    };
+  }
+
+  function buildIndex(db, curatedCodes) {
+    const acc = startIndex(db);
+    indexRows(db, acc, 0, db.length);
+    return finishIndex(db, acc, curatedCodes);
+  }
+
+  /* 讓出主執行緒一次。用 MessageChannel 而不是 setTimeout：背景分頁的 setTimeout 會被節流到 1 秒以上，
+     也不用 requestAnimationFrame（頁面沒有合成畫面時永遠不觸發）。 */
+  const yieldToMain = () => new Promise((resolve) => {
+    if (typeof MessageChannel !== 'function') { setTimeout(resolve, 0); return; }
+    const channel = new MessageChannel();
+    channel.port1.onmessage = () => { channel.port1.close(); resolve(); };
+    channel.port2.postMessage(0);
+  });
+
+  /* 與 buildIndex 產出完全相同的索引，但每 chunk 列讓出一次主執行緒：
+     全庫 9 萬多列一口氣建要 300～700 ms，期間打字會卡。瀏覽器走這版，node 測試走同步版。 */
+  async function buildIndexAsync(db, curatedCodes, options) {
+    const opts = options || {};
+    const chunk = opts.chunk > 0 ? opts.chunk : 15000;
+    const pause = typeof opts.yieldFn === 'function' ? opts.yieldFn : yieldToMain;
+    const acc = startIndex(db);
+    for (let from = 0; from < db.length; from += chunk) {
+      indexRows(db, acc, from, Math.min(db.length, from + chunk));
+      await pause();
+    }
+    return finishIndex(db, acc, curatedCodes);
   }
 
   // 回傳的陣列另帶 total（截斷前的命中總數），供 UI 顯示「共 N 筆，顯示前 M 筆」。
@@ -35,14 +106,90 @@
     return rows;
   }
 
+  // 長字串上的位置 → 列號（起點表裡最後一個 ≤ pos 的列）。
+  function rowAt(start, n, pos) {
+    let lo = 0;
+    let hi = n - 1;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (start[mid] <= pos) lo = mid;
+      else hi = mid - 1;
+    }
+    return lo;
+  }
+
+  // 該欄含有 needle 的列全部標 1。同一列命中後直接跳到下一列開頭，不重複找。
+  function markText(field, n, needle, mask) {
+    let pos = field.text.indexOf(needle);
+    while (pos !== -1) {
+      const row = rowAt(field.start, n, pos);
+      mask[row] = 1;
+      pos = field.text.indexOf(needle, field.start[row + 1]);
+    }
+  }
+
+  // 以整詞正則標記（分隔用的換行是非字元，\b 在列邊界的行為與逐列比對相同）。
+  function markRegex(field, n, re, mask) {
+    re.lastIndex = 0;
+    let m;
+    while ((m = re.exec(field.text)) !== null) {
+      const row = rowAt(field.start, n, m.index);
+      mask[row] = 1;
+      re.lastIndex = field.start[row + 1];
+    }
+  }
+
+  // 代碼前綴的列號，依列號遞增回傳（與逐列掃描的順序相同）。
+  function prefixRows(index, prefix) {
+    const { codeSorted, codeOrder } = index;
+    const n = codeSorted.length;
+    let lo = 0;
+    let hi = n;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (codeSorted[mid] < prefix) lo = mid + 1;
+      else hi = mid;
+    }
+    const out = [];
+    for (let k = lo; k < n && codeSorted[k].startsWith(prefix); k++) out.push(codeOrder ? codeOrder[k] : k);
+    if (codeOrder) out.sort((a, b) => a - b);
+    return out;
+  }
+
+  // 單一查詢詞命中的列（Uint8Array 遮罩）。語意與舊版逐列 matches 逐條對應：
+  // 代碼前綴 → uti 只認對照 → 右側／左側含省略「側」的寫法 → 其餘為中英文名稱與對照的子字串。
+  function termMask(index, term) {
+    const n = index.db.length;
+    const mask = new Uint8Array(n);
+    if (term.code) for (const i of prefixRows(index, term.code)) mask[i] = 1;
+    const mark = (rows) => { for (const i of rows) mask[i] = 1; };
+    if (term.text === 'uti') {
+      mark(index.aliasRows);
+    } else if (term.text === '右側' || term.text === '左側') {
+      // 官方名稱有「右腳趾／左腳趾」等省略「側」的寫法，仍須被側別篩選找到。
+      const right = term.text === '右側';
+      markText(index.zh, n, right ? '右' : '左', mask);
+      markRegex(index.en, n, right ? /\bright\b/g : /\bleft\b/g, mask);
+    } else if (term.text === '') {
+      mask.fill(1);                       // NFKC 後才冒出的空白會切出空詞，空字串處處命中
+    } else {
+      markText(index.en, n, term.text, mask);
+      markText(index.zh, n, term.text, mask);
+      if (UTI_ALIASES.includes(term.text)) mark(index.aliasRows);
+    }
+    return mask;
+  }
+
+  const fieldAt = (field, i) => field.text.slice(field.start[i], field.start[i + 1] - 1);
+
   function search(index, query, limit) {
     limit = limit || 50;
     const q = (query || '').trim();
-    if (q.length < 2) return withTotal([], 0);
+    if (q.length < MIN_QUERY) return withTotal([], 0);
     const out = [];
     const seen = new Set();
     const ranks = new Map();
-    const { db, nodot, lowerEn, lowerZh, aliases, curatedCodes } = index;
+    const { db, nodot, curatedCodes } = index;
     const ql = normalizeSearch(q);
     const isCode = /^[a-z][0-9a-z.]*$/i.test(q);   // 像代碼：先做代碼前綴
     const qc = isCode ? q.toUpperCase().replace(/\./g, '') : '';
@@ -51,19 +198,18 @@
       text,
       code: /^[a-z][0-9a-z.]*$/i.test(text) ? text.toUpperCase().replace(/\./g, '') : '',
     }));
-    const matches = (i, term) => {
-      if (term.code && nodot[i].startsWith(term.code)) return true;
-      if (term.text === 'uti') return aliases[i] !== '';
-      // 官方名稱有「右腳趾／左腳趾」等省略「側」的寫法，仍須被側別篩選找到。
-      if (term.text === '右側') return lowerZh[i].includes('右') || /\bright\b/.test(lowerEn[i]);
-      if (term.text === '左側') return lowerZh[i].includes('左') || /\bleft\b/.test(lowerEn[i]);
-      return lowerEn[i].includes(term.text) || lowerZh[i].includes(term.text)
-        || aliases[i].includes(term.text);
-    };
+    let hit = null;
+    for (const term of terms) {
+      const mask = termMask(index, term);
+      if (!hit) hit = mask;
+      else for (let i = 0; i < hit.length; i++) hit[i] &= mask[i];
+    }
     // 命中層級：0 完全相符、1 開頭相符、2 其他（僅作為「精選碼優先」之後的次要排序）
     const rankOf = (i) => {
-      if ((isCode && nodot[i] === qc) || lowerZh[i] === ql || lowerEn[i] === ql) return 0;
-      if ((isCode && nodot[i].startsWith(qc)) || lowerZh[i].startsWith(ql) || lowerEn[i].startsWith(ql)) return 1;
+      const zh = fieldAt(index.zh, i);
+      const en = fieldAt(index.en, i);
+      if ((isCode && nodot[i] === qc) || zh === ql || en === ql) return 0;
+      if ((isCode && nodot[i].startsWith(qc)) || zh.startsWith(ql) || en.startsWith(ql)) return 1;
       return 2;
     };
     const push = (i) => {
@@ -73,12 +219,8 @@
       ranks.set(row[0], rankOf(i));
       out.push(row);
     };
-    if (isCode) {
-      for (let i = 0; i < db.length; i++)
-        if (nodot[i].startsWith(qc)) push(i);
-    }
-    for (let i = 0; i < db.length; i++)
-      if (terms.every(term => matches(i, term))) push(i);
+    if (isCode) for (const i of prefixRows(index, qc)) push(i);
+    for (let i = 0; i < hit.length; i++) if (hit[i]) push(i);
     // 人工精選（門診常用）碼優先顯示，其次依命中層級，同層級維持原順序（穩定排序）
     out.sort((a, b) =>
       ((curatedCodes.has(b[0]) ? 1 : 0) - (curatedCodes.has(a[0]) ? 1 : 0))
@@ -594,7 +736,7 @@
     const list = Array.isArray(products) ? products : [];
     const q = lipidNormalize(query);
     const cap = Number.isFinite(limit) && limit > 0 ? limit : 20;
-    if (q.length < 2) return { query: q, exact: null, hits: [], total: 0, capped: false };
+    if (q.length < MIN_QUERY) return { query: q, exact: null, hits: [], total: 0, capped: false };
 
     /* 精準命中先健保代碼、再院內收費代碼。**院內代碼一定要走精準這條**：
        OCRE 是 OCRE20 的前綴，而這兩支的表別剛好相反（CRESTOR 10mg 走表一、
@@ -878,7 +1020,7 @@
       text: '須先生活型態調整才可用藥（須先完成 3–6 個月生活型態調整，複評仍達門檻才可開始用藥）' };
   }
 
-  return { buildIndex, search, family, formatCart, mergeRelated, rocDate, clockHM, splitByEffective,
+  return { MIN_QUERY, buildIndex, buildIndexAsync, search, family, formatCart, mergeRelated, rocDate, clockHM, splitByEffective,
            splitSentences, splitLead, creatinineClearance,
            lipidCoverage, lipidTreatmentStatus, lipidRiskFactorsNew, lipidRiskFactorsOld, lipidMetabolic,
            lipidFindProducts, lipidSummarize, lipidProductVerdict,
