@@ -201,6 +201,16 @@ def test_line_check_does_not_borrow_a_next_line_that_has_its_own_number(tmp_path
     assert _line_check(tmp_path, text) == []
 
 
+def test_line_check_rejects_a_line_number_with_no_setting_name(tmp_path):
+    # 驗收實測抓到的繞過法：句子裡提到「第 N 行」但完全沒寫設定名，原本會靜默通過。
+    script = tmp_path / "s.ahk"
+    script.write_text("SEND_ENTER := true\n", encoding="utf-8")
+    manual = tmp_path / "m.txt"
+    manual.write_text("把第 1 行改成 false\n存檔後重新雙擊\n", encoding="utf-8")
+    problems = pack_module.check_manual_line_numbers(manual, script)
+    assert problems and "沒有可核對的設定名" in problems[0]
+
+
 def test_line_check_on_the_real_manual_and_script():
     assert pack_module.check_manual_line_numbers(
         ROOT / "tools" / "診間使用說明.txt", ROOT / "tools" / "his-paste.ahk") == []

@@ -50,7 +50,7 @@ jobs:
       - name: Python tests (non-E2E)
         run: python -m pytest -q --ignore=tests/e2e_test.py --ignore-glob='tests/test_e2e_*.py'
       - name: Node unit tests
-        run: for f in tests/*.test.mjs; do node "$f" || exit 1; done
+        run: node tests/run-node.mjs
 
   deploy:
     needs: [build, test]

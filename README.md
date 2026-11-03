@@ -359,7 +359,7 @@ python build/inventory.py     # 產生 docs/clinical-content-inventory.md（臨�
 python build/shrink_pdf.py 疫苗/<新教材>.pdf   # 新增使用者自己的教材 PDF 時先跑：無損瘦身
 
 python -m pytest -q           # Python 測試：資料完整性／精選碼／建置／三套版面 E2E
-for f in tests/*.test.mjs; do node "$f" || break; done   # 純邏輯單元測試（13 檔，逐檔執行）
+node tests/run-node.mjs        # 純邏輯單元測試（13 檔逐檔執行，任一失敗回 exit 1）
 ```
 
 `tests/conftest.py` 會在測試開始前自動跑一次 `build/build.py`，所以改完 `src/` 直接跑

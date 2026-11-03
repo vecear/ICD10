@@ -108,6 +108,13 @@ def check_manual_line_numbers(manual, script):
         nxt = manual_lines[i + 1] if i + 1 < len(manual_lines) else ""
         if not any(name in line for name in actual) and not line_no.search(nxt):
             window = line + "\n" + nxt
+        if not any(name in window for name in actual):
+            # 提到行號卻對不到任何設定名，這道檢查就什麼都核不了——寧可中止，
+            # 也不要讓一句「把第 N 行改成…」在沒人核對的情況下寄到診間。
+            problems.append(
+                f"說明第 {i + 1} 行提到「第 {hit.group(1)} 行」，但那一句（含下一行）沒有可核對的設定名"
+            )
+            continue
         for name, real in actual.items():
             if name in window and int(hit.group(1)) != real:
                 problems.append(f"{name}：說明寫第 {hit.group(1)} 行，實際在第 {real} 行")
@@ -194,7 +201,15 @@ def write_zip_atomically(out_dir, zip_path, verify):
     except BaseException:
         tmp.unlink(missing_ok=True)
         raise
-    os.replace(tmp, zip_path)
+    try:
+        os.replace(tmp, zip_path)
+    except PermissionError as exc:
+        # Windows 上舊 zip 被檔案總管或郵件程式開著就換不掉；tmp 不留，舊包維持原樣。
+        tmp.unlink(missing_ok=True)
+        raise SystemExit(
+            f"{zip_path.name} 正被其他程式開著，無法換成新版（{exc.strerror}）。\n"
+            "  關掉開著這個 zip 的視窗（檔案總管預覽、郵件附件）後重新執行打包。"
+        ) from exc
     return result
 
 

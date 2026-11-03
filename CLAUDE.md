@@ -47,7 +47,7 @@ python build/build.py && python tools/pack_for_clinic.py
 
 ```bash
 python -m pytest -q          # 含三套版面的 E2E
-for f in tests/*.test.mjs; do node "$f" || break; done   # 純邏輯單元測試（不要用 node --test，Windows 前景會卡住）
+node tests/run-node.mjs        # 純邏輯單元測試（不要用 node --test，Windows 前景會卡住）
 ```
 
 Windows 上若 `python` 不是裝了套件的那一版，用 `py -3.14 -m pytest -q` 或完整路徑

@@ -178,7 +178,9 @@
      Tab（1a 從搜尋框到第 3 筆的「主」要 201 次）。重建前記下焦點在哪一筆的哪一顆，重建後還回去：
      同一筆還在 → 同一顆鈕（不可聚焦就給該列，例如主診斷列藏起來的「主」）；
      那一筆被移除 → 同一位置的列；清單空了 → 搜尋框。
-     一律 preventScroll：設主時清單重排，scrollIntoView 會把清單捲到別處。 */
+     focus 一律 preventScroll（設主時清單重排，預設的 scrollIntoView 會把清單捲到別處），
+     之後只用 block: 'nearest' 補最少的捲動：看得到就不動，捲過的清單裡那一筆跑到可視區外
+     才捲（驗收實測：側掛用鍵盤設主後 scrollTop 315、焦點落在看不見的地方）。 */
   function cartFocusOf(ul) {
     const active = ul.ownerDocument.activeElement;
     if (!active || active === ul || !ul.contains(active)) return null;
@@ -203,7 +205,10 @@
     let target = li && back.cls ? li.querySelector('.' + back.cls) : li;
     if (li && !focusable(target)) target = li;
     if (!li) target = rows[Math.min(back.index, rows.length - 1)] || ul.ownerDocument.getElementById('search');
-    if (target) target.focus({ preventScroll: true });
+    if (target) {
+      target.focus({ preventScroll: true });
+      target.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
   }
 
   function renderCart(ul, empty, count, ctx) {
