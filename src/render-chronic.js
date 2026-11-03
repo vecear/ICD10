@@ -144,7 +144,7 @@
     const close = R.el('button', 'chronic-close', '關閉');
     close.type = 'button';
     close.id = 'chronic-close';
-    close.title = '關閉（Esc，或點面板以外任一處）';
+    close.title = '關閉（Esc）';
     head.append(title, close);
     const body = R.el('div', 'chronic-body');
     body.id = 'chronic-body';

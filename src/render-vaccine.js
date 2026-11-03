@@ -145,7 +145,8 @@
     panel.setAttribute('aria-modal', 'true'); panel.setAttribute('aria-labelledby', 'vac-title');
     const head = R.el('div', 'vac-head');
     const title = R.el('h2', null, 'VAC 疫苗速查'); title.id = 'vac-title';
-    head.append(title, button('關閉', 'vac-close'));
+    const close = button('關閉', 'vac-close'); close.title = '關閉（Esc）';
+    head.append(title, close);
     panel.appendChild(head);
     const tools = R.el('div', 'vac-tools');
     const searchLabel = R.el('label', 'vac-search-label', '查疫苗或問題');

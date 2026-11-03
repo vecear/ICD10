@@ -158,7 +158,7 @@
     if (!products.length) return null;
     const coverage = (r && r.ok && (r.ldl !== null || r.tc !== null)) ? r : null;
 
-    if (query.length >= 2) {
+    if (query.length >= ctx.logic.MIN_QUERY) {
       const found = ctx.logic.lipidFindProducts(products, query, 12);
       const live = found.hits.filter((p) => p.listed !== false).length
         + (found.exact && found.exact.listed !== false ? 1 : 0);
@@ -231,7 +231,7 @@
     const close = R.el('button', 'lipid-close', '關閉');
     close.type = 'button';
     close.id = 'lipid-close';
-    close.title = '關閉（Esc，或點面板以外任一處）';
+    close.title = '關閉（Esc）';
     head.append(title, close);
 
     const form = R.el('div', 'lipid-form');

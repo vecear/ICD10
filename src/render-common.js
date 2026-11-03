@@ -6,6 +6,7 @@
 
   // render-dom.js 已經建立這個物件（build.py 的 SOURCES 保證順序）
   const R = root.ICDRender;
+  const MIN_QUERY = root.ICDLogic.MIN_QUERY;    // logic.js 先於本檔 inline
 
   // ---- 搜尋結果 ----
   const DB_NOTE = {
@@ -48,7 +49,7 @@
     R.clear(host);
     let filters = card.querySelector('.search-refinements');
     if (filters) filters.remove();
-    if (q.length < 2) {
+    if (q.length < MIN_QUERY) {
       card.hidden = true;
       note.textContent = '';
       return;
@@ -500,7 +501,7 @@
         if (viewKey !== null && !searching) positions.set(viewKey, oldTop);
         next = {
           key, query: q, oldTop,
-          searching: q.length >= 2,      // 與 renderResults 同一個門檻
+          searching: q.length >= MIN_QUERY,
           wasSearching: searching,
           navigated: key !== viewKey,
         };

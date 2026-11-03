@@ -21,7 +21,7 @@
     panel.setAttribute('aria-labelledby', 'date-calc-title');
     const head = R.el('div', 'date-calc-head');
     const title = R.el('h2', null, '日期計算器'); title.id = 'date-calc-title';
-    const close = R.el('button', 'btn btn-secondary', '關閉'); close.type = 'button'; close.id = 'date-calc-close';
+    const close = R.el('button', 'btn btn-secondary', '關閉'); close.type = 'button'; close.id = 'date-calc-close'; close.title = '關閉（Esc）';
     head.append(title, close);
     const form = R.el('div', 'date-calc-form');
     function field(key, label, type) {

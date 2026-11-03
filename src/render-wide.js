@@ -357,7 +357,7 @@
     let indexItems = [];
 
     U.panelIndex = () => {
-      const searching = ctx.store.getState().query.trim().length >= 2;
+      const searching = ctx.store.getState().query.trim().length >= ctx.logic.MIN_QUERY;
       refs.panelIndex.hidden = searching;
       for (const old of Array.from(refs.panelIndex.querySelectorAll('.panel-index-item'))) old.remove();
       indexItems = [];

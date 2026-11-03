@@ -123,7 +123,8 @@
     const panel = R.el('section', 'am-panel'); panel.id = 'am-panel';
     panel.setAttribute('role', 'dialog'); panel.setAttribute('aria-modal', 'true'); panel.setAttribute('aria-labelledby', 'am-title');
     const head = R.el('div', 'am-head'); const title = R.el('h2', null, '抗微生物製劑健保給付'); title.id = 'am-title';
-    head.append(title, button('關閉', 'am-close')); panel.appendChild(head);
+    const close = button('關閉', 'am-close'); close.title = '關閉（Esc）';
+    head.append(title, close); panel.appendChild(head);
     const tools = R.el('div', 'am-tools'); const row = R.el('div', 'am-search-row');
     const label = R.el('label', 'am-search-label', '查藥名、縮寫、條號或條件');
     const input = R.el('input', 'input'); input.id = 'am-search'; input.type = 'search'; input.autocomplete = 'off'; input.placeholder = 'Linezolid、Zavicefta、CRAB、10.8.3…';

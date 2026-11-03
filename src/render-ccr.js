@@ -65,7 +65,7 @@
     const close = R.el('button', 'ccr-close', '關閉');
     close.type = 'button';
     close.id = 'ccr-close';
-    close.title = '關閉（Esc，或點面板以外任一處）';
+    close.title = '關閉（Esc）';
     head.append(title, close);
 
     const form = R.el('div', 'ccr-form');

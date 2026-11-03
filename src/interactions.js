@@ -11,7 +11,7 @@
      #mode-switch 內的 .mode-btn[data-mode]  header 的看診模式三鈕（一次點擊即切換）
      #chronic-btn              「健保規範條文」入口：開浮層，停在上次看的主題（chronicLast）
      [data-chronic]            慢病速查：顯示該主題（浮層內的 DM／HTN／LIPID 分頁）
-     #chronic-close / #chronic-overlay 本身  關閉慢病速查（關閉鈕／點面板以外；Esc 見下方）
+     #chronic-close / #chronic-overlay 本身  關閉慢病速查（關閉鈕／點面板以外，只有工作台有「外面」；Esc 見下方）
      #seg-mode|#seg-format|#seg-layout 內的 .seg-btn
      #cart-toggle              點擊時呼叫 ctx.onCartToggle()——「切換清單面板」這個動作本身
                                 共用，但「切換的是什麼」由各版面自己決定（1c 是 store 的
@@ -21,7 +21,7 @@
 (function (root) {
   'use strict';
 
-  const SEARCH_DEBOUNCE = 150;
+  const SEARCH_DEBOUNCE = 80;
 
   /* PiP 有自己的文件。回饋使用目前的文件，通知、錯誤與手動文字只留在本次記憶體。 */
   let feedbackTarget = null;
@@ -836,7 +836,7 @@
         }
         if (!ev.target || ev.target.id !== 'search') return;
         const value = ev.target.value;
-        if (value.trim().length >= 2) data.ensureDb();     // 觸發全庫延遲載入
+        if (value.trim().length >= ctx.logic.MIN_QUERY) data.ensureDb();     // 觸發全庫延遲載入
         clearTimeout(searchDebounce);
         searchDebounce = setTimeout(() => store.setQuery(value), SEARCH_DEBOUNCE);
       });
