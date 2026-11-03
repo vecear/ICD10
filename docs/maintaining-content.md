@@ -63,7 +63,7 @@
 ## 血脂品項資料（`lipid_products.json`與`hospital_lipid_codes.json`）
 
 資料在 [`src/curated/lipid_products.json`](../src/curated/lipid_products.json)（約 130 KB，
-611 個代碼，其中**現行給付中 241 個**：表二 116、表一 49、其他章節 76；另 370 個支付價 0
+614 個代碼，其中**現行給付中 244 個**：表二 116、表一 52、其他章節 76；另 370 個支付價 0
 ＝已停止給付，留著但標記，因為醫師打了那個代碼要看到「已停付」而不是「查無」）。由
 [`build/fetch_lipid_products.py`](../build/fetch_lipid_products.py) 從兩個官方來源產生：
 健保署「健保用藥品項查詢項目檔」（開放資料，**每月更新**）＋2.6.1 的「不適用表一」對照表。
