@@ -234,7 +234,7 @@
       "file": "2024-05-28-許智堯-疫苗in CDC(補充版).pdf",
       "version": "2024 年 5 月 28 日（教學補充）",
       "pages": 45,
-      "sha256": "69b4cefd58547bd83d20e556e4e08705ab91117145191b1d4f39fcfc933ee343"
+      "sha256": "f23b988e319b23aad9bdb84731ad38d7704eba368dc2a98c16963245bec69178"
     },
     {
       "id": "measles-core",
@@ -242,7 +242,7 @@
       "file": "麻疹核心教材.pdf",
       "version": "使用者提供版本；教學補充",
       "pages": 55,
-      "sha256": "694cef894b6cfb5be1654cfdbe34c898df4a76244f5d616e675f5b0750e26b3a"
+      "sha256": "ddee513bc5205b250f16230be69873785690fda970a8c87fc1bbeca4767b4b95"
     },
     {
       "id": "measles-manual",

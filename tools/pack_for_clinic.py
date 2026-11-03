@@ -50,9 +50,14 @@ BLOCKED_SUFFIXES = {".exe", ".bat", ".cmd", ".com", ".scr", ".ps1", ".vbs", ".js
 SRC = ROOT / "src"
 BUILD_SCRIPT = ROOT / "build" / "build.py"
 DATA_DIR = ROOT / "data"
+VACCINE_DIR = ROOT / "疫苗"
 
 # 診間包.zip 超過這個門檻就中止；Gmail 附件上限 25 MB，留 3 MB 當餘裕。
+GMAIL_LIMIT_MB = 25
 ZIP_SIZE_LIMIT_MB = 22
+# 單一 PDF 超過這個大小就印警告（不中止）：等總量超標才找肥檔就太晚了。
+# 使用者自己的教材先跑 build/shrink_pdf.py（無損）；官方檔不動。
+PDF_WARN_MB = 3
 
 # 使用說明裡如果還教人按這些已經移除的東西，就是打包前忘了同步文件。
 GONE_PHRASES = ("複製並貼入 HIS", "「全部」鈕", "桌機版面")
@@ -81,7 +86,9 @@ def check_manual_line_numbers(manual, script):
     """說明檔教使用者「改第 N 行」；動過腳本之後那些行號就偏了。
 
     診間沒有人能發現說明是錯的——他只會照著改到別的設定上。所以每次打包都核對，
-    對不上就直接讓打包失敗。判斷方式：說明檔同一行裡同時出現「第 N 行」與設定名。
+    對不上就直接讓打包失敗。判斷方式：「第 N 行」那一行裡出現的設定名；那一行沒有
+    設定名時，連下一行一起看（說明書會在句中換行，例如「把第 50 行的」換行才寫
+    DOCK_ALSO_TOPMOST）。下一行自己也寫了「第 N 行」就不借，避免把別句的設定名算進來。
     """
     code_lines = script.read_text(encoding="utf-8").splitlines()
     actual = {}
@@ -90,33 +97,47 @@ def check_manual_line_numbers(manual, script):
         if name.isidentifier() and name.isupper() and name not in actual:
             actual[name] = i
 
+    line_no = re.compile(r"第\s*(\d+)\s*行")
+    manual_lines = manual.read_text(encoding="utf-8").splitlines()
     problems = []
-    for line in manual.read_text(encoding="utf-8").splitlines():
-        hit = re.search(r"第\s*(\d+)\s*行", line)
+    for i, line in enumerate(manual_lines):
+        hit = line_no.search(line)
         if not hit:
             continue
+        window = line
+        nxt = manual_lines[i + 1] if i + 1 < len(manual_lines) else ""
+        if not any(name in line for name in actual) and not line_no.search(nxt):
+            window = line + "\n" + nxt
         for name, real in actual.items():
-            if name in line and int(hit.group(1)) != real:
+            if name in window and int(hit.group(1)) != real:
                 problems.append(f"{name}：說明寫第 {hit.group(1)} 行，實際在第 {real} 行")
     return problems
 
 
-def check_dist_freshness(dist, src_dir=None, build_script=None, data_dir=None, docs_dir=None):
+def check_dist_freshness(dist, src_dir=None, build_script=None, data_dir=None, docs_dir=None,
+                         vaccine_dir=None):
     """dist/icd10.html 的 mtime 必須晚於所有原始碼／資料／官方條文。
 
     忘了在改完程式碼後重新跑 build.py，寄出去的就是舊版——而診間看不出來，
-    因為檔案確實存在、開得起來，只是內容是改動之前的。四個參數留給測試餵
+    因為檔案確實存在、開得起來，只是內容是改動之前的。參數留給測試餵
     tmp_path 造的假目錄，不帶時檢查真正的專案目錄。
+
+    盯的範圍：src/ 全部、build/ 下所有 .py（build.py 會 import 其他模組）、data/ 的
+    .json 與 .xlsx、健保條文/*.pdf、疫苗/ 全部（build 會核 SHA 並複製到 dist）。
     """
     src_dir = SRC if src_dir is None else src_dir
     build_script = BUILD_SCRIPT if build_script is None else build_script
     data_dir = DATA_DIR if data_dir is None else data_dir
     docs_dir = NHI_DOCS if docs_dir is None else docs_dir
+    vaccine_dir = VACCINE_DIR if vaccine_dir is None else vaccine_dir
 
     watched = [p for p in src_dir.rglob("*") if p.is_file()]
     watched.append(build_script)
+    watched.extend(sorted(build_script.parent.glob("*.py")))
     watched.extend(sorted(data_dir.glob("*.json")))
+    watched.extend(sorted(data_dir.glob("*.xlsx")))
     watched.extend(sorted(docs_dir.glob("*.pdf")))
+    watched.extend(sorted(p for p in vaccine_dir.glob("*") if p.is_file()))
 
     dist_mtime = dist.stat().st_mtime
     stale = sorted(
@@ -132,14 +153,49 @@ def check_dist_freshness(dist, src_dir=None, build_script=None, data_dir=None, d
 
 
 def check_zip_size(zip_path, limit_mb=None):
-    """診間包.zip 超過門檻就中止；Gmail 附件上限 25 MB，門檻留餘裕。"""
+    """診間包.zip 超過門檻就中止；Gmail 附件上限 GMAIL_LIMIT_MB，門檻留餘裕。"""
     limit_mb = ZIP_SIZE_LIMIT_MB if limit_mb is None else limit_mb
     size_mb = zip_path.stat().st_size / 1024 / 1024
     if size_mb > limit_mb:
         raise SystemExit(
             f"{zip_path.name} 大小 {size_mb:.2f} MB 超過 {limit_mb} MB 門檻"
-            "（Gmail 附件上限 25 MB）"
+            f"（Gmail 附件上限 {GMAIL_LIMIT_MB} MB）"
         )
+
+
+def large_pdfs(directory, limit_mb=None):
+    """directory 底下超過 limit_mb 的 PDF，回傳 [(相對路徑, MB)]。只拿來印警告。"""
+    limit_mb = PDF_WARN_MB if limit_mb is None else limit_mb
+    found = []
+    for pdf in sorted(directory.rglob("*.pdf")):
+        size_mb = pdf.stat().st_size / 1024 / 1024
+        if size_mb > limit_mb:
+            found.append((pdf.relative_to(directory).as_posix(), size_mb))
+    return found
+
+
+def write_zip_atomically(out_dir, zip_path, verify):
+    """先寫 <zip>.tmp，verify(tmp) 全部閘門通過才改名蓋掉正式檔。
+
+    先刪舊包再寫新包的話，閘門失敗時留下的是一個超標或不完整的 診間包.zip
+    （而且它被 git 追蹤，下次 git add 就提交進去），好的舊包也沒了。
+    任何一道閘門失敗就刪 tmp，舊包原封不動。回傳 verify 的結果。
+    """
+    tmp = zip_path.with_name(zip_path.name + ".tmp")
+    tmp.unlink(missing_ok=True)
+    try:
+        with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as zf:
+            # rglob 而不是 iterdir：健保條文/ 是子資料夾，只掃第一層會把條文整批漏掉，
+            # 而且**不會報錯**——寄出去的包看起來完整，診間點條文才發現沒有。
+            for item in sorted(out_dir.rglob("*")):
+                if item.is_file():
+                    zf.write(item, item.relative_to(out_dir).as_posix())
+        result = verify(tmp)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
+    os.replace(tmp, zip_path)
+    return result
 
 
 def check_gone_buttons(path):
@@ -242,44 +298,41 @@ def main():
     if restored_sha != exe_sha:
         raise SystemExit(f"還原後 SHA-256 不符：{restored_sha} != {exe_sha}")
 
-    if OUT_ZIP.exists():
-        OUT_ZIP.unlink()
-    with zipfile.ZipFile(OUT_ZIP, "w", zipfile.ZIP_DEFLATED) as zf:
-        # rglob 而不是 iterdir：健保條文/ 是子資料夾，只掃第一層會把條文整批漏掉，
-        # 而且**不會報錯**——寄出去的包看起來完整，診間點條文才發現沒有。
-        for item in sorted(OUT_DIR.rglob("*")):
-            if item.is_file():
-                zf.write(item, item.relative_to(OUT_DIR).as_posix())
+    def verify(zip_path):
+        # 自我驗證 2：zip 大小不得超過門檻，否則寄出去可能直接被信箱容量或附件上限擋下
+        check_zip_size(zip_path)
 
-    # 自我驗證 2：zip 大小不得超過門檻，否則寄出去可能直接被信箱容量或附件上限擋下
-    check_zip_size(OUT_ZIP)
+        # 自我驗證 3：zip 裡不得有會被郵件擋下的副檔名
+        with zipfile.ZipFile(zip_path) as zf:
+            names = zf.namelist()
+        blocked = [n for n in names if Path(n).suffix.lower() in BLOCKED_SUFFIXES]
+        if blocked:
+            raise SystemExit(f"zip 裡有會被郵件封鎖的檔案：{blocked}")
 
-    # 自我驗證 3：zip 裡不得有會被郵件擋下的副檔名
-    with zipfile.ZipFile(OUT_ZIP) as zf:
-        names = zf.namelist()
-    blocked = [n for n in names if Path(n).suffix.lower() in BLOCKED_SUFFIXES]
-    if blocked:
-        raise SystemExit(f"zip 裡有會被郵件封鎖的檔案：{blocked}")
+        # 自我驗證 4：慢病速查引用的每一份條文都要真的在 zip 裡，路徑還要與網頁算出來的
+        # 相對路徑一致（健保條文/檔名）。少一份的表現是診間點下去找不到檔案。
+        zipped = set(names)
+        lost = sorted(n for n in wanted_docs if f"{NHI_DOC_DIR_NAME}/{n}" not in zipped)
+        if lost:
+            raise SystemExit("zip 裡缺少慢病速查引用的條文檔：\n  " + "\n  ".join(lost))
 
-    # 自我驗證 4：慢病速查引用的每一份條文都要真的在 zip 裡，路徑還要與網頁算出來的
-    # 相對路徑一致（健保條文/檔名）。少一份的表現是診間點下去找不到檔案。
-    zipped = set(names)
-    lost = sorted(n for n in wanted_docs if f"{NHI_DOC_DIR_NAME}/{n}" not in zipped)
-    if lost:
-        raise SystemExit("zip 裡缺少慢病速查引用的條文檔：\n  " + "\n  ".join(lost))
+        with zipfile.ZipFile(zip_path) as zf:
+            for source in vaccine['sources']:
+                name = '疫苗/' + source['file']
+                if name not in zipped or hashlib.sha256(zf.read(name)).hexdigest() != source['sha256']:
+                    raise SystemExit('VAC：zip 來源遺漏或 SHA-256 不符 ' + name)
+            for source in antimicrobial['sources']:
+                raw = zf.read(f"{NHI_DOC_DIR_NAME}/{source['file']}")
+                if hashlib.sha256(raw).hexdigest() != source['sha256']:
+                    raise SystemExit('抗微生物給付：zip 來源 SHA-256 不符 ' + source['file'])
+        return names
 
-    with zipfile.ZipFile(OUT_ZIP) as zf:
-        for source in vaccine['sources']:
-            name = '疫苗/' + source['file']
-            if name not in zipped or hashlib.sha256(zf.read(name)).hexdigest() != source['sha256']:
-                raise SystemExit('VAC：zip 來源遺漏或 SHA-256 不符 ' + name)
+    names = write_zip_atomically(OUT_DIR, OUT_ZIP, verify)
     print(f"VAC：{len(vaccine['cards'])} 張問答卡、{len(vaccine['sources'])} 份來源，zip SHA-256 核對通過")
-    with zipfile.ZipFile(OUT_ZIP) as zipped_files:
-        for source in antimicrobial['sources']:
-            raw = zipped_files.read(f"{NHI_DOC_DIR_NAME}/{source['file']}")
-            if hashlib.sha256(raw).hexdigest() != source['sha256']:
-                raise SystemExit('抗微生物給付：zip 來源 SHA-256 不符 ' + source['file'])
     print(f"抗微生物給付：{len(antimicrobial['cards'])} 條規定、zip 官方來源 SHA-256 核對通過")
+    for rel, size_mb in large_pdfs(OUT_DIR):
+        print(f"【警告】{rel} 有 {size_mb:.2f} MB（超過 {PDF_WARN_MB} MB）："
+              "使用者自己的教材先跑 python build/shrink_pdf.py 無損瘦身；官方檔不要動")
     print(f"AutoHotkey 來源：{exe}")
     print(f"  SHA-256 {exe_sha}")
     print(f"  轉成文字後還原比對：相同 ✔")
@@ -296,7 +349,7 @@ def main():
         print(f"  {item.name:<20} {item.stat().st_size / 1024:>8,.0f} KB")
     print()
     print(f"壓縮檔 {OUT_ZIP.name}  {OUT_ZIP.stat().st_size / 1024 / 1024:.2f} MB"
-          f"（Gmail 上限 25 MB）")
+          f"（門檻 {ZIP_SIZE_LIMIT_MB} MB，Gmail 上限 {GMAIL_LIMIT_MB} MB）")
     print(f"  內含 {len(names)} 個檔，無執行檔副檔名 ✔")
     print(f"  慢病速查引用的 {len(wanted_docs)} 份官方條文都在包裡 ✔")
     print()

@@ -9,6 +9,8 @@ node_modules/
 .superpowers/
 # 抓官方來源檔的快取（96 MB 的品項檔等），不是原始碼
 build/.cache/
+# 打包中途的暫存檔，閘門全過才會改名成正式 zip
+診間包.zip.tmp
 
 # 本機憑證不隨整個專案上傳；範本可以提交。
 .env
