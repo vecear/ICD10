@@ -79,8 +79,15 @@ def load_renal_data(path):
     return data
 
 
-def renal_script(data):
-    validate_renal_data(data)
-    # JSON slash escaping 讓文字無法提早關閉 script；此區只含資料，沒有外部載入。
-    payload = json.dumps(data, ensure_ascii=False, separators=(',', ':')).replace('/', '\\/').replace('<', '\\u003c')
-    return '<script>\nwindow.ANTIBIOTIC_DOSING = ' + payload + ';\n</script>\n'
+def oldest_checked(data):
+    """最舊的查閱日（頂層 reviewedOn 與各方案來源的 reviewedOn），給建置的時效警告用。
+
+    內嵌到 HTML 由 build.py 的 embed_json() 負責（跳脫規則只留一份）。
+    """
+    days = [data['reviewedOn']]
+    for drug in data['drugs']:
+        for reg in drug['regimens']:
+            for field in ('source', 'dialysisSource'):
+                if field in reg:
+                    days.append(reg[field]['reviewedOn'])
+    return min(days)

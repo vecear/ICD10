@@ -59,6 +59,9 @@ def load_antimicrobial_data(root):
     return validate_antimicrobial_data(data, root)
 
 
-def antimicrobial_script(data):
-    encoded = json.dumps(data, ensure_ascii=False, separators=(',', ':')).replace('<','\\u003c').replace('https://','https:\\/\\/')
-    return '<script>window.ANTIMICROBIAL_COVERAGE = ' + encoded + ';</script>\n'
+def oldest_checked(data):
+    """最舊的來源查核日，給建置的時效警告用。
+
+    內嵌到 HTML 由 build.py 的 embed_json() 負責（跳脫規則只留一份）。
+    """
+    return min(s['checked'] for s in data['sources'])

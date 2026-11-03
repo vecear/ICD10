@@ -4,9 +4,10 @@ from datetime import date
 from pathlib import Path
 
 from source_manifest import SOURCE_SHA256, SOURCE_VERSION
-from renal_data import load_renal_data, renal_script
-from vaccine_data import load_vaccine_data, copy_vaccine_sources, vaccine_script
-from antimicrobial_data import load_antimicrobial_data, antimicrobial_script
+import antimicrobial_data, renal_data, vaccine_data
+from renal_data import load_renal_data
+from vaccine_data import load_vaccine_data, copy_vaccine_sources
+from antimicrobial_data import load_antimicrobial_data
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC, DATA, DIST = ROOT / "src", ROOT / "data", ROOT / "dist"
@@ -69,6 +70,13 @@ CHRONIC_CHECK_MAX_MONTHS = 6
 # 與 src/state.js 的 CHRONIC_TOPICS 同一組值。狀態層是零 DOM／零 window 的純模組，讀不到
 # 這份資料，只能兩邊各留一份鏡像——這裡比對，避免慢慢分歧成「按鈕點了沒反應」。
 CHRONIC_TOPIC_KEYS = ("dm", "htn", "lipid")
+# 主題底下另外帶 checked 的區塊（不在 sections[].items[] 裡，要另外掃）。
+CHRONIC_DATED_BOXES = ("riskLadder", "drugs", "tableTwoOnly")
+# 其他資料的時效門檻（月）。疫苗政策變動快；院內碼跟品項檔一起月更，所以門檻同 LIPID_PRODUCTS。
+VACCINE_MAX_MONTHS = 3
+ANTIMICROBIAL_MAX_MONTHS = 6
+RENAL_MAX_MONTHS = 6
+HOSPITAL_LIPID_MAX_MONTHS = 3
 
 
 def _iter_internal_codes(groups, source, allow_red_flags):
@@ -114,9 +122,7 @@ def validate_curated(curated, db):
         if row is None or len(row) < 2 or row[1] != 1:
             bad.append(f"{source}: {code}")
     if bad:
-        sample = "; ".join(bad[:20])
-        suffix = "" if len(bad) <= 20 else f"（另有 {len(bad) - 20} 筆）"
-        raise ValueError(f"curated 含不存在或非葉碼：{sample}{suffix}")
+        _fail("curated 含不存在或非葉碼：", bad, 20, sep="; ")
 
 
 def validate_data_metadata(raw, db):
@@ -156,9 +162,7 @@ def build_curated_labels(curated, by_code):
             continue
         labels[code] = row[3]
     if bad:
-        sample = "; ".join(bad[:20])
-        suffix = "" if len(bad) <= 20 else f"（另有 {len(bad) - 20} 筆）"
-        raise ValueError(f"CURATED_LABELS 含非葉碼／不存在／中文為空的代碼：{sample}{suffix}")
+        _fail("CURATED_LABELS 含非葉碼／不存在／中文為空的代碼：", bad, 20, sep="; ")
     return dict(sorted(labels.items()))
 
 
@@ -171,14 +175,59 @@ def _months_before(day, months):
     return date(year, month, min(day.day, calendar.monthrange(year, month)[1]))
 
 
-def load_chronic_care():
-    """讀 chronic_care.json，剝掉 _schema 再內嵌。
+def _fail(title, bad, limit, sep="\n  ", unit="筆"):
+    """丟出「標題＋前 limit 筆＋（另有 N 筆）」格式的 ValueError。
+
+    全部列出時，整份資料壞掉會噴幾百行把真正的原因淹掉；只列前幾筆再補總數。
+    """
+    more = "" if len(bad) <= limit else f"{sep}（另有 {len(bad) - limit} {unit}）"
+    raise ValueError(title + sep.join(bad[:limit]) + more)
+
+
+def _load_without_schema(fname):
+    """讀 src/curated/<fname>，剝掉 _schema 再用。
 
     _schema 是給維護者看的欄位說明（約 1.5 KB），對執行期毫無用處，留在 dist 只會讓
     「這份東西的權威性」看起來比實際更高。維護說明留在原始檔與 README。
     """
-    raw = json.loads((SRC / "curated" / CHRONIC_CARE_FILE).read_text(encoding="utf-8"))
+    raw = json.loads((SRC / "curated" / fname).read_text(encoding="utf-8"))
     return {k: v for k, v in raw.items() if k != "_schema"}
+
+
+def check_source_age(label, checked, months, today=None):
+    """通用時效檢查：checked（最舊的查證日）早於 today 往前 months 個月就回傳一條警告。
+
+    **只警告不中止**，理由同 CHRONIC_CHECK_MAX_MONTHS。回傳警告字串清單（空＝通過）。
+    """
+    today = today or date.today()
+    cutoff = _months_before(today, months)
+    try:
+        day = checked if isinstance(checked, date) else date.fromisoformat(str(checked))
+    except (TypeError, ValueError):
+        return [f"{label}：查證日期缺漏或不是 YYYY-MM-DD（{checked!r}）"]
+    if day < cutoff:
+        return [f"{label}：最舊查證 {day}，已超過 {months} 個月（門檻 {cutoff}），請重查來源後更新查證日期"]
+    return []
+
+
+def source_age_warnings(vaccine, antimicrobial, renal, hospital_lipid, today=None):
+    """疫苗、抗微生物給付、腎劑量、院內碼四份資料的時效警告（門檻見 *_MAX_MONTHS）。"""
+    checks = (
+        ("疫苗速查（src/curated/vaccine_guide.json）",
+         vaccine_data.oldest_checked(vaccine), VACCINE_MAX_MONTHS),
+        ("抗微生物給付（src/curated/antimicrobial_coverage.json）",
+         antimicrobial_data.oldest_checked(antimicrobial), ANTIMICROBIAL_MAX_MONTHS),
+        ("抗菌藥腎劑量（src/curated/antibiotic_dosing.json）",
+         renal_data.oldest_checked(renal), RENAL_MAX_MONTHS),
+        (f"院內收費代碼對照（src/curated/{HOSPITAL_LIPID_FILE}）",
+         (hospital_lipid or {}).get("checked"), HOSPITAL_LIPID_MAX_MONTHS),
+    )
+    return [w for label, day, months in checks for w in check_source_age(label, day, months, today)]
+
+
+def load_chronic_care():
+    """讀 chronic_care.json，剝掉 _schema 再內嵌。"""
+    return _load_without_schema(CHRONIC_CARE_FILE)
 
 
 def check_chronic_care(chronic, today=None):
@@ -215,6 +264,21 @@ def check_chronic_care(chronic, today=None):
                     oldest = day
                 if day < cutoff:
                     warnings.append(f"{where}　查證 {day}，已超過 {CHRONIC_CHECK_MAX_MONTHS} 個月")
+        # 這三塊畫面上同樣印「查 YYYY-MM-DD」，門檻沿用條目的 6 個月。
+        for box_name in CHRONIC_DATED_BOXES:
+            box = topic.get(box_name)
+            if not box:
+                continue
+            where = f"{key}／{box_name}"
+            try:
+                day = date.fromisoformat(str(box.get("checked")))
+            except (TypeError, ValueError):
+                warnings.append(f"{where}　checked 缺漏或不是 YYYY-MM-DD（{box.get('checked')!r}）")
+                continue
+            if oldest is None or day < oldest:
+                oldest = day
+            if day < cutoff:
+                warnings.append(f"{where}　查證 {day}，已超過 {CHRONIC_CHECK_MAX_MONTHS} 個月")
     if sorted(keys) != sorted(CHRONIC_TOPIC_KEYS):
         warnings.append(
             f"topics 的 key 是 {sorted(keys)}，與 src/state.js 的 CHRONIC_TOPICS "
@@ -224,9 +288,8 @@ def check_chronic_care(chronic, today=None):
 
 
 def load_lipid_products():
-    """讀 lipid_products.json，剝掉 _schema 再內嵌（同 load_chronic_care 的理由）。"""
-    raw = json.loads((SRC / "curated" / LIPID_PRODUCTS_FILE).read_text(encoding="utf-8"))
-    return {k: v for k, v in raw.items() if k != "_schema"}
+    """讀 lipid_products.json，剝掉 _schema 再內嵌。"""
+    return _load_without_schema(LIPID_PRODUCTS_FILE)
 
 
 def check_lipid_products(data, today=None):
@@ -255,9 +318,7 @@ def check_lipid_products(data, today=None):
         if not str(p.get("en") or p.get("zh") or "").strip():
             bad.append(f"{code}：中英文品名都是空的，查不到就等於沒收錄")
     if bad:
-        detail = "\n  ".join(bad[:10])
-        more = "" if len(bad) <= 10 else f"\n  （另有 {len(bad) - 10} 筆）"
-        raise ValueError(f"lipid_products.json 有 {len(bad)} 筆問題：\n  {detail}{more}")
+        _fail(f"lipid_products.json 有 {len(bad)} 筆問題：\n  ", bad, 10)
 
     warnings = []
     today = today or date.today()
@@ -276,9 +337,8 @@ def check_lipid_products(data, today=None):
 
 
 def load_hospital_lipid():
-    """讀院內收費代碼對照，剝掉 _schema 再用（同 load_lipid_products 的理由）。"""
-    raw = json.loads((SRC / "curated" / HOSPITAL_LIPID_FILE).read_text(encoding="utf-8"))
-    return {k: v for k, v in raw.items() if k != "_schema"}
+    """讀院內收費代碼對照，剝掉 _schema 再用。"""
+    return _load_without_schema(HOSPITAL_LIPID_FILE)
 
 
 def merge_hospital_codes(products, mapping):
@@ -311,9 +371,7 @@ def merge_hospital_codes(products, mapping):
             continue
         by_code.setdefault(code, []).append(hosp)
     if bad:
-        detail = "\n  ".join(bad[:10])
-        more = "" if len(bad) <= 10 else f"\n  （另有 {len(bad) - 10} 筆）"
-        raise ValueError(f"{HOSPITAL_LIPID_FILE} 有 {len(bad)} 筆問題：\n  {detail}{more}")
+        _fail(f"{HOSPITAL_LIPID_FILE} 有 {len(bad)} 筆問題：\n  ", bad, 10)
     out = []
     for p in products:
         hosps = by_code.get(str((p or {}).get("code") or ""))
@@ -534,6 +592,27 @@ def build_styles():
     return "<style>\n" + fonts_css + "\n" + "\n\n".join(parts) + "\n</style>", font_bytes
 
 
+def embed_json(name, data, comment="", links=False):
+    """把資料內嵌成 `<script>window.NAME = …;</script>`。所有資料內嵌（8 段）一律走這裡。
+
+    跳脫都是 JSON 字串內的合法轉義，執行期讀到的值完全不變：
+      - `<` 一律 → `\\u003c`：人工維護的條文 JSON 哪天寫進 `</…` 或 `<!--`，會提前關掉
+        script 讓整頁壞掉，而瀏覽器不報錯。全部跳脫就不可能發生。
+      - links=True 時 `https://` → `https:\\/\\/`：只給疫苗、抗微生物給付、腎劑量三份用。
+        **這些網址只進 `<a href>`（醫師主動點開的出處連結），不是頁面載入時的資源引用，
+        所以刻意不讓 assert_offline() 掃到。** 其餘五段維持 links=False：它們本來就不該有
+        網址，夾帶了就要讓 assert_offline() 擋下建置。新增網址欄位前先確認它只當連結用。
+    內容區（註解＋資料）不得出現任何 `</`，出現就丟例外。
+    """
+    payload = json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("<", "\\u003c")
+    if links:
+        payload = payload.replace("https://", "https:\\/\\/")
+    body = (f"/* {comment} */\n" if comment else "") + f"window.{name} = {payload};"
+    if "</" in body:
+        raise ValueError(f"window.{name} 的內嵌內容含「</」，會提前結束 <script>")
+    return "<script>\n" + body + "\n</script>\n"
+
+
 # 唯一允許的 http(s) 字串：SVG 命名空間（不會發出請求）
 _OFFLINE_ALLOW = re.compile(r"https?://(?!www\.w3\.org/2000/svg)")
 _DATA_SCRIPT = re.compile(r'(?s)<script id="icd-data".*?</script>')
@@ -556,9 +635,8 @@ def assert_offline(html):
     for match in re.finditer(r"url\(\s*['\"]?(?!data:)([^)'\"]{0,80})", body):
         violations.append("非 data: 的 url() → " + match.group(0).replace("\n", " "))
     if violations:
-        detail = "\n".join(f"  - …{v}…" for v in violations[:10])
-        more = "" if len(violations) <= 10 else f"\n  （另有 {len(violations) - 10} 處）"
-        raise ValueError(f"輸出含 {len(violations)} 處外部參照，單檔必須零外部請求：\n{detail}{more}")
+        _fail(f"輸出含 {len(violations)} 處外部參照，單檔必須零外部請求：\n  ",
+              [f"- …{v}…" for v in violations], 10, unit="處")
 
 
 def main():
@@ -591,23 +669,24 @@ def main():
     vaccine = load_vaccine_data(ROOT)
     antimicrobial = load_antimicrobial_data(ROOT)
     styles, font_bytes = build_styles()
+    # 建置日期給設定→關於顯示（J5）。只放日期不放 git hash：hash 會讓 dist 每次建置都不同。
+    meta = {**metadata, "builtAt": date.today().isoformat()}
     scripts = (
-        "<script>\nwindow.ICD_META = " + json.dumps(metadata, ensure_ascii=False, separators=(",", ":")) + ";\n</script>\n"
-        "<script>\n/* 資料來源：健保署 ICD-10-CM（" + SOURCE_VERSION + "） */\n"
-        + "window.CURATED = " + json.dumps(curated, ensure_ascii=False, separators=(",", ":")) + ";\n"
-        + "/* 精選碼的中文對照：全庫延遲載入時 chip 的標籤來源，同時是加碼白名單（impl-plan R-3.3／R-4） */\n"
-        + "window.CURATED_LABELS = " + json.dumps(labels, ensure_ascii=False, separators=(",", ":")) + ";\n</script>\n"
-        + "<script>\n/* 慢病速查：健保給付規定與臨床治療目標。**不含 ICD 代碼**，所以不走\n"
-        + "   validate_curated() 的代碼驗證；它的守門是 check_chronic_care()（結構與 checked 時效）\n"
-        + "   加上 assert_offline()（source 一旦夾帶網址就整個建置失敗）。維護方式見 README。 */\n"
-        + "window.CHRONIC_CARE = " + json.dumps(chronic, ensure_ascii=False, separators=(",", ":")) + ";\n</script>\n"
-        + "<script>\n/* 降血脂品項反查：代碼／商品名／學名 → 適用表一或表二。\n"
-        + "   來源是健保署品項檔（每月更新）＋2.6.1 的「不適用表一」對照表，\n"
-        + "   由 build/fetch_lipid_products.py 產生，守門是 check_lipid_products()。 */\n"
-        + "window.LIPID_PRODUCTS = " + json.dumps(products, ensure_ascii=False, separators=(",", ":")) + ";\n</script>\n"
-        + renal_script(renal)
-        + vaccine_script(vaccine)
-        + antimicrobial_script(antimicrobial)
+        embed_json("ICD_META", meta)
+        + embed_json("CURATED", curated, "資料來源：健保署 ICD-10-CM（" + SOURCE_VERSION + "）")
+        + embed_json("CURATED_LABELS", labels,
+                     "精選碼的中文對照：全庫延遲載入時 chip 的標籤來源，同時是加碼白名單（impl-plan R-3.3／R-4）")
+        + embed_json("CHRONIC_CARE", chronic,
+                     "慢病速查：健保給付規定與臨床治療目標。**不含 ICD 代碼**，所以不走\n"
+                     "   validate_curated() 的代碼驗證；它的守門是 check_chronic_care()（結構與 checked 時效）\n"
+                     "   加上 assert_offline()（source 一旦夾帶網址就整個建置失敗）。維護方式見 README。")
+        + embed_json("LIPID_PRODUCTS", products,
+                     "降血脂品項反查：代碼／商品名／學名 → 適用表一或表二。\n"
+                     "   來源是健保署品項檔（每月更新）＋2.6.1 的「不適用表一」對照表，\n"
+                     "   由 build/fetch_lipid_products.py 產生，守門是 check_lipid_products()。")
+        + embed_json("ANTIBIOTIC_DOSING", renal, links=True)
+        + embed_json("VACCINE_GUIDE", vaccine, links=True)
+        + embed_json("ANTIMICROBIAL_COVERAGE", antimicrobial, links=True)
         + "\n".join(
             "<script>\n" + (SRC / rel).read_text(encoding="utf-8") + "\n</script>"
             for rel in SOURCES
@@ -652,6 +731,8 @@ def main():
     print(format_chronic_report(chronic_report))
     for line in products_report["warnings"]:
         print(f"【警告】降血脂品項：{line}")
+    for line in source_age_warnings(vaccine, antimicrobial, renal, hospital_lipid):
+        print(f"【警告】{line}")
 
 if __name__ == "__main__":
     main()

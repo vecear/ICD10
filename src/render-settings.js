@@ -117,6 +117,14 @@
       + '以健保署當期公告與醫師臨床判斷為準。');
     about.id = 'about-note';
     pop.appendChild(about);
+    /* 建置日期與資料版本：診間無法補檔，回報問題時靠這行對出手上是哪一次寄的包。 */
+    const meta = root.ICD_META || {};
+    if (meta.builtAt) {
+      const built = R.el('div', 'settings-note',
+        '建置 ' + meta.builtAt + ' · ICD-10-CM ' + (meta.sourceVersion || ''));
+      built.id = 'build-note';
+      pop.appendChild(built);
+    }
     return pop;
   }
 

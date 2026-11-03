@@ -3,6 +3,7 @@ import hashlib
 import json
 import re
 import subprocess, sys
+from datetime import date
 from pathlib import Path
 import pytest
 
@@ -28,6 +29,7 @@ def test_build_produces_single_html():
         "dataSha256": hashlib.sha256(raw).hexdigest(),
         "rowCount": 96802,
         "leafCount": 73681,
+        "builtAt": date.today().isoformat(),
     }
     assert 'type="application/gzip-base64"' in html
     assert "http://" not in html and "https://" not in html, "不得有外部資源參照"
@@ -214,3 +216,89 @@ def test_build_rejects_non_leaf_curated_code(tmp_path, monkeypatch):
         build_module.main()
     assert "A00" in str(exc_info.value)
     assert "NOPE" in str(exc_info.value)
+
+
+# ── embed_json：8 段資料內嵌的唯一出口 ─────────────────────────────────────────
+EMBEDDED_GLOBALS = ("ICD_META", "CURATED", "CURATED_LABELS", "CHRONIC_CARE", "LIPID_PRODUCTS",
+                    "ANTIBIOTIC_DOSING", "VACCINE_GUIDE", "ANTIMICROBIAL_COVERAGE")
+
+
+def _embedded(html, name):
+    """回傳 (解出的值, 原始 payload 字串)。用 raw_decode 而非 regex，值裡有 `};` 也不會切錯。"""
+    key = f"window.{name} = "
+    start = html.index(key) + len(key)
+    value, end = json.JSONDecoder().raw_decode(html, start)
+    return value, html[start:end]
+
+
+def _curated_json(name):
+    return json.loads((ROOT / "src" / "curated" / name).read_text(encoding="utf-8"))
+
+
+def test_embedded_globals_decode_to_the_source_data():
+    """跳脫只能改寫法、不能改值：8 個全域變數 json.loads 回來要與原始資料完全相等。"""
+    html = DIST.read_text(encoding="utf-8")
+    got = {name: _embedded(html, name) for name in EMBEDDED_GLOBALS}
+    for name, (_, raw) in got.items():
+        assert "<" not in raw, f"window.{name} 的 payload 含未跳脫的 <"
+    curated = {key: _curated_json(fname) for fname, key in build_module.CURATED_KEYS.items()}
+    assert got["CURATED"][0] == curated
+    by_code = {row[0]: row for row in json.loads((ROOT / "data" / "codes.min.json").read_text(encoding="utf-8"))}
+    assert got["CURATED_LABELS"][0] == build_module.build_curated_labels(curated, by_code)
+    assert got["CHRONIC_CARE"][0] == build_module.load_chronic_care()
+    products = build_module.load_lipid_products()
+    hospital = build_module.load_hospital_lipid()
+    products["products"] = build_module.merge_hospital_codes(products["products"], hospital)
+    products["hospital"] = {k: v for k, v in hospital.items() if k != "items"}
+    assert got["LIPID_PRODUCTS"][0] == products
+    assert got["ANTIBIOTIC_DOSING"][0] == _curated_json("antibiotic_dosing.json")
+    assert got["VACCINE_GUIDE"][0] == _curated_json("vaccine_guide.json")
+    assert got["ANTIMICROBIAL_COVERAGE"][0] == _curated_json("antimicrobial_coverage.json")
+
+
+def test_embed_json_escapes_every_lt_and_keeps_the_value():
+    data = {"t": "</script><!-- LDL <100 -->", "u": "https://www.cdc.gov.tw/x"}
+    out = build_module.embed_json("X", data)
+    body = out[len("<script>\n"):-len("\n</script>\n")]
+    assert "<" not in body
+    assert "https://" in body, "links=False 不跳脫網址：讓 assert_offline 照樣擋得到"
+    assert json.loads(body[len("window.X = "):-1]) == data
+    linked = build_module.embed_json("X", data, links=True)
+    assert "https://" not in linked and json.loads(linked[len("<script>\nwindow.X = "):-len(";\n</script>\n")]) == data
+
+
+def test_embed_json_rejects_close_tag_in_comment():
+    with pytest.raises(ValueError, match="</"):
+        build_module.embed_json("X", {}, comment="說明裡誤寫了 </b>")
+
+
+# ── 時效警告 ─────────────────────────────────────────────────────────────────
+def test_check_source_age_warns_only_past_the_threshold():
+    today = date(2026, 11, 3)
+    assert build_module.check_source_age("疫苗", "2026-08-03", 3, today) == []
+    warned = build_module.check_source_age("疫苗", "2026-08-02", 3, today)
+    assert len(warned) == 1 and "疫苗" in warned[0] and "3 個月" in warned[0] and "2026-08-03" in warned[0]
+    assert "YYYY-MM-DD" in build_module.check_source_age("疫苗", None, 3, today)[0]
+
+
+def test_source_age_warnings_cover_four_data_sets_with_injected_today():
+    vaccine = _curated_json("vaccine_guide.json")
+    antimicrobial = _curated_json("antimicrobial_coverage.json")
+    renal = _curated_json("antibiotic_dosing.json")
+    hospital = _curated_json(build_module.HOSPITAL_LIPID_FILE)
+    assert build_module.source_age_warnings(vaccine, antimicrobial, renal, hospital,
+                                            today=date(2026, 10, 3)) == []
+    warned = build_module.source_age_warnings(vaccine, antimicrobial, renal, hospital,
+                                              today=date(2030, 1, 1))
+    assert len(warned) == 4
+    for name in ("vaccine_guide", "antimicrobial_coverage", "antibiotic_dosing", "hospital_lipid_codes"):
+        assert any(name in w for w in warned), name
+
+
+def test_chronic_dated_boxes_are_scanned_for_age():
+    chronic = {"topics": [{"key": k, "sections": []} for k in build_module.CHRONIC_TOPIC_KEYS]}
+    chronic["topics"][2]["riskLadder"] = {"checked": "2020-01-01", "levels": []}
+    chronic["topics"][2]["drugs"] = {"checked": "2026-09-01", "groups": []}
+    report = build_module.check_chronic_care(chronic, today=date(2026, 11, 3))
+    assert len(report["warnings"]) == 1 and "riskLadder" in report["warnings"][0]
+    assert report["oldest"] == date(2020, 1, 1)

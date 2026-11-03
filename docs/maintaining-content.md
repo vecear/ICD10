@@ -14,6 +14,22 @@
    讓 `dist/icd10.html` 在本機與 E2E 也點得開。
 3. `tools/pack_for_clinic.py`：把 `健保條文/` 整個放進診間包，並回頭核對 zip 裡真的有那幾份。
 
+## 各資料多久重查一次
+
+`python build/build.py` 對下列查證日期做時效檢查，超過門檻印【警告】，**不中止建置**
+（讓建置失敗等於門診當天沒工具可用）。門檻是 `build/build.py` 開頭的常數。
+
+| 資料 | 看哪個日期 | 門檻 |
+| --- | --- | --- |
+| 慢病速查 `chronic_care.json` | `sections[].items[].checked`，以及 `riskLadder`／`drugs`／`tableTwoOnly` 的 `checked` | 6 個月（`CHRONIC_CHECK_MAX_MONTHS`） |
+| 血脂品項 `lipid_products.json` | 頂層 `checked` | 3 個月（`LIPID_PRODUCTS_MAX_MONTHS`；品項檔每月更新） |
+| 院內收費代碼 `hospital_lipid_codes.json` | 頂層 `checked` | 3 個月（`HOSPITAL_LIPID_MAX_MONTHS`；跟品項檔一起月更） |
+| 疫苗問答 `vaccine_guide.json` | `sources[].checked` 與 `version` 中最舊的 | 3 個月（`VACCINE_MAX_MONTHS`；政策變動快） |
+| 抗微生物給付 `antimicrobial_coverage.json` | `sources[].checked` 中最舊的 | 6 個月（`ANTIMICROBIAL_MAX_MONTHS`） |
+| 抗菌藥腎劑量 `antibiotic_dosing.json` | 頂層與各方案來源的 `reviewedOn` 中最舊的 | 6 個月（`RENAL_MAX_MONTHS`） |
+
+重查後更新那個日期；內容沒變也要更新（日期的意思是「有人在這天確認過」）。
+
 ## 慢病速查內容（`chronic_care.json`）
 
 資料在 [`src/curated/chronic_care.json`](../src/curated/chronic_care.json)，檔頭的 `_schema`
@@ -34,7 +50,8 @@
 之間，醫師看到的是現行的舊制＋一則「新版將於 X 日生效」的預告；生效當天自動翻版，
 不需要任何人在那天去改檔案。生效日過後可以擇期把過期條文刪掉（它已經不會顯示）。
 
-**定期重查**：`python build/build.py` 會掃所有 `checked` 日期，超過 6 個月
+**定期重查**：`python build/build.py` 會掃每條 item 與 `riskLadder`／`drugs`／`tableTwoOnly`
+三塊的 `checked` 日期，超過 6 個月
 （`build/build.py` 的 `CHRONIC_CHECK_MAX_MONTHS`）就印出逐條警告與門檻日期。
 **警告不會中止建置**，工具仍可使用；維護者須核對過期內容，避免沿用舊規定。
 重查健保署當期公告後，更新該條的 `checked`（內容沒變也要更新：那個日期的意思是
@@ -81,6 +98,6 @@ Acyclovir 依使用者提供的 UpToDate 截圖新增 3 個 PO、2 個 IV 方案
 
 先閱讀原始文件，再修改答案、限制條件與引用。保留年齡、劑次、間隔、免疫狀態及產品差異；公費資格、核准適應症、專業建議不可混用。以台灣資料為主，國外補充要標明地區及適用範圍。公告日、查核日與生效日分開記錄，未生效政策不能寫成目前規則。
 
-來源放在 `疫苗/`，於 `sources` 登記檔名、文件版本、實際頁數、SHA-256、原文 URL 與查核日期。網頁摘要須寫明「本工具整理摘要，非官方原文」，保留原文連結與適用限制。PDF 頁碼使用實際頁序。引用的敘述若不在該頁，須更正引用，不能只因檔案名稱相關就列為來源。新增網站只能加入 `build/vaccine_data.py` 的精確 HTTPS 主機清單，不使用模糊子字串比對。
+來源放在 `疫苗/`，於 `sources` 登記檔名、文件版本、實際頁數、SHA-256、原文 URL 與查核日期。新增的 PDF 若是使用者自己的教材，先跑 `python build/shrink_pdf.py 疫苗/<檔名>.pdf`（字型子集化，逐頁文字相同才覆寫），再登記它印出的 SHA-256；疾管署等官方檔不要跑，SHA-256 要與官方檔位元組相同。打包時單檔超過 3 MB 會印警告。網頁摘要須寫明「本工具整理摘要，非官方原文」，保留原文連結與適用限制。PDF 頁碼使用實際頁序。引用的敘述若不在該頁，須更正引用，不能只因檔案名稱相關就列為來源。新增網站只能加入 `build/vaccine_data.py` 的精確 HTTPS 主機清單，不使用模糊子字串比對。
 
 醫學修訂後執行 `tests/test_vaccine_data.py`、`tests/test_vaccine_coverage.py`，操作改動另執行 `tests/vaccine.test.mjs`、`tests/test_e2e_vaccine.py`。每次重新搜尋、篩選或開啟 VAC，問題都應收合；清除須同時重設疫苗、主題與關鍵字。更新 README 與診間說明後重新建置、打包，核對 ZIP 內 HTML 及全部來源檔案的位元組。來源查核與人工畫面檢查另記於 `docs/reviews/`。

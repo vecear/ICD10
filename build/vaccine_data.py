@@ -70,7 +70,9 @@ def copy_vaccine_sources(data, root, output):
             raise ValueError('VAC：交付來源 SHA-256 不符 ' + source['file'])
 
 
-def vaccine_script(data):
-    # 防止資料文字意外提前結束 inline script。
-    encoded = json.dumps(data, ensure_ascii=False, separators=(',', ':')).replace('<', '\\u003c').replace('https://', 'https:\\/\\/')
-    return '<script>window.VACCINE_GUIDE = ' + encoded + ';</script>\n'
+def oldest_checked(data):
+    """最舊的查核日（各來源的 checked；沒寫的來源以整理版本日代表），給建置的時效警告用。
+
+    內嵌到 HTML 由 build.py 的 embed_json() 負責（跳脫規則只留一份）。
+    """
+    return min([data['version']] + [s['checked'] for s in data['sources'] if s.get('checked')])
