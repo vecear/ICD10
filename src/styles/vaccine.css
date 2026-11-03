@@ -54,4 +54,7 @@ body[data-layout="mobile"] .chronic-switch { gap: 6px; }
   .vac-groups button { font-size: 11px; padding: 3px; }
 }
 body[data-layout="mobile"] .vac-panel button, body[data-layout="mobile"] .vac-panel summary { min-height: 44px; }
+/* 分類鈕「Hib」30px、「複製」36px、搜尋框 39px 高（UX 稽核 F3）：寬高都補到 44 */
+body[data-layout="mobile"] .vac-panel button { min-width: 44px; }
+body[data-layout="mobile"] #vac-search { min-height: 44px; }
 .vac-filter-label { margin: 4px 0; font-size: 12px; font-weight: 600; }

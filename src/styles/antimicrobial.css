@@ -60,10 +60,16 @@ body[data-layout="dock"] .chronic-switch .lipid-btn { margin-left: 0; }
   .am-search-label { flex-basis: 100%; }
 }
 body[data-layout="mobile"] .am-btn, body[data-layout="mobile"] .am-panel button, body[data-layout="mobile"] .am-panel summary { min-height: 44px; }
-/* 六個入口在 390px 保持一列，仍保留 44px 觸控高度。 */
-body[data-layout="mobile"] .chronic-switch { gap: 3px; padding-left: 4px; padding-right: 4px; }
+/* 「全部」40px 寬、搜尋框 39px 高（UX 稽核 F3） */
+body[data-layout="mobile"] .am-panel button { min-width: 44px; }
+body[data-layout="mobile"] #am-search { min-height: 44px; }
+/* 六個入口在 390px 保持一列，仍保留 44px 觸控高度。
+   2026-11-03（UX 稽核 F4）：Lipid 34、CCr 27、Anti 27、Date 29px 寬，踩破 44px 硬性邊界；
+   Anti／Date 又是 12px，同一列兩種字級。六顆一律 min-width 44、14px。
+   寬度帳：6×44 ＋「全展開」52 ＋ 6×3 間距 ＝ 334。左右內距 4 → 0（外層 .m-scroll 已有 12px），
+   可用寬 390px 為 366、360px 為 336，兩者都是一列，高度 0 增加。 */
+body[data-layout="mobile"] .chronic-switch { gap: 3px; padding-left: 0; padding-right: 0; }
 body[data-layout="mobile"] .chronic-switch .lipid-btn { margin-left: 0; }
 body[data-layout="mobile"] .chronic-switch > button,
 body[data-layout="mobile"] #lipid-btn,
-body[data-layout="mobile"] #ccr-btn { padding-left: 4px; padding-right: 4px; }
-body[data-layout="mobile"] .am-btn { font-size: 12px; }
+body[data-layout="mobile"] #ccr-btn { padding-left: 4px; padding-right: 4px; min-width: 44px; font-size: 14px; }

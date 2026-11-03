@@ -78,6 +78,8 @@ body[data-layout="mobile"] #settings-popover {
   top: calc(100% - 4px); left: 12px; right: 12px; padding: 12px;
   max-height: calc(100dvh - 190px); overflow-y: auto;
 }
+/* sheet 內的「夜間模式／回復預設高度／剪貼簿輸出…」原本沿用 .btn 的 32px（UX 稽核 F3） */
+body[data-layout="mobile"] #settings-popover .btn { min-height: 44px; }
 /* 通知列（幾何與行為在 app.css）：手機沒有 hover，這一列是「剛才那一下有沒有生效」的
    唯一線索，所以字級給 13px 而不是共用的 12px。「復原」是真的要用手指按的控制項，
    套 44px 硬性邊界（docs/dense-ui-principle.md §1，不打折）。
@@ -136,9 +138,13 @@ body[data-layout="mobile"] .chip--row { min-height: 48px; padding: 6px 10px; }
 body[data-layout="mobile"] .chip--row b {
   flex: none; min-width: min(72px, 34%); font-size: 15px; letter-spacing: .04em; text-align: left;
 }
+/* 中文名可換行（2026-11-03，UX 稽核 F1）：原本 nowrap＋刪節號，390px 下三模式全展開有
+   595 人次被截，掉的正是「CKD 5 期或 ESRD」這類區分用的限定語；觸控裝置沒有 hover 看 title。
+   48px 列高本來就容得下兩行（14px × 1.25 × 2 ＋ 內距 12 ＝ 47），實測全展開只多 40px。
+   「＋／✓」是 align-items:center 的 flex 項，換行後仍垂直置中。 */
 body[data-layout="mobile"] .chip--row span {
   flex: 1; min-width: 0; font-size: 14px; text-align: left;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  white-space: normal; overflow-wrap: anywhere;
 }
 /* 「＋」用虛擬元素而不是實體節點：共用的 chipEl 三套版面共用，不為手機加參數 */
 body[data-layout="mobile"] .chip--row::after {
@@ -266,7 +272,10 @@ body[data-layout="mobile"] .chronic-overlay { padding: 0; }
 body[data-layout="mobile"] .chronic-panel {
   width: 100%; height: 100%; max-height: 100%; border: 0; padding: 12px 14px;
 }
-body[data-layout="mobile"] .chronic-close { min-height: 44px; min-width: 44px; padding: 0 12px; }
+/* 六個浮層的「關閉」在 1b 統一 44px 高、12px 內距（2026-11-03，UX 稽核 F8；Lipid 原本 28px） */
+body[data-layout="mobile"] :is(#chronic-close, #lipid-close, #ccr-close, #vac-close, #am-close, #date-calc-close) {
+  min-height: 44px; min-width: 44px; padding: 0 12px;
+}
 /* 展開三角形在觸控裝置要按得到：整條 summary 撐到 44px，不是只有那幾個字 */
 body[data-layout="mobile"] .chronic-more-toggle {
   display: flex; align-items: center; min-height: 44px; font-size: 13px;
@@ -313,8 +322,18 @@ body[data-layout="mobile"] .ccr-panel { width: 100%; }
 body[data-layout="mobile"] .ccr-input { min-height: 44px; font-size: 16px; }  /* 16px 避免 iOS 自動放大 */
 body[data-layout="mobile"] .ccr-sex .seg-btn { min-height: 44px; }
 body[data-layout="mobile"] .ccr-copy,
-body[data-layout="mobile"] .ccr-reset,
-body[data-layout="mobile"] .ccr-close { min-height: 44px; }
+body[data-layout="mobile"] .ccr-reset { min-height: 44px; }
+/* 血脂計算機（2026-11-03，UX 稽核 F3）：上面那句「兩個計算機」實際只寫了 CCr，Lipid 的
+   輸入框 36、關閉 28（關閉鈕併入上面六浮層那條）、複製／清除 32、勾選列 21px，
+   是 #lipid-btn 22px 同一種漏法。
+   勾選框本身 13px，靶是包住它的整條 <label>，所以撐高的是 label。 */
+body[data-layout="mobile"] .lipid-input { min-height: 44px; font-size: 16px; }  /* 16px 避免 iOS 自動放大 */
+body[data-layout="mobile"] .lipid-copy,
+body[data-layout="mobile"] .lipid-reset { min-height: 44px; }
+body[data-layout="mobile"] .lipid-check { min-height: 44px; align-items: center; }
+body[data-layout="mobile"] .lipid-check input { margin-top: 0; }
+/* 表一用藥的收合列與 Lipid 的 .lipid-drug-toggle 同理：整條 summary 撐到 44px */
+body[data-layout="mobile"] .chronic-drug-head { min-height: 44px; align-items: center; }
 
 /* 慢病速查在手機：速判摘要維持可讀字級（它是最常看的一行），其餘沿用共用層 */
 body[data-layout="mobile"] .chronic-headline { font-size: 14px; }

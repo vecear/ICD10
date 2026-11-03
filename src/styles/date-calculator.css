@@ -24,7 +24,6 @@
 body[data-layout="mobile"] .date-calc-btn,
 body[data-layout="mobile"] .date-calc-panel button,
 body[data-layout="mobile"] .date-calc-panel .input { min-height: 44px; }
-body[data-layout="mobile"] .date-calc-btn { font-size: 12px; }
 @media (max-width: 260px) {
   .date-calc-value { font-size: 16px; }
 }

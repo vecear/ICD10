@@ -60,7 +60,7 @@
 .renal-ui .renal-chip:focus-visible {
   outline: 2px solid var(--color-accent-700, #285b89); outline-offset: 2px;
 }
-body[data-layout="mobile"] .renal-ui .renal-chip { min-height: 44px; }
+body[data-layout="mobile"] .renal-ui .renal-chip { min-height: 44px; min-width: 44px; }  /* 「IHD」原本 42px 寬 */
 .renal-ui .renal-output { margin-top: 10px; }
 .renal-ui .renal-status { padding: 6px 0; font-weight: 600; }
 .renal-ui .renal-recommendation {
@@ -113,6 +113,8 @@ body[data-layout="mobile"] .renal-ui .renal-control,
 body[data-layout="mobile"] .renal-ui .renal-edit { min-height: 44px; }
 body[data-layout="mobile"] .renal-ui input.renal-control { font-size: 16px; }
 body[data-layout="mobile"] .renal-ui summary { min-height: 44px; }
+/* 來源連結是獨立一行的 block，不是行內連結，手機照 44px（UX 稽核 F3；原本 18px 高） */
+body[data-layout="mobile"] .renal-ui .renal-source-link { display: flex; align-items: center; min-height: 44px; margin-bottom: 0; }
 /* 常用 340px 窄欄將標籤與欄位併列；176px 保留上下排避免下拉文字失去辨識度。 */
 @media (min-width: 300px) {
   .renal-ui .renal-field { flex-direction: row; align-items: center; gap: 6px; }

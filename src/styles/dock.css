@@ -282,7 +282,9 @@ body[data-layout="dock"] #cart-toggle .marker {
   flex: none; display: flex; color: var(--his-dim); transition: transform .12s ease;
 }
 body[data-layout="dock"] #cart-toggle[aria-expanded="true"] .marker { transform: rotate(90deg); }
-body[data-layout="dock"] #cart-inline { max-height: 120px; overflow-y: auto; }
+/* 上限 120 → 160px（2026-11-03，判斷 J2）：120 是 09-07 清單還是單行時定的，09-17 改成
+   中文名獨立第二行後每列約 53px，只裝得下 2.27 列，最常見的 3 筆要捲。 */
+body[data-layout="dock"] #cart-inline { max-height: 160px; overflow-y: auto; }
 
 /* 每筆兩行（第一行操作與代碼、第二行中文）沿用 app.css 的三版面預設。
    側掛隱藏拖曳把手，保留 ★ 以加入個人常用；176px 下按鈕仍維持 20px 操作高度。 */
@@ -370,7 +372,11 @@ body[data-layout="dock"] .chronic-btn {
 body[data-layout="dock"] .chronic-overlay { padding: 3px; }
 body[data-layout="dock"] .chronic-panel { width: 100%; padding: 6px 7px; }
 body[data-layout="dock"] .chronic-title { font-size: 14px; }
-body[data-layout="dock"] .chronic-close { min-height: 22px; padding: 0 6px; font-size: 11px; }
+/* 六個浮層的「關閉」在 1c 統一一組尺寸（2026-11-03，UX 稽核 F8）：原本慢病／Lipid 22、
+   CCr 28、VAC／Anti／Date 32px 高，同一個動作三種大小。窄欄是滑鼠操作，取最密的 22px。 */
+body[data-layout="dock"] :is(#chronic-close, #lipid-close, #ccr-close, #vac-close, #am-close, #date-calc-close) {
+  min-height: 22px; padding: 0 6px; font-size: 11px;
+}
 body[data-layout="dock"] .chronic-body { margin-top: 6px; }
 body[data-layout="dock"] .chronic-section { margin-bottom: 9px; }
 body[data-layout="dock"] .chronic-section-title { font-size: 12px; }
@@ -406,12 +412,14 @@ body[data-layout="dock"] .ccr-hint,
 body[data-layout="dock"] .ccr-alt-row { font-size: 10px; }
 body[data-layout="dock"] .ccr-disclaimer { font-size: 10px; padding: 5px 7px; }
 
-/* 慢病速查在 176–340px：速判摘要與分段標題都收字級，條目行距壓到 1.4 */
+/* 慢病速查在 176–340px：速判摘要與分段標題都收字級，條目行距壓到 1.4。
+   徽章與旗標（可當天開藥、健保給付／自費、表一／表二…）原本 9px，2026-11-03 一律提到
+   10px：「低於 10px 一律不准」，而它們正是能不能開的那一層。實測 LIPID 主題 340px +11px。 */
 body[data-layout="dock"] .chronic-headline {
   margin-top: 7px; padding: 6px 7px; font-size: 12px; line-height: 1.4;
 }
-body[data-layout="dock"] .chronic-step-hint { font-size: 9px; letter-spacing: .02em; }
-body[data-layout="dock"] .chronic-kind-dot { font-size: 9px; padding: 0 3px; margin-right: 4px; }
+body[data-layout="dock"] .chronic-step-hint { font-size: 10px; letter-spacing: .02em; }
+body[data-layout="dock"] .chronic-kind-dot { font-size: 10px; padding: 0 3px; margin-right: 4px; }
 body[data-layout="dock"] .chronic-section[data-step="pitfall"],
 body[data-layout="dock"] .chronic-section[data-step="nocover"] { padding-left: 6px; }
 
@@ -422,7 +430,7 @@ body[data-layout="dock"] .chronic-ladder-title { font-size: 11px; }
 body[data-layout="dock"] .chronic-ladder-lede { font-size: 11px; line-height: 1.45; }
 body[data-layout="dock"] .chronic-ladder-name { font-size: 12px; }
 body[data-layout="dock"] .chronic-ladder-num { font-size: 10.5px; }
-body[data-layout="dock"] .chronic-ladder-flag { font-size: 9px; padding: 0 3px; }
+body[data-layout="dock"] .chronic-ladder-flag { font-size: 10px; padding: 0 3px; }
 body[data-layout="dock"] .chronic-ladder-how,
 body[data-layout="dock"] .chronic-ladder-nondrug,
 body[data-layout="dock"] .chronic-ladder-note { font-size: 10px; line-height: 1.4; }
@@ -434,7 +442,7 @@ body[data-layout="dock"] .chronic-drugs { margin-top: 7px; padding: 6px 7px; }
 body[data-layout="dock"] .chronic-drugs-title { font-size: 11px; }
 body[data-layout="dock"] .chronic-drugs-lede { font-size: 11px; line-height: 1.45; }
 body[data-layout="dock"] .chronic-drug-klass { font-size: 11.5px; }
-body[data-layout="dock"] .chronic-drug-cover { font-size: 9px; padding: 0 3px; }
+body[data-layout="dock"] .chronic-drug-cover { font-size: 10px; padding: 0 3px; }
 body[data-layout="dock"] .chronic-drug-names { font-size: 11px; line-height: 1.45; }
 body[data-layout="dock"] .chronic-drug-note { font-size: 10px; line-height: 1.4; }
 
@@ -444,13 +452,11 @@ body[data-layout="dock"] .chronic-t2 { margin-top: 7px; padding: 6px 7px; }
 body[data-layout="dock"] .chronic-t2-title { font-size: 11px; }
 body[data-layout="dock"] .chronic-t2-lede { font-size: 11px; line-height: 1.4; }
 body[data-layout="dock"] .chronic-t2-item { font-size: 11px; line-height: 1.45; }
-body[data-layout="dock"] .chronic-t2-codes { font-size: 9px; }
+body[data-layout="dock"] .chronic-t2-codes { font-size: 10px; }
 body[data-layout="dock"] .chronic-t2-caution,
 body[data-layout="dock"] .chronic-t2-meta { font-size: 10px; line-height: 1.4; }
-body[data-layout="dock"] .lipid-t2-names,
 body[data-layout="dock"] .lipid-t2-caution { font-size: 10px; line-height: 1.4; }
-body[data-layout="dock"] .lipid-drugs-title,
-body[data-layout="dock"] .lipid-drug-cover { font-size: 9px; }
+body[data-layout="dock"] .lipid-drugs-title { font-size: 10px; }
 body[data-layout="dock"] .lipid-lookup { padding: 5px 6px; }
 body[data-layout="dock"] .lipid-lookup-title { font-size: 11px; }
 body[data-layout="dock"] .lipid-hit-code,
@@ -462,9 +468,9 @@ body[data-layout="dock"] .lipid-lookup-empty,
 body[data-layout="dock"] .lipid-lookup-more,
 body[data-layout="dock"] .lipid-lookup-sum,
 body[data-layout="dock"] .lipid-avail { font-size: 10px; line-height: 1.4; }
-body[data-layout="dock"] .lipid-hit-table { font-size: 9px; padding: 0 3px; }
+body[data-layout="dock"] .lipid-hit-table { font-size: 10px; padding: 0 3px; }
 body[data-layout="dock"] .lipid-drug-group { font-size: 10.5px; line-height: 1.45; }
-body[data-layout="dock"] .lipid-drug-count { font-size: 9px; }
+body[data-layout="dock"] .lipid-drug-count { font-size: 10px; }
 
 /* 官方條文 PDF：176px 下與其他次要 chrome 同一條字級下限（≥10px） */
 body[data-layout="dock"] .chronic-docs { margin-bottom: 7px; }
@@ -483,11 +489,17 @@ body[data-layout="dock"] #lipid-btn {
 body[data-layout="dock"] .lipid-overlay { padding: 3px; }
 body[data-layout="dock"] .lipid-panel { width: 100%; padding: 6px 7px; }
 body[data-layout="dock"] .lipid-title { font-size: 14px; }
-body[data-layout="dock"] .lipid-close { min-height: 22px; padding: 0 6px; font-size: 11px; }
+body[data-layout="dock"] .lipid-panel > .lipid-head { top: -6px; }   /* 抵銷 1c 的 6px 上內距 */
+/* 兩個計算機的性別鈕：沿用 .seg-btn 的 40px，比同面板的輸入框（26px）還高。低頻控制項，
+   窄欄滑鼠操作，收到與輸入框同高（2026-11-03，UX 稽核 F12，每個計算機省約 14px）。 */
+body[data-layout="dock"] :is(.ccr-sex, .lipid-sex) .seg-btn { min-height: 26px; padding: 2px 10px; font-size: 12px; }
 body[data-layout="dock"] .lipid-form { gap: 6px; margin-top: 7px; }
 body[data-layout="dock"] .lipid-nums { gap: 4px 6px; }
 body[data-layout="dock"] .lipid-label { font-size: 11px; }
 body[data-layout="dock"] .lipid-input { width: 4.2em; min-height: 26px; font-size: 12px; }
+/* 「查品項」不是數值欄：上一條的 4.2em 會把它也壓成 48px，placeholder 只剩兩個字，
+   右邊空 240px（UX 稽核 F9）。撐滿該列，同 app.css 的 .lipid-field--wide。 */
+body[data-layout="dock"] .lipid-field--wide .lipid-input { width: 100%; }
 body[data-layout="dock"] .lipid-check { font-size: 11.5px; line-height: 1.3; }
 body[data-layout="dock"] .lipid-block { padding: 6px 7px; }
 body[data-layout="dock"] .lipid-level { font-size: 14px; }

@@ -181,7 +181,7 @@ body[data-layout="wide"] .pane-resizer { height: 10px; margin: -12px 0; }
 #layout-wide .his-head .clip-sync:not(.is-stale) { color: var(--his-dim); }
 #panels { display: flex; flex-direction: column; gap: 14px; }
 #panels:empty { display: none; }
-/* 顯示全部部位時每組面板前的部位標題（render-shared 的 regionHeading） */
+/* 顯示全部部位時每組面板前的部位標題（render-dom.js 的 regionHeading） */
 body[data-layout="wide"] .region-heading {
   margin: 4px 0 -4px; padding-bottom: 3px;
   font-family: var(--font-heading); font-size: 15px; letter-spacing: .08em;
