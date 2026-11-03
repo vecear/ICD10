@@ -117,6 +117,27 @@ def test_full_original_and_scroll_survive_layout_change(browser):
     assert page.locator('.am-body').evaluate('(e)=>e.scrollTop') >= 600
     page.close()
 
+def test_scroll_memory_survives_when_animation_frames_never_fire(browser):
+    """rAF 不觸發時（分頁在背景、視窗最小化）捲動還原的旗標不得卡住：
+    重建版面後第二次捲動仍要被記住（rAF 與 setTimeout 併掛，先到者為準）。"""
+    page = open_app(browser,1440,'wide')
+    page.locator('#am-btn').click()
+    page.locator('#am-search').fill('10.7.3')
+    page.locator('.am-card > summary').click()
+    page.locator('.am-original > summary').click()
+    page.locator('.am-body').evaluate('(e)=>e.scrollTop=300')
+    page.wait_for_timeout(100)
+    page.evaluate("window.requestAnimationFrame = () => 0")
+    page.evaluate("window.ICDApp.store.setLayout('dock')")
+    expect(page.locator('body')).to_have_attribute('data-layout','dock')
+    page.wait_for_timeout(150)
+    page.locator('.am-body').evaluate('(e)=>e.scrollTop=500')
+    page.wait_for_timeout(100)
+    page.evaluate("window.ICDApp.store.setLayout('wide')")
+    expect(page.locator('body')).to_have_attribute('data-layout','wide')
+    page.wait_for_function("Math.abs(document.querySelector('.am-body').scrollTop - 500) < 2", timeout=3000)
+    page.close()
+
 def test_failed_copy_can_recover_inside_panel(browser):
     page = open_app(browser,390,'wide')
     page.evaluate("Object.defineProperty(navigator,'clipboard',{value:{writeText:async()=>{throw Error('denied')}},configurable:true});document.execCommand=()=>false")

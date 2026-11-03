@@ -4,6 +4,10 @@ from playwright.sync_api import expect
 
 from test_e2e_vaccine import browser, open_app
 
+# 捲動量要小於 1c 340×900 下 .vac-body 的最大可捲高度（2026-11-03 關閉鈕統一成 22px 後只剩 16px）；
+# 原本的 20 在 1c 會被夾成 16，還原斷言永遠等不到。
+READ_TOP = 12
+
 
 def prepare_reading(page):
     page.locator('#vac-btn').click()
@@ -11,9 +15,9 @@ def prepare_reading(page):
     page.locator('[data-vac-topic="schedule"]').click()
     page.locator('#vac-search').fill('肺炎')
     page.locator('[data-vac-question="pneumococcal"] > summary').click()
-    page.locator('.vac-body').evaluate('(e) => e.scrollTop = 20')
+    page.locator('.vac-body').evaluate('(e, t) => e.scrollTop = t', READ_TOP)
     page.wait_for_timeout(80)
-    assert page.locator('.vac-body').evaluate('(e) => e.scrollTop') == 20
+    assert page.locator('.vac-body').evaluate('(e) => e.scrollTop') == READ_TOP
 
 
 def assert_reading(page, scroll=True):
@@ -22,7 +26,7 @@ def assert_reading(page, scroll=True):
     expect(page.locator('[data-vac-topic="schedule"]')).to_have_attribute('aria-pressed', 'true')
     expect(page.locator('[data-vac-question="pneumococcal"]')).to_have_attribute('open', '')
     if scroll:
-        page.wait_for_function("Math.abs(document.querySelector('.vac-body').scrollTop - 20) < 2")
+        page.wait_for_function("Math.abs(document.querySelector('.vac-body').scrollTop - %d) < 2" % READ_TOP)
 
 
 @pytest.mark.parametrize('width,layout', [(1440, 'wide'), (390, 'wide'), (340, 'dock'), (176, 'dock')])
@@ -75,7 +79,7 @@ def test_reading_survives_real_pip_move_and_return(browser):
     pip = event.value
     pip.locator('#vac-btn').click()
     assert_reading(pip)
-    pip.locator('.vac-body').evaluate('(e) => e.scrollTop = 20')
+    pip.locator('.vac-body').evaluate('(e, t) => e.scrollTop = t', READ_TOP)
     pip.wait_for_timeout(80)
     pip.keyboard.press('Escape')
     pip.close()
@@ -99,4 +103,24 @@ def test_reload_discards_reading_without_browser_storage(browser):
     expect(page.locator('[data-vac-topic="all"]')).to_have_attribute('aria-pressed', 'true')
     expect(page.locator('.vac-card[open]')).to_have_count(0)
     assert page.locator('.vac-body').evaluate('(e) => e.scrollTop') == 0
+    page.close()
+
+
+def test_scroll_memory_survives_when_animation_frames_never_fire(browser):
+    """rAF 在沒有合成畫面時（分頁在背景、視窗最小化）完全不觸發，也不拋錯。
+
+    捲動還原以前只在 rAF callback 裡把 restoringScroll 放回 false：callback 不來，旗標就
+    永遠卡在 true，之後的捲動一律不被記住。這裡把 rAF stub 成不執行，重建版面後第二次
+    捲動仍要被記住（rAF 與 setTimeout 併掛，先到者為準）。"""
+    page = open_app(browser)
+    prepare_reading(page)
+    page.evaluate("window.requestAnimationFrame = () => 0")
+    page.evaluate("window.ICDApp.store.setLayout('dock')")
+    assert_reading(page)
+    page.wait_for_timeout(150)
+    page.locator('.vac-body').evaluate('(e) => e.scrollTop = 5')
+    page.wait_for_timeout(80)
+    page.evaluate("window.ICDApp.store.setLayout('wide')")
+    expect(page.locator('body')).to_have_attribute('data-layout', 'wide')
+    page.wait_for_function("Math.abs(document.querySelector('.vac-body').scrollTop - 5) < 2", timeout=3000)
     page.close()

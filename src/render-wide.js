@@ -498,27 +498,14 @@
     const ALL = Object.keys(U);
 
     /* 只記本次開啟的瀏覽位置，模式／部位各記一份，不寫 localStorage
-       （與 1b／1c 同一個資料結構與同一套規則，見 render-dock.js 的 positions）。
+       （與 1b／1c 同一個資料結構與同一套規則，見 render-common.js 的 scrollMemory）。
        這是「返回」能回到搜尋前那一格的來源。 */
-    const positions = new Map();
-    let viewKey = null;
-    let searching = false;
-    let lastQuery = '';
+    const memory = R.scrollMemory();
 
     function update(changed) {
       const state = ctx.store.getState();
-      const key = state.mode + ':' + state.region;
-      const query = state.query.trim();
-      const nextSearching = query.length >= 2;      // 與 renderResults 同一個門檻
-      const navigated = key !== viewKey;
-      const oldTop = sheet.scrollTop;
-      if (viewKey !== null && !searching) positions.set(viewKey, oldTop);
-      let names = ALL;
-      if (changed && changed.length) {
-        const set = new Set();
-        for (const key of changed) for (const name of DEPS[key] || ALL) set.add(name);
-        names = ALL.filter((n) => set.has(n));
-      }
+      const nextSearching = memory.before(state.mode + ':' + state.region, state.query, sheet).searching;
+      const names = R.namesFor(changed, DEPS, ALL);
       for (const name of names) U[name]();
       /* 「已加入」勾號：chip 是在 panels／quick／results／shelf 裡重建的，清單變動時
          那些區塊不會重畫，所以掛號要獨立跑一次（與 1c 同一條規則、同一份實作）。 */
@@ -530,21 +517,8 @@
       refs.modeHint.hidden = nextSearching;
       // 內容變了（搜尋結果出現、清單加碼）就得重新夾一次高度，見 render-dock.js 同一段註解
       applyPanes();
-      /* 捲動位置（三分支與 1b／1c 逐字同義）：
-         進搜尋 → 回到頂端（結果卡在中欄最上面，不然它會開在可視區外）
-         離開搜尋或換部位／模式 → 還原那一格記住的位置
-         其餘（加碼、展開面板…）→ 原地不動
-         一定要排在 applyPanes() 之後：窗格高度會改變 scrollHeight，先寫 scrollTop 會被夾掉。 */
-      if (nextSearching) {
-        sheet.scrollTop = (!searching || query !== lastQuery || navigated) ? 0 : oldTop;
-      } else if (searching || navigated) {
-        sheet.scrollTop = positions.get(key) || 0;
-      } else {
-        sheet.scrollTop = oldTop;
-      }
-      viewKey = key;
-      searching = nextSearching;
-      lastQuery = query;
+      // 捲動位置（三分支見 render-common.js 的 scrollMemory）；一定要排在 applyPanes() 之後
+      memory.after(sheet);
     }
 
     return { root: wide, refs, update };

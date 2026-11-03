@@ -924,7 +924,7 @@ def open_pinned(browser_ctx, page_url):
 
 def pip_set_mode(pip, button_id):
     """小視窗裡切看診模式。模式已移出設定面板，改點 header 三鈕
-    （走的仍是 render-dock.js 的 pipDelegate 代打，不是主文件的委派）。"""
+    （走的是 interactions.js 綁在小視窗文件上的委派，見 bindDocument）。"""
     mode = MODE_OF_BUTTON_ID[button_id]
     pip.click(f'#mode-switch [data-mode="{mode}"]')
     pip.wait_for_timeout(300)

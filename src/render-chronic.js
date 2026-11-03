@@ -207,6 +207,14 @@
     return box;
   }
 
+  /* 條文以外的出處在 1c／1b 窄欄同樣被 ellipsis 截斷
+     （LIPID 主題 20 條），全文放 title：「出自哪一號公告」不能只看得到前半句。0px 成本。 */
+  function sourceEl(text) {
+    const el = R.el('span', 'chronic-source', text);
+    el.title = '出處：' + text;
+    return el;
+  }
+
   /* 一條規定。出處與查證日期是**可見文字**，不是 title——這是本功能與其他區塊最大的差別。 */
   function chronicItemEl(item, upcoming) {
     const li = R.el('li', 'chronic-item' + (upcoming ? ' is-upcoming' : ''));
@@ -269,29 +277,6 @@
       li.appendChild(foot);
     }
     return li;
-  }
-
-  function chronicSectionEl(section, today) {
-    const parts = root.ICDLogic.splitByEffective(section && section.items, today);
-    if (!parts.current.length && !parts.upcoming.length) return null;
-    const box = R.el('section', 'chronic-section');
-    const head = R.el('div', 'chronic-section-head');
-    const kind = section && section.kind;
-    /* title 是選填的（現行資料只給 kind）。沒有標題就拿 kind 的中文當標題——標題留白會讓
-       整段內容失去脈絡，而「治療目標」與「健保給付」對醫師來說正是最需要分清楚的兩件事。 */
-    const heading = (section && section.title) || CHRONIC_KIND[kind] || '其他';
-    head.appendChild(R.el('h3', 'chronic-section-title', heading));
-    if (CHRONIC_KIND[kind] && CHRONIC_KIND[kind] !== heading) {
-      const tag = R.el('span', 'chronic-kind', CHRONIC_KIND[kind]);
-      tag.dataset.kind = kind;
-      head.appendChild(tag);
-    }
-    box.dataset.kind = kind || '';
-    const list = R.el('ul', 'chronic-items');
-    for (const item of parts.current) list.appendChild(chronicItemEl(item, false));
-    for (const item of parts.upcoming) list.appendChild(chronicItemEl(item, true));
-    box.append(head, list);
-    return box;
   }
 
   /* 把所有 section 的 items 攤平，帶上它原本的 kind，然後依 step 分組。
@@ -442,7 +427,7 @@
     }
 
     const meta = R.el('p', 'chronic-t2-meta');
-    if (data.source) meta.appendChild(R.el('span', 'chronic-source', String(data.source)));
+    if (data.source) meta.appendChild(sourceEl(String(data.source)));
     if (data.checked) meta.appendChild(R.el('span', 'chronic-checked', '查 ' + data.checked));
     if (meta.childNodes.length) box.appendChild(meta);
     return box;
@@ -543,7 +528,7 @@
     if (data.doseNote) box.appendChild(R.el('p', 'chronic-drug-note', String(data.doseNote)));
     if (data.note) box.appendChild(R.el('p', 'chronic-drug-note', String(data.note)));
     const meta = R.el('p', 'chronic-t2-meta');
-    if (data.source) meta.appendChild(R.el('span', 'chronic-source', String(data.source)));
+    if (data.source) meta.appendChild(sourceEl(String(data.source)));
     if (data.checked) meta.appendChild(R.el('span', 'chronic-checked', '查 ' + data.checked));
     if (meta.childNodes.length) box.appendChild(meta);
     return box;
@@ -587,7 +572,7 @@
        是「憑什麼」——不講，這份清單看起來就是任意的（使用者 2026-09-01 問過）。 */
     if (data.why) box.appendChild(R.el('p', 'chronic-t2-why', String(data.why)));
     const meta = R.el('p', 'chronic-t2-meta');
-    if (data.source) meta.appendChild(R.el('span', 'chronic-source', String(data.source)));
+    if (data.source) meta.appendChild(sourceEl(String(data.source)));
     if (data.checked) meta.appendChild(R.el('span', 'chronic-checked', '查 ' + data.checked));
     if (meta.childNodes.length) box.appendChild(meta);
     return box;
@@ -636,7 +621,7 @@
       '收費代碼與表別以查證日為準；當天缺不缺藥看 HIS 畫面。'));
     const meta = R.el('p', 'chronic-hosp-meta');
     const hosp = lp.hospital || {};
-    if (hosp.source) meta.appendChild(R.el('span', 'chronic-source', String(hosp.source)));
+    if (hosp.source) meta.appendChild(sourceEl(String(hosp.source)));
     if (hosp.checked) meta.appendChild(R.el('span', 'chronic-checked', '查 ' + hosp.checked));
     if (meta.childNodes.length) box.appendChild(meta);
     return box;

@@ -143,8 +143,6 @@
     };
   }
 
-  const oneOf = (list, value, fallback) => (list.indexOf(value) >= 0 ? value : fallback);
-
   // 代碼字串陣列：去空白、去重、去非字串、可選上限。壞資料一律丟棄而不是讓 app 崩在渲染層。
   function sanitizeCodes(value, limit) {
     if (!Array.isArray(value)) return null;

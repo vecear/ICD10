@@ -380,28 +380,15 @@
     const ALL = Object.keys(U);
 
     /* 只記本次開啟的瀏覽位置，模式／部位各記一份，不寫 localStorage（與 1c 同一個
-       資料結構與同一套規則，見 render-dock.js 的 positions）。
+       資料結構與同一套規則，見 render-common.js 的 scrollMemory）。
        這是「返回」能回到搜尋前那一格的來源：醫師搜完一個碼要回去接著選附近的碼，
        回來落在頂端等於每次搜尋都要重新捲一次。 */
-    const positions = new Map();
-    let viewKey = null;
-    let searching = false;
-    let lastQuery = '';
+    const memory = R.scrollMemory();
 
     function update(changed) {
       const state = ctx.store.getState();
-      const key = state.mode + ':' + state.region;
-      const query = state.query.trim();
-      const nextSearching = query.length >= 2;      // 與 renderResults 同一個門檻
-      const navigated = key !== viewKey;
-      const oldTop = scroll.scrollTop;
-      if (viewKey !== null && !searching) positions.set(viewKey, oldTop);
-      let names = ALL;
-      if (changed && changed.length) {
-        const set = new Set();
-        for (const key of changed) for (const name of DEPS[key] || ALL) set.add(name);
-        names = ALL.filter((n) => set.has(n));
-      }
+      const nextSearching = memory.before(state.mode + ':' + state.region, state.query, scroll).searching;
+      const names = R.namesFor(changed, DEPS, ALL);
       for (const name of names) U[name]();
       /* 「已加入」勾號：chip 在 panels／results 裡重建，清單變動時那兩塊不重畫，
          所以掛號要獨立跑一次（三套版面同一份實作，見 render-common.js 的 syncInCart）。 */
@@ -411,21 +398,8 @@
       refs.searchBack.hidden = !nextSearching;
       // 內容變了（抽屜展開）就得重新夾一次高度，見 render-dock.js 同一段註解
       refs.paneGroup.applyAll();
-      /* 捲動位置（三分支與 1a／1c 逐字同義）：
-         進搜尋 → 回到頂端（結果卡在捲動區最上面，不然它會開在可視區外）
-         離開搜尋或換部位／模式 → 還原那一格記住的位置
-         其餘（加碼、展開面板…）→ 原地不動
-         一定要排在 applyAll() 之後：窗格高度會改變 scrollHeight，先寫 scrollTop 會被夾掉。 */
-      if (nextSearching) {
-        scroll.scrollTop = (!searching || query !== lastQuery || navigated) ? 0 : oldTop;
-      } else if (searching || navigated) {
-        scroll.scrollTop = positions.get(key) || 0;
-      } else {
-        scroll.scrollTop = oldTop;
-      }
-      viewKey = key;
-      searching = nextSearching;
-      lastQuery = query;
+      // 捲動位置（三分支見 render-common.js 的 scrollMemory）；一定要排在 applyAll() 之後
+      memory.after(scroll);
     }
 
     return { root: wrap, refs, update };

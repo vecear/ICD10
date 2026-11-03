@@ -146,7 +146,7 @@
     /* 可點擊就必須可聚焦、可用鍵盤觸發（v1 §3 的唯一破口：三套版面都到不了這一顆）。
        保留 <b> 而不換成 <button>：三套 CSS 都以 `b.cart-code` 選取它，換元素等於連帶
        改掉外觀，而樣式是另一條工作線。補上 role＋tabindex＋鍵盤事件同樣語意完整；
-       鍵盤觸發在 interactions.js（1c 進 PiP 小視窗期間由 render-dock.js 代打）。 */
+       鍵盤觸發在 interactions.js（1c 進 PiP 小視窗期間同一份委派綁在小視窗的文件上）。 */
     const code = R.el('b', 'cart-code', item.code);
     code.setAttribute('role', 'button');
     code.tabIndex = 0;
@@ -173,10 +173,44 @@
     return li;
   }
 
+  /* 鍵盤焦點回復（UX 稽核 F5）：清單整個重建，焦點若在裡面就會掉回 <body>，下一步得從頭
+     Tab（1a 從搜尋框到第 3 筆的「主」要 201 次）。重建前記下焦點在哪一筆的哪一顆，重建後還回去：
+     同一筆還在 → 同一顆鈕（不可聚焦就給該列，例如主診斷列藏起來的「主」）；
+     那一筆被移除 → 同一位置的列；清單空了 → 搜尋框。
+     一律 preventScroll：設主時清單重排，scrollIntoView 會把清單捲到別處。 */
+  function cartFocusOf(ul) {
+    const active = ul.ownerDocument.activeElement;
+    if (!active || active === ul || !ul.contains(active)) return null;
+    const li = active.closest('li[data-code]');
+    if (!li) return null;
+    return {
+      code: li.dataset.code,
+      cls: active === li ? null : active.classList[0],
+      index: Array.prototype.indexOf.call(ul.children, li),
+    };
+  }
+
+  function focusable(el) {
+    if (!el || el.disabled) return false;
+    const cs = el.ownerDocument.defaultView.getComputedStyle(el);
+    return cs.visibility !== 'hidden' && cs.display !== 'none';
+  }
+
+  function restoreCartFocus(ul, back) {
+    const rows = Array.from(ul.children);
+    let li = rows.find((row) => row.dataset.code === back.code);
+    let target = li && back.cls ? li.querySelector('.' + back.cls) : li;
+    if (li && !focusable(target)) target = li;
+    if (!li) target = rows[Math.min(back.index, rows.length - 1)] || ul.ownerDocument.getElementById('search');
+    if (target) target.focus({ preventScroll: true });
+  }
+
   function renderCart(ul, empty, count, ctx) {
     const s = ctx.store.getState();
+    const back = cartFocusOf(ul);
     R.clear(ul);
     s.cart.forEach((item, i) => ul.appendChild(cartItemEl(item, i, ctx)));
+    if (back) restoreCartFocus(ul, back);
     if (empty) empty.hidden = s.cart.length > 0;
     if (count) count.textContent = s.cart.length ? String(s.cart.length) : '';
     /* 第一位是附加碼時掛旗標，由 CSS 的 ::before 顯示整條警示（三套版面共用 #cart）。
@@ -377,6 +411,10 @@
     const s = ctx.store.getState();
     const surg = s.mode === 'surg';
     container.setAttribute('aria-label', surg ? '手術情境' : '身體部位');
+    // 重建會讓焦點掉回 <body>（鍵盤 Enter 選部位之後）；記下是哪一顆，重建後還給同一顆
+    const focused = container.ownerDocument.activeElement;
+    const focusIndex = focused && focused !== container && container.contains(focused)
+      ? focused.dataset.regionIndex : undefined;
     // 1a 的容器裡還有欄標題，不能整個清掉
     if (o.keepOthers) for (const old of Array.from(container.querySelectorAll('.region-btn'))) old.remove();
     else R.clear(container);
@@ -398,6 +436,10 @@
       else b.append(R.el('span', null, label), R.el('span', 'region-count', String(region.count)));
       container.appendChild(b);
     });
+    if (focusIndex !== undefined) {
+      const back = container.querySelector('.region-btn[data-region-index="' + focusIndex + '"]');
+      if (back) back.focus({ preventScroll: true });
+    }
     return surg;
   }
 
@@ -429,11 +471,62 @@
     return b;
   }
 
+  // ---- 三套版面 update() 共用：依 DEPS 算要重繪的區塊、捲動記憶 ----
+  /* 狀態欄位 → 要重跑的更新器。沒列在 DEPS 的欄位一律全部重跑；changed 為空＝全量重繪。 */
+  function namesFor(changed, DEPS, ALL) {
+    if (!changed || !changed.length) return ALL;
+    const set = new Set();
+    for (const key of changed) for (const name of DEPS[key] || ALL) set.add(name);
+    return ALL.filter((n) => set.has(n));
+  }
+
+  /* 只記本次開啟的瀏覽位置，模式／部位各記一份，不寫 localStorage；這是「返回」能回到
+     搜尋前那一格的來源。key 由呼叫端組（1c 多一段 `:favorites`）。
+     before() 在重繪前呼叫：記下目前這一格的位置，回傳本次的 { searching, wasSearching, navigated }。
+     after() 在重繪＋窗格夾高度之後呼叫（窗格高度會改變 scrollHeight，先寫 scrollTop 會被夾掉）：
+       進搜尋 → 回到頂端（結果在捲動區最上面，不然它會開在可視區外）
+       離開搜尋或換部位／模式 → 還原那一格記住的位置
+       其餘（加碼、展開面板…）→ 原地不動 */
+  function scrollMemory() {
+    const positions = new Map();
+    let viewKey = null;
+    let searching = false;
+    let lastQuery = '';
+    let next = null;
+    return {
+      before(key, query, scroller) {
+        const q = query.trim();
+        const oldTop = scroller.scrollTop;
+        if (viewKey !== null && !searching) positions.set(viewKey, oldTop);
+        next = {
+          key, query: q, oldTop,
+          searching: q.length >= 2,      // 與 renderResults 同一個門檻
+          wasSearching: searching,
+          navigated: key !== viewKey,
+        };
+        return next;
+      },
+      after(scroller) {
+        const n = next;
+        if (n.searching) {
+          scroller.scrollTop = (!searching || n.query !== lastQuery || n.navigated) ? 0 : n.oldTop;
+        } else if (searching || n.navigated) {
+          scroller.scrollTop = positions.get(n.key) || 0;
+        } else {
+          scroller.scrollTop = n.oldTop;
+        }
+        viewKey = n.key;
+        searching = n.searching;
+        lastQuery = n.query;
+      },
+    };
+  }
+
   Object.assign(root.ICDRender = root.ICDRender || {}, {
     syncSearchValue, renderResults, emptyText, selectSearchResult,
     cartItemEl, renderCart, syncClearBtn, hisText, renderHis, renderShelf,
     noticeEl, copyRecoveryEl, syncInCart, searchBackEl, clipboardSyncEl, renderClipboardSync,
     renderRegionMenu, renderPanels,
-    expandAllButtonEl, FORMAT_LABEL,
+    expandAllButtonEl, FORMAT_LABEL, namesFor, scrollMemory,
   });
 })(typeof self !== 'undefined' ? self : this);

@@ -1,4 +1,6 @@
 /* 互動層：一次性掛在 document 上的事件委派（版面重掛不必重綁），加上剪貼簿與拖曳。
+   1c 置頂時側欄被搬進 Document PiP 小視窗那個**另一個文件**，render-dock.js 開窗後呼叫
+   bindDocument(小視窗的 document)，同一份委派也綁上去——不再另抄一份代打。
    掛 window.ICDInteractions。三套版面共用同一份契約：
      .chip[data-code]（非 .cat）      加入代碼
      .region-btn[data-region-index]   切換部位／情境（點已選的那顆＝取消選取，改顯示全部部位）
@@ -185,8 +187,7 @@
   }
 
   /* 移除單筆／清空一律走這兩個入口，快照在動作**之前**取。
-     快照只放記憶體（這個閉包），不持久化——cart 跨診次殘留＝臨床事故（impl-plan R-9）。
-     1c 置頂時 render-dock.js 的代打也呼叫這兩個，規則不會兩邊漂移。 */
+     快照只放記憶體（這個閉包），不持久化——cart 跨診次殘留＝臨床事故（impl-plan R-9）。 */
   function removeFromCart(ctx, code) {
     const snapshot = ctx.store.getState().cart;
     if (!ctx.store.removeCode(code)) return;
@@ -309,7 +310,7 @@
   }
 
   /* 清單列上的代碼是可點擊複製的控制項（render-common.js 給它 role="button" ＋ tabindex）。
-     滑鼠點擊、鍵盤 Enter／Space、以及 1c 進 PiP 小視窗時的代打全部共用這一份實作。 */
+     滑鼠點擊、鍵盤 Enter／Space、以及 1c 進 PiP 小視窗時（bindDocument）全部共用這一份實作。 */
   function copyCartCode(node, ctx) {
     const li = node && node.closest ? node.closest('li[data-code]') : null;
     if (!li) return;
@@ -363,7 +364,7 @@
     return true;
   }
 
-  // ---- 加碼（三套版面 ＋ PiP 代打共用同一份實作） ----
+  // ---- 加碼（三套版面 ＋ PiP 小視窗共用同一份實作） ----
   /* chip 的中文標籤。用 `.chip-zh` 而不是 querySelector('span')：★chip 的第一個 span
      是星號 icon，取到的會是空字串（R2 M1）。 */
   function chipLabel(ctx, chip, code) {
@@ -410,8 +411,6 @@
     ctx.data.ensureDb();
   }
 
-  /* chip 點擊的唯一實作。1c 的側欄搬進 PiP 小視窗後主文件的委派搆不到那棵 DOM，
-     render-dock.js 得自己代打——共用這個函式，兩邊的規則不會各自漂移。 */
   // ---- header 的看診模式三鈕（三套版面共用同一份行為） ----
   /* 三顆鈕是宣告式渲染的（render-settings.js 的 modeSwitchEl／syncModeSwitch），一次點擊
      就切換，沒有任何展開動作。已經是目前模式時什麼都不做——走 setMode() 會連帶清掉
@@ -423,15 +422,7 @@
     announce('已切換為' + ((root.ICDRender && root.ICDRender.MODE_LABEL[mode]) || mode));
   }
 
-  /* 部位列的「全部」鈕：等於取消部位篩選。與「點已選部位再點一次」同一個結果，
-     差別只在它是看得見、按得到的入口（三套版面一致）。 */
-  function chooseAllRegions(ctx) {
-    const was = ctx.store.getState().region;
-    ctx.store.setRegion(null);
-    announce(was === null ? '目前已顯示全部部位' : '已取消部位篩選，顯示全部部位');
-  }
-
-  /* ── 慢病速查（三套版面 ＋ PiP 代打共用同一份實作） ────────────────────────
+  /* ── 慢病速查（三套版面 ＋ PiP 小視窗共用同一份實作） ────────────────────────
      浮層蓋住整個工作區，所以焦點必須跟著走：開啟時移到關閉鈕，關閉時還給原來那顆主題鈕。
      沒有這一步，鍵盤使用者按 Tab 會走進被蓋住、看不見的東西。
 
@@ -641,11 +632,22 @@
     }
   }
 
+  /* 已綁過委派的文件。主文件在 wire() 綁一次；PiP 小視窗每開一次就是一份新文件，
+     由 render-dock.js 呼叫 bindDocument() 綁上同一份委派。WeakSet 防同一份文件重綁
+     （重綁＝每次點擊處理兩次），小視窗關掉後文件被回收，這裡不必手動解除。 */
+  const boundDocs = new WeakSet();
+  let bindImpl = null;
+
+  function bindDocument(doc) {
+    if (!doc || !bindImpl || boundDocs.has(doc)) return;
+    boundDocs.add(doc);
+    bindImpl(doc);
+  }
+
   function wire(ctx) {
     const store = ctx.store;
     const data = ctx.data;
     clipboardHasCart = !!store.getState().cart.length;
-    let copiedTimer = null;
     let dragCode = null;
 
     // 不把 chip 上的 data-leaf 當成 row 傳進去：那等於讓 DOM 自證葉碼身分。
@@ -683,248 +685,257 @@
       if (await copyText(text, false, '日期')) announce('已複製日期 ' + text);
     }
 
-    // ---- 點擊委派 ----
-    document.addEventListener('click', (ev) => {
-      const target = ev.target;
-      if (!target || !target.closest) return;
-      if (target.closest('#clipboard-sync')) { resendCart(ctx); return; }
+    bindImpl = (doc) => {
+      // ---- 點擊委派 ----
+      doc.addEventListener('click', (ev) => {
+        const target = ev.target;
+        if (!target || !target.closest) return;
+        if (target.closest('#clipboard-sync')) { resendCart(ctx); return; }
 
-      // 設定 popover 外點關閉（要在其他處理之前判斷，但不能吃掉該次點擊）
-      if (store.getState().settingsOpen
-        && !target.closest('#settings-popover') && !target.closest('#settings-toggle')) {
-        store.setSettingsOpen(false);
-      }
-      /* 慢病速查：入口鈕、浮層內分頁（[data-chronic]）、關閉鈕、以及點浮層背景
-         （`target.id` 恰為 overlay 本身＝點在面板以外）。要排在泛用 `button` 那條之前。
+        // 設定 popover 外點關閉（要在其他處理之前判斷，但不能吃掉該次點擊）
+        if (store.getState().settingsOpen
+          && !target.closest('#settings-popover') && !target.closest('#settings-toggle')) {
+          store.setSettingsOpen(false);
+        }
+        /* 慢病速查：入口鈕、浮層內分頁（[data-chronic]）、關閉鈕、以及點浮層背景
+           （`target.id` 恰為 overlay 本身＝點在面板以外）。要排在泛用 `button` 那條之前。
 
-         入口鈕開的是 chronicLast（上次看的主題），不是固定 DM：使用者在同一診裡通常
-         反覆查同一個主題，每次都要多按一下分頁是純粹的損耗。 */
-      if (target.closest('#chronic-btn')) {
-        chooseChronic(ctx, store.getState().chronicLast, target);
-        return;
-      }
-      const chronicBtn = target.closest('[data-chronic]');
-      if (chronicBtn) { chooseChronic(ctx, chronicBtn.getAttribute('data-chronic'), chronicBtn); return; }
-
-      if (target.closest('#lipid-btn')) { openLipid(ctx, target); return; }
-      const lipidSexBtn = target.closest('.lipid-sex-btn');
-      if (lipidSexBtn) { chooseLipidSex(ctx, lipidSexBtn); return; }
-      if (target.closest('#lipid-close') || target.id === 'lipid-overlay') {
-        closeLipid(ctx, target); return;
-      }
-      if (target.closest('#lipid-copy')) { copyLipid(ctx, target); return; }
-      if (target.closest('#lipid-reset')) { resetLipid(ctx, target); return; }
-      const ccrSexBtn = target.closest('.ccr-sex-btn');
-      if (ccrSexBtn) { chooseCcrSex(ctx, ccrSexBtn); return; }
-      if (target.closest('#ccr-close') || target.id === 'ccr-overlay') { closeCcr(ctx, target); return; }
-      if (target.closest('#ccr-copy')) { copyCcr(ctx, target); return; }
-      if (target.closest('#ccr-reset')) { resetCcr(ctx, target); return; }
-      if (target.closest('#ccr-btn')) { openCcr(ctx, target); return; }
-      if (target.closest('#chronic-close') || target.id === 'chronic-overlay') {
-        closeChronic(ctx, target);
-        return;
-      }
-
-      const chip = target.closest('.chip[data-code]');
-      if (chip) { activateChip(ctx, chip); return; }
-
-      /* header 的模式三鈕：要排在下方泛用 `.seg-btn` 那條之前——那條沒有「已是目前模式
-         就不動」的守門，也不播報。設定 popover 的 #seg-mode 仍走泛用那條。 */
-      const modeBtn = target.closest('#mode-switch [data-mode]');
-      if (modeBtn) { chooseMode(ctx, modeBtn.getAttribute('data-mode')); return; }
-
-      const region = target.closest('.region-btn');
-      if (region) {
-        store.toggleRegion(Number(region.dataset.regionIndex));
-        // 只播報取消：那是「全部按鈕都變成未選取」這個看不出來的狀態；選取本身有 aria-pressed 可讀
-        if (store.getState().region === null) announce('已取消部位篩選，顯示全部部位');
-        return;
-      }
-
-      const panelToggle = target.closest('.panel-toggle');
-      if (panelToggle) { store.toggleExpanded(panelToggle.dataset.panelToggle); return; }
-
-      if (target.closest('#expand-all-panels')) { toggleAllPanels(ctx); return; }
-
-      const quickToggle = target.closest('.quick-toggle');
-      if (quickToggle) { store.toggleQuick(quickToggle.dataset.quickToggle); return; }
-
-      const cartCode = target.closest('b.cart-code');
-      if (cartCode) { copyCartCode(cartCode, ctx); return; }
-      const primary = target.closest('.cart-primary');
-      if (primary) {
-        const code = primary.closest('li').dataset.code;
-        store.setPrimary(code);
-        announce(code + ' 已設為主診斷'
-          + (data.isAdjunct(code) ? '；注意：這是附加碼，不可作為主診斷' : ''));
-        return;
-      }
-      const fav = target.closest('.cart-fav');
-      if (fav) {
-        const code = fav.closest('li').dataset.code;
-        announce((store.toggleFav(code) ? '已加入我的最愛：' : '已移出我的最愛：') + code);
-        return;
-      }
-      const remove = target.closest('.cart-remove');
-      if (remove) {
-        removeFromCart(ctx, remove.closest('li').dataset.code);
-        return;
-      }
-
-      /* 通知列的「復原」。排在泛用 `button` 那條之前——那條會先看到 id 不在白名單裡
-         就靜默 return，等於這顆鈕永遠按不動。 */
-      if (target.closest('#notice-undo')) { runUndo(); return; }
-
-      /* 搜尋的「返回」：認 class 不認 id，三套版面共用這一條（UX 稽核 U3）。
-         1c 那顆的 id 仍是 #dock-search-back（既有 E2E 靠它定位），但走的是同一個 handler。
-         焦點回搜尋框：按「返回」通常是要改關鍵字重搜，不是要離開搜尋。 */
-      if (target.closest('.search-back')) { leaveSearch(ctx, target, true); return; }
-
-      /* 1a 左欄的面板索引（UX 稽核 U8）。「捲到哪裡」只有渲染層算得出來（它握著中欄的
-         捲動容器與那一批面板），所以走 ctx.onPanelIndex——與 #cart-toggle 同一個作法。 */
-      const panelIndexItem = target.closest('.panel-index-item');
-      if (panelIndexItem) {
-        if (typeof ctx.onPanelIndex === 'function') ctx.onPanelIndex(panelIndexItem.dataset.panelIndex);
-        return;
-      }
-
-      /* 版面切換鈕（1a 的「側掛置頂」／1c 的「展開」）。走 ctx.switchLayout 而不是
-         store.setLayout：切到 dock 時還要接著開置頂小視窗，而那個 controller 只有
-         app.js 拿得到。1c 置頂時這條委派搆不到，render-dock.js 有一份同樣的代打。 */
-      const layoutGo = target.closest('[data-layout-go]');
-      if (layoutGo) { ctx.switchLayout(layoutGo.dataset.layoutGo); return; }
-
-      const seg = target.closest('.seg-btn');
-      if (seg) {
-        if (seg.dataset.mode) store.setMode(seg.dataset.mode);
-        else if (seg.dataset.format) chooseCopyFormat(ctx, seg.dataset.format);
-        return;
-      }
-
-      const btn = target.closest('button');
-      if (!btn) return;
-      if (btn.id === 'settings-toggle') { store.toggleSettings(); return; }
-      if (btn.id === 'theme-toggle') { store.toggleTheme(); return; }
-      if (btn.id === 'shelf-toggle') { store.toggleShelf(); return; }
-      if (btn.id === 'reset-panes') { resetPanes(ctx); return; }
-      if (btn.id === 'cart-toggle') { if (typeof ctx.onCartToggle === 'function') ctx.onCartToggle(); return; }
-      if (btn.id === 'clear-cart') { clearCartWithUndo(ctx); return; }
-      if (btn.id === 'copy-date') { copyDate(); return; }
-      if (btn.id === 'fallback-close') { closeFallbackCopy(); return; }
-      // 全庫載入失敗後的重試入口（R2 I2）；ensureDb() 會回傳快取的失敗 Promise，只能走 retryDb()
-      if (btn.id === 'db-retry') { announce('正在重新載入全庫…'); data.retryDb(); return; }
-    });
-
-    // ---- 搜尋 ----
-    document.addEventListener('input', (ev) => {
-      if (ev.target && ev.target.classList && ev.target.classList.contains('ccr-input')) {
-        recalcCcr(ctx, ev.target);
-        return;
-      }
-      if (ev.target && ev.target.classList && ev.target.classList.contains('lipid-input')) {
-        recalcLipid(ctx, ev.target);
-        return;
-      }
-      if (!ev.target || ev.target.id !== 'search') return;
-      const value = ev.target.value;
-      if (value.trim().length >= 2) data.ensureDb();     // 觸發全庫延遲載入
-      clearTimeout(searchDebounce);
-      searchDebounce = setTimeout(() => store.setQuery(value), SEARCH_DEBOUNCE);
-    });
-
-    /* 勾選變動走 change：checkbox 的正規事件是 change，input 在部分瀏覽器上不保證。 */
-    document.addEventListener('change', (ev) => {
-      if (ev.target && ev.target.dataset && ev.target.dataset.lipidKey) {
-        recalcLipid(ctx, ev.target);
-      }
-    });
-
-    document.addEventListener('keydown', (ev) => {
-      if (ev.isComposing || ev.keyCode === 229) return;
-      if (searchKeydown(ctx, ev, () => clearTimeout(searchDebounce))) return;
-      if (ev.target && ev.target.id === 'search') {
-        if (ev.key === 'Escape') {
-          // 與「返回」鈕完全同一條路（三版面共用 leaveSearch），title 上寫的 Esc 才算實現
-          leaveSearch(ctx, ev.target);
-          // Esc 在其他情境都會關掉開著的浮層，搜尋框裡也要一致（R2 M3）
-          if (isFallbackOpen()) closeFallbackCopy();
-          else if (store.getState().lipidOpen) closeLipid(ctx, ev.target);
-          else if (store.getState().ccrOpen) closeCcr(ctx, ev.target);
-          else if (store.getState().chronicTopic) closeChronic(ctx, ev.target);
-          else if (store.getState().settingsOpen) store.setSettingsOpen(false);
+           入口鈕開的是 chronicLast（上次看的主題），不是固定 DM：使用者在同一診裡通常
+           反覆查同一個主題，每次都要多按一下分頁是純粹的損耗。 */
+        if (target.closest('#chronic-btn')) {
+          chooseChronic(ctx, store.getState().chronicLast, target);
           return;
         }
-      }
-      /* b.cart-code 是 role="button" 的自訂控制項，原生按鈕的 Enter／Space 要自己補，
-         否則鍵盤使用者聚焦得到卻按不動（v1 §3 的唯一破口）。Space 一定要 preventDefault，
-         不然清單區會跟著捲一頁。 */
-      const codeBtn = ev.target && ev.target.closest ? ev.target.closest('b.cart-code') : null;
-      if (codeBtn && (ev.key === 'Enter' || ev.key === ' ' || ev.key === 'Spacebar')) {
-        ev.preventDefault();
-        copyCartCode(codeBtn, ctx);
-        return;
-      }
-      if (ev.key === 'Escape') {
-        if (isFallbackOpen()) { closeFallbackCopy(); return; }
-        // 四個浮層互斥（開任一個會關掉其他三個），所以這裡的順序只是保險
-        if (store.getState().lipidOpen) { closeLipid(ctx, ev.target); return; }
-        if (store.getState().ccrOpen) { closeCcr(ctx, ev.target); return; }
-        if (store.getState().chronicTopic) { closeChronic(ctx, ev.target); return; }
-        if (store.getState().settingsOpen) store.setSettingsOpen(false);
-        return;
-      }
-      // 鍵盤換序（觸控裝置不觸發 HTML5 拖放，鍵盤使用者也需要換序手段；impl-plan R-5）
-      const li = ev.target && ev.target.closest ? ev.target.closest('#cart li[data-code]') : null;
-      if (li && ev.altKey && (ev.key === 'ArrowUp' || ev.key === 'ArrowDown')) {
-        ev.preventDefault();
-        const list = Array.from(li.parentNode.children);
-        const from = list.indexOf(li);
-        const to = from + (ev.key === 'ArrowUp' ? -1 : 1);
-        if (store.reorder(from, to)) {
-          const moved = document.querySelector('#cart li[data-code="' + li.dataset.code + '"]');
-          if (moved) moved.focus();
-          announce(li.dataset.code + ' 移到第 ' + (to + 1) + ' 位');
+        const chronicBtn = target.closest('[data-chronic]');
+        if (chronicBtn) { chooseChronic(ctx, chronicBtn.getAttribute('data-chronic'), chronicBtn); return; }
+
+        if (target.closest('#lipid-btn')) { openLipid(ctx, target); return; }
+        const lipidSexBtn = target.closest('.lipid-sex-btn');
+        if (lipidSexBtn) { chooseLipidSex(ctx, lipidSexBtn); return; }
+        if (target.closest('#lipid-close') || target.id === 'lipid-overlay') {
+          closeLipid(ctx, target); return;
         }
-      }
-    });
+        if (target.closest('#lipid-copy')) { copyLipid(ctx, target); return; }
+        if (target.closest('#lipid-reset')) { resetLipid(ctx, target); return; }
+        const ccrSexBtn = target.closest('.ccr-sex-btn');
+        if (ccrSexBtn) { chooseCcrSex(ctx, ccrSexBtn); return; }
+        if (target.closest('#ccr-close') || target.id === 'ccr-overlay') { closeCcr(ctx, target); return; }
+        if (target.closest('#ccr-copy')) { copyCcr(ctx, target); return; }
+        if (target.closest('#ccr-reset')) { resetCcr(ctx, target); return; }
+        if (target.closest('#ccr-btn')) { openCcr(ctx, target); return; }
+        if (target.closest('#chronic-close') || target.id === 'chronic-overlay') {
+          closeChronic(ctx, target);
+          return;
+        }
 
-    // ---- 拖曳換序（HTML5 DnD；桌機 1a 專用，觸控另有「主」鈕與 Alt+↑↓） ----
-    const indexOfRow = (li) => Array.prototype.indexOf.call(li.parentNode.children, li);
+        const chip = target.closest('.chip[data-code]');
+        if (chip) { activateChip(ctx, chip); return; }
 
-    document.addEventListener('dragstart', (ev) => {
-      const li = ev.target.closest ? ev.target.closest('#cart li[data-code]') : null;
-      if (!li) return;
-      dragCode = li.dataset.code;
-      li.classList.add('is-dragging');
-      if (ev.dataTransfer) {
-        ev.dataTransfer.effectAllowed = 'move';
-        ev.dataTransfer.setData('text/plain', dragCode);   // Firefox 需要有資料才會開始拖曳
-      }
-    });
+        /* header 的模式三鈕：要排在下方泛用 `.seg-btn` 那條之前——那條沒有「已是目前模式
+           就不動」的守門，也不播報。設定 popover 的 #seg-mode 仍走泛用那條。 */
+        const modeBtn = target.closest('#mode-switch [data-mode]');
+        if (modeBtn) { chooseMode(ctx, modeBtn.getAttribute('data-mode')); return; }
 
-    document.addEventListener('dragover', (ev) => {
-      const li = ev.target.closest ? ev.target.closest('#cart li[data-code]') : null;
-      if (!li || dragCode === null) return;
-      ev.preventDefault();
-      if (ev.dataTransfer) ev.dataTransfer.dropEffect = 'move';
-      for (const other of li.parentNode.children) other.classList.remove('is-over');
-      if (li.dataset.code !== dragCode) li.classList.add('is-over');
-    });
+        const region = target.closest('.region-btn');
+        if (region) {
+          store.toggleRegion(Number(region.dataset.regionIndex));
+          // 只播報取消：那是「全部按鈕都變成未選取」這個看不出來的狀態；選取本身有 aria-pressed 可讀
+          if (store.getState().region === null) announce('已取消部位篩選，顯示全部部位');
+          return;
+        }
 
-    document.addEventListener('drop', (ev) => {
-      const li = ev.target.closest ? ev.target.closest('#cart li[data-code]') : null;
-      if (!li || dragCode === null) return;
-      ev.preventDefault();
-      const from = store.getState().cart.findIndex((x) => x.code === dragCode);
-      const to = indexOfRow(li);
-      dragCode = null;
-      if (store.reorder(from, to)) announce('清單順序已更新，主診斷為 ' + store.getState().cart[0].code);
-    });
+        const panelToggle = target.closest('.panel-toggle');
+        if (panelToggle) { store.toggleExpanded(panelToggle.dataset.panelToggle); return; }
 
-    document.addEventListener('dragend', () => {
-      dragCode = null;
-      for (const li of document.querySelectorAll('#cart li')) li.classList.remove('is-dragging', 'is-over');
-    });
+        if (target.closest('#expand-all-panels')) { toggleAllPanels(ctx); return; }
+
+        const quickToggle = target.closest('.quick-toggle');
+        if (quickToggle) { store.toggleQuick(quickToggle.dataset.quickToggle); return; }
+
+        const cartCode = target.closest('b.cart-code');
+        if (cartCode) { copyCartCode(cartCode, ctx); return; }
+        const primary = target.closest('.cart-primary');
+        if (primary) {
+          const code = primary.closest('li').dataset.code;
+          store.setPrimary(code);
+          announce(code + ' 已設為主診斷'
+            + (data.isAdjunct(code) ? '；注意：這是附加碼，不可作為主診斷' : ''));
+          return;
+        }
+        const fav = target.closest('.cart-fav');
+        if (fav) {
+          const code = fav.closest('li').dataset.code;
+          announce((store.toggleFav(code) ? '已加入我的最愛：' : '已移出我的最愛：') + code);
+          return;
+        }
+        const remove = target.closest('.cart-remove');
+        if (remove) {
+          removeFromCart(ctx, remove.closest('li').dataset.code);
+          return;
+        }
+
+        /* 通知列的「復原」。排在泛用 `button` 那條之前——那條會先看到 id 不在白名單裡
+           就靜默 return，等於這顆鈕永遠按不動。 */
+        if (target.closest('#notice-undo')) { runUndo(); return; }
+
+        /* 搜尋的「返回」：認 class 不認 id，三套版面共用這一條（UX 稽核 U3）。
+           1c 那顆的 id 仍是 #dock-search-back（既有 E2E 靠它定位），但走的是同一個 handler。
+           焦點回搜尋框：按「返回」通常是要改關鍵字重搜，不是要離開搜尋。 */
+        if (target.closest('.search-back')) { leaveSearch(ctx, target, true); return; }
+
+        /* 1a 左欄的面板索引（UX 稽核 U8）。「捲到哪裡」只有渲染層算得出來（它握著中欄的
+           捲動容器與那一批面板），所以走 ctx.onPanelIndex——與 #cart-toggle 同一個作法。 */
+        const panelIndexItem = target.closest('.panel-index-item');
+        if (panelIndexItem) {
+          if (typeof ctx.onPanelIndex === 'function') ctx.onPanelIndex(panelIndexItem.dataset.panelIndex);
+          return;
+        }
+
+        /* 版面切換鈕（1a 的「側掛置頂」／1c 的「展開」）。走 ctx.switchLayout 而不是
+           store.setLayout：切到 dock 時還要接著開置頂小視窗，而那個 controller 只有
+           app.js 拿得到。1c 置頂時這份委派也綁在小視窗的文件上（bindDocument），它是那時唯一的回頭路。 */
+        const layoutGo = target.closest('[data-layout-go]');
+        if (layoutGo) { ctx.switchLayout(layoutGo.dataset.layoutGo); return; }
+
+        const seg = target.closest('.seg-btn');
+        if (seg) {
+          if (seg.dataset.mode) store.setMode(seg.dataset.mode);
+          else if (seg.dataset.format) chooseCopyFormat(ctx, seg.dataset.format);
+          return;
+        }
+
+        const btn = target.closest('button');
+        if (!btn) return;
+        if (btn.id === 'settings-toggle') { store.toggleSettings(); return; }
+        if (btn.id === 'theme-toggle') { store.toggleTheme(); return; }
+        if (btn.id === 'shelf-toggle') { store.toggleShelf(); return; }
+        if (btn.id === 'reset-panes') { resetPanes(ctx); return; }
+        if (btn.id === 'cart-toggle') { if (typeof ctx.onCartToggle === 'function') ctx.onCartToggle(); return; }
+        if (btn.id === 'clear-cart') {
+          clearCartWithUndo(ctx);
+          // 清空後這顆鈕被停用、焦點掉回 <body>；下一步通常是搜尋下一位病人的碼
+          const search = doc.getElementById('search');
+          if (search) search.focus({ preventScroll: true });
+          return;
+        }
+        if (btn.id === 'copy-date') { copyDate(); return; }
+        if (btn.id === 'fallback-close') { closeFallbackCopy(); return; }
+        // 全庫載入失敗後的重試入口（R2 I2）；ensureDb() 會回傳快取的失敗 Promise，只能走 retryDb()
+        if (btn.id === 'db-retry') { announce('正在重新載入全庫…'); data.retryDb(); return; }
+      });
+
+      // ---- 搜尋 ----
+      doc.addEventListener('input', (ev) => {
+        if (ev.target && ev.target.classList && ev.target.classList.contains('ccr-input')) {
+          recalcCcr(ctx, ev.target);
+          return;
+        }
+        if (ev.target && ev.target.classList && ev.target.classList.contains('lipid-input')) {
+          recalcLipid(ctx, ev.target);
+          return;
+        }
+        if (!ev.target || ev.target.id !== 'search') return;
+        const value = ev.target.value;
+        if (value.trim().length >= 2) data.ensureDb();     // 觸發全庫延遲載入
+        clearTimeout(searchDebounce);
+        searchDebounce = setTimeout(() => store.setQuery(value), SEARCH_DEBOUNCE);
+      });
+
+      /* 勾選變動走 change：checkbox 的正規事件是 change，input 在部分瀏覽器上不保證。 */
+      doc.addEventListener('change', (ev) => {
+        if (ev.target && ev.target.dataset && ev.target.dataset.lipidKey) {
+          recalcLipid(ctx, ev.target);
+        }
+      });
+
+      doc.addEventListener('keydown', (ev) => {
+        if (ev.isComposing || ev.keyCode === 229) return;
+        if (searchKeydown(ctx, ev, () => clearTimeout(searchDebounce))) return;
+        if (ev.target && ev.target.id === 'search') {
+          if (ev.key === 'Escape') {
+            // 與「返回」鈕完全同一條路（三版面共用 leaveSearch），title 上寫的 Esc 才算實現
+            leaveSearch(ctx, ev.target);
+            // Esc 在其他情境都會關掉開著的浮層，搜尋框裡也要一致（R2 M3）
+            if (isFallbackOpen()) closeFallbackCopy();
+            else if (store.getState().lipidOpen) closeLipid(ctx, ev.target);
+            else if (store.getState().ccrOpen) closeCcr(ctx, ev.target);
+            else if (store.getState().chronicTopic) closeChronic(ctx, ev.target);
+            else if (store.getState().settingsOpen) store.setSettingsOpen(false);
+            return;
+          }
+        }
+        /* b.cart-code 是 role="button" 的自訂控制項，原生按鈕的 Enter／Space 要自己補，
+           否則鍵盤使用者聚焦得到卻按不動（v1 §3 的唯一破口）。Space 一定要 preventDefault，
+           不然清單區會跟著捲一頁。 */
+        const codeBtn = ev.target && ev.target.closest ? ev.target.closest('b.cart-code') : null;
+        if (codeBtn && (ev.key === 'Enter' || ev.key === ' ' || ev.key === 'Spacebar')) {
+          ev.preventDefault();
+          copyCartCode(codeBtn, ctx);
+          return;
+        }
+        if (ev.key === 'Escape') {
+          if (isFallbackOpen()) { closeFallbackCopy(); return; }
+          // 四個浮層互斥（開任一個會關掉其他三個），所以這裡的順序只是保險
+          if (store.getState().lipidOpen) { closeLipid(ctx, ev.target); return; }
+          if (store.getState().ccrOpen) { closeCcr(ctx, ev.target); return; }
+          if (store.getState().chronicTopic) { closeChronic(ctx, ev.target); return; }
+          if (store.getState().settingsOpen) store.setSettingsOpen(false);
+          return;
+        }
+        // 鍵盤換序（觸控裝置不觸發 HTML5 拖放，鍵盤使用者也需要換序手段；impl-plan R-5）
+        const li = ev.target && ev.target.closest ? ev.target.closest('#cart li[data-code]') : null;
+        if (li && ev.altKey && (ev.key === 'ArrowUp' || ev.key === 'ArrowDown')) {
+          ev.preventDefault();
+          const list = Array.from(li.parentNode.children);
+          const from = list.indexOf(li);
+          const to = from + (ev.key === 'ArrowUp' ? -1 : 1);
+          if (store.reorder(from, to)) {
+            const moved = doc.querySelector('#cart li[data-code="' + li.dataset.code + '"]');
+            if (moved) moved.focus();
+            announce(li.dataset.code + ' 移到第 ' + (to + 1) + ' 位');
+          }
+        }
+      });
+
+      // ---- 拖曳換序（HTML5 DnD；桌機 1a 專用，觸控另有「主」鈕與 Alt+↑↓） ----
+      const indexOfRow = (li) => Array.prototype.indexOf.call(li.parentNode.children, li);
+
+      doc.addEventListener('dragstart', (ev) => {
+        const li = ev.target.closest ? ev.target.closest('#cart li[data-code]') : null;
+        if (!li) return;
+        dragCode = li.dataset.code;
+        li.classList.add('is-dragging');
+        if (ev.dataTransfer) {
+          ev.dataTransfer.effectAllowed = 'move';
+          ev.dataTransfer.setData('text/plain', dragCode);   // Firefox 需要有資料才會開始拖曳
+        }
+      });
+
+      doc.addEventListener('dragover', (ev) => {
+        const li = ev.target.closest ? ev.target.closest('#cart li[data-code]') : null;
+        if (!li || dragCode === null) return;
+        ev.preventDefault();
+        if (ev.dataTransfer) ev.dataTransfer.dropEffect = 'move';
+        for (const other of li.parentNode.children) other.classList.remove('is-over');
+        if (li.dataset.code !== dragCode) li.classList.add('is-over');
+      });
+
+      doc.addEventListener('drop', (ev) => {
+        const li = ev.target.closest ? ev.target.closest('#cart li[data-code]') : null;
+        if (!li || dragCode === null) return;
+        ev.preventDefault();
+        const from = store.getState().cart.findIndex((x) => x.code === dragCode);
+        const to = indexOfRow(li);
+        dragCode = null;
+        if (store.reorder(from, to)) announce('清單順序已更新，主診斷為 ' + store.getState().cart[0].code);
+      });
+
+      doc.addEventListener('dragend', () => {
+        dragCode = null;
+        for (const li of doc.querySelectorAll('#cart li')) li.classList.remove('is-dragging', 'is-over');
+      });
+    };
+    bindDocument(document);
   }
 
   /* 「全展開／全收合」：只動目前畫面上這一批（現在的模式＋部位），
@@ -951,15 +962,10 @@
   }
 
   root.ICDInteractions = {
-    wire, chooseCopyFormat, copyText, openFallbackCopy, closeFallbackCopy, isFallbackOpen, announce,
+    wire, bindDocument, chooseCopyFormat, copyText, openFallbackCopy, closeFallbackCopy, isFallbackOpen, announce,
     refreshFeedback, retryFailedCopy, finishManualCopy,
     activateChip, copyCartCode, setFeedbackDocument,
     leaveSearch, clipboardSyncInfo, resendCart, searchKeydown,
-    // 1c 置頂時 main document 的委派搆不到側欄，render-dock.js 要用同一份實作代打
-    removeFromCart, clearCartWithUndo, runUndo,
-    chooseMode, chooseAllRegions, resetPanes, chooseChronic, closeChronic,
-    toggleAllPanels, allPanelsExpanded,
-    openCcr, closeCcr, recalcCcr, chooseCcrSex, resetCcr, copyCcr,
-    openLipid, closeLipid, recalcLipid, chooseLipidSex, resetLipid, copyLipid,
+    allPanelsExpanded,
   };
 })(typeof self !== 'undefined' ? self : this);

@@ -26,11 +26,19 @@
     const body = overlay.querySelector('.vac-body');
     body.scrollTop = scrollTop;
     // 新版面的 body[data-layout] 要等 mount 完成才生效；用節點所屬視窗處理 PiP。
-    overlay.ownerDocument.defaultView.requestAnimationFrame(() => {
-      if (version !== restoreVersion || overlay !== activeOverlay || overlay.hidden || !overlay.isConnected) return;
-      body.scrollTop = scrollTop;
+    /* rAF 在沒有合成畫面時（分頁在背景、視窗最小化）完全不觸發，旗標會永遠卡在 true、
+       之後的捲動不再被記住。所以 rAF 與 setTimeout 併掛，先到者為準。 */
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      if (version !== restoreVersion) return;      // 已有較新的一次還原，旗標歸它管
+      if (overlay === activeOverlay && !overlay.hidden && overlay.isConnected) body.scrollTop = scrollTop;
       restoringScroll = false;
-    });
+    };
+    const view = overlay.ownerDocument.defaultView;
+    view.requestAnimationFrame(finish);
+    view.setTimeout(finish, 50);
   }
   root.addEventListener('resize', () => {
     // responsive 重建有 debounce；先擋住舊版面因 resize 歸零的 scroll 事件。

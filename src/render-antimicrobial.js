@@ -10,10 +10,17 @@
     restoringScroll = true;
     const version = ++restoreVersion, top = reading.scrollTop;
     const body = overlay.querySelector('.am-body'); body.scrollTop = top;
-    overlay.ownerDocument.defaultView.requestAnimationFrame(() => {
-      if (version !== restoreVersion || overlay !== activeOverlay || overlay.hidden || !overlay.isConnected) return;
-      body.scrollTop = top; restoringScroll = false;
-    });
+    // rAF 在沒有合成畫面時不觸發（旗標會卡在 true），與 setTimeout 併掛，先到者為準。
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      if (version !== restoreVersion) return;      // 已有較新的一次還原，旗標歸它管
+      if (overlay === activeOverlay && !overlay.hidden && overlay.isConnected) body.scrollTop = top;
+      restoringScroll = false;
+    };
+    const view = overlay.ownerDocument.defaultView;
+    view.requestAnimationFrame(finish); view.setTimeout(finish, 50);
   }
   root.addEventListener('resize', () => {
     if (activeOverlay && !activeOverlay.hidden && activeOverlay.ownerDocument === document) restoreScroll(activeOverlay);

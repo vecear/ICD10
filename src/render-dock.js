@@ -8,20 +8,18 @@
    2. 部位選擇是**兩欄 grid**（不可用下拉、不可橫向捲動），一眼全見。
    3. 多了「置頂」鈕：用 Document Picture-in-Picture 把整個側欄搬進永遠置頂的小視窗。
 
-   互動一律靠 interactions.js 的 document 事件委派，這裡不掛 closure handler——
-   **唯一真正的例外**是 `#pin-toggle`（1c 專屬控制項，interactions.js 不認識）。
+   互動一律靠 interactions.js 的 document 事件委派，這裡只掛 1c 專屬控制項的 handler：
+   `#pin-toggle`、`#dock-favorites-toggle`、`.dock-panel-head`（interactions.js 不認識）。
    `#cart-toggle`（切換清單面板）的事件委派已收斂進 interactions.js：那裡只認得「有人點了
    #cart-toggle」，實際要切換什麼由這裡把 `ctx.onCartToggle` 指到 `store.toggleCart()`
    （1c 用 store 的 cartOpen；1b 用版面本地的 sheetOpen，兩邊語意不同，見 render-mobile.js
-   檔頭註解）。這裡仍留了一小段本地判斷式，純粹是因為「側欄被搬進 PiP 視窗後」main document
-   的委派搆不到那棵 DOM——那段期間 `#pin-toggle`／`#cart-toggle`／其餘一切互動都要靠這裡的
-   本地監聽代打（見 pipDelegate 的註解），與是否併入 interactions.js 無關。 */
+   檔頭註解）。側欄被搬進 PiP 視窗後，openPip() 呼叫 ICDInteractions.bindDocument() 把
+   同一份委派綁到小視窗的文件上——以前這裡抄了一份白名單式代打，新控制項漏登記就只在
+   置頂時靜默失效（慢病入口、「展開」、血脂試算都漏過）。 */
 (function (root) {
   'use strict';
 
   const R = root.ICDRender;
-
-  const SEARCH_DEBOUNCE = 150;          // 與 interactions.js 同值
 
   /* 置頂小視窗的預設請求尺寸。寬度 200px 剛好落在兩欄門檻（327px）的錯誤那一側：
      部位 grid 與面板列都只排得出一欄，一屏可見代碼 17 個。改成 340px 之後同一屏
@@ -207,12 +205,9 @@
        部位列是 role="group"，清單是其後的一般區塊。 */
     const body = R.el('main', 'dock-scroll');
     // 只記本次開啟的瀏覽位置；搜尋結果與每個模式／部位分開，不寫 localStorage。
-    const positions = new Map();
+    const memory = R.scrollMemory();
     const panelViews = [];
     let renderedPanelKey = null;
-    let viewKey = null;
-    let searching = false;
-    let lastQuery = '';
     body.appendChild(R.srHeading(2, '診斷碼選擇'));
     /* 1c 沒有可見的模式標題（1a 的 #panels-title），面板名也只是 <span>。補一個 sr-only
        的 H3 銜接 H2 與 .region-heading，內容與 1a 同源於 R.PANELS_TITLE，由 U.header 更新。 */
@@ -327,10 +322,14 @@
     host.appendChild(dock);
 
     // 依實際字型與欄寬決定跨欄；長名稱換行，不再靠省略號隱藏條件。
+    /* 先全部量完、最後一次寫入：邊量邊寫 class，下一顆的 getBoundingClientRect 就得強制重排，
+       全展開 1,911 顆時這段 353 ms → 63 ms，逐顆判定結果相同（同一組 rows 的欄寬由 grid 決定，
+       不受同組 chip 跨欄影響）。 */
     const measure = document.createElement('canvas').getContext('2d');
     function fitDockRows() {
       if (!measure || !dock.isConnected) return;
       const view = dock.ownerDocument.defaultView;
+      const results = [];
       for (const rows of dock.querySelectorAll('.dock-panel-rows')) {
         if (!rows.getClientRects().length) continue;
         const columns = view.getComputedStyle(rows).gridTemplateColumns.split(' ');
@@ -343,9 +342,10 @@
           const extras = Array.from(chip.children).filter(el => el !== label)
             .reduce((sum, el) => sum + el.getBoundingClientRect().width + 5, 0);
           const needed = measure.measureText(label.textContent).width + spacing * label.textContent.length + extras + 22;
-          chip.classList.toggle('dock-chip-wide', columns.length > 1 && needed > width);
+          results.push([chip, columns.length > 1 && needed > width]);
         }
       }
+      for (const [chip, wide] of results) chip.classList.toggle('dock-chip-wide', wide);
     }
     let fittedWidth = 0;
     const fitObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(() => {
@@ -428,19 +428,6 @@
         const node = document.getElementById(id);
         if (node) doc.body.appendChild(node.cloneNode(true));
       }
-    }
-
-    // PiP 文件的 Esc 與搜尋捷徑；手動複製按鈕的事件隨節點一起移動。
-    function onPipDocKeyDown(ev) {
-      if (ev.isComposing || ev.keyCode === 229 || ev.defaultPrevented) return;
-      if (root.ICDInteractions.searchKeydown(ctx, ev, () => clearTimeout(searchTimer))) return;
-      if (ev.key !== 'Escape') return;
-      if (root.ICDInteractions.isFallbackOpen()) { root.ICDInteractions.closeFallbackCopy(); return; }
-      // 順序與 interactions.js 的 Esc 鏈一致：最上層的浮層先關
-      if (ctx.store.getState().lipidOpen) { root.ICDInteractions.closeLipid(ctx, ev.target); return; }
-      if (ctx.store.getState().ccrOpen) { root.ICDInteractions.closeCcr(ctx, ev.target); return; }
-      if (ctx.store.getState().chronicTopic) { root.ICDInteractions.closeChronic(ctx, ev.target); return; }
-      if (ctx.store.getState().settingsOpen) ctx.store.setSettingsOpen(false);
     }
 
     function restoreFromPip() {
@@ -530,7 +517,8 @@
         w.document.body.appendChild(dock);
         body.scrollTop = scrollTop; // adopt 到另一份文件會歸零；在 store 更新前還原
         host.appendChild(refs.placeholder);
-        w.document.addEventListener('keydown', onPipDocKeyDown);
+        // 主文件的委派搆不到小視窗這棵 DOM：把同一份委派綁到小視窗的文件上
+        root.ICDInteractions.bindDocument(w.document);
         root.ICDInteractions.setFeedbackDocument(w.document);
         w.addEventListener('pagehide', restoreFromPip);
         // 小視窗自己的縮放不會經過主視窗；窗格高度要跟著重新夾（ResizeObserver 跨文件時
@@ -558,154 +546,8 @@
     // #cart-toggle 的委派已收斂進 interactions.js；1c 這邊的語意就是單純切換 store.cartOpen
     ctx.onCartToggle = () => { ctx.store.toggleCart(); };
 
-    // ── 事件：1c 專屬控制項 ＋ PiP 期間的委派備援 ───────────────────────
-    /* interactions.js 的委派掛在**主文件的 document** 上。側欄被搬進 PiP 視窗後就
-       不在那棵樹裡了，所有點擊都不會被處理——所以掛在側欄根節點上的這組 handler
-       （跟著節點一起被 adopt 過去）在那段期間頂替。判斷條件是
-       `dock.ownerDocument !== document`：在主視窗時直接讓路，不會重複處理。
-       行為對齊 interactions.js；若那邊改了規則，這裡要跟著改。 */
-    let searchTimer = null;
-    let copiedTimer = null;
-
-    const announce = (msg) => root.ICDInteractions.announce(msg);
-    // 加碼規則（葉碼防線、白名單未就緒的訊息、附加碼提醒）一律共用 interactions.js 的
-    // 同一份實作，這裡不再抄一份——抄的那份正是 R2 M1／I3 兩條缺陷的來源。
-    const addFromChip = (chip) => root.ICDInteractions.activateChip(ctx, chip);
-
-    /* 清空搜尋的規則共用 interactions.js 的 leaveSearch（三套版面同一份）；這裡只多清
-       **本檔自己的** debounce——PiP 期間打字走的是下面 dock.addEventListener('input')
-       那條，主文件的 handle 清不到它，尚未送出的字會在返回後又把搜尋打開一次。 */
-    function leaveSearch() {
-      clearTimeout(searchTimer);
-      root.ICDInteractions.leaveSearch(ctx, refs.search);
-    }
-
-    /* 置頂進 PiP 小視窗後，主文件的委派搆不到那棵 DOM，這裡代打。
-       規則與 interactions.js 同源，只是那邊的 copyText 要用在這個文件上。 */
-    function copyDate() {
-      const text = root.ICDClipboard.format('date', new Date(), ctx.store.getState().clipboardFormats);
-      root.ICDInteractions.copyText(text, false, '日期').then((ok) => {
-        if (ok) announce('已複製日期 ' + text);
-      });
-    }
-
-    function pipDelegate(target) {
-      const store = ctx.store;
-      if (target.closest('#clipboard-sync')) { root.ICDInteractions.resendCart(ctx); return; }
-      if (store.getState().settingsOpen
-        && !target.closest('#settings-popover') && !target.closest('#settings-toggle')) {
-        store.setSettingsOpen(false);
-      }
-      /* 慢病速查：入口鈕、浮層內分頁與關閉（關閉鈕／點面板外）。規則同樣共用
-         interactions.js，這裡只是 PiP 期間的轉送。要排在泛用 `button` 那條之前。 */
-      /* CCr 的性別鈕帶著 .seg-btn 類名，一定要排在下方泛用 `.seg-btn` 分支之前，
-         否則會被它攔下（那條只認 data-mode／format／layoutOpt，結果是空轉）。 */
-      const ccrSexBtn = target.closest('.ccr-sex-btn');
-      if (ccrSexBtn) { root.ICDInteractions.chooseCcrSex(ctx, ccrSexBtn); return; }
-      if (target.closest('#ccr-close') || target.id === 'ccr-overlay') {
-        root.ICDInteractions.closeCcr(ctx, target);
-        return;
-      }
-      if (target.closest('#ccr-copy')) { root.ICDInteractions.copyCcr(ctx, target); return; }
-      if (target.closest('#ccr-reset')) { root.ICDInteractions.resetCcr(ctx, target); return; }
-      if (target.closest('#ccr-btn')) { root.ICDInteractions.openCcr(ctx, target); return; }
-
-      /* 血脂給付試算。同 CCr：性別鈕帶 .seg-btn 類名，必須排在下方泛用 .seg-btn 分支之前，
-         否則會被那條攔下（它只認 data-mode／format／layoutOpt，結果是空轉）。
-         入口鈕另要排在 [data-chronic] 之前——它就掛在慢病速查那一排裡面。 */
-      const lipidSexBtn = target.closest('.lipid-sex-btn');
-      if (lipidSexBtn) { root.ICDInteractions.chooseLipidSex(ctx, lipidSexBtn); return; }
-      if (target.closest('#lipid-close') || target.id === 'lipid-overlay') {
-        root.ICDInteractions.closeLipid(ctx, target);
-        return;
-      }
-      if (target.closest('#lipid-copy')) { root.ICDInteractions.copyLipid(ctx, target); return; }
-      if (target.closest('#lipid-reset')) { root.ICDInteractions.resetLipid(ctx, target); return; }
-      if (target.closest('#lipid-btn')) { root.ICDInteractions.openLipid(ctx, target); return; }
-
-      /* 入口鈕沒有 data-chronic（它開的是 chronicLast，不是固定主題），所以要自己一條。
-         漏了這條的症狀是「一般視窗正常、一置頂就點了沒反應」——而診間用的正是置頂模式。 */
-      if (target.closest('#chronic-btn')) {
-        root.ICDInteractions.chooseChronic(ctx, store.getState().chronicLast, target);
-        return;
-      }
-      const chronicBtn = target.closest('[data-chronic]');
-      if (chronicBtn) {
-        root.ICDInteractions.chooseChronic(ctx, chronicBtn.getAttribute('data-chronic'), chronicBtn);
-        return;
-      }
-      if (target.closest('#chronic-close') || target.id === 'chronic-overlay') {
-        root.ICDInteractions.closeChronic(ctx, target);
-        return;
-      }
-      const chip = target.closest('.chip[data-code]');
-      if (chip) { addFromChip(chip); return; }
-      /* 模式三鈕／「全部」鈕：規則共用 interactions.js 的同一份實作，這裡只負責在
-         主文件委派搆不到時把事件轉過去。模式鈕要排在下方泛用 `.seg-btn` 那條之前。 */
-      const modeBtn = target.closest('#mode-switch [data-mode]');
-      if (modeBtn) { root.ICDInteractions.chooseMode(ctx, modeBtn.getAttribute('data-mode')); return; }
-      const region = target.closest('.region-btn');
-      if (region) {
-        store.toggleRegion(Number(region.dataset.regionIndex));
-        if (store.getState().region === null) announce('已取消部位篩選，顯示全部部位');
-        return;
-      }
-      const panelToggle = target.closest('.panel-toggle');
-      if (panelToggle) { store.toggleExpanded(panelToggle.dataset.panelToggle); return; }
-      if (target.closest('#expand-all-panels')) {
-        root.ICDInteractions.toggleAllPanels(ctx);
-        return;
-      }
-
-      const cartCode = target.closest('b.cart-code');
-      if (cartCode) { root.ICDInteractions.copyCartCode(cartCode, ctx); return; }
-      const primary = target.closest('.cart-primary');
-      if (primary) {
-        const code = primary.closest('li').dataset.code;
-        store.setPrimary(code);
-        announce(code + ' 已設為主診斷'
-          + (ctx.data.isAdjunct(code) ? '；注意：這是附加碼，不可作為主診斷' : ''));
-        return;
-      }
-      const fav = target.closest('.cart-fav');
-      if (fav) {
-        const code = fav.closest('li').dataset.code;
-        announce((store.toggleFav(code) ? '已加入我的最愛：' : '已移出我的最愛：') + code);
-        return;
-      }
-      const remove = target.closest('.cart-remove');
-      if (remove) {
-        root.ICDInteractions.removeFromCart(ctx, remove.closest('li').dataset.code);
-        return;
-      }
-      // 通知列的「復原」也在側欄清單區，置頂時同樣搆不到主文件
-      if (target.closest('#notice-undo')) { root.ICDInteractions.runUndo(); return; }
-      // 「返回」同理：主文件走 interactions.js 的 `.search-back` 委派，這裡只在 PiP 代打
-      if (target.closest('.search-back')) {
-        leaveSearch();
-        refs.search.focus({ preventScroll: true });
-        return;
-      }
-      /* 「展開」一定要登記在這份白名單裡：置頂時整條窄欄在 PiP 小視窗那個**另一個
-         文件**，主文件的委派完全搆不到，漏掉的症狀是「按了沒反應」而且只在置頂時
-         發生——血脂試算就是這樣漏掉過一次。而它偏偏是置頂狀態下唯一的回頭路。 */
-      const layoutGo = target.closest('[data-layout-go]');
-      if (layoutGo) { ctx.switchLayout(layoutGo.dataset.layoutGo); return; }
-      const seg = target.closest('.seg-btn');
-      if (seg) {
-        if (seg.dataset.mode) store.setMode(seg.dataset.mode);
-        else if (seg.dataset.format) root.ICDInteractions.chooseCopyFormat(ctx, seg.dataset.format);
-        return;
-      }
-      const btn = target.closest('button');
-      if (!btn) return;
-      if (btn.id === 'settings-toggle') store.toggleSettings();
-      else if (btn.id === 'theme-toggle') store.toggleTheme();
-      else if (btn.id === 'reset-panes') root.ICDInteractions.resetPanes(ctx);
-      else if (btn.id === 'clear-cart') root.ICDInteractions.clearCartWithUndo(ctx);
-      else if (btn.id === 'copy-date') copyDate();
-      else if (btn.id === 'db-retry') { announce('正在重新載入全庫…'); ctx.data.retryDb(); }
-    }
+    // ── 事件：1c 專屬控制項（其餘一律走 interactions.js 的委派，置頂時也是） ──
+    const leaveSearch = () => root.ICDInteractions.leaveSearch(ctx, refs.search);
 
     dock.addEventListener('click', (ev) => {
       const target = ev.target;
@@ -725,63 +567,8 @@
       if (panelHead && !target.closest('.panel-toggle')) {
         const toggle = panelHead.querySelector('.panel-toggle');
         if (toggle) ctx.store.toggleExpanded(toggle.dataset.panelToggle);
-        return;
       }
-      // 主文件：#cart-toggle 交給 interactions.js 的委派（會呼叫上面設好的 ctx.onCartToggle），
-      // 這裡讓路，不重複處理；其餘一切也一併讓路。
-      if (dock.ownerDocument === document) return;
-      // PiP 視窗：main document 的委派搆不到這棵 DOM，#cart-toggle 也要在這裡代打，
-      // 呼叫同一個 ctx.onCartToggle 維持行為一致。
-      if (target.closest('#cart-toggle')) { ctx.onCartToggle(); return; }
-      pipDelegate(target);
-    });
-
-    dock.addEventListener('input', (ev) => {
-      if (dock.ownerDocument === document) return;
-      // CCr 的輸入同樣要代打，否則置頂時打字不會重算
-      if (ev.target && ev.target.classList && ev.target.classList.contains('ccr-input')) {
-        root.ICDInteractions.recalcCcr(ctx, ev.target);
-        return;
-      }
-      if (ev.target && ev.target.classList && ev.target.classList.contains('lipid-input')) {
-        root.ICDInteractions.recalcLipid(ctx, ev.target);
-        return;
-      }
-      if (!ev.target || ev.target.id !== 'search') return;
-      const value = ev.target.value;
-      if (value.trim().length >= 2) ctx.data.ensureDb();
-      clearTimeout(searchTimer);
-      searchTimer = setTimeout(() => ctx.store.setQuery(value), SEARCH_DEBOUNCE);
-    });
-
-    /* 勾選的正規事件是 change，上面的 click／input 兩條都接不到。
-       PiP 期間漏了這條，血脂試算勾了病史不會重算。 */
-    dock.addEventListener('change', (ev) => {
-      if (dock.ownerDocument === document) return;
-      if (ev.target && ev.target.dataset && ev.target.dataset.lipidKey) {
-        root.ICDInteractions.recalcLipid(ctx, ev.target);
-      }
-    });
-
-    dock.addEventListener('keydown', (ev) => {
-      if (dock.ownerDocument === document) return;
-      if (ev.isComposing || ev.keyCode === 229) return;
-      if (root.ICDInteractions.searchKeydown(ctx, ev, () => clearTimeout(searchTimer))) return;
-      /* PiP 期間主文件的委派搆不到這棵 DOM，b.cart-code 的鍵盤觸發也要在這裡代打，
-         規則與 interactions.js 同一份（Enter／Space，Space 要擋掉捲頁）。 */
-      const codeBtn = ev.target && ev.target.closest ? ev.target.closest('b.cart-code') : null;
-      if (codeBtn && (ev.key === 'Enter' || ev.key === ' ' || ev.key === 'Spacebar')) {
-        ev.preventDefault();
-        root.ICDInteractions.copyCartCode(codeBtn, ctx);
-        return;
-      }
-      if (!ev.target || ev.target.id !== 'search') return;
-      if (ev.key === 'Escape') {
-        ev.target.value = '';
-        clearTimeout(searchTimer);
-        ctx.store.setQuery('');
-        return;                       // 浮層由 onPipDocKeyDown 一併關掉（R2 M3）
-      }
+      // 其餘（含 #cart-toggle）交給 interactions.js 的委派；置頂時它也綁在小視窗的文件上。
     });
 
     // ── 更新器 ──────────────────────────────────────────────────────────
@@ -944,7 +731,6 @@
 
     U.settings = () => R.syncSettings(dock, ctx);
 
-    /* PiP 小視窗裡主文件的委派搆不到，這裡代打（與 chip／模式鈕同一條路）。 */
     U.ccr = () => R.syncCcr(dock, ctx);
     U.lipid = () => R.syncLipid(dock, ctx);
     U.vac = () => R.syncVac(dock, ctx);
@@ -983,18 +769,10 @@
        成功就直接 return，舊 controller 根本收不到 update(['layout'])（R2 C1）。 */
     function update(changed) {
       const state = ctx.store.getState();
-      const key = state.mode + ':' + state.region + (favoritesOpen ? ':favorites' : '');
-      const query = state.query.trim();
-      const nextSearching = query.length >= 2;
-      const navigated = key !== viewKey;
-      const oldTop = body.scrollTop;
-      if (viewKey !== null && !searching) positions.set(viewKey, oldTop);
-      let names = ALL;
-      if (changed && changed.length) {
-        const set = new Set();
-        for (const key of changed) for (const name of DEPS[key] || ALL) set.add(name);
-        names = ALL.filter((n) => set.has(n));
-      }
+      const view = memory.before(state.mode + ':' + state.region + (favoritesOpen ? ':favorites' : ''),
+        state.query, body);
+      const nextSearching = view.searching;
+      const names = R.namesFor(changed, DEPS, ALL);
       for (const name of names) U[name]();
       if (names.some((name) => ['panels', 'results', 'cart', 'favorites'].includes(name))) syncSelected();
       refs.panels.hidden = nextSearching || favoritesOpen;
@@ -1007,24 +785,15 @@
       /* 窗格高度不進 DEPS，一律在每次重繪後重跑：內容變了（換模式部位變多、
          清單展開）原本合法的高度就可能超出可用空間，得當場重新夾一次。成本是量三個元素。 */
       refs.paneGroup.applyAll();
-      if (nextSearching) {
-        body.scrollTop = (!searching || query !== lastQuery || navigated) ? 0 : oldTop;
-      } else if (searching || navigated) {
-        body.scrollTop = positions.get(key) || 0;
-      } else {
-        body.scrollTop = oldTop;
-      }
+      memory.after(body);      // 捲動三分支見 render-common.js 的 scrollMemory
       // 下方建議／清單出現後，仍讓剛點的碼留在可視區，方便接著選附近的碼。
       const focused = dock.ownerDocument.activeElement;
-      if (!navigated && searching === nextSearching && changed && changed.includes('cart')
+      if (!view.navigated && view.wasSearching === nextSearching && changed && changed.includes('cart')
         && focused && focused.matches('.chip') && body.contains(focused)) {
         const area = body.getBoundingClientRect();
         const row = focused.getBoundingClientRect();
         if (row.bottom > area.bottom - 6) body.scrollTop += row.bottom - area.bottom + 6;
       }
-      viewKey = key;
-      searching = nextSearching;
-      lastQuery = query;
     }
 
     /* openPip 對外開放：1a 的「側掛置頂」要在同一次點擊裡換版面**再**開小視窗，

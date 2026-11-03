@@ -87,7 +87,10 @@
            急診紅旗並能把 A41.9 敗血症加進清單，直接繞過紅旗隔離這條安全不變量。
            teardown 只在真的有東西要收（PiP 開著）時才做事，正常切版面不會多一次重繪。 */
         if (current && current.controller && typeof current.controller.teardown === 'function') {
-          try { current.controller.teardown(); } catch (e) { /* 收尾失敗不得擋住換版面 */ }
+          try { current.controller.teardown(); } catch (e) {
+            // 收尾失敗不得擋住換版面；但要留痕跡：PiP 視窗或 ResizeObserver 可能沒收乾淨
+            console.warn('teardown 失敗', e);
+          }
         }
         window.ICDRender.clear(host);
         current = { layout, controller: rendererFor(layout).mount(host, ctx) };
