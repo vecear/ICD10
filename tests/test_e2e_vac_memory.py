@@ -2,6 +2,7 @@
 import pytest
 from playwright.sync_api import expect
 
+import e2e_common as ec
 from test_e2e_vaccine import browser, open_app
 
 # 捲動量要小於 1c 340×900 下 .vac-body 的最大可捲高度（2026-11-03 關閉鈕統一成 22px 後只剩 16px）；
@@ -16,7 +17,7 @@ def prepare_reading(page):
     page.locator('#vac-search').fill('肺炎')
     page.locator('[data-vac-question="pneumococcal"] > summary').click()
     page.locator('.vac-body').evaluate('(e, t) => e.scrollTop = t', READ_TOP)
-    page.wait_for_timeout(80)
+    ec.next_frames(page)    # scroll 事件在下一個影格送出，捲動位置才會被記住
     assert page.locator('.vac-body').evaluate('(e) => e.scrollTop') == READ_TOP
 
 
@@ -80,7 +81,7 @@ def test_reading_survives_real_pip_move_and_return(browser):
     pip.locator('#vac-btn').click()
     assert_reading(pip)
     pip.locator('.vac-body').evaluate('(e, t) => e.scrollTop = t', READ_TOP)
-    pip.wait_for_timeout(80)
+    ec.next_frames(pip)
     pip.keyboard.press('Escape')
     pip.close()
     page.locator('#vac-btn').click()
@@ -117,9 +118,9 @@ def test_scroll_memory_survives_when_animation_frames_never_fire(browser):
     page.evaluate("window.requestAnimationFrame = () => 0")
     page.evaluate("window.ICDApp.store.setLayout('dock')")
     assert_reading(page)
-    page.wait_for_timeout(150)
+    page.wait_for_timeout(150)  # 刻意：rAF 已停用，等 render-vaccine 的 50ms setTimeout 後備跑完
     page.locator('.vac-body').evaluate('(e) => e.scrollTop = 5')
-    page.wait_for_timeout(80)
+    ec.next_frames(page)    # rAF 停用時 next_frames 退回 100ms setTimeout，同樣讓 scroll 事件送出
     page.evaluate("window.ICDApp.store.setLayout('wide')")
     expect(page.locator('body')).to_have_attribute('data-layout', 'wide')
     page.wait_for_function("Math.abs(document.querySelector('.vac-body').scrollTop - 5) < 2", timeout=3000)

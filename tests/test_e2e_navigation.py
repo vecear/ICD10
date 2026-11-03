@@ -18,7 +18,9 @@ import re
 from pathlib import Path
 
 import pytest
-from playwright.sync_api import expect, sync_playwright
+from playwright.sync_api import expect
+
+import e2e_common as ec
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -54,14 +56,6 @@ BASELINE = {
 }
 
 
-@pytest.fixture(scope="module")
-def browser():
-    with sync_playwright() as p:
-        instance = p.chromium.launch()
-        yield instance
-        instance.close()
-
-
 def _open(browser, spec):
     ctx = browser.new_context(
         viewport=dict(spec["viewport"]),
@@ -70,10 +64,11 @@ def _open(browser, spec):
         permissions=["clipboard-read", "clipboard-write"],
     )
     pg = ctx.new_page()
+    pg.clock.install()      # 只為了能快轉通知列的逾時；時間照常流動
     pg.goto((ROOT / "dist" / "icd10.html").as_uri())
     pg.wait_for_selector('body[data-ready="1"]', timeout=8000)
     pg.evaluate(f"() => window.ICDApp.store.setLayout('{spec['prefer']}')")
-    pg.evaluate("() => window.ICDApp.data.ensureDb()")
+    pg.evaluate("() => window.ICDApp.data.ensureDb().then(() => null)")
     pg.wait_for_selector('body[data-db="ready"]', timeout=30000)
     return ctx, pg
 
@@ -236,7 +231,18 @@ def test_clicking_a_panel_index_item_scrolls_that_panel_under_the_sticky_head(pa
     """點了要**捲到**，而不是只有標亮。offset 用實際量到的黏頭高度算，不寫死。"""
     pg = pages("wide")
     reset(pg)
-    fourth = pg.locator("#panel-index .panel-index-item").nth(3)
+    # 用面板名定位，不用 .nth(3)：挑第一張「標題在可視區下方」的面板＝一定要捲動才看得到。
+    target = pg.evaluate("""() => {
+        const bottom = document.querySelector('.worksheet').getBoundingClientRect().bottom;
+        for (const item of document.querySelectorAll('#panel-index .panel-index-item')) {
+            const name = item.dataset.panelIndex;
+            const card = document.querySelector(`#panels [data-panel="${name}"], #panels [data-quick="${name}"]`);
+            if (card && card.getBoundingClientRect().top > bottom) return name;
+        }
+        return null;
+    }""")
+    assert target, "找不到在可視區下方的面板，這條測不到「點了會捲過去」"
+    fourth = pg.locator(f'#panel-index .panel-index-item[data-panel-index="{target}"]')
     name = fourth.get_attribute("data-panel-index")
     fourth.click()
     gap = pg.evaluate("""(name) => {
@@ -388,7 +394,7 @@ def test_clipboard_sync_says_未同步_and_stays_when_the_clipboard_refuses(page
         expect(mark).to_have_text("未同步・重送")
         assert "is-stale" in (mark.get_attribute("class") or ""), mark.get_attribute("class")
         # 不自動消失：通知列的 2.5 秒逾時過了，它還在
-        pg.wait_for_timeout(2800)
+        pg.clock.run_for(2800)
         expect(mark).to_have_text("未同步・重送")
     finally:
         pg.evaluate("""() => {

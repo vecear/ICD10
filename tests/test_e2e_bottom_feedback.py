@@ -1,16 +1,9 @@
 """底部回饋不遮擋選碼；複製失敗由使用者展開處理。"""
 from pathlib import Path
 import pytest
-from playwright.sync_api import sync_playwright, expect
+from playwright.sync_api import expect
 
 URL = (Path(__file__).resolve().parents[1] / 'dist/icd10.html').as_uri()
-
-@pytest.fixture(scope='module')
-def browser():
-    with sync_playwright() as p:
-        b = p.chromium.launch()
-        yield b
-        b.close()
 
 def open_page(browser, width=340, layout='dock'):
     page = browser.new_page(viewport={'width':width,'height':900})

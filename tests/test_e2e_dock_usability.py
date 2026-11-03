@@ -1,17 +1,11 @@
 """本次窄欄工作流程：鍵盤、全文辨識、個人常用與剪貼簿重送。"""
 from pathlib import Path
 import pytest
-from playwright.sync_api import sync_playwright, expect
+from playwright.sync_api import expect
+
+import e2e_common as ec
 
 URL = (Path(__file__).resolve().parents[1] / 'dist/icd10.html').as_uri()
-
-
-@pytest.fixture(scope='module')
-def browser():
-    with sync_playwright() as p:
-        b = p.chromium.launch()
-        yield b
-        b.close()
 
 
 def open_page(browser, width=340, layout='dock'):
@@ -23,7 +17,7 @@ def open_page(browser, width=340, layout='dock'):
       value: { writeText: async text => { window.writes.push(text); } } });""")
     page.goto(URL)
     page.wait_for_selector('body[data-ready="1"]')
-    page.evaluate('ICDApp.data.ensureDb()')
+    page.evaluate('ICDApp.data.ensureDb().then(() => null)')
     return page
 
 
@@ -74,7 +68,7 @@ def test_copy_date_marks_other_content_and_resends_entire_cart(browser):
 def test_dock_names_are_complete_and_short_rows_stay_dense(browser, width):
     page = open_page(browser, width)
     page.evaluate("document.documentElement.style.setProperty('--dock-w', '565px')")
-    page.wait_for_timeout(150)
+    ec.next_frames(page)
     clipped = page.locator('#dock-panels .chip-zh').evaluate_all('es => es.filter(e=>e.scrollWidth>e.clientWidth+1).map(e=>e.textContent)')
     assert clipped == [], clipped
     assert page.locator('body').evaluate('(e)=>e.scrollWidth<=innerWidth')

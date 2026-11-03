@@ -8,7 +8,7 @@
 from pathlib import Path
 
 import pytest
-from playwright.sync_api import expect, sync_playwright
+from playwright.sync_api import expect
 
 ROOT = Path(__file__).resolve().parent.parent
 LAYOUTS = {
@@ -25,14 +25,6 @@ ACTIVE = """() => { const e = document.activeElement;
            first: li ? li === li.parentNode.firstElementChild : null }; }"""
 
 
-@pytest.fixture(scope="module")
-def browser():
-    with sync_playwright() as p:
-        b = p.chromium.launch()
-        yield b
-        b.close()
-
-
 @pytest.fixture(params=sorted(LAYOUTS))
 def page(browser, request):
     viewport, pref = LAYOUTS[request.param]
@@ -42,7 +34,7 @@ def page(browser, request):
     pg.goto((ROOT / "dist" / "icd10.html").as_uri())
     pg.wait_for_selector('body[data-ready="1"]', timeout=8000)
     expect(pg.locator("body")).to_have_attribute("data-layout", request.param)
-    pg.evaluate("() => window.ICDApp.data.ensureDb()")
+    pg.evaluate("() => window.ICDApp.data.ensureDb().then(() => null)")
     pg.wait_for_selector('body[data-db="ready"]', timeout=30000)
     yield pg
     ctx.close()
@@ -62,8 +54,7 @@ def show_cart(page):
 def test_enter_on_region_keeps_focus_on_that_button(page):
     btn = page.locator('.region-btn[data-region-index="2"]')
     btn.focus()
-    page.keyboard.press("Enter")
-    page.wait_for_timeout(200)
+    page.keyboard.press("Enter")             # 委派處理器同步重繪並移焦點，不必等
     assert page.evaluate("() => window.ICDApp.store.getState().region") == 2
     a = active(page)
     assert a["tag"] != "BODY", "選部位之後焦點掉回 <body>"
@@ -75,8 +66,7 @@ def test_enter_on_primary_follows_the_row_to_the_top(page):
         page.evaluate("(c) => window.ICDApp.store.addCode(c, window.ICDApp.data.labelOf(c) || c)", code)
     show_cart(page)
     page.locator('#cart li[data-code="E78.5"] .cart-primary').focus()
-    page.keyboard.press("Enter")
-    page.wait_for_timeout(200)
+    page.keyboard.press("Enter")             # 委派處理器同步重繪並移焦點，不必等
     assert page.evaluate("() => window.ICDApp.store.getState().cart[0].code") == "E78.5"
     a = active(page)
     assert a["tag"] != "BODY", "設主之後焦點掉回 <body>"
@@ -87,7 +77,6 @@ def test_enter_on_clear_moves_focus_to_search(page):
     page.evaluate("() => window.ICDApp.store.addCode('I10', window.ICDApp.data.labelOf('I10') || 'I10')")
     show_cart(page)
     page.locator("#clear-cart").focus()
-    page.keyboard.press("Enter")
-    page.wait_for_timeout(200)
+    page.keyboard.press("Enter")             # 委派處理器同步重繪並移焦點，不必等
     assert page.evaluate("() => window.ICDApp.store.getState().cart.length") == 0
     assert active(page)["id"] == "search", active(page)

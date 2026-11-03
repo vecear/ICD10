@@ -2,18 +2,10 @@
 from pathlib import Path
 
 import pytest
-from playwright.sync_api import expect, sync_playwright
+from playwright.sync_api import expect
 
 
 URL = (Path(__file__).resolve().parents[1] / 'dist/icd10.html').as_uri()
-
-
-@pytest.fixture(scope='module')
-def browser():
-    with sync_playwright() as p:
-        instance = p.chromium.launch()
-        yield instance
-        instance.close()
 
 
 @pytest.fixture
@@ -53,7 +45,7 @@ def test_favorite_name_updates_when_full_database_finishes_loading(page):
     favorite = page.locator('#dock-favorites [data-favorite-row="A00.0"] .chip-zh')
     expect(favorite).to_have_text('')
 
-    page.evaluate('ICDApp.data.ensureDb()')
+    page.evaluate('ICDApp.data.ensureDb().then(() => null)')
     assert page.evaluate('ICDApp.data.isReady()') is True
     label = page.evaluate('ICDApp.data.labelOf("A00.0")')
     assert label, '全庫載入後應有 A00.0 的官方中文名稱'

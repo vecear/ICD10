@@ -1,68 +1,39 @@
 """E2E（1c 側掛窄欄，176×900）：對 dist/icd10.html 實跑。先由 conftest 跑 build/build.py。
 
 DOM 契約見 .review/design-ref/impl-plan.md §4.2／§4.4。本檔只涵蓋 dock 版面；
-1a 桌機在 tests/e2e_test.py、1b 手機在該階段自己的檔案。
+1a 桌機在 tests/e2e_test.py、1b 手機在 tests/test_e2e_mobile.py。
+三版面共用的 a11y／窗格高度／id 唯一檢查在 e2e_test.py 以 layout 參數化（dock 也在其中）。
 
 1c 的兩條硬性性質（測試存在的理由）：
   * 176px 下**不得水平捲動**、文字不得溢出——貼在 HIS 旁邊的窄欄，一捲動就沒法用。
   * 置頂（Document Picture-in-Picture）**不支援時要顯示提示、不得靜默失敗**。
 """
 import datetime
-import http.server
-import threading
-from functools import partial
 from pathlib import Path
 from urllib.parse import urlparse
 from urllib.request import url2pathname
 
 import pytest
-from playwright.sync_api import expect, sync_playwright
+from playwright.sync_api import expect
 
 import chronic_fixtures as cf
+import e2e_common as ec
+from e2e_common import DOCK, WIDE, PIP_PROBE, search, clipboard
 
 ROOT = Path(__file__).resolve().parent.parent
-PORT = 18497                       # 與 e2e_test.py（18493）錯開，避免同時起服務時撞埠
-DOCK = {"width": 176, "height": 900}
-WIDE = {"width": 1440, "height": 900}
-PIP_PROBE = ("() => typeof window.documentPictureInPicture === 'object'"
-             " && window.documentPictureInPicture !== null"
-             " && typeof window.documentPictureInPicture.requestWindow === 'function'")
 
 
 @pytest.fixture(scope="module")
-def page_url():
-    """用 file:// 而不是本機 HTTP server。
-
-    這台機器上的安全軟體會掃描 loopback 傳輸，dist 這個 2.2MB 單檔傳到約 248KB 就被
-    連線重設（WinError 10054），整批 E2E 會在 Page.goto 逾時 —— 而那與被測程式碼無關。
-    file:// 沒有網路層，Chromium 又視它為 secure context，clipboard 與 Document PiP
-    都照常可用（已實測），順帶省掉每個測試的傳輸時間。"""
-    yield (ROOT / "dist" / "icd10.html").as_uri()
-
-
-@pytest.fixture(scope="module")
-def browser_ctx(page_url):
-    with sync_playwright() as p:
-        browser = p.chromium.launch()
-        ctx = browser.new_context(viewport=dict(DOCK), permissions=["clipboard-read", "clipboard-write"])
-        yield ctx
-        browser.close()
+def browser_ctx(browser):
+    ctx = ec.new_context(browser, "dock")
+    yield ctx
+    ctx.close()
 
 
 @pytest.fixture(scope="module")
 def dock(browser_ctx, page_url):
-    """主測試頁：176 寬、已切到側掛版面、全庫索引已就緒。
-
-    版面偏好用 store 設定而不是點 UI：切版面本身另有一條測試（test_switch_layout_from_settings）
-    走完整的使用者路徑，其餘測試不必每次重跑一遍。
-    """
-    pg = browser_ctx.new_page()
-    pg.goto(page_url)
-    pg.wait_for_selector('body[data-ready="1"]', timeout=8000)
-    pg.evaluate("() => window.ICDApp.store.setLayout('dock')")
-    pg.wait_for_selector('body[data-layout="dock"]')
-    pg.evaluate("() => window.ICDApp.data.ensureDb()")
-    pg.wait_for_selector('body[data-db="ready"]', timeout=30000)
+    """主測試頁：176 寬、已切到側掛版面、全庫索引已就緒（見 e2e_common.open_ready_page）。"""
+    pg = ec.open_ready_page(browser_ctx, page_url, layout="dock")
     yield pg
     pg.close()
 
@@ -75,56 +46,8 @@ def pg(dock):
 
 # ---- 共用操作 ----
 def reset(page):
-    page.evaluate("""() => {
-        const s = window.ICDApp.store;
-        s.clearCart();
-        s.setMode('outpatient');
-        s.setRegion(0);          // 取消選取（region=null）會跨模式保留，這裡明確歸位
-        s.setQuery('');
-        s.setSettingsOpen(false);
-        s.setChronicTopic(null); // 慢病速查浮層蓋住整個側欄；殘留會讓後面所有點擊被它攔截
-        s.setCcrOpen(false);     // 同理：CCr 面板留著開，下一條測試的點擊全部被遮罩吃掉
-        s.setLipidOpen(false);   // 同理：血脂試算面板也是全幅浮層
-        s.setCartOpen(true);
-        s.setTheme('light');
-        s.resetPaneSizes();      // 窗格高度會寫 localStorage，殘留會讓別條測試量到上一條拖出來的高度
-        s.setState({ favs: [], recent: [], expanded: {}, copied: false });
-    }""")
-    page.fill("#search", "")
-    # CCr 的輸入值刻意不進 store（那是「這一位病人」的暫態），所以 store 的 reset
-    # 清不掉它們——測試之間要自己清，否則上一條的體重會被下一條算進去。
-    page.evaluate("""() => {
-        for (const id of ['ccr-age', 'ccr-weight', 'ccr-height', 'ccr-cr']) {
-            const el = document.getElementById(id);
-            if (el) el.value = '';
-        }
-        const male = document.querySelector('.ccr-sex-btn[data-ccr-sex="male"]');
-        const female = document.querySelector('.ccr-sex-btn[data-ccr-sex="female"]');
-        if (male && female) {
-            male.setAttribute('aria-pressed', 'true');
-            male.classList.add('is-on');
-            female.setAttribute('aria-pressed', 'false');
-            female.classList.remove('is-on');
-        }
-        /* 血脂試算：數值與勾選同樣不進 store（都是「這一位病人」的暫態），
-           殘留會讓下一條測試算進上一位病人的病史。 */
-        for (const id of ['lipid-age', 'lipid-ldl', 'lipid-tc', 'lipid-hdl', 'lipid-tg']) {
-            const el = document.getElementById(id);
-            if (el) el.value = '';
-        }
-        for (const box of document.querySelectorAll('[data-lipid-key]')) box.checked = false;
-        const lm = document.querySelector('.lipid-sex-btn[data-lipid-sex="male"]');
-        const lf = document.querySelector('.lipid-sex-btn[data-lipid-sex="female"]');
-        if (lm && lf) {
-            lm.setAttribute('aria-pressed', 'true');
-            lm.classList.add('is-on');
-            lf.setAttribute('aria-pressed', 'false');
-            lf.classList.remove('is-on');
-        }
-        const mrow = document.querySelector('[data-lipid-row="menopause"]');
-        if (mrow) mrow.hidden = true;
-    }""")
-
+    """回到乾淨起點（三版面共用，見 e2e_common.reset；1c 另清 CCr／血脂的 DOM 暫態）。"""
+    ec.reset(page, "dock")
 
 def open_settings(page):
     if page.locator("#settings-popover").is_hidden():
@@ -144,11 +67,6 @@ def set_mode(page, button_id):
     mode = MODE_OF_BUTTON_ID[button_id]
     page.click(f'#mode-switch [data-mode="{mode}"]')
     expect(page.locator(f'#mode-switch [data-mode="{mode}"]')).to_have_attribute("aria-pressed", "true")
-
-
-def search(page, text):
-    page.fill("#search", text)
-    page.wait_for_timeout(300)          # 150ms debounce ＋ 重繪
 
 
 def doc_metrics(page):
@@ -189,11 +107,6 @@ def overflowing_elements(page):
     }""")
 
 
-def clipboard(page):
-    """Windows 的剪貼簿會把 \\n 正規化成 \\r\\n（OS／瀏覽器行為），比對前先還原。"""
-    return page.evaluate("() => navigator.clipboard.readText()").replace("\r\n", "\n")
-
-
 def first_panel_chip(page):
     return page.locator('#dock-panels .chip[data-code]:not(.cat)').first
 
@@ -218,13 +131,10 @@ def test_switch_layout_from_header_button(browser_ctx, page_url):
         page.close()
         pytest.skip("此瀏覽器沒有 Document Picture-in-Picture，降級路徑另有測試")
 
-    before = set(browser_ctx.pages)
-    page.click("#go-dock")
+    fresh = ec.open_pip(browser_ctx, page, "#go-dock")
     page.wait_for_selector('body[data-layout="dock"]')
-    page.wait_for_timeout(1500)
     expect(page.locator("#layout-wide")).to_have_count(0)
 
-    fresh = [p for p in browser_ctx.pages if p not in before]
     assert len(fresh) == 1, "側掛置頂應該一併開出小視窗"
     assert page.locator("#layout-dock").count() == 0, "側欄這時人在小視窗，不該還留在主視窗"
 
@@ -232,13 +142,12 @@ def test_switch_layout_from_header_button(browser_ctx, page_url):
     # （見 test_unpinning_in_a_wide_window_goes_back_to_the_workbench），
     # 而這條要測的是「側欄回到主視窗」那條路。
     page.set_viewport_size(dict(DOCK))
-    page.wait_for_timeout(200)
     fresh[0].close()                    # pagehide → restoreFromPip
-    page.wait_for_timeout(800)
+    ec.wait_unpinned(page)
     expect(page.locator("#layout-dock")).to_have_count(1)
     assert page.evaluate("() => window.ICDApp.store.getState().pinned") is False
 
-    page.wait_for_timeout(300)
+    ec.next_frames(page)
     assert_no_hscroll(page, "切到 1c 後 176px")
     # 側掛偏好要跨診次保留（state.js 的 PERSISTED_KEYS）
     page.reload()
@@ -372,11 +281,9 @@ def test_add_code_and_cart_summary(pg):
 
 
 def test_cart_primary_and_clear(pg):
-    chips = pg.locator('#dock-panels .chip[data-code]:not(.cat)')
-    first = chips.nth(0).get_attribute("data-code")
-    second = chips.nth(1).get_attribute("data-code")
-    chips.nth(0).click()
-    chips.nth(1).click()
+    first, second = ec.addable_codes(pg, "#dock-panels", 2)
+    ec.chip(pg, "#dock-panels", first).click()
+    ec.chip(pg, "#dock-panels", second).click()
     expect(pg.locator("#cart li")).to_have_count(2)
 
     pg.locator(f'#cart li[data-code="{second}"] .cart-primary').click()
@@ -398,14 +305,13 @@ def test_clipboard_syncs_on_every_cart_change(pg):
     """
     assert pg.locator("#copy-all").count() == 0, "複製鈕應已移除"
 
-    chips = pg.locator('#dock-panels .chip[data-code]:not(.cat)')
-    codes = [chips.nth(i).get_attribute("data-code") for i in range(2)]
+    codes = ec.addable_codes(pg, "#dock-panels", 2)
 
-    chips.nth(0).click()
+    ec.chip(pg, "#dock-panels", codes[0]).click()
     expect(pg.locator("#cart li")).to_have_count(1)
     assert clipboard(pg) == codes[0], "點第一個診斷後剪貼簿就該是那個碼"
 
-    chips.nth(1).click()
+    ec.chip(pg, "#dock-panels", codes[1]).click()
     expect(pg.locator("#cart li")).to_have_count(2)
     assert clipboard(pg) == "\n".join(codes), "剪貼簿要是目前全部代碼，不是最後點的那個"
 
@@ -491,7 +397,6 @@ def test_search_rows_and_category_code(pg):
     expect(cat).to_have_attribute("data-leaf", "0")
     expect(cat).to_have_attribute("aria-disabled", "true")
     cat.click(force=True)                     # 類目碼點得下去，但不得加入清單
-    pg.wait_for_timeout(120)
     expect(pg.locator("#cart li")).to_have_count(0)
     expect(pg.locator(".dock-cart-codes")).to_have_text("尚未選碼")
 
@@ -680,7 +585,6 @@ def test_only_pin_and_expand_labels_are_dropped_and_only_when_narrowest(browser_
     page.wait_for_selector('body[data-layout="dock"]')
 
     page.set_viewport_size({"width": 176, "height": 900})
-    page.wait_for_timeout(120)
     expect(page.locator("#pin-toggle .dock-pin-label")).to_be_hidden()
     expect(page.locator("#pin-toggle .icn")).to_be_visible()
     assert "置頂" in page.get_attribute("#pin-toggle", "title")
@@ -696,7 +600,6 @@ def test_only_pin_and_expand_labels_are_dropped_and_only_when_narrowest(browser_
     assert_no_hscroll(page, "176px 置頂只留 icon")
 
     page.set_viewport_size({"width": 565, "height": 900})
-    page.wait_for_timeout(120)
     expect(page.locator("#pin-toggle .dock-pin-label")).to_be_visible()
     expect(page.locator("#pin-toggle .dock-pin-label")).to_have_text("置頂")
     expect(page.locator("#go-wide .layout-toggle-label")).to_have_text("展開")
@@ -771,19 +674,21 @@ def test_pin_note_success_auto_dismisses_failure_stays(browser_ctx, page_url):
         "Object.defineProperty(window, 'documentPictureInPicture',"
         " { value: undefined, configurable: true });"
     )
+    blocked.clock.install()           # 只為了快轉計時器；時間照常流動
     blocked.goto(page_url)
     blocked.wait_for_selector('body[data-ready="1"]')
     blocked.evaluate("() => window.ICDApp.store.setLayout('dock')")
     blocked.wait_for_selector('body[data-layout="dock"]')
     blocked.click("#pin-toggle")
     expect(blocked.locator("#pin-note")).to_be_visible()
-    blocked.wait_for_timeout(8000)          # 比成功提示的存活時間長
+    blocked.clock.run_for(8000)          # 快轉超過成功提示的存活時間（PIN_NOTE_TTL 6000）
     expect(blocked.locator("#pin-note")).to_be_visible()
     assert "不支援" in blocked.locator("#pin-note").inner_text()
     blocked.close()
 
     # (b) 成功提示：先出現、再自己消失，header 縮回兩列
     page = browser_ctx.new_page()
+    page.clock.install()                # 提示的逾時是主視窗的 setTimeout：快轉它，不真的等 6 秒
     page.goto(page_url)
     page.wait_for_selector('body[data-ready="1"]')
     page.evaluate("() => window.ICDApp.store.setLayout('dock')")
@@ -792,10 +697,7 @@ def test_pin_note_success_auto_dismisses_failure_stays(browser_ctx, page_url):
         page.close()
         pytest.skip("此瀏覽器沒有 Document Picture-in-Picture，降級路徑在 (a) 已驗")
 
-    before = set(browser_ctx.pages)
-    page.click("#pin-toggle")
-    page.wait_for_timeout(1500)
-    fresh = [p for p in browser_ctx.pages if p not in before]
+    fresh = ec.open_pip(browser_ctx, page)
     assert len(fresh) == 1, "沒有開出置頂小視窗"
     pip = fresh[0]
 
@@ -804,7 +706,8 @@ def test_pin_note_success_auto_dismisses_failure_stays(browser_ctx, page_url):
     assert "已開啟" in note.inner_text()
     tall = pip.locator(".dock-head").bounding_box()["height"]
 
-    expect(note).to_be_hidden(timeout=12000)    # 逾時後自己讓出版面
+    page.clock.run_for(6500)            # PIN_NOTE_TTL 6000
+    expect(note).to_be_hidden()         # 逾時後自己讓出版面
     short = pip.locator(".dock-head").bounding_box()["height"]
     assert short < tall, f"提示消失後 header 沒有縮回去：{tall} → {short}"
     # 消失的只有提示：小視窗還在、還是置頂狀態、側欄還在小視窗裡
@@ -813,7 +716,7 @@ def test_pin_note_success_auto_dismisses_failure_stays(browser_ctx, page_url):
     expect(pip.locator("#pin-toggle")).to_have_attribute("aria-pressed", "true")
 
     pip.close()
-    page.wait_for_timeout(600)
+    ec.wait_unpinned(page)
     page.close()
 
 
@@ -830,10 +733,7 @@ def test_pin_opens_pip_with_styles(browser_ctx, page_url):
         page.close()
         pytest.skip("此瀏覽器沒有 Document Picture-in-Picture，降級路徑另有測試")
 
-    before = set(browser_ctx.pages)
-    page.click("#pin-toggle")
-    page.wait_for_timeout(1500)
-    fresh = [p for p in browser_ctx.pages if p not in before]
+    fresh = ec.open_pip(browser_ctx, page)
     assert len(fresh) == 1, f"沒有開出置頂小視窗：{[p.url for p in browser_ctx.pages]}"
     pip = fresh[0]
 
@@ -856,12 +756,11 @@ def test_pin_opens_pip_with_styles(browser_ctx, page_url):
 
     # 小視窗裡點得動（interactions.js 的委派在另一個 document 失效，1c 有自己的備援）
     pip.locator('#dock-panels .chip[data-code]:not(.cat)').first.click()
-    pip.wait_for_timeout(200)
     assert pip.locator("#cart li").count() == 1
     assert page.evaluate("() => window.ICDApp.store.getState().cart.length") == 1
 
     pip.close()
-    page.wait_for_timeout(600)
+    ec.wait_unpinned(page)
     assert page.evaluate("() => !!document.getElementById('layout-dock')") is True, "關閉小視窗後應搬回主視窗"
     assert page.evaluate("() => window.ICDApp.store.getState().pinned") is False
     expect(page.locator("#pin-toggle")).to_have_attribute("aria-pressed", "false")
@@ -873,9 +772,8 @@ def test_pin_opens_pip_with_styles(browser_ctx, page_url):
 @pytest.mark.parametrize("theme", ["light", "dark"])
 def test_no_horizontal_overflow(pg, theme):
     pg.evaluate("(t) => window.ICDApp.store.setTheme(t)", theme)
-    chips = pg.locator('#dock-panels .chip[data-code]:not(.cat)')
-    chips.nth(0).click()
-    chips.nth(1).click()
+    for code in ec.addable_codes(pg, "#dock-panels", 2):
+        ec.chip(pg, "#dock-panels", code).click()
     search(pg, "急性")
     for mode in ("mode-op", "mode-er", "mode-surg"):
         set_mode(pg, mode)
@@ -883,17 +781,6 @@ def test_no_horizontal_overflow(pg, theme):
         bad = overflowing_elements(pg)
         assert not bad, f"{theme}／{mode} 文字溢出：{bad}"
     pg.evaluate("() => window.ICDApp.store.setTheme('light')")
-
-
-def test_no_duplicate_ids(pg):
-    dupes = pg.evaluate("""() => {
-        const seen = {}, dupes = [];
-        for (const el of document.querySelectorAll('[id]')) {
-            if (seen[el.id]) dupes.push(el.id); else seen[el.id] = 1;
-        }
-        return dupes;
-    }""")
-    assert dupes == [], f"重複 id：{dupes}"
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -914,10 +801,7 @@ def open_pinned(browser_ctx, page_url):
     if not page.evaluate(PIP_PROBE):
         page.close()
         pytest.skip("此瀏覽器沒有 Document Picture-in-Picture，降級路徑另有測試")
-    before = set(browser_ctx.pages)
-    page.click("#pin-toggle")
-    page.wait_for_timeout(1500)
-    fresh = [p for p in browser_ctx.pages if p not in before]
+    fresh = ec.open_pip(browser_ctx, page)
     assert len(fresh) == 1, f"沒有開出置頂小視窗：{[p.url for p in browser_ctx.pages]}"
     return page, fresh[0]
 
@@ -927,7 +811,7 @@ def pip_set_mode(pip, button_id):
     （走的是 interactions.js 綁在小視窗文件上的委派，見 bindDocument）。"""
     mode = MODE_OF_BUTTON_ID[button_id]
     pip.click(f'#mode-switch [data-mode="{mode}"]')
-    pip.wait_for_timeout(300)
+    expect(pip.locator(f'#mode-switch [data-mode="{mode}"]')).to_have_attribute("aria-pressed", "true")
 
 
 def duplicate_ids(page):
@@ -963,17 +847,13 @@ def test_pin_dock_button_switches_and_pins_in_one_click(browser_ctx, page_url):
     # 沒有這條對照，把 pinned 寫死在 setLayout 裡也會讓下面的正面斷言通過。
     page.evaluate("() => window.ICDApp.store.setLayout('dock')")
     page.wait_for_selector('body[data-layout="dock"]')
-    page.wait_for_timeout(400)
     assert page.evaluate("() => window.ICDApp.store.getState().pinned") is False, \
         "setLayout 本身不該置頂，置頂是那顆鈕的語意"
     page.evaluate("() => window.ICDApp.store.setLayout('wide')")
     page.wait_for_selector('body[data-layout="wide"]')
 
-    before = set(browser_ctx.pages)
-    page.click("#go-dock")
+    fresh = ec.open_pip(browser_ctx, page, "#go-dock")
     page.wait_for_selector('body[data-layout="dock"]', timeout=5000)
-    page.wait_for_timeout(1500)
-    fresh = [p for p in browser_ctx.pages if p not in before]
 
     assert len(fresh) == 1, f"一鍵側掛置頂沒開出小視窗（手勢斷了？）：{[p.url for p in browser_ctx.pages]}"
     assert page.evaluate("() => window.ICDApp.store.getState().pinned") is True
@@ -1000,7 +880,7 @@ def test_pinned_expand_button_is_reachable_from_the_pip_window(browser_ctx, page
 
         btn.click(no_wait_after=True)
         page.wait_for_selector('body[data-layout="wide"]', timeout=5000)
-        page.wait_for_timeout(600)
+        ec.wait_until(page, pip.is_closed, "展開之後小視窗要一併關掉")
         assert pip.is_closed(), "展開之後小視窗要一併關掉"
         assert page.evaluate("() => window.ICDApp.store.getState().pinned") is False
     finally:
@@ -1057,7 +937,7 @@ def test_unpinned_dock_stays_a_narrow_column_on_the_right(browser_ctx, page_url)
 
     for width, expect_w in ((1920, 340), (1440, 340), (900, 340), (340, 340), (176, 176)):
         page.set_viewport_size({"width": width, "height": 900})
-        page.wait_for_timeout(250)
+        ec.next_frames(page)
         box = page.locator("#layout-dock").bounding_box()
         assert round(box["width"]) == expect_w, \
             f"{width}px 下窄欄寬 {box['width']}，預期 {expect_w}"
@@ -1077,7 +957,7 @@ def test_pinned_window_content_is_not_width_capped(browser_ctx, page_url):
     try:
         assert pip.get_attribute("body", "data-pip") == "1", "小視窗文件要標記得出來"
         pip.set_viewport_size({"width": 760, "height": 800})
-        pip.wait_for_timeout(300)
+        ec.next_frames(pip)
         box = pip.locator("#layout-dock").bounding_box()
         assert box["width"] >= 760 - 1, f"小視窗內容被限寬了：{box['width']} < 760"
     finally:
@@ -1097,10 +977,10 @@ def test_unpinning_keeps_the_width_the_pinned_window_had(browser_ctx, page_url):
         # 800 也刻意大於 420，才看得出寬度是「沿用小視窗」而不是「被視窗夾住」。
         page.set_viewport_size({"width": 800, "height": 900})
         pip.set_viewport_size({"width": 420, "height": 800})
-        pip.wait_for_timeout(400)
+        ec.next_frames(pip)               # 小視窗的 resize 事件在影格裡送出，寬度才記得到
 
         pip.close()                     # 關掉小視窗＝解除置頂，側欄回到主視窗
-        page.wait_for_timeout(900)
+        ec.wait_unpinned(page)
         assert page.evaluate("() => window.ICDApp.store.getState().pinned") is False
 
         box = page.locator("#layout-dock").bounding_box()
@@ -1122,10 +1002,8 @@ def test_unpinning_in_a_wide_window_goes_back_to_the_workbench(browser_ctx, page
     page, pip = open_pinned(browser_ctx, page_url)
     try:
         page.set_viewport_size({"width": 1440, "height": 900})
-        page.wait_for_timeout(200)
         pip.close()
         page.wait_for_selector('body[data-layout="wide"]', timeout=5000)
-        page.wait_for_timeout(400)
 
         assert page.locator("#layout-wide").count() == 1
         assert page.locator("#layout-dock").count() == 0, "不該留下一條靠右的窄欄"
@@ -1145,9 +1023,8 @@ def test_unpinning_in_a_narrow_window_keeps_the_dock(browser_ctx, page_url):
     page, pip = open_pinned(browser_ctx, page_url)
     try:
         page.set_viewport_size({"width": 340, "height": 900})
-        page.wait_for_timeout(200)
         pip.close()
-        page.wait_for_timeout(900)
+        ec.wait_unpinned(page)
 
         assert page.get_attribute("body", "data-layout") == "dock", "窄視窗不該被切回工作台"
         assert page.locator("#layout-dock").count() == 1
@@ -1176,7 +1053,7 @@ def test_layout_switch_while_pinned_tears_down_pip(browser_ctx, page_url):
     # 這一下會讓小視窗自己被收掉，所以點完不能再對它做任何等待（Target closed）。
     pip.click("#go-wide", no_wait_after=True)
     page.wait_for_selector('body[data-layout="wide"]', timeout=5000)
-    page.wait_for_timeout(800)
+    ec.wait_until(page, pip.is_closed, "換版面後置頂小視窗必須被收回，否則變成不受控的殭屍")
 
     assert pip.is_closed(), "換版面後置頂小視窗必須被收回，否則變成不受控的殭屍"
     assert page.evaluate("() => window.ICDApp.store.getState().pinned") is False
@@ -1186,7 +1063,6 @@ def test_layout_switch_while_pinned_tears_down_pip(browser_ctx, page_url):
 
     # 切回門診：全頁不得再有任何紅旗（殘留的急診側欄若還在就會被抓到）
     page.evaluate("() => window.ICDApp.store.setMode('outpatient')")
-    page.wait_for_timeout(300)
     assert page.locator(".chip--warn").count() == 0
     assert duplicate_ids(page) == []
     assert errors == [], errors
@@ -1207,11 +1083,11 @@ def test_pip_close_after_layout_switch_does_not_remount_dock(browser_ctx, page_u
     page.evaluate("() => { window.ICDApp.controller.teardown = () => {}; }")
     page.evaluate("() => window.ICDApp.store.setLayout('wide')")
     page.wait_for_selector('body[data-layout="wide"]', timeout=5000)
-    page.wait_for_timeout(400)
+    ec.next_frames(page)
     assert not pip.is_closed(), "前置條件不成立：teardown 沒有被停掉，就測不到第二層"
 
     pip.close()                       # pagehide → restoreFromPip
-    page.wait_for_timeout(800)
+    ec.wait_unpinned(page)
 
     layouts = page.evaluate(
         "() => Array.from(document.getElementById('app').children).map(e => e.id)"
@@ -1220,7 +1096,6 @@ def test_pip_close_after_layout_switch_does_not_remount_dock(browser_ctx, page_u
     assert duplicate_ids(page) == [], f"出現重複 id：{duplicate_ids(page)}"
     assert page.locator("#mode-switch").count() == 1
     page.evaluate("() => window.ICDApp.store.setMode('outpatient')")
-    page.wait_for_timeout(300)
     assert page.locator(".chip--warn").count() == 0, "門診模式下不得殘留可點的急診紅旗"
     page.close()
 
@@ -1250,10 +1125,9 @@ def test_pip_copy_failure_shows_fallback_inside_pip(browser_ctx, page_url):
         }"""
     )
     pip.locator("#dock-panels .chip[data-code]:not(.cat)").first.click()
-    pip.wait_for_timeout(200)
+    ec.next_frames(pip)               # 自動同步的失敗是非同步的（writeText 被拒）
     assert pip.locator("#fallback-copy").is_hidden(), "清單自動同步失敗時不該跳對話框"
     pip.click("#copy-date")
-    pip.wait_for_timeout(500)
 
     expect(pip.locator("#copy-recovery")).to_be_visible()
     expect(pip.locator("#fallback-copy")).to_be_hidden()
@@ -1266,7 +1140,6 @@ def test_pip_copy_failure_shows_fallback_inside_pip(browser_ctx, page_url):
     pip.click("#fallback-close")
     expect(pip.locator("#fallback-copy")).to_be_hidden()
     pip.close()
-    page.wait_for_timeout(600)
     page.close()
 
 
@@ -1335,10 +1208,8 @@ def test_copy_matches_what_the_dock_shows_in_every_format(pg):
     摘要列 .dock-cart-codes——當作「預覽」，跟剪貼簿逐字比對。期望值一律從 DOM 讀，
     不從 store 讀：從 store 讀等於拿同一個真相來源自證。
     """
-    chips = pg.locator('#dock-panels .chip[data-code]:not(.cat)')
-    chips.nth(0).click()
-    chips.nth(1).click()
-    chips.nth(2).click()
+    for code in ec.addable_codes(pg, "#dock-panels", 3):
+        ec.chip(pg, "#dock-panels", code).click()
     expect(pg.locator("#cart li")).to_have_count(3)
 
     for fmt, joiner in (("lines", "\n"), ("comma", ","), ("names", "\n")):
@@ -1359,8 +1230,8 @@ def test_copy_matches_what_the_dock_shows_in_every_format(pg):
             expected = joiner.join(r["code"] for r in shown)
 
         # 沒有複製鈕了：改格式當下就自動同步，剪貼簿必須立刻與畫面一致
-        pg.wait_for_timeout(200)
-        assert clipboard(pg) == expected, f"{fmt}：剪貼簿與畫面上的清單不一致"
+        assert ec.settle(pg, lambda: clipboard(pg), lambda c: c == expected) == expected, \
+            f"{fmt}：剪貼簿與畫面上的清單不一致"
         # 摘要列（醫師收合清單時唯一看得到的東西）也必須是同一組碼、同一個順序
         expect(pg.locator(".dock-cart-codes")).to_have_text("、".join(r["code"] for r in shown))
 
@@ -1371,77 +1242,16 @@ def test_copy_matches_what_the_dock_shows_in_every_format(pg):
 # ══════════════════════════════════════════════════════════════════════════
 # 窗格高度手動調整（使用者原話：「我希望各個窗格的高度我可以手動調整」）
 # 1c 是提出需求的版面：部位區、相關疾病、清單三條分界可調；header 那條刻意不做。
+# 三版面共用的 5 條（ARIA、拖曳＋鍵盤、拖不掉、重整保留、設定回復）在 e2e_test.py
+# 以 layout 參數化；這裡只留 1c 專屬的：176px 不溢出、置頂小視窗裡也拖得動。
 # ══════════════════════════════════════════════════════════════════════════
-def pane_h(page, selector):
-    return page.evaluate("(sel) => document.querySelector(sel).getBoundingClientRect().height", selector)
-
-
-def sep_for(page, pane_id):
-    return page.locator(f'.pane-resizer[aria-controls="{pane_id}"]')
-
-
-def drag_pane(page, pane_id, dy):
-    box = page.locator(f'.pane-resizer[aria-controls="{pane_id}"]').bounding_box()
-    x, y = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
-    page.mouse.move(x, y)
-    page.mouse.down()
-    page.mouse.move(x, y + dy, steps=6)
-    page.mouse.up()
-    page.wait_for_timeout(150)
+pane_h = ec.pane_h
+drag_pane = ec.drag_pane
 
 
 def with_code(page):
     """加一個碼：清單區（連同它們的分隔條）才會出現。"""
-    page.locator('#dock-panels .chip[data-code]:not(.cat)').first.click()
-    page.wait_for_timeout(250)
-
-
-def test_pane_resizers_present_with_aria(pg):
-    """兩條分隔條：部位區永遠在，清單有內容才出現（沒東西可調就不給假的線）。"""
-    assert pg.locator(".pane-resizer").count() == 2
-    expect(sep_for(pg, "region-pills")).to_be_visible()
-    expect(sep_for(pg, "cart-inline")).to_be_hidden()
-
-    with_code(pg)
-    for pane_id in ("region-pills", "cart-inline"):
-        sep = sep_for(pg, pane_id)
-        expect(sep).to_be_visible()
-        assert sep.get_attribute("role") == "separator"
-        assert sep.get_attribute("aria-orientation") == "horizontal"
-        assert sep.get_attribute("tabindex") == "0"
-        assert (sep.get_attribute("aria-label") or "").endswith("高度")
-        now = int(sep.get_attribute("aria-valuenow"))
-        assert int(sep.get_attribute("aria-valuemin")) <= now <= int(sep.get_attribute("aria-valuemax"))
-    # 分隔條要在它負責的窗格旁邊：部位區在上（往下拖變高）、清單在下（往上拖變高）
-    assert sep_for(pg, "region-pills").bounding_box()["y"] > pg.locator("#region-pills").bounding_box()["y"]
-    assert sep_for(pg, "cart-inline").bounding_box()["y"] < pg.locator("#cart-inline").bounding_box()["y"]
-
-
-def test_pane_drag_and_keyboard(pg):
-    with_code(pg)
-    before = pane_h(pg, "#region-pills")
-    drag_pane(pg, "region-pills", -50)
-    after = pane_h(pg, "#region-pills")
-    assert after < before - 30, f"部位區沒有被拖小：{before} → {after}"
-    assert pg.evaluate("() => window.ICDApp.store.paneSizeFor('dock', 'regions')") == round(after)
-    # 部位區讓出來的空間要真的給捲動內容區（不是留白，也不是把畫面撐出視窗）
-    assert pane_h(pg, ".dock-scroll") > 0
-    assert_no_hscroll(pg, "拖小部位區後")
-
-    cart_before = pane_h(pg, "#cart-inline")
-    drag_pane(pg, "cart-inline", -60)
-    assert pane_h(pg, "#cart-inline") > cart_before + 30, "清單區往上拖應該變高"
-    assert_no_hscroll(pg, "拉高清單區後")
-
-    sep = sep_for(pg, "region-pills")
-    sep.focus()
-    h0 = pane_h(pg, "#region-pills")
-    sep.press("ArrowDown")
-    pg.wait_for_timeout(80)
-    assert pane_h(pg, "#region-pills") == h0 + 16, "方向鍵一次調 16px"
-    sep.press("ArrowUp")
-    pg.wait_for_timeout(80)
-    assert pane_h(pg, "#region-pills") == h0
+    ec.fill_panes(page, "dock")
 
 
 @pytest.mark.parametrize("theme", ["light", "dark"])
@@ -1465,71 +1275,12 @@ def test_pane_resize_keeps_no_horizontal_overflow(pg, theme):
     pg.evaluate("() => window.ICDApp.store.setTheme('light')")
 
 
-def test_pane_cannot_be_dragged_away(pg):
-    """拖到極限：窗格不得消失，捲動內容區也不得被吃光。"""
-    with_code(pg)
-    drag_pane(pg, "region-pills", -900)
-    assert pane_h(pg, "#region-pills") >= 44, "部位區被拖沒了"
-    expect(pg.locator("#region-pills .region-btn").first).to_be_visible()
-
-    drag_pane(pg, "region-pills", 2000)
-    assert pane_h(pg, ".dock-scroll") >= 80, "部位區吃光了主訴面板的空間"
-    expect(pg.locator("#clear-cart")).to_be_visible()
-    expect(pg.locator("#cart li").first).to_be_visible()
-    assert_no_hscroll(pg, "極限拖曳後")
-
-    drag_pane(pg, "cart-inline", 900)
-    assert pane_h(pg, "#cart-inline") >= 48, "清單區被拖沒了"
-
-
-def test_pane_height_survives_reload(browser_ctx, page_url):
-    pg = browser_ctx.new_page()
-    pg.goto(page_url)
-    pg.wait_for_selector('body[data-ready="1"]', timeout=8000)
-    pg.evaluate("() => { window.ICDApp.store.setLayout('dock'); window.ICDApp.store.resetPaneSizes(); }")
-    pg.wait_for_selector('body[data-layout="dock"]')
-    drag_pane(pg, "region-pills", -40)
-    saved = round(pane_h(pg, "#region-pills"))
-    assert pg.evaluate("() => window.ICDApp.store.paneSizeFor('dock', 'regions')") == saved
-
-    pg.reload()
-    pg.wait_for_selector('body[data-ready="1"]', timeout=8000)
-    pg.wait_for_selector('body[data-layout="dock"]')
-    assert round(pane_h(pg, "#region-pills")) == saved, "重新整理後部位區沒有回到調好的高度"
-    assert pg.evaluate("() => JSON.stringify(window.ICDApp.store.getState().paneSizes)") \
-        == '{"dock":{"regions":%d}}' % saved, "1c 調的高度不得寫到別的版面"
-    pg.evaluate("() => window.ICDApp.store.resetPaneSizes()")
-    pg.close()
-
-
-def test_pane_reset_from_settings(pg):
-    open_settings(pg)
-    expect(pg.locator("#reset-panes")).to_be_disabled()
-    pg.click("#settings-toggle")
-
-    default_h = pane_h(pg, "#region-pills")
-    drag_pane(pg, "region-pills", -50)
-    assert pane_h(pg, "#region-pills") < default_h - 30
-
-    open_settings(pg)
-    expect(pg.locator("#reset-panes")).to_be_enabled()
-    pg.click("#reset-panes")
-    pg.wait_for_timeout(200)
-    assert pg.evaluate("() => window.ICDApp.store.paneSizeFor('dock', 'regions')") is None
-    assert abs(pane_h(pg, "#region-pills") - default_h) < 1, "回復預設後高度沒回到原樣"
-    assert pg.evaluate("() => document.getElementById('region-pills').style.height") == ""
-    assert "回復" in pg.locator("#status").inner_text()
-    expect(pg.locator("#reset-panes")).to_be_disabled()
-    pg.click("#settings-toggle")
-
-
 def test_pane_resize_works_inside_pip(browser_ctx, page_url):
     """置頂小視窗是另一個 document：拖曳在那裡也要能用（事件全部得走小視窗自己的文件）。"""
     page, pip = open_pinned(browser_ctx, page_url)
     errors = []
     pip.on("pageerror", lambda e: errors.append(str(e)))
     page.evaluate("() => window.ICDApp.store.resetPaneSizes()")
-    pip.wait_for_timeout(200)
 
     expect(pip.locator('.pane-resizer[aria-controls="region-pills"]')).to_be_visible()
     before = pane_h(pip, "#region-pills")
@@ -1542,105 +1293,12 @@ def test_pane_resize_works_inside_pip(browser_ctx, page_url):
     # 小視窗高度只有 900 以下，主視窗關掉小視窗後高度要重新夾一次而不是溢出。
     # 先把主視窗縮窄：≥900px 的話解除置頂會自動切回工作台，就沒有側欄可以量了。
     page.set_viewport_size({"width": 800, "height": 900})
-    page.wait_for_timeout(200)
     pip.close()
-    page.wait_for_timeout(600)
+    ec.wait_unpinned(page)
     assert page.evaluate("() => !!document.getElementById('layout-dock')") is True
     assert round(pane_h(page, "#region-pills")) == round(after)
     page.evaluate("() => window.ICDApp.store.resetPaneSizes()")
     page.close()
-
-
-# ══════════════════════════════════════════════════════════════════════════
-# 可及性（1c）：地標、標題階層、部位列語意、代碼鍵盤可達
-# 依據 .review/v3-edge.md §5 的三條 ARIA 缺陷與 .review/v1-visual.md §3 的唯一破口。
-# ══════════════════════════════════════════════════════════════════════════
-HEADINGS_JS = """() => [...document.querySelectorAll('h1,h2,h3,h4,h5,h6')]
-    .filter((h) => !h.closest('[hidden]'))
-    .map((h) => ({ level: Number(h.tagName[1]), text: h.textContent.trim() }))"""
-
-
-def assert_heading_outline(page, label):
-    """H1 恰好一個、排在最前、有 H2，且相鄰標題不得跳級（H2 → H4 是跳級）。"""
-    hs = page.evaluate(HEADINGS_JS)
-    levels = [h["level"] for h in hs]
-    assert levels, f"{label}：整份文件沒有任何標題"
-    assert levels.count(1) == 1, f"{label}：H1 應恰好一個，實際 {levels.count(1)} 個 → {hs}"
-    assert levels[0] == 1, f"{label}：第一個標題不是 H1 → {hs}"
-    assert 2 in levels, f"{label}：完全沒有 H2 → {hs}"
-    for prev, cur in zip(levels, levels[1:]):
-        assert cur <= prev + 1, f"{label}：標題跳級 H{prev} → H{cur} → {hs}"
-
-
-def test_a11y_single_main_landmark(pg):
-    """側掛窄欄也要有 <main>，而且只能有一個（v3 §5-1）。"""
-    expect(pg.locator('main, [role="main"]')).to_have_count(1)
-    scope = pg.evaluate("""() => {
-        const m = document.querySelector('main');
-        const has = (id) => m.contains(document.getElementById(id));
-        return { panels: has('dock-panels'), results: has('search-results'),
-                 pills: has('region-pills'), cart: has('cart') };
-    }""")
-    assert scope["panels"] and scope["results"], f"面板／搜尋結果不在 main 裡：{scope}"
-    assert not scope["pills"] and not scope["cart"], f"main 把其他區塊吃進去了：{scope}"
-
-
-def test_a11y_heading_outline(pg):
-    """標題階層要完整（v3 §5-2）。1c 沒有可見標題，全部用 sr-only 補，不多占一個像素。"""
-    assert_heading_outline(pg, "1c 側掛窄欄")
-    assert pg.evaluate("() => document.querySelector('h1').textContent") == "ICD-10 門診導引"
-    assert pg.evaluate("""() => ['h1', 'h2', '#panels-title'].every((sel) => {
-        const h = document.querySelector(sel);
-        return h && h.classList.contains('sr-only') && h.getBoundingClientRect().width <= 2;
-    })""") is True
-    # sr-only 標題不得把 176px 的窄欄撐出水平捲動
-    assert_no_hscroll(pg, "補上 sr-only 標題後")
-
-
-def test_a11y_region_buttons_are_toggle_buttons_not_fake_tabs(pg):
-    """部位 grid 不得再宣告 tablist／tab（v3 §5-3：宣告了方向鍵契約卻沒實作）。"""
-    assert pg.locator('[role="tablist"], [role="tab"]').count() == 0, "還有元素宣告 tablist／tab 語意"
-    expect(pg.locator("#region-pills")).to_have_attribute("role", "group")
-    expect(pg.locator("#region-pills")).to_have_attribute("aria-label", "身體部位")
-
-    second = pg.locator("#region-pills .region-btn").nth(1)
-    second.click()
-    expect(second).to_have_attribute("aria-pressed", "true")
-    assert pg.locator('#region-pills .region-btn[aria-pressed="true"]').count() == 1
-
-    # 「全部」鈕已移除；取消篩選＝再點一次已選的那顆
-    second.click()
-    expect(second).to_have_attribute("aria-pressed", "false")
-    assert pg.locator('#region-pills .region-btn[aria-pressed="true"]').count() == 0
-
-
-def test_a11y_cart_code_is_keyboard_reachable_and_copies(pg):
-    """b.cart-code 可點擊複製，就必須可聚焦、可鍵盤觸發（v1 §3）。"""
-    pg.evaluate("() => window.ICDApp.store.addCode('I10', '本態性高血壓')")
-    code = pg.locator('#cart li[data-code="I10"] b.cart-code')
-    expect(code).to_have_attribute("role", "button")
-    expect(code).to_have_attribute("tabindex", "0")
-
-    pg.locator('#cart li[data-code="I10"]').focus()
-    pg.keyboard.press("Tab")
-    landed = pg.evaluate("""() => {
-        const a = document.activeElement;
-        const li = a.closest ? a.closest('li[data-code]') : null;
-        const cs = getComputedStyle(a);
-        return { tag: a.tagName, cls: a.className, code: li && li.dataset.code,
-                 focusVisible: a.matches(':focus-visible'),
-                 outline: cs.outlineWidth + ' ' + cs.outlineStyle };
-    }""")
-    assert landed["tag"] == "B" and "cart-code" in landed["cls"], f"Tab 沒有停在代碼上：{landed}"
-    assert landed["code"] == "I10"
-    assert landed["focusVisible"] is True, f"鍵盤聚焦後沒有 :focus-visible：{landed}"
-    assert landed["outline"].split()[0] != "0px" and "none" not in landed["outline"], \
-        f"聚焦沒有可見外框：{landed}"
-
-    pg.keyboard.press("Enter")
-    pg.wait_for_timeout(150)
-    assert clipboard(pg) == "I10"
-    assert pg.locator("#status").inner_text() == "已複製 I10"
 
 
 def test_clear_cart_disabled_when_empty(pg):
@@ -1682,7 +1340,6 @@ def test_pip_requests_width_above_two_column_threshold(browser_ctx, page_url):
     page.wait_for_selector('body[data-layout="dock"]')
 
     page.click("#pin-toggle")
-    page.wait_for_timeout(200)
     opts = page.evaluate("() => window.__pipOpts")
     assert opts is not None, "沒有呼叫 requestWindow"
     assert opts["width"] >= 327, f"請求寬度 {opts['width']}px 仍落在單欄那一側（門檻 327px）"
@@ -1768,7 +1425,6 @@ def test_chronic_buttons_live_in_the_scroll_area_not_the_header(pg):
                              ".getBoundingClientRect().top")
     pg.evaluate("() => { const s = document.querySelector('.dock-scroll');"
                 " s.scrollTop = s.scrollHeight; }")
-    pg.wait_for_timeout(150)
     top_after = pg.evaluate("() => document.getElementById('chronic-switch')"
                             ".getBoundingClientRect().top")
     assert top_after < top_before - 20, (
@@ -1879,11 +1535,9 @@ def test_chronic_panel_never_overflows_at_176(pg, theme):
     pg.evaluate("(t) => window.ICDApp.store.setTheme(t)", theme)
     for key, _short, _label in cf.buttons():
         open_chronic(pg, key)
-        pg.wait_for_timeout(80)
         assert_no_hscroll(pg, f"{theme}／{key} 慢病速查")
         assert overflowing_elements(pg) == [], f"{theme}／{key}：元素溢出"
         pg.locator(".chronic-more-toggle").first.click()             # 最長的那段文字攤開
-        pg.wait_for_timeout(80)
         assert_no_hscroll(pg, f"{theme}／{key} 展開補充說明")
         assert overflowing_elements(pg) == [], f"{theme}／{key} 展開後：元素溢出"
         pg.keyboard.press("Escape")
@@ -1931,7 +1585,6 @@ def ccr_fill(pg, age=None, weight=None, height=None, cr=None):
                        ("#ccr-height", height), ("#ccr-cr", cr)):
         if value is not None:
             pg.fill(sel, str(value))
-    pg.wait_for_timeout(150)
 
 
 def test_ccr_button_sits_right_of_the_lipid_calculator(pg):
@@ -1973,10 +1626,8 @@ def test_ccr_formula_and_weight_basis(pg):
 
     # 女性 ×0.85
     pg.click('.ccr-sex-btn[data-ccr-sex="female"]')
-    pg.wait_for_timeout(150)
     expect(pg.locator(".ccr-value")).to_have_text("66.1")
     pg.click('.ccr-sex-btn[data-ccr-sex="male"]')
-    pg.wait_for_timeout(150)
 
     # BMI 22.9（正常）→ 改用理想體重 70.5kg
     ccr_fill(pg, height=175)
@@ -2004,7 +1655,6 @@ def test_ccr_copy_and_reset(pg):
     assert "91.4" in clip and "調整體重" in clip, f"複製內容不完整：{clip}"
 
     pg.click("#ccr-reset")
-    pg.wait_for_timeout(150)
     expect(pg.locator("#ccr-copy")).to_be_disabled()
     assert pg.input_value("#ccr-age") == ""
 
@@ -2071,7 +1721,6 @@ def lipid_open(pg):
 def lipid_fill(pg, **vals):
     for key, value in vals.items():
         pg.fill("#lipid-" + key, str(value))
-    pg.wait_for_timeout(120)
 
 
 def test_lipid_button_lives_with_the_chronic_row_not_the_header(pg):
@@ -2111,7 +1760,6 @@ def test_lipid_two_tables_and_the_split_warning(pg):
     lipid_open(pg)
     lipid_fill(pg, age=58, ldl=95, tc=180, hdl=55)
     pg.check("#lipid-dm")
-    pg.wait_for_timeout(150)
 
     blocks = pg.locator("#lipid-result .lipid-block")
     assert blocks.count() >= 2, "兩張表都要出現"
@@ -2130,12 +1778,10 @@ def test_lipid_very_high_risk_needs_the_pair_not_one_checkbox(pg):
     lipid_open(pg)
     lipid_fill(pg, age=60, ldl=120)
     pg.check("#lipid-miWithin1y")
-    pg.wait_for_timeout(150)
     first = pg.locator("#lipid-result .lipid-block").nth(0).inner_text()
     assert "極高風險" not in first, f"只有一年內 MI 不該是極高風險：{first}"
 
     pg.check("#lipid-cad")
-    pg.wait_for_timeout(150)
     first = pg.locator("#lipid-result .lipid-block").nth(0).inner_text()
     assert "極高風險" in first, f"冠心病＋一年內 MI 才是極高風險：{first}"
     assert "≧ 55" in first
@@ -2168,11 +1814,10 @@ def test_lipid_copy_is_a_chart_note_not_a_calculator_dump(pg):
     lipid_fill(pg, age=60, ldl=120, tc=200, hdl=38)
     pg.check("#lipid-cad")
     pg.check("#lipid-miWithin1y")
-    pg.wait_for_timeout(150)
     expect(pg.locator("#lipid-copy")).to_be_enabled()
+    ec.arm_clipboard(pg)
     pg.click("#lipid-copy")
-    pg.wait_for_timeout(200)
-    text = pg.evaluate("() => navigator.clipboard.readText()").replace("\r\n", "\n")
+    text = ec.await_clipboard(pg)
 
     # 指名藥品類別與條文全名
     assert "降膽固醇藥物：" in text, f"要指名是哪個用藥：{text}"
@@ -2199,10 +1844,9 @@ def test_lipid_copy_names_the_table_that_does_not_qualify_when_they_disagree(pg)
     lipid_open(pg)
     lipid_fill(pg, age=58, ldl=95, tc=180, hdl=55)
     pg.check("#lipid-dm")
-    pg.wait_for_timeout(200)
+    ec.arm_clipboard(pg)
     pg.click("#lipid-copy")
-    pg.wait_for_timeout(200)
-    text = pg.evaluate("() => navigator.clipboard.readText()").replace("\r\n", "\n")
+    text = ec.await_clipboard(pg)
     assert "表二" in text and "已達" in text
     assert "不符合" in text and "表一" in text, f"結論不同時要指名哪張表不適用：{text}"
 
@@ -2212,7 +1856,6 @@ def test_lipid_reset_clears_numbers_and_checkboxes(pg):
     lipid_fill(pg, age=60, ldl=120)
     pg.check("#lipid-dm")
     pg.click("#lipid-reset")
-    pg.wait_for_timeout(150)
     assert pg.input_value("#lipid-ldl") == ""
     assert pg.locator("#lipid-dm").is_checked() is False
     expect(pg.locator("#lipid-copy")).to_be_disabled()
@@ -2226,7 +1869,6 @@ def test_lipid_panel_never_overflows_at_176(pg, theme):
     lipid_fill(pg, age=62, ldl=120, tc=200, hdl=38, tg=180)
     for key in ("cad", "miWithin1y", "htn", "dm"):
         pg.check("#lipid-" + key)
-    pg.wait_for_timeout(200)
     assert_no_hscroll(pg, f"{theme}／血脂給付試算")
     assert overflowing_elements(pg) == [], f"{theme}：元素溢出"
     pg.evaluate("() => window.ICDApp.store.setTheme('light')")
@@ -2272,17 +1914,14 @@ def test_pinned_lipid_calculator_is_fully_operable(browser_ctx, page_url):
 
         pip.fill("#lipid-ldl", "120")                         # input 轉送
         pip.fill("#lipid-tc", "200")
-        pip.wait_for_timeout(200)
-        assert "LDL-C 120" in pip.locator("#lipid-result").inner_text(), "數值輸入沒有觸發重算"
+        ec.wait_until(pip, lambda: "LDL-C 120" in pip.locator("#lipid-result").inner_text(), "數值輸入沒有觸發重算")
 
         pip.check("#lipid-cad")                              # change 轉送（checkbox 不發 input）
         pip.check("#lipid-miWithin1y")
-        pip.wait_for_timeout(250)
         text = pip.locator("#lipid-result").inner_text()
         assert "極高風險" in text, f"勾選沒有觸發重算：{text[:120]}"
 
         pip.click('.lipid-sex-btn[data-lipid-sex="female"]')  # 性別鈕（帶 .seg-btn 類名）
-        pip.wait_for_timeout(250)
         expect(pip.locator('[data-lipid-row="menopause"]')).to_be_visible()
 
         pip.click("#lipid-close")                            # 關閉出口
@@ -2304,11 +1943,9 @@ def test_pinned_official_pdf_links_still_point_at_real_files(browser_ctx, page_u
     try:
         assert pip.url in ("about:blank", ""), f"PiP 文件不是 about:blank？{pip.url}"
         pip.click("#chronic-btn")
-        pip.wait_for_timeout(300)
         expect(pip.locator("#chronic-overlay")).to_be_visible()
         for key, _short, _label in cf.buttons():
             pip.click(f"#chronic-tab-{key}")
-            pip.wait_for_timeout(200)
             links = pip.locator("#chronic-body .chronic-doc-link")
             docs = cf.docs(key)
             assert links.count() == len(docs), f"{key}：{links.count()} != {len(docs)}"
@@ -2340,11 +1977,9 @@ def test_pinned_every_overlay_entry_button_actually_opens(browser_ctx, page_url)
         for item in ids:
             assert item["id"], f"入口鈕沒有 id，無法定位：{item}"
             pip.click("#" + item["id"])
-            pip.wait_for_timeout(250)
             panel = pip.locator("#" + item["controls"])
-            assert panel.is_visible(), f"置頂時 #{item['id']} 點了沒開出 #{item['controls']}"
+            ec.wait_until(pip, panel.is_visible, f"置頂時 #{item['id']} 點了沒開出 #{item['controls']}")
             pip.keyboard.press("Escape")
-            pip.wait_for_timeout(200)
     finally:
         page.close()
 
@@ -2374,25 +2009,20 @@ def test_expand_all_button_opens_and_closes_every_panel(pg):
     assert before["open"] == 0 and before["label"] == "全展開", before
 
     pg.click("#expand-all-panels")
-    pg.wait_for_timeout(200)
     opened = _panel_state(pg)
     assert opened["open"] == opened["total"], opened
     assert opened["label"] == "全收合", opened
 
     pg.click("#expand-all-panels")
-    pg.wait_for_timeout(200)
     closed = _panel_state(pg)
     assert closed["open"] == 0 and closed["label"] == "全展開", closed
 
     # 換一個部位全開，再切回來——原部位不該被波及
     pg.evaluate("() => window.ICDApp.store.setRegion(2)")
-    pg.wait_for_timeout(150)
     pg.click("#expand-all-panels")
-    pg.wait_for_timeout(200)
     other = _panel_state(pg)
     assert other["open"] == other["total"] and other["label"] == "全收合", other
     pg.evaluate("() => window.ICDApp.store.setRegion(0)")
-    pg.wait_for_timeout(150)
     back = _panel_state(pg)
     assert back["open"] == 0 and back["label"] == "全展開", back
 
@@ -2409,11 +2039,9 @@ def test_expand_all_survives_pinning(browser_ctx, page_url):
         pip.wait_for_selector("#expand-all-panels", timeout=5000)
         assert _panel_state(pip)["open"] == 0
         pip.click("#expand-all-panels")
-        pip.wait_for_timeout(250)
         st = _panel_state(pip)
         assert st["open"] == st["total"] and st["label"] == "全收合", st
         pip.click("#expand-all-panels")
-        pip.wait_for_timeout(250)
         assert _panel_state(pip)["open"] == 0
     finally:
         page.close()

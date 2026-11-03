@@ -15,7 +15,9 @@ conftest.py 的 session fixture 已先跑過 build/build.py，所以測到的一
 from pathlib import Path
 
 import pytest
-from playwright.sync_api import expect, sync_playwright
+from playwright.sync_api import expect
+
+import e2e_common as ec
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -31,14 +33,6 @@ LAYOUTS = {
 }
 
 
-@pytest.fixture(scope="module")
-def browser():
-    with sync_playwright() as p:
-        instance = p.chromium.launch()
-        yield instance
-        instance.close()
-
-
 def _open(browser, spec):
     ctx = browser.new_context(
         viewport=dict(spec["viewport"]),
@@ -47,10 +41,11 @@ def _open(browser, spec):
         permissions=["clipboard-read", "clipboard-write"],
     )
     pg = ctx.new_page()
+    pg.clock.install()      # 通知列的逾時是 setTimeout：用假時鐘快轉，不真的等 2.5 秒；時間照常流動
     pg.goto((ROOT / "dist" / "icd10.html").as_uri())
     pg.wait_for_selector('body[data-ready="1"]', timeout=8000)
     pg.evaluate(f"() => window.ICDApp.store.setLayout('{spec['prefer']}')")
-    pg.evaluate("() => window.ICDApp.data.ensureDb()")
+    pg.evaluate("() => window.ICDApp.data.ensureDb().then(() => null)")
     pg.wait_for_selector('body[data-db="ready"]', timeout=30000)
     return ctx, pg
 
@@ -130,7 +125,7 @@ def test_adding_a_code_already_in_the_cart_says_so_then_gets_out_of_the_way(page
     expect(notice(pg)).to_be_visible()
     assert "E11.9" in notice(pg).inner_text(), notice(pg).inner_text()
 
-    pg.wait_for_timeout(NOTICE_TTL_MS + 900)
+    pg.clock.run_for(NOTICE_TTL_MS + 900)
     expect(notice(pg)).to_be_hidden()
 
 
@@ -152,7 +147,7 @@ def test_category_code_notice_stays_until_the_next_message(pages, layout):
     text = notice(pg).inner_text()
     assert "類目碼" in text, text
 
-    pg.wait_for_timeout(NOTICE_TTL_MS + 900)
+    pg.clock.run_for(NOTICE_TTL_MS + 900)
     expect(notice(pg)).to_be_visible()
     assert "類目碼" in notice(pg).inner_text()
 
@@ -201,7 +196,7 @@ def test_notice_uses_cart_area_without_pushing_content(pages, layout):
     # 先把清單弄成「有一筆」的穩定狀態再量：加碼本身會讓 1c 的清單區出現、1b 的抽屜旗標
     # 改變，那些是清單的版面成本、不是通知列的。等提示自己收掉才取基準值。
     add(pg, "E11.9")
-    pg.wait_for_timeout(NOTICE_TTL_MS + 900)
+    pg.clock.run_for(NOTICE_TTL_MS + 900)
     expect(notice(pg)).to_be_hidden()
 
     before = pg.locator(scroller).evaluate("el => el.clientHeight")
@@ -229,16 +224,12 @@ def test_notice_is_reachable_inside_the_pinned_window(browser):
                               " && typeof window.documentPictureInPicture.requestWindow === 'function'")
         if not has_pip:
             pytest.skip("此瀏覽器沒有 Document Picture-in-Picture")
-        before = set(ctx.pages)
-        pg.click("#pin-toggle")
-        pg.wait_for_timeout(1500)
-        fresh = [p for p in ctx.pages if p not in before]
+        fresh = ec.open_pip(ctx, pg)
         assert len(fresh) == 1, f"沒有開出置頂小視窗：{[p.url for p in ctx.pages]}"
         pip = fresh[0]
 
         assert pip.locator("#notice").count() == 1, "小視窗裡沒有通知列"
         pip.locator('#dock-panels .chip[data-code]:not(.cat)').first.click()
-        pip.wait_for_timeout(250)
         expect(pip.locator("#notice")).to_be_visible()
         assert "已加入" in pip.locator("#notice").inner_text()
         pip.close()
@@ -277,7 +268,6 @@ def test_checkmark_does_not_cover_the_clinical_layers(pages, layout):
     pg = pages(layout)
     reset(pg)
     pg.evaluate("() => window.ICDApp.store.setMode('emergency')")
-    pg.wait_for_timeout(200)
 
     flag = pg.locator("#panels .chip--warn[data-code]:not(.cat)").first
     flag.scroll_into_view_if_needed()
@@ -291,7 +281,7 @@ def test_checkmark_does_not_cover_the_clinical_layers(pages, layout):
     # 指標點完還停在 chip 上，量到的會是 hover 態（--chip-line-hover ＝ --warn-ink）；
     # 要比對的是靜止態，所以先把指標移開。
     pg.mouse.move(0, 0)
-    pg.wait_for_timeout(120)
+    ec.next_frames(pg)
     assert flag.evaluate("el => getComputedStyle(el).borderBottomColor") == warn_line, \
         "加入清單之後紅旗的警示邊框被洗掉"
     assert flag.evaluate("el => getComputedStyle(el, '::after').content") not in ("none", "normal")

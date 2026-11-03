@@ -27,7 +27,8 @@ from functools import partial
 from pathlib import Path
 
 import pytest
-from playwright.sync_api import sync_playwright
+
+import e2e_common as ec
 
 ROOT = Path(__file__).resolve().parent.parent
 PORT = 18499                       # 與 e2e_test.py(18493)／dock(18497)／mobile 錯開
@@ -164,14 +165,6 @@ def page_url():
 
 
 @pytest.fixture(scope="module")
-def browser():
-    with sync_playwright() as p:
-        b = p.chromium.launch()
-        yield b
-        b.close()
-
-
-@pytest.fixture(scope="module")
 def pages(browser, page_url):
     """三個版面各開一頁，全庫索引就緒；模組內共用（每個測試自己設模式與主題）。"""
     made = {}
@@ -182,7 +175,7 @@ def pages(browser, page_url):
         pg.wait_for_selector('body[data-ready="1"]', timeout=15000)
         pg.evaluate("(l) => window.ICDApp.store.setLayout(l)", layout)
         pg.wait_for_selector(f'body[data-layout="{layout}"]')
-        pg.evaluate("() => window.ICDApp.data.ensureDb()")
+        pg.evaluate("() => window.ICDApp.data.ensureDb().then(() => null)")
         pg.wait_for_selector('body[data-db="ready"]', timeout=30000)
         made[name] = pg
     yield made
@@ -195,12 +188,11 @@ def use(pg, theme, mode="emergency"):
     pg.evaluate("(m) => window.ICDApp.store.setMode(m)", mode)
     pg.fill("#search", "")
     pg.evaluate("() => window.ICDApp.store.clearCart()")
-    pg.wait_for_timeout(250)
+    ec.wait_query(pg, "")
 
 
 def search(pg, text):
-    pg.fill("#search", text)
-    pg.wait_for_timeout(350)
+    ec.search(pg, text)
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -258,7 +250,7 @@ def test_warn_chip_keeps_warn_colours_on_hover(pages, layout):
         chip = pg.locator(".chip--warn").first
         assert chip.count() > 0, f"{layout}／{theme}：沒有紅旗 chip 可 hover"
         chip.hover()
-        pg.wait_for_timeout(120)
+        ec.next_frames(pg)
         bg = style_of(pg, ".chip--warn", "background-color")
         plain_hover = token(pg, "--color-accent-100")
         assert not same_color(bg, plain_hover), (
@@ -299,13 +291,11 @@ def test_non_text_indicators_meet_3to1(pages, layout):
         r = border_contrast(pg, ".chip.cat", side)
         if r < NON_TEXT_MIN:
             low.append(("類目虛線", r))
-        pg.fill("#search", "")
-        pg.wait_for_timeout(200)
+        ec.search(pg, "")
 
         # (c) 清單頂端的主診斷警示帶（附加碼排第一位時才出現）
         pg.evaluate("() => { const s = window.ICDApp.store; s.clearCart();"
                     " s.addCode('B95.61', '甲氧西林敏感性金黃色葡萄球菌'); }")
-        pg.wait_for_timeout(300)
         assert pg.get_attribute("#cart", "data-primary-adjunct") == "true", "主診斷警示沒有觸發，斷言會變成空跑"
         band_bg = outer_bg(pg, "#cart")
         band_line = over(parse_color(style_of(pg, "#cart", "border-top-color", "::before")), band_bg)
@@ -381,7 +371,6 @@ def test_contrast_measurement_is_not_vacuous(pages):
     good = border_contrast(pg, ".chip--warn", "top")
     assert good >= NON_TEXT_MIN
     pg.add_style_tag(content=".chip--row { border: 1px solid var(--color-divider); }")
-    pg.wait_for_timeout(120)
     broken_line = style_of(pg, ".chip--warn", "border-top-color")
     broken = border_contrast(pg, ".chip--warn", "top")
     assert not same_color(broken_line, token(pg, "--warn-line")), \
@@ -389,26 +378,26 @@ def test_contrast_measurement_is_not_vacuous(pages):
     assert broken < NON_TEXT_MIN, f"注入舊版 shorthand 之後對比仍有 {broken}，量測不靈敏"
     pg.reload()
     pg.wait_for_selector('body[data-ready="1"]', timeout=15000)
-    pg.evaluate("() => window.ICDApp.data.ensureDb()")
+    pg.evaluate("() => window.ICDApp.data.ensureDb().then(() => null)")
     pg.wait_for_selector('body[data-db="ready"]', timeout=30000)
 
     # (2) hover
     pg = pages["dock"]
     use(pg, "light")
     pg.locator(".chip--warn").first.hover()
-    pg.wait_for_timeout(120)
+    ec.next_frames(pg)
     assert same_color(style_of(pg, ".chip--warn", "background-color"), token(pg, "--warn-surface"))
     pg.mouse.move(2, 2)
     pg.add_style_tag(content='body[data-layout="dock"] .chip--dock:hover'
                              " { background: var(--color-accent-100); }")
     pg.locator(".chip--warn").first.hover()
-    pg.wait_for_timeout(120)
+    ec.next_frames(pg)
     assert same_color(style_of(pg, ".chip--warn", "background-color"), token(pg, "--color-accent-100")), \
         "注入舊版 dock hover 之後底色竟然沒掉成 accent-100——P0-3 的斷言抓不到這個回歸"
     pg.mouse.move(2, 2)
     pg.reload()
     pg.wait_for_selector('body[data-ready="1"]', timeout=15000)
-    pg.evaluate("() => window.ICDApp.data.ensureDb()")
+    pg.evaluate("() => window.ICDApp.data.ensureDb().then(() => null)")
     pg.wait_for_selector('body[data-db="ready"]', timeout=30000)
 
 

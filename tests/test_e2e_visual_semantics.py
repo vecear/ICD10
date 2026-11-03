@@ -22,7 +22,7 @@ conftest.py 的 session fixture 已先跑過 build/build.py，所以測到的一
 from pathlib import Path
 
 import pytest
-from playwright.sync_api import expect, sync_playwright
+from playwright.sync_api import expect
 
 from e2e_test import contrast
 
@@ -60,14 +60,6 @@ WIDE_HEADER_CONTROLS = (
 )
 
 
-@pytest.fixture(scope="module")
-def browser():
-    with sync_playwright() as p:
-        instance = p.chromium.launch()
-        yield instance
-        instance.close()
-
-
 def _open(browser, spec):
     ctx = browser.new_context(
         viewport=dict(spec["viewport"]),
@@ -79,7 +71,7 @@ def _open(browser, spec):
     pg.goto((ROOT / "dist" / "icd10.html").as_uri())
     pg.wait_for_selector('body[data-ready="1"]', timeout=8000)
     pg.evaluate(f"() => window.ICDApp.store.setLayout('{spec['prefer']}')")
-    pg.evaluate("() => window.ICDApp.data.ensureDb()")
+    pg.evaluate("() => window.ICDApp.data.ensureDb().then(() => null)")
     pg.wait_for_selector('body[data-db="ready"]', timeout=30000)
     return ctx, pg
 

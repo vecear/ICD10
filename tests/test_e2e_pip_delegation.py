@@ -19,37 +19,24 @@ import time
 from pathlib import Path
 
 import pytest
-from playwright.sync_api import expect, sync_playwright
+from playwright.sync_api import expect
+
+import e2e_common as ec
+from e2e_common import WIDE, PIP_PROBE
 
 ROOT = Path(__file__).resolve().parent.parent
-WIDE = {"width": 1440, "height": 900}
-PIP_PROBE = ("() => typeof window.documentPictureInPicture === 'object'"
-             " && window.documentPictureInPicture !== null"
-             " && typeof window.documentPictureInPicture.requestWindow === 'function'")
 SEED = ("I10", "E11.9")
 
 
 @pytest.fixture(scope="module")
-def pinned():
-    """主視窗＋小視窗各一，整個模組共用（每開一次小視窗約 1.5 秒）。"""
-    with sync_playwright() as p:
-        browser = p.chromium.launch()
-        ctx = browser.new_context(viewport=dict(WIDE),
-                                  permissions=["clipboard-read", "clipboard-write"])
-        page = ctx.new_page()
-        page.goto((ROOT / "dist" / "icd10.html").as_uri())
-        page.wait_for_selector('body[data-ready="1"]', timeout=8000)
-        page.evaluate("() => window.ICDApp.store.setLayout('dock')")
-        page.wait_for_selector('body[data-layout="dock"]')
-        page.evaluate("() => window.ICDApp.data.ensureDb()")
-        page.wait_for_selector('body[data-db="ready"]', timeout=30000)
+def pinned(browser, page_url):
+    """主視窗＋小視窗各一，整個模組共用（開一次小視窗要等它把側欄搬過去）。"""
+    ctx = ec.new_context(browser, "wide")
+    try:
+        page = ec.open_ready_page(ctx, page_url, layout="dock")
         if not page.evaluate(PIP_PROBE):
-            browser.close()
             pytest.skip("此瀏覽器沒有 Document Picture-in-Picture")
-        before = set(ctx.pages)
-        page.click("#pin-toggle")
-        page.wait_for_timeout(1500)
-        fresh = [x for x in ctx.pages if x not in before]
+        fresh = ec.open_pip(ctx, page)
         assert len(fresh) == 1, "沒有開出置頂小視窗"
         pip = fresh[0]
         # 小視窗的剪貼簿換成記錄器：測的是「事件有沒有接上線」，不是剪貼簿權限與焦點
@@ -61,7 +48,8 @@ def pinned():
             });
         }""")
         yield page, pip
-        browser.close()
+    finally:
+        ctx.close()
 
 
 def state(page, expr):
@@ -107,7 +95,6 @@ def reset(page, pip):
         const notice = document.getElementById('notice');
         if (notice) notice.hidden = true;
     }""")
-    pip.wait_for_timeout(100)
 
 
 def seed(page, pip):

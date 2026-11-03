@@ -2,17 +2,11 @@
 from pathlib import Path
 
 import pytest
-from playwright.sync_api import expect, sync_playwright
+from playwright.sync_api import expect
+
+import e2e_common as ec
 
 ROOT = Path(__file__).resolve().parents[1]
-
-
-@pytest.fixture(scope='module')
-def browser():
-    with sync_playwright() as p:
-        instance = p.chromium.launch()
-        yield instance
-        instance.close()
 
 
 @pytest.fixture
@@ -73,7 +67,7 @@ def test_return_cancels_pending_input_and_enter_still_adds_the_first_result(page
     expect(page.locator('#results-card')).to_be_visible()
     page.fill('#search', '糖尿')
     page.click('#dock-search-back')
-    page.wait_for_timeout(250)  # 超過 150ms debounce，確認舊輸入不會重開搜尋
+    page.wait_for_timeout(250)  # 刻意的負面等待：超過搜尋 debounce（80ms），確認舊輸入不會重開搜尋
     expect(page.locator('#results-card')).to_be_hidden()
     expect(page.locator('#search')).to_have_value('')
     assert abs(scroll_top(page) - before) <= 1
@@ -85,7 +79,11 @@ def test_return_cancels_pending_input_and_enter_still_adds_the_first_result(page
 
 
 def test_expanding_one_panel_keeps_other_nodes_and_keyboard_focus(page):
-    toggle = page.locator('.dock-panel .panel-toggle').nth(3)
+    # 用面板鍵（data-panel-toggle）定位，不用 .nth(3)：面板順序是資料決定的。
+    # 取最後一個面板＝一定不是第一個（要驗的正是「第一個面板節點沒被重建」）。
+    key = page.locator('.dock-panel .panel-toggle').evaluate_all(
+        "(ts) => ts.map((t) => t.dataset.panelToggle)")[-1]
+    toggle = page.locator(f'.dock-panel .panel-toggle[data-panel-toggle="{key}"]')
     toggle.scroll_into_view_if_needed()
     toggle.focus()
     page.evaluate("window.__unchangedPanel = document.querySelector('.dock-panel')")
@@ -127,11 +125,15 @@ def test_selected_codes_stay_marked_and_removal_clears_the_mark(page):
 
 def test_adding_a_code_near_the_bottom_keeps_that_code_in_view(page):
     # 選原本畫面最下面的碼；相關建議出現後，仍能接著看同一列附近的碼。
-    index = page.locator('#dock-panels .chip').evaluate_all("""chips => {
+    # 回傳碼而不是索引：用 data-code 定位；只取整區只出現一次的碼，免得 .first 落到上面另一顆。
+    code = page.locator('#dock-panels .chip').evaluate_all("""chips => {
         const bottom=document.querySelector('.dock-scroll').getBoundingClientRect().bottom;
-        return chips.reduce((last,c,i) => c.getBoundingClientRect().bottom < bottom-8 ? i : last, 0);
+        const count = {};
+        for (const c of chips) count[c.dataset.code] = (count[c.dataset.code] || 0) + 1;
+        return chips.reduce((last,c) => c.getBoundingClientRect().bottom < bottom-8
+            && count[c.dataset.code] === 1 ? c.dataset.code : last, chips[0].dataset.code);
     }""")
-    chip = page.locator('#dock-panels .chip').nth(index)
+    chip = page.locator(f'#dock-panels .chip[data-code="{code}"]')
     chip.click()
     bottom = page.locator('.dock-scroll').bounding_box()
     selected = chip.bounding_box()
@@ -143,12 +145,13 @@ def test_adding_a_code_near_the_bottom_keeps_that_code_in_view(page):
 def test_lower_panes_leave_room_to_keep_selecting(page, width, theme):
     page.set_viewport_size({'width': width, 'height': 900})
     page.evaluate("([w,theme]) => { document.querySelector('#layout-dock').style.setProperty('--dock-w',w+'px'); ICDApp.store.setTheme(theme); }", [width, theme])
-    page.locator('#dock-panels .chip').first.click()
+    first, second = ec.addable_codes(page, '#dock-panels', 2)
+    ec.chip(page, '#dock-panels', first).click()
     expect(page.locator('#related, #dock-related-toggle')).to_have_count(0)
     height = page.locator('.dock-scroll').bounding_box()['height']
     assert height >= 540
     # 選下一筆仍不顯示相關疾病。
-    page.locator('#dock-panels .chip').nth(1).click()
+    ec.chip(page, '#dock-panels', second).click()
     expect(page.locator('#related')).to_have_count(0)
     assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
 

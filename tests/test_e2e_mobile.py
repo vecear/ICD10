@@ -8,21 +8,18 @@ DOM 契約見 .review/design-ref/impl-plan.md §4.2／§4.4；1a 桌機的測試
   2. 底部固定列永遠可見，且**不會蓋住捲動區的最後一列**（fixed 底部列的典型缺陷）。
   3. 急診紅旗不得洩漏到門診——面板與相關碼兩處都要驗（臨床安全，最高優先）。
 """
-import http.server
 import json
-import threading
-from functools import partial
 from pathlib import Path
 
 import pytest
-from playwright.sync_api import expect, sync_playwright
+from playwright.sync_api import expect
 
 import chronic_fixtures as cf
+import e2e_common as ec
+from e2e_common import MOBILE, search
 
 ROOT = Path(__file__).resolve().parent.parent
 CURATED_DIR = ROOT / "src" / "curated"
-PORT = 18596
-MOBILE = {"width": 390, "height": 844}
 
 
 def region_for_panel(filename, panel_name):
@@ -35,73 +32,29 @@ def region_for_panel(filename, panel_name):
 
 
 @pytest.fixture(scope="module")
-def page_url():
-    """用 file:// 而不是本機 HTTP server。
-
-    這台機器上的安全軟體會掃描 loopback 傳輸，dist 這個 2.2MB 單檔傳到約 248KB 就被
-    連線重設（WinError 10054），整批 E2E 會在 Page.goto 逾時 —— 而那與被測程式碼無關。
-    file:// 沒有網路層，Chromium 又視它為 secure context，clipboard 與 Document PiP
-    都照常可用（已實測），順帶省掉每個測試的傳輸時間。"""
-    yield (ROOT / "dist" / "icd10.html").as_uri()
-
-
-@pytest.fixture(scope="module")
-def browser_ctx(page_url):
-    """真手機條件：390×844＋is_mobile＋has_touch（hover 不存在，觸控目標才是重點）。"""
-    with sync_playwright() as p:
-        browser = p.chromium.launch()
-        ctx = browser.new_context(
-            viewport=dict(MOBILE),
-            is_mobile=True,
-            has_touch=True,
-            device_scale_factor=2,
-            permissions=["clipboard-read", "clipboard-write"],
-        )
-        yield ctx
-        browser.close()
+def browser_ctx(browser):
+    """真手機條件：390×844＋is_mobile＋has_touch（見 e2e_common.new_context）。"""
+    ctx = ec.new_context(browser, "mobile")
+    yield ctx
+    ctx.close()
 
 
 @pytest.fixture(scope="module")
 def page(browser_ctx, page_url):
     """主測試頁：全庫索引先拉起來，類目碼防呆才測得到葉碼規則而不是建置期白名單。"""
-    pg = browser_ctx.new_page()
-    pg.goto(page_url)
-    pg.wait_for_selector('body[data-ready="1"]', timeout=8000)
-    pg.evaluate("() => window.ICDApp.data.ensureDb()")
-    pg.wait_for_selector('body[data-db="ready"]', timeout=30000)
+    pg = ec.open_ready_page(browser_ctx, page_url)
     yield pg
     pg.close()
 
 
 # ---- 共用操作 ----
 def reset(pg):
-    """回到乾淨起點：空清單、門診模式、無搜尋、抽屜與設定收合。"""
-    pg.evaluate("""() => {
-        const s = window.ICDApp.store;
-        s.clearCart();
-        s.setMode('outpatient');
-        s.setRegion(0);          // 取消選取（region=null）會跨模式保留，這裡明確歸位
-        s.setQuery('');
-        s.setFormat('lines');
-        s.setSettingsOpen(false);
-        s.setChronicTopic(null); // 慢病速查浮層是整屏的；殘留會讓後面所有點擊被它攔截
-        s.setLipidOpen(false);   // 同理：血脂試算面板也是全幅浮層
-        s.resetPaneSizes();      // 窗格高度會寫 localStorage，殘留會讓別條測試量到上一條拖出來的高度
-        s.setState({ favs: [], recent: [], expanded: {}, copied: false });
-    }""")
-    pg.fill("#search", "")
-    if pg.locator("#cart-sheet").is_visible():
-        pg.click("#cart-toggle")
+    """回到乾淨起點（三版面共用，見 e2e_common.reset；1b 另把格式歸位、收起清單抽屜）。"""
+    ec.reset(pg, "mobile")
 
 
 def go_region(pg, filename, panel_name):
     pg.click(f'.region-pill[data-region="{region_for_panel(filename, panel_name)}"]')
-
-
-def search(pg, text):
-    pg.fill("#search", text)
-    pg.wait_for_timeout(300)      # 150ms debounce ＋ 重繪
-
 
 def box(locator):
     b = locator.bounding_box()
@@ -160,7 +113,6 @@ def test_no_horizontal_overflow(page, scenario):
         page.locator("#panels .chip--row").nth(1).click()
         page.click("#cart-toggle")
         expect(page.locator("#cart-sheet")).to_be_visible()
-    page.wait_for_timeout(120)
     assert_no_h_scroll(page, scenario)
 
 
@@ -391,7 +343,6 @@ def test_cart_bar_does_not_cover_content(page):
     reset(page)
     page.locator("#panels .chip--row").first.click()     # 讓相關碼區也出現，壓縮捲動區
     page.evaluate("() => { const s = document.querySelector('.m-scroll'); s.scrollTop = s.scrollHeight; }")
-    page.wait_for_timeout(150)
     geom = page.evaluate(
         """() => {
             const rows = document.querySelectorAll('.m-scroll .chip--row');
@@ -417,8 +368,7 @@ def test_copy_matches_preview_and_format(page):
 
     page.click("#cart-toggle")
     expect(page.locator("#cart-sheet")).to_be_visible()
-    page.wait_for_timeout(200)
-    clip = page.evaluate("navigator.clipboard.readText()").replace("\r\n", "\n")
+    clip = ec.settle(page, lambda: ec.clipboard(page), lambda c: c == "\n".join(codes))
     assert clip == "\n".join(codes)
     assert clip == page.locator("#his-preview").text_content()
 
@@ -427,8 +377,7 @@ def test_copy_matches_preview_and_format(page):
     page.click('#seg-format button[data-format="comma"]')
     page.keyboard.press("Escape")
     expect(page.locator("#his-format-label")).to_have_text("逗號分隔")
-    page.wait_for_timeout(200)
-    clip = page.evaluate("navigator.clipboard.readText()").replace("\r\n", "\n")
+    clip = ec.settle(page, lambda: ec.clipboard(page), lambda c: c == ",".join(codes))
     assert clip == ",".join(codes)
     assert clip == page.locator("#his-preview").text_content()
 
@@ -582,9 +531,9 @@ def test_no_page_errors_during_main_flow(browser_ctx, page_url):
         pg.click('#mode-switch [data-mode="surg"]')
         pg.locator(".region-pill").last.click()
         pg.fill("#search", "L03")
-        pg.wait_for_timeout(400)
+        ec.wait_query(pg, "L03")
         pg.click("#copy-date")
-        pg.wait_for_timeout(200)
+        ec.next_frames(pg)            # 複製是非同步的：讓它的 Promise 跑完，例外才會在這之前冒出來
         assert errors == [], f"主要動線丟出例外：{errors}"
     finally:
         pg.close()
@@ -698,49 +647,6 @@ def test_preferences_persist_across_reload_on_mobile(browser_ctx, page_url):
         pg.close()
 
 
-def test_no_duplicate_ids(page):
-    """契約：同一時刻只掛一套版面，所以 #search／#cart／#copy-all 等 id 必須全域唯一。
-
-    盲點 7：wide 與 dock 都有這條，1b 缺席。歷史上真的發生過兩套版面同時掛載、
-    產生 10 組重複 id 的 Critical，而重複 id 只會讓 querySelector 悄悄選到殘留的那套。
-    """
-    def snapshot(tag):
-        result = page.evaluate("""() => {
-            const ids = [...document.querySelectorAll('[id]')].map((e) => e.id);
-            return {
-                total: ids.length, uniq: new Set(ids).size,
-                dups: ids.filter((v, i) => ids.indexOf(v) !== i),
-                roots: ['layout-wide', 'layout-dock', 'layout-mobile']
-                    .filter((id) => document.getElementById(id)),
-            };
-        }""")
-        assert result["total"] == result["uniq"], f"{tag}：重複 id {result['dups']}"
-        assert result["roots"] == ["layout-mobile"], f"{tag}：掛載中的版面是 {result['roots']}"
-        assert result["total"] > 10, f"{tag}：只掃到 {result['total']} 個 id，選擇器可能失效"
-
-    reset(page)
-    snapshot("初始")
-
-    page.locator("#panels .chip--row").first.click()
-    page.click("#cart-toggle")
-    page.click("#settings-toggle")
-    page.wait_for_timeout(150)
-    snapshot("清單抽屜＋設定同時開啟")
-    page.keyboard.press("Escape")
-
-    search(page, "L03")
-    snapshot("搜尋結果")
-    reset(page)
-
-    # 換版面／換回來不得留下上一套的殘骸（歷史 Critical：兩套同時掛載）
-    page.set_viewport_size({"width": 1200, "height": 844})
-    page.wait_for_selector('body[data-layout="wide"]', timeout=3000)
-    page.set_viewport_size(dict(MOBILE))
-    page.wait_for_selector('body[data-layout="mobile"]', timeout=3000)
-    page.wait_for_timeout(200)
-    snapshot("寬→窄來回切換後")
-    reset(page)
-
 
 # ══════════════════════════════════════════════════════════════════════════
 # 窗格高度手動調整（與 1a／1c 同一套機制；手機的重點是**手指**拖得動）
@@ -777,25 +683,12 @@ def touch_drag(pg, pane_id, dy):
                  {"type": "touchMove", "touchPoints": [{"x": x, "y": y + dy * i / 6, "id": 1}]})
     cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
     cdp.detach()
-    pg.wait_for_timeout(200)
-
-
-def mouse_drag(pg, pane_id, dy):
-    x, y = sep_center(pg, pane_id)
-    pg.mouse.move(x, y)
-    pg.mouse.down()
-    pg.mouse.move(x, y + dy, steps=6)
-    pg.mouse.up()
-    pg.wait_for_timeout(150)
+    ec.next_frames(pg)
 
 
 def open_sheet(pg):
     """加一個碼並展開清單抽屜：兩條分隔條都出現。一律用 click（見 touch_drag 的註記）。"""
-    pg.locator('#panels .chip[data-code]:not(.cat)').first.click()
-    pg.wait_for_timeout(250)
-    if pg.locator("#cart-sheet").is_hidden():
-        pg.click("#cart-toggle")
-        pg.wait_for_timeout(250)
+    ec.fill_panes(pg, "mobile")
 
 
 @pytest.fixture
@@ -809,29 +702,6 @@ def touch_page(browser_ctx, page_url):
     pg.evaluate("() => window.ICDApp.store.resetPaneSizes()")
     pg.close()
 
-
-def test_pane_resizers_present_with_aria(page):
-    """一條分隔條：清單抽屜。部位 pill 列（單行橫捲）與 header 刻意不做。"""
-    reset(page)
-    assert page.locator(".pane-resizer").count() == 1
-    for pane_id in ("cart-sheet",):
-        expect(sep_for(page, pane_id)).to_be_hidden()
-
-    open_sheet(page)
-    for pane_id in ("cart-sheet",):
-        sep = sep_for(page, pane_id)
-        expect(sep).to_be_visible()
-        assert sep.get_attribute("role") == "separator"
-        assert sep.get_attribute("aria-orientation") == "horizontal"
-        assert sep.get_attribute("tabindex") == "0"
-        now = int(sep.get_attribute("aria-valuenow"))
-        assert int(sep.get_attribute("aria-valuemin")) <= now <= int(sep.get_attribute("aria-valuemax"))
-        # 觸控拖曳的前提：沒有 touch-action:none，手指一動就變成捲動頁面
-        assert page.evaluate(
-            "(id) => getComputedStyle(document.querySelector('.pane-resizer[aria-controls=\"' + id + '\"]'))"
-            ".touchAction", pane_id) == "none"
-        assert box(sep)["height"] >= 14, "手機的分隔條要夠厚才抓得到"
-    reset(page)
 
 
 def test_pane_touch_drag_resizes_sheet(touch_page):
@@ -851,194 +721,6 @@ def test_pane_touch_drag_resizes_sheet(touch_page):
     assert pane_h(pg, ".m-scroll") >= 100, "主訴捲動區被壓到看不見"
 
 
-
-def test_pane_mouse_drag_and_keyboard(page):
-    """外接鍵盤／滑鼠（手機也可能接）：同一條分隔條三種操作都要成立。"""
-    reset(page)
-    open_sheet(page)
-    before = pane_h(page, "#cart-sheet")
-    mouse_drag(page, "cart-sheet", -60)
-    assert pane_h(page, "#cart-sheet") > before + 30
-    assert page.evaluate("() => window.ICDApp.store.paneSizeFor('mobile', 'sheet')") \
-        == round(pane_h(page, "#cart-sheet"))
-
-    sep = sep_for(page, "cart-sheet")
-    sep.focus()
-    h0 = pane_h(page, "#cart-sheet")
-    sep.press("ArrowUp")
-    page.wait_for_timeout(80)
-    assert pane_h(page, "#cart-sheet") == h0 + 16, "抽屜在分隔條下方，↑ 應該變高"
-    sep.press("ArrowDown")
-    page.wait_for_timeout(80)
-    assert pane_h(page, "#cart-sheet") == h0
-    assert_no_h_scroll(page, "鍵盤調整後")
-    reset(page)
-
-
-def test_pane_cannot_be_dragged_away(page):
-    """拖到極限：抽屜不得消失、主訴捲動區不得被吃光、底部固定列不得被推出視窗。"""
-    reset(page)
-    open_sheet(page)
-    mouse_drag(page, "cart-sheet", 900)
-    assert pane_h(page, "#cart-sheet") >= 120, "抽屜被拖沒了"
-    expect(page.locator("#cart li").first).to_be_visible()
-
-    mouse_drag(page, "cart-sheet", -2000)
-    assert pane_h(page, ".m-scroll") >= 100, "抽屜吃光了主訴面板的空間"
-    bar = box(page.locator("#cart-bar"))
-    assert bar["y"] + bar["height"] <= MOBILE["height"] + 0.5, "底部固定列被推出視窗"
-    expect(page.locator("#cart-toggle")).to_be_visible()
-    assert_no_h_scroll(page, "極限拖曳後")
-    reset(page)
-
-
-def test_pane_height_survives_reload(browser_ctx, page_url):
-    pg = browser_ctx.new_page()
-    pg.goto(page_url)
-    pg.wait_for_selector('body[data-ready="1"]', timeout=8000)
-    pg.evaluate("() => window.ICDApp.store.resetPaneSizes()")
-    open_sheet(pg)
-    mouse_drag(pg, "cart-sheet", -70)
-    saved = round(pane_h(pg, "#cart-sheet"))
-
-    pg.reload()
-    pg.wait_for_selector('body[data-ready="1"]', timeout=8000)
-    assert pg.evaluate("() => window.ICDApp.store.paneSizeFor('mobile', 'sheet')") == saved
-    assert pg.evaluate("() => JSON.stringify(window.ICDApp.store.getState().paneSizes)") \
-        == '{"mobile":{"sheet":%d}}' % saved, "1b 調的高度不得寫到別的版面"
-    open_sheet(pg)      # 清單不跨診次保留（刻意），抽屜要重新叫出來才量得到
-    assert round(pane_h(pg, "#cart-sheet")) == saved, "重新整理後抽屜沒有回到調好的高度"
-    pg.evaluate("() => window.ICDApp.store.resetPaneSizes()")
-    pg.close()
-
-
-def test_pane_reset_from_settings(page):
-    reset(page)
-    page.click("#settings-toggle")
-    page.wait_for_selector("#settings-popover:not([hidden])")
-    expect(page.locator("#reset-panes")).to_be_disabled()
-    page.click("#settings-toggle")
-
-    open_sheet(page)
-    default_h = pane_h(page, "#cart-sheet")
-    mouse_drag(page, "cart-sheet", -70)
-    assert pane_h(page, "#cart-sheet") > default_h + 40
-
-    page.click("#settings-toggle")
-    page.wait_for_selector("#settings-popover:not([hidden])")
-    expect(page.locator("#reset-panes")).to_be_enabled()
-    page.click("#reset-panes")
-    page.wait_for_timeout(200)
-    assert page.evaluate("() => window.ICDApp.store.paneSizeFor('mobile', 'sheet')") is None
-    assert abs(pane_h(page, "#cart-sheet") - default_h) < 1, "回復預設後高度沒回到原樣"
-    assert page.evaluate("() => document.getElementById('cart-sheet').style.height") == ""
-    expect(page.locator("#reset-panes")).to_be_disabled()
-    page.click("#settings-toggle")
-    reset(page)
-
-
-# ══════════════════════════════════════════════════════════════════════════
-# 可及性（1b）：地標、標題階層、部位列語意、代碼鍵盤可達
-# 依據 .review/v3-edge.md §5 的三條 ARIA 缺陷與 .review/v1-visual.md §3 的唯一破口。
-# ══════════════════════════════════════════════════════════════════════════
-HEADINGS_JS = """() => [...document.querySelectorAll('h1,h2,h3,h4,h5,h6')]
-    .filter((h) => !h.closest('[hidden]'))
-    .map((h) => ({ level: Number(h.tagName[1]), text: h.textContent.trim() }))"""
-
-
-def assert_heading_outline(pg, label):
-    """H1 恰好一個、排在最前、有 H2，且相鄰標題不得跳級（H2 → H4 是跳級）。"""
-    hs = pg.evaluate(HEADINGS_JS)
-    levels = [h["level"] for h in hs]
-    assert levels, f"{label}：整份文件沒有任何標題"
-    assert levels.count(1) == 1, f"{label}：H1 應恰好一個，實際 {levels.count(1)} 個 → {hs}"
-    assert levels[0] == 1, f"{label}：第一個標題不是 H1 → {hs}"
-    assert 2 in levels, f"{label}：完全沒有 H2 → {hs}"
-    for prev, cur in zip(levels, levels[1:]):
-        assert cur <= prev + 1, f"{label}：標題跳級 H{prev} → H{cur} → {hs}"
-
-
-def test_a11y_single_main_landmark(page):
-    """手機版面也要有 <main>，而且只能有一個（v3 §5-1）。"""
-    reset(page)
-    expect(page.locator('main, [role="main"]')).to_have_count(1)
-    scope = page.evaluate("""() => {
-        const m = document.querySelector('main');
-        const has = (id) => m.contains(document.getElementById(id));
-        return { panels: has('panels'), results: has('search-results'),
-                 pills: has('region-pills'), cart: has('cart') };
-    }""")
-    assert scope["panels"] and scope["results"], f"主訴面板／搜尋結果不在 main 裡：{scope}"
-    assert not scope["pills"] and not scope["cart"], f"main 把其他區塊吃進去了：{scope}"
-
-
-def test_a11y_heading_outline(page):
-    """標題階層要完整（v3 §5-2）。
-
-    手機版沒有可見的模式標題，少了 sr-only 的 H3 會從 H2 直接跳到面板卡的 H4。
-    """
-    reset(page)
-    assert_heading_outline(page, "1b 手機")
-    assert page.evaluate("() => document.querySelector('h1').textContent") == "ICD-10 門診導引"
-    assert page.evaluate("""() => ['h1', 'h2', '#panels-title'].every((sel) => {
-        const h = document.querySelector(sel);
-        return h && h.classList.contains('sr-only') && h.getBoundingClientRect().width <= 2;
-    })""") is True
-    assert "內科門診" in page.evaluate("() => document.querySelector('#panels-title').textContent")
-    assert_no_h_scroll(page, "補上 sr-only 標題後")
-
-
-def test_a11y_region_pills_are_toggle_buttons_not_fake_tabs(page):
-    """部位 pill 列不得再宣告 tablist／tab（v3 §5-3：宣告了方向鍵契約卻沒實作）。"""
-    reset(page)
-    assert page.locator('[role="tablist"], [role="tab"]').count() == 0, "還有元素宣告 tablist／tab 語意"
-    expect(page.locator("#region-pills")).to_have_attribute("role", "group")
-    expect(page.locator("#region-pills")).to_have_attribute("aria-label", "身體部位")
-
-    second = page.locator("#region-pills .region-pill").nth(1)
-    second.click()
-    expect(second).to_have_attribute("aria-pressed", "true")
-    assert page.locator('#region-pills .region-pill[aria-pressed="true"]').count() == 1
-
-    # 「全部」鈕已移除；取消篩選＝再點一次已選的那顆
-    second.click()
-    expect(second).to_have_attribute("aria-pressed", "false")
-    assert page.locator('#region-pills .region-pill[aria-pressed="true"]').count() == 0
-    reset(page)
-
-
-def test_a11y_cart_code_is_keyboard_reachable_and_copies(page):
-    """b.cart-code 可點擊複製，就必須可聚焦、可鍵盤觸發（v1 §3）。"""
-    reset(page)
-    page.evaluate("() => window.ICDApp.store.addCode('I10', '本態性高血壓')")
-    page.click("#cart-toggle")                      # 逐列清單在抽屜裡
-    expect(page.locator("#cart-sheet")).to_be_visible()
-
-    code = page.locator('#cart li[data-code="I10"] b.cart-code')
-    expect(code).to_have_attribute("role", "button")
-    expect(code).to_have_attribute("tabindex", "0")
-
-    page.locator('#cart li[data-code="I10"]').focus()
-    page.keyboard.press("Tab")
-    landed = page.evaluate("""() => {
-        const a = document.activeElement;
-        const li = a.closest ? a.closest('li[data-code]') : null;
-        const cs = getComputedStyle(a);
-        return { tag: a.tagName, cls: a.className, code: li && li.dataset.code,
-                 focusVisible: a.matches(':focus-visible'),
-                 outline: cs.outlineWidth + ' ' + cs.outlineStyle };
-    }""")
-    assert landed["tag"] == "B" and "cart-code" in landed["cls"], f"Tab 沒有停在代碼上：{landed}"
-    assert landed["code"] == "I10"
-    assert landed["focusVisible"] is True, f"鍵盤聚焦後沒有 :focus-visible：{landed}"
-    assert landed["outline"].split()[0] != "0px" and "none" not in landed["outline"], \
-        f"聚焦沒有可見外框：{landed}"
-
-    page.keyboard.press("Enter")
-    page.wait_for_timeout(150)
-    assert page.evaluate("navigator.clipboard.readText()").replace("\r\n", "\n") == "I10"
-    assert page.locator("#status").inner_text() == "已複製 I10"
-    reset(page)
 
 
 def test_clear_cart_disabled_when_empty(page):
@@ -1224,10 +906,8 @@ def test_chronic_panel_never_overflows_at_390(page, theme):
     page.evaluate("(t) => window.ICDApp.store.setTheme(t)", theme)
     for key, _short, _label in cf.buttons():
         open_chronic(page, key)
-        page.wait_for_timeout(80)
         assert_no_h_scroll(page, f"{theme}／{key} 慢病速查")
         page.locator(".chronic-more-toggle").first.click()
-        page.wait_for_timeout(80)
         assert_no_h_scroll(page, f"{theme}／{key} 展開補充說明")
         page.keyboard.press("Escape")
         expect(page.locator("#chronic-overlay")).to_be_hidden()

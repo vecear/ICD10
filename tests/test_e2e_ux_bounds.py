@@ -17,7 +17,8 @@
 from pathlib import Path
 
 import pytest
-from playwright.sync_api import sync_playwright
+
+import e2e_common as ec
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -136,14 +137,6 @@ SCAN = r"""({scope, touch}) => {
 }"""
 
 
-@pytest.fixture(scope="module")
-def browser():
-    with sync_playwright() as p:
-        b = p.chromium.launch()
-        yield b
-        b.close()
-
-
 def _open(browser, layout):
     ctx = browser.new_context(permissions=["clipboard-read", "clipboard-write"], **LAYOUTS[layout])
     pg = ctx.new_page()
@@ -165,13 +158,12 @@ def test_hard_bounds(browser, layout, name, open_fn, scope):
     ctx, pg = _open(browser, layout)
     try:
         open_fn(pg)
-        pg.wait_for_timeout(300)
+        ec.next_frames(pg)      # 側掛的 fitDockRows 由 ResizeObserver 在影格裡觸發
         results = []
         if name == "chronic":
             # 每個主題分頁各掃一次：9px 徽章當初只出現在 LIPID 分頁
             for i in range(pg.locator("[id^=chronic-tab-]").count()):
                 pg.locator("[id^=chronic-tab-]").nth(i).click()
-                pg.wait_for_timeout(150)
                 results.append(pg.evaluate(SCAN, {"scope": scope, "touch": layout == "mobile"}))
         else:
             results.append(pg.evaluate(SCAN, {"scope": scope, "touch": layout == "mobile"}))
