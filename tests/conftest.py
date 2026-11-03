@@ -19,7 +19,8 @@ import sys
 from pathlib import Path
 
 import pytest
-from playwright.sync_api import sync_playwright
+# playwright 在用到時才匯入：CI 的「Python tests (non-E2E)」job 刻意不裝它，
+# conftest 若在檔頭就 import，整個非 E2E 測試集會在收集階段直接 ImportError。
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -52,6 +53,7 @@ class _SharedChromium:
     def get(self):
         if self._browser is None or not self._browser.is_connected():
             self.stop()
+            from playwright.sync_api import sync_playwright  # 延遲匯入，理由見檔頭
             self._pw = sync_playwright().start()
             self._browser = self._pw.chromium.launch()
         return self._browser
