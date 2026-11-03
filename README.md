@@ -356,34 +356,58 @@ python build/convert.py       # 轉 data/codes.min.json 與來源 metadata
 python build/build.py         # 組裝 dist/icd10.html（內嵌字型與資料，assert_offline 守門）
 python build/inventory.py     # 產生 docs/clinical-content-inventory.md（臨床內容驗收清單）
 
+python build/shrink_pdf.py 疫苗/<新教材>.pdf   # 新增使用者自己的教材 PDF 時先跑：無損瘦身
+
 python -m pytest -q           # Python 測試：資料完整性／精選碼／建置／三套版面 E2E
-node --test tests/logic.test.mjs tests/state.test.mjs tests/data.test.mjs   # 純邏輯單元測試
+for f in tests/*.test.mjs; do node "$f" || break; done   # 純邏輯單元測試（13 檔，逐檔執行）
 ```
 
 `tests/conftest.py` 會在測試開始前自動跑一次 `build/build.py`，所以改完 `src/` 直接跑
 pytest 即可，測到的一定是最新的 dist。
+
+- 單元測試逐檔用 `node` 跑，不要用 `node --test`：在 Windows 前景執行會卡住不返回。
+- Windows 上若 `python` 不是裝了上述套件的那一版，改用 `py -3.14 -m pytest -q` 或寫完整路徑
+  （例如 `C:/Python314/python.exe -m pytest -q`）。
+- 新增 PDF 到 `疫苗/` 時，使用者自己的教材先跑 `build/shrink_pdf.py`（字型子集化，逐頁文字
+  自檢通過才覆寫），再把它印出的 sha256 填進 `vaccine_guide.json`。疾管署／健保署的官方檔不要跑：
+  SHA-256 登記的意義是「與官方檔位元組相同」。
 
 原始碼在 `src/`，由 `build/build.py` 依序串成單一 HTML：
 
 | 檔案 | 職責 |
 | --- | --- |
 | `logic.js` | 純函式核心（搜尋、格式化、葉碼判斷），無 DOM |
+| `renal-dosing.js` | 抗菌藥腎劑量的純邏輯（`window.ICDRenal`），無 DOM |
+| `vaccine.js` | 疫苗速查的純搜尋與文字輸出，不推算個人接種資格，無 DOM |
+| `antimicrobial.js` | 抗微生物給付的純搜尋、有效期間判斷與條文文字輸出，無 DOM |
+| `date-calculator.js` | 日曆日期加減（起算日為第 0 天，UTC 運算），無 DOM |
+| `clipboard-format.js` | 剪貼簿純文字範本，不執行範本中的程式或 HTML，無 DOM |
 | `state.js` | 單一 store：狀態、action、localStorage 持久化 |
 | `data.js` | 精選內容與全庫索引的存取層、延遲載入 |
+| `resize.js` | 窗格高度手動調整（三套版面共用的分隔條） |
+| `render-renal.js` | 腎功能劑量 UI，掛在 CCr 下方 |
+| `clipboard-settings.js` | 設定內的剪貼簿編輯頁 |
 | `clinical-format.js` | 兩個計算機的純文字整形（病歷段落、剪貼簿欄位），無 DOM |
 | `render-dom.js` | 零業務邏輯的 DOM 工具（圖示、element 工廠、chip、部位短名） |
 | `render-common.js` | 三套版面共用的區塊更新（結果、清單、常用列、HIS、通知列、返回） |
 | `render-settings.js` | 設定 popover、版面切換、看診模式、日期鈕 |
 | `render-chronic.js` | 慢病速查（DM／HTN／LIPID）整套 |
 | `render-ccr.js` / `render-lipid.js` | 兩個計算機的浮層與結果渲染 |
+| `render-vaccine.js` | VAC 疫苗速查浮層（三套版面共用） |
+| `render-antimicrobial.js` | 抗微生物給付浮層（三套版面共用） |
+| `render-date.js` | 日期計算器浮層（三套版面共用，輸入只留在本次頁面） |
 | `render-wide.js` / `render-dock.js` / `render-mobile.js` | 三種版面各自的骨架與更新對照表 |
 | `interactions.js` | document 層事件委派（版面重建也不會漏解事件） |
 | `app.js` | 啟動、依視窗寬度決定生效版面、把狀態變動轉成區塊重繪 |
-| `styles/` | `industry`（設計系統）→ `app`（共用元件）→ `wide` / `dock` / `mobile` |
+| `styles/` | 串接順序（`build.py` 的 `STYLESHEETS`）：`industry`（設計系統）→ `app`（共用元件）→ `wide` / `dock` / `mobile` → `renal` → `vaccine` → `antimicrobial` → `date-calculator` |
+| `styles/renal.css` | 腎劑量元件，跟隨既有主題 |
+| `styles/vaccine.css` | VAC 入口鈕與浮層 |
+| `styles/antimicrobial.css` | 抗微生物給付入口鈕與浮層 |
+| `styles/date-calculator.css` | 日期計算器入口鈕與浮層 |
 | `curated/` | 人工整理的面板、快選與相關碼 JSON |
 | `curated/chronic_care.json` | 健保規範條文的給付規定與治療目標（**不含 ICD 代碼**，維護方式見 [docs/maintaining-content.md](docs/maintaining-content.md)）；`docs[]` 指向 `健保條文/` 的官方 PDF |
 
-**開發依賴**：Python 3.8+、Node.js 18+、`pip install openpyxl pytest playwright pymupdf`（PyMuPDF 用於疫苗 PDF 引用測試），另需執行
+**開發依賴**：Python（已在 3.14 驗證）、Node.js 18+、`pip install openpyxl pytest playwright pymupdf`（PyMuPDF 用於疫苗 PDF 引用測試），另需執行
 `python -m playwright install chromium` 安裝 E2E 使用的瀏覽器。
 
 官方條文 PDF 與慢病速查內容（`chronic_care.json`）的維護方式、欄位說明與建置失敗規則，

@@ -29,8 +29,31 @@ jobs:
         with:
           path: _site
 
+  # 資料完整性、臨床不變量、建置、打包閘門與純邏輯單元測試。全部是決定性的：
+  # 紅了代表內容真的錯，所以擋住部署（J4）。診間交付走 zip，不受這裡影響。
+  # 不跑 E2E：headless 下 PiP 測試會整批 skip，毫秒閾值在共用 runner 上會假紅。
+  # 本機（Windows）與 Python 3.12 venv 都用同一組指令實跑過；沒有測試需要連網或本機路徑
+  # （test_fetch_data.py 把 curl 換成假的，test_dev_tools.py 的輸出導到 tmp），所以不另外排除。
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - name: Install test dependencies
+        run: pip install pytest openpyxl pymupdf
+      - name: Python tests (non-E2E)
+        run: python -m pytest -q --ignore=tests/e2e_test.py --ignore-glob='tests/test_e2e_*.py'
+      - name: Node unit tests
+        run: for f in tests/*.test.mjs; do node "$f" || exit 1; done
+
   deploy:
-    needs: build
+    needs: [build, test]
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:

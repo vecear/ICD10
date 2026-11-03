@@ -47,8 +47,11 @@ python build/build.py && python tools/pack_for_clinic.py
 
 ```bash
 python -m pytest -q          # 含三套版面的 E2E
-node --test tests/*.test.mjs # 純邏輯單元測試
+for f in tests/*.test.mjs; do node "$f" || break; done   # 純邏輯單元測試（不要用 node --test，Windows 前景會卡住）
 ```
+
+Windows 上若 `python` 不是裝了套件的那一版，用 `py -3.14 -m pytest -q` 或完整路徑
+（如 `C:/Python314/python.exe`）。
 
 UI 改動一律要實跑驗證過才算完成（專案慣例，見 `docs/`）。
 資料改動另有臨床不變量測試（`tests/test_clinical_invariants.py`），
