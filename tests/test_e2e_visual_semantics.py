@@ -53,6 +53,7 @@ WIDE_HEADER_CONTROLS = (
     "#ccr-btn",
     "#vac-btn",
     "#am-btn",
+    "#date-calc-btn",
     "#search",
     "#go-dock",
     "#settings-toggle",
